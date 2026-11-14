@@ -64,7 +64,19 @@ Noted while building the browser part; none matters while the game is local and 
 - **A published build** has no solution file to anchor relative paths, so the content and database paths must be set.
 - **The pack warning** prints the pack's id and version to the player.
 
-## Carried forward to the content editor
+## Carried forward from the content editor
+
+From its final review; none blocks play.
+
+- **Two tabs on one item:** the second save wins silently, and so does a save over a hand edit made after the form was opened. A hidden hash of the item as opened would let the save refuse.
+- **A legacy does not notice content edits** unless the pack's version is raised by hand; the warning compares id and version only.
+- **A new content kind touches about ten places** (the loader, the core record, the reader, the writer, the faithfulness tables, the index, the form, and the names). One descriptor per kind would cut the web side to two.
+- **Long authored text** (slice 1d) needs a block form in the writer, new keys in the faithfulness tables, and a text area field in the forms.
+- **The log's parts** (a name or text) are the seam for the grammar engine; it will want the id and kind in a part, not only the resolved string, and the abort call needs a name source.
+- **Crew generation** will need a kind that spans files, or saves of more than one file.
+- **For hosting:** developer mode must never be on in a hosted game, and start-up should refuse developer mode on a bind that is not loopback; the game's own posts have no origin check; request sizes are not limited outside the editor's text pages.
+
+## Carried forward to the content editor (as planned)
 
 **Direction from the author (2026-11-14):** crew will be generated from authored sources (species, cultures, life paths, and name generators), not written one by one. Keep the crew form small: it names the eight starters and nothing more. Forms worth investing in are the ones for sources. Design the grammar engine in slice 1d so that name generators can use it.
 
