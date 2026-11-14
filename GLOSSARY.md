@@ -133,6 +133,13 @@ _Avoid_: Event (reserved for the technical bus), room, node
 A graded test of an away team's skills, gear, and traits against an encounter's difficulty.
 _Avoid_: Roll
 
+**Approach**:
+One of the two ways an away team can attempt a check: careful or fast. The team lead chooses.
+
+**Tier**:
+The graded result of a check: critical, success, partial, failure, or disaster.
+_Avoid_: Grade, degree of success
+
 **Momentum**:
 The running advantage a team carries forward from good outcomes within a mission.
 
@@ -158,6 +165,14 @@ One recorded moment of a mission or storylet, the raw material for narrative tex
 
 **Report**:
 The narrative account of a finished mission, generated from its beats.
+
+**Tuning file**:
+The one file in the content pack that holds every number the mission resolver uses. A mission keeps the tuning it started with.
+_Avoid_: Config, settings, balance file
+
+**Mission bench**:
+The developer tool that runs one mission many times and reports how it tends to go. It never touches a legacy.
+_Avoid_: Simulator (that plays whole cycles), test harness
 
 ### Life aboard
 

@@ -294,7 +294,7 @@ A mission in flight is a small serialisable record: the drawn encounter list, a 
 
 For each encounter:
 
-1. **Pick the approach.** The team lead chooses from the approaches the team's gear allows. Operational parameters and the lead's personality weight the choice (a cautious lead under "low risk" picks `careful`).
+1. **Pick the approach.** The team lead chooses from the approaches the team's gear allows. Operational parameters and the lead's personality weight the choice (a cautious lead under "low risk" picks `careful`). In the resolver the lead goes careful when caution minus risk tolerance is zero or more.
 2. **Pick the actor.** The crew member with the best relevant skill acts, unless the parameters say "develop juniors". Then the lowest-skilled eligible member acts under the best member's supervision, but only when the check is within reach: an expected margin of −2 or better on an average roll. Otherwise the best acts as usual.
 3. **Compute the score.** `actor skill + assist + gear + traits + momentum − strain − injuries`. The assist is half the second-best skill, rounded down; a supervising senior under "develop juniors" assists at their skill minus 1.
 4. **Roll.** Score plus 2d6 against `difficulty + 7`. The margin gives a tier: critical (+5 or more), success (0 to +4), partial (−1 to −3), failure (−4 to −7), or disaster (−8 or less).
@@ -309,10 +309,11 @@ Momentum and strain are the "dungeon" memory. Both carry between encounters and 
 - Momentum can skip a stage (`skipIf`), and adds to checks.
 - Strain subtracts from checks. A success or critical removes one strain.
 - At strain 4 the abort decision is always a call, whatever the lead is like, unless comms are blocked. At strain 5 the mission collapses: one member takes a severe injury roll and the rest take light rolls.
+- The collapse is checked after the encounter's decision, so a call at the strain cap can still pull the team out by withdrawing. This is the order the prototype played in. Checking first would cost weak teams under a lead who calls (an average lead with a rookie team: 21% lost becomes 28%); it is one condition in the resolver.
 - The fast approach is authored at +1 difficulty over the careful one, and earns momentum on success.
 - Disasters can chain a follow-on encounter that was not in the original draw.
 
-A mission ends in one of four results: full success, partial success, withdrawal, or loss. Loss with a severe injury roll is where death comes from.
+A mission ends in one of four results: full success, partial success, withdrawal, or loss. Death comes only from a failed severe injury roll: on a disaster, on a bold option that risks one, or in a collapse.
 
 ### 4.4 Decisions: call or notice
 
@@ -364,6 +365,7 @@ The numbers in this section were set on the throwaway prototype's bench (2,000 m
 - In developer mode the file reloads without a restart, and a tuning page edits it and re-runs the mission bench on the same seeds, showing before and after side by side.
 - A running mission keeps the tuning it started with, so a legacy stays deterministic.
 - Known and accepted: a reckless lead still loses about 13% of missions at about 3.7 deaths per 100 crew-missions. That is the price of sending them.
+- Built in Phase 1 (slices 1a and 1b): the tuning file is `content/tuning/missions.yaml`, and `SimRunner bench --objective ID --compare FILE` runs the same seeds under the pack's tuning and under `FILE`. On the benchmark crew (10,000 missions per briefing) the C# resolver gives calls per mission of 3.1, 2.5, and 1.3 for a cautious lead across the three autonomy settings, 2.5, 1.3, and 0.6 for an average one, and 0.7, 0.2, and 0.2 for a reckless one. "Develop juniors" gives 50% full success against 58% for best qualified. A reckless lead loses about 17% of missions at about 3.6 deaths per 100 crew-missions (the prototype gave 13% and 3.7: skips now belong to a stage, not an encounter, and the dice differ).
 
 Bench results for "develop juniors" on a mid-rank team: full success 48% against 56% for best qualified, with junior experience doubled and the senior's roughly halved.
 

@@ -44,6 +44,7 @@ Settled by grilling and review on 2026-11-13 (no tickets; detail lives in `docs/
 - Mission feel: a hands-off mission with calls and notices does not feel passive. Parker played the throwaway prototype on 2026-11-13 and loved it. Prototype: `C:\Users\parker00\Dropbox\Work\f-prototype\mission-feel-prototype.html` (also a private artifact).
 - Mission numbers: six fixes benched on the prototype's resolver and accepted on 2026-11-13 (abort is always a call, fast is +1 difficulty, softer collapse, strain relief on success, "develop juniors" within reach under supervision, and halved personality weight in the call rule). Numbers live in a tuning file, reloadable in developer mode; Parker cares more about tweaking in play than about the starting values. Detail in GDD sections 4.2 to 4.7.
 - Build plan: Phase 0 was planned in `docs/plans/2026-11-13-phase-0-skeleton.md` and built on 2026-11-13 (39 tests; `./check.sh` is the gate). Events store enums by name; exports carry a format version. Phase 1 is cut into six slices in `docs/plans/phase-1-outline.md`; each slice is planned in detail just before it is built.
+- Phase 1, slices 1a and 1b: the mission resolver and command-line bench are built. Module state will be one JSON row per module per legacy (built in 1c). Design in `docs/plans/2026-11-14-phase-1ab-design.md`.
 
 ## Not yet specified
 

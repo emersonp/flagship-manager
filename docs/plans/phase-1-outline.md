@@ -15,6 +15,8 @@ Order matters: the mission comes first because it is proven fun (the prototype),
 | 1e. Life aboard | `Sim.Storylets` with the expression language and quality view; morale; 5 vignettes and 2 captain storylets; captain's time; the inbox and crew file; `Sim.Chronicle` with the chronicle list | A full cycle of both layers in the browser (the Phase 1 result) | 3.7, 3.8, 5.1, 5.2, 5.4 |
 | 1f. Tuning in play | Developer-mode pages: the mission bench in the browser, and the tuning page that edits the tuning file and re-runs the bench on the same seeds, before and after side by side | The author tunes without leaving the game | 4.7, 10.1 |
 
+Slices 1a and 1b were built on 2026-11-14 from `2026-11-14-phase-1ab-plan.md`. Next is 1c.
+
 ## Decisions each slice plan must make first
 
 Slices 1a and 1b are designed in `2026-11-14-phase-1ab-design.md`, which settles their two entries below and where module state lives (one JSON row per module per legacy, built in 1c).
