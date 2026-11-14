@@ -6,13 +6,19 @@ using SimRunner;
 namespace Web.Tests;
 
 // Plays a legacy through the web requests: reads it as the web layer does, asks the automatic captain, posts the equivalent request.
-internal sealed class WebCaptain(TestApp app, HttpClient client, Guid id)
+internal sealed class WebCaptain(TestApp app, HttpClient client, Guid id, Func<LegacyState, ICommand?>? choose = null)
 {
+    // What the captain would send now, after any test override.
+    public async Task<ICommand> Peek()
+    {
+        LoadedLegacy legacy = (await app.Sessions.Read(id))!;
+        return choose?.Invoke(legacy.State) ?? AutoCaptain.NextCommand(app.Game.Game, legacy.State, app.Game.Pack);
+    }
+
     // Returns the route posted and the stream it answered with.
     public async Task<(string Route, string Stream)> Step()
     {
-        LoadedLegacy legacy = (await app.Sessions.Read(id))!;
-        ICommand command = AutoCaptain.NextCommand(app.Game.Game, legacy.State, app.Game.Pack);
+        ICommand command = await Peek();
         switch (command)
         {
             case AssignTeam team:

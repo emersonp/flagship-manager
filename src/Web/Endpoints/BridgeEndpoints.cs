@@ -1,4 +1,5 @@
 using System.Globalization;
+using Microsoft.AspNetCore.Components;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Primitives;
 using Persistence;
@@ -79,7 +80,7 @@ public static class BridgeEndpoints
     // Commits first, then plays this request's new beats one at a time; the view before the commit rides along so the
     // opening patches and the held-back parts do not give the result away.
     private static async Task<IResult> SendPaced<TRefusal>(string id, GameServices game, LegacySession sessions, Render render, int beatDelayMs, Action<LoadedLegacy> commands, CancellationToken cancellation)
-        where TRefusal : Microsoft.AspNetCore.Components.IComponent
+        where TRefusal : IComponent
     {
         if (!Guid.TryParse(id, out Guid legacyId))
         {
@@ -98,6 +99,16 @@ public static class BridgeEndpoints
         }
         catch (CommandRejectedException rejected)
         {
+            // Nothing on the page to patch the refusal into once the call is gone: show the current screen instead.
+            if (typeof(TRefusal) == typeof(CallRefusal) && await sessions.Read(legacyId, cancellation) is { } current)
+            {
+                BridgeView corrected = View(game, current);
+                if (corrected.Mission?.Call is null)
+                {
+                    return await Patches(render, legacyId, corrected, rejected.Message);
+                }
+            }
+
             string refusal = await render.Html<TRefusal>(new Dictionary<string, object?> { ["Reason"] = rejected.Message });
             return new StreamResult(async response =>
             {
@@ -140,6 +151,7 @@ public static class BridgeEndpoints
                 await Sse.PatchElements(response, roster);
                 foreach (string log in logs)
                 {
+                    cancellation.ThrowIfCancellationRequested();
                     if (beatDelayMs > 0)
                     {
                         await Task.Delay(beatDelayMs, cancellation);
@@ -158,6 +170,19 @@ public static class BridgeEndpoints
             {
                 // The client has gone; everything is already stored and the next GET shows it all.
             }
+        });
+    }
+
+    private static async Task<IResult> Patches(Render render, Guid legacyId, BridgeView view, string? reason)
+    {
+        string topBar = await render.Html<TopBar>(new Dictionary<string, object?> { ["Bar"] = view.TopBar });
+        string main = await render.Html<MainScreen>(new Dictionary<string, object?> { ["LegacyId"] = legacyId, ["View"] = view, ["Reason"] = reason });
+        string roster = await render.Html<Roster>(new Dictionary<string, object?> { ["Rows"] = view.Roster });
+        return new StreamResult(async response =>
+        {
+            await Sse.PatchElements(response, topBar);
+            await Sse.PatchElements(response, main);
+            await Sse.PatchElements(response, roster);
         });
     }
 

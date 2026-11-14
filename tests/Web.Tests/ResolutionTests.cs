@@ -1,5 +1,6 @@
 using System.Net;
 using System.Text.RegularExpressions;
+using Microsoft.Extensions.Logging;
 using Sim.Core;
 using Sim.Missions;
 
@@ -78,6 +79,11 @@ public sealed class ResolutionTests : IDisposable
         throw new InvalidOperationException("No seed to 200 left a call waiting.");
     }
 
+    private static string RosterOf(string page)
+    {
+        return Regex.Match(page, "<aside id=\"roster\">.*?</aside>", RegexOptions.Singleline).Value;
+    }
+
     private async Task<string> Page(Guid id)
     {
         return await client.GetStringAsync($"/legacy/{id}");
@@ -104,7 +110,7 @@ public sealed class ResolutionTests : IDisposable
         Assert.Contains("<ol id=\"log\"", patches[1]);
         Assert.DoesNotContain("<form", patches[1]);
         Assert.DoesNotContain("To aftermath", patches[1]);
-        List<string> logs = LogPatches(stream).Skip(0).ToList();
+        List<string> logs = LogPatches(stream);
         int stored = StoredBeatIndexes(id).Count;
         Assert.Equal(stored, logs.Count);
         for (int i = 0; i < logs.Count; i++)
@@ -331,6 +337,124 @@ public sealed class ResolutionTests : IDisposable
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
+    // The opening roster must be the one on screen before the request, or the injuries give the ending away.
+    [Fact]
+    public async Task An_answer_that_ends_the_mission_opens_with_the_old_roster_and_closes_with_the_new_one()
+    {
+        for (ulong seed = 1; seed < 200; seed++)
+        {
+            Guid id = await app.Sessions.CreateLegacy($"LEGACY_{seed}", seed);
+            var captain = new WebCaptain(app, client, id);
+            for (int steps = 0; steps < 300 && (await captain.Read()).State.Cycle == 1; steps++)
+            {
+                bool answering = await captain.Peek() is AnswerCall;
+                string before = RosterOf(await Page(id));
+                List<string> patches = Patches((await captain.Step()).Stream);
+                if (answering && patches[2] != patches[^1])
+                {
+                    Assert.StartsWith("<aside id=\"roster\"", patches[2]);
+                    Assert.Equal(before, patches[2]);
+                    Assert.StartsWith("<aside id=\"roster\"", patches[^1]);
+                    return;
+                }
+            }
+        }
+
+        Assert.Fail("No seed to 200 had an answer that changed the roster.");
+    }
+
+    [Fact]
+    public async Task A_launch_opens_with_no_momentum_strain_call_form_or_aftermath_button()
+    {
+        (_, _, string stream) = await LaunchedWithCall();
+
+        string main = Patches(stream)[1];
+
+        Assert.DoesNotContain("Momentum", main);
+        Assert.DoesNotContain("Strain", main);
+        Assert.DoesNotContain("<form", main);
+        Assert.DoesNotContain("To aftermath", main);
+    }
+
+    [Fact]
+    public async Task A_launch_that_runs_to_the_end_opens_with_the_old_roster_and_shows_the_result_only_in_the_last_beat()
+    {
+        for (ulong seed = 1; seed < 200; seed++)
+        {
+            Guid id = await app.Sessions.CreateLegacy($"LEGACY_{seed}", seed);
+            var captain = new WebCaptain(app, client, id);
+            for (int steps = 0; steps < 300 && (await captain.Read()).State.Cycle == 1; steps++)
+            {
+                bool launching = await captain.Peek() is AssignTeam;
+                string before = RosterOf(await Page(id));
+                string stream = (await captain.Step()).Stream;
+                List<string> patches = Patches(stream);
+                List<string> logs = LogPatches(stream);
+                if (!launching || logs.Count == 0 || !logs[^1].Contains("Result:") || patches[2] == patches[^1])
+                {
+                    continue;
+                }
+
+                Assert.Equal(before, patches[2]);
+                Assert.DoesNotContain("Result:", patches[1]);
+                Assert.DoesNotContain("To aftermath", patches[1]);
+                Assert.DoesNotContain("Result:", string.Join("\n", logs.Take(logs.Count - 1)));
+                Assert.Contains("To aftermath", string.Join("\n", patches.Skip(3 + logs.Count)));
+                return;
+            }
+        }
+
+        Assert.Fail("No seed to 200 had a launch that ended with no call and changed the roster.");
+    }
+
+    [Fact]
+    public async Task A_refused_answer_with_a_call_waiting_patches_only_the_call_refusal()
+    {
+        (Guid id, WebCaptain captain, _) = await LaunchedWithCall();
+        (string mission, _, string option) = await CallFields(id);
+
+        List<string> patches = Patches(await captain.Post("answer", [new("mission", mission), new("call", "nope"), new("answer", option)]));
+
+        Assert.Single(patches);
+        Assert.StartsWith("<p id=\"call-refusal\"", patches[0]);
+    }
+
+    [Fact]
+    public async Task A_refused_answer_with_no_call_waiting_corrects_the_page_with_the_three_ordinary_patches()
+    {
+        (Guid id, WebCaptain captain, _) = await LaunchedWithCall();
+        while (Pending(await captain.Read()))
+        {
+            await captain.Step();
+        }
+
+        int stored = app.Game.Store.ReadEvents(id).Count;
+        List<string> patches = Patches(await captain.Post("answer", [new("mission", "m"), new("call", "c"), new("answer", "Bold")]));
+
+        Assert.Equal(3, patches.Count);
+        Assert.StartsWith("<header id=\"topbar\"", patches[0]);
+        Assert.StartsWith("<main id=\"main\"", patches[1]);
+        Assert.StartsWith("<aside id=\"roster\"", patches[2]);
+        Assert.Contains("To aftermath", patches[1]);
+        Assert.Contains("No mission is waiting for an answer.", patches[1]);
+        Assert.Equal(stored, app.Game.Store.ReadEvents(id).Count);
+    }
+
+    [Fact]
+    public async Task A_refused_answer_after_the_phase_has_moved_on_shows_the_aftermath()
+    {
+        (Guid id, WebCaptain captain, _) = await LaunchedWithCall();
+        while ((await captain.Read()).State.Phase != CyclePhase.Aftermath)
+        {
+            await captain.Step();
+        }
+
+        List<string> patches = Patches(await captain.Post("answer", [new("mission", "m"), new("call", "c"), new("answer", "Bold")]));
+
+        Assert.Equal(3, patches.Count);
+        Assert.Contains("Next cycle", patches[1]);
+    }
+
     // The commit happens before the first byte, so a client that leaves mid-stream loses nothing.
     [Fact]
     public async Task An_aborted_stream_leaves_the_legacy_readable_and_complete()
@@ -357,6 +481,16 @@ public sealed class ResolutionTests : IDisposable
         response.Dispose();
         cts.Cancel();
 
+        // The endpoint ends well inside the 5000 ms delay it was waiting on, and says nothing about it.
+        var finished = false;
+        for (int waited = 0; waited < 2000 && !finished; waited += 50)
+        {
+            finished = slow.Logs.Entries.Any(e => e.Message.Contains("Request finished") && e.Message.Contains("/launch"));
+            await Task.Delay(50);
+        }
+
+        Assert.True(finished, "The launch request did not end after the client left.");
+        Assert.DoesNotContain(slow.Logs.Entries, e => e.Level >= LogLevel.Error);
         string page = await slowClient.GetStringAsync($"/legacy/{id}");
         IReadOnlyList<int> indexes = StoredBeatIndexes(slow, id);
         Assert.NotEmpty(indexes);
