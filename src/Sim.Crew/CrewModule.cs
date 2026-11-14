@@ -17,16 +17,16 @@ public sealed record CrewRecovered(string CrewId) : IEvent;
 
 public static class CrewModule
 {
-    private const string ModuleName = "crew";
+    public const string Name = "crew";
 
     private const int SubscriberOrder = 100;
 
     public static void Register(EventBus bus, ContentPack pack)
     {
         CrewTuning tuning = pack.CrewTuning;
-        bus.Module<CrewState>(ModuleName);
+        bus.Module<CrewState>(Name);
         // The factory reads the state on every call: the state may not exist until founding.
-        bus.Provide<IRosterView>(state => new RosterView(state.Module<CrewState>(ModuleName)));
+        bus.Provide<IRosterView>(state => new RosterView(state.Module<CrewState>(Name)));
         bus.Subscribe<LegacyFounded>(SubscriberOrder, "crew-found", (_, context) => OnFounded(pack, context));
         bus.Subscribe<MissionEnded>(SubscriberOrder, "crew-mission-ended", (e, context) => OnMissionEnded(tuning, e, context));
         bus.Subscribe<WeekAdvanced>(SubscriberOrder, "crew-week", (e, context) => OnWeekAdvanced(e, context));

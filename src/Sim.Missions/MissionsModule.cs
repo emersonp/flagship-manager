@@ -21,20 +21,20 @@ public sealed record ObjectiveUnattended(string ObjectiveId, string TemplateId, 
 
 public static class MissionsModule
 {
-    private const string ModuleName = "missions";
+    public const string Name = "missions";
 
     // After crew, so the roster is current when a site is drawn or a mission ends.
     private const int Order = 200;
 
     public static void Register(EventBus bus, ContentPack pack)
     {
-        bus.Module<MissionsState>(ModuleName);
-        bus.Guard<AssignTeam>(Order, ModuleName, (command, context) => CheckAssign(pack, command, context));
-        bus.Guard<AnswerCall>(Order, ModuleName, (command, context) => CheckAnswer(command, context));
-        bus.Guard<AdvancePhase>(Order, ModuleName, (_, context) => IsWaiting(context) ? "A call is waiting for an answer." : null);
+        bus.Module<MissionsState>(Name);
+        bus.Guard<AssignTeam>(Order, Name, (command, context) => CheckAssign(pack, command, context));
+        bus.Guard<AnswerCall>(Order, Name, (command, context) => CheckAnswer(command, context));
+        bus.Guard<AdvancePhase>(Order, Name, (_, context) => IsWaiting(context) ? "A call is waiting for an answer." : null);
         bus.Handle<AssignTeam>(OnAssign);
         bus.Handle<AnswerCall>(OnAnswer);
-        bus.Subscribe<PhaseEntered>(Order, ModuleName, (e, context) => OnPhase(pack, e, context));
+        bus.Subscribe<PhaseEntered>(Order, Name, (e, context) => OnPhase(pack, e, context));
     }
 
     private static bool IsWaiting(IBusContext context)

@@ -1,3 +1,5 @@
+using System.Diagnostics.CodeAnalysis;
+
 namespace Sim.Core;
 
 public enum CyclePhase
@@ -31,6 +33,21 @@ public sealed class LegacyState
 
     // Set while guards and view factories run: reads then return a detached empty state instead of inserting one.
     internal bool ReadOnlyModules;
+
+    // A read that never inserts: a legacy that has not been founded has no module states yet.
+    public bool TryModule<TState>(string name, [NotNullWhen(true)] out TState? state)
+        where TState : class
+    {
+        if (!Modules.TryGetValue(name, out object? existing))
+        {
+            state = null;
+            return false;
+        }
+
+        state = existing as TState
+            ?? throw new InvalidOperationException($"Module '{name}' holds {existing.GetType().Name}, not {typeof(TState).Name}.");
+        return true;
+    }
 
     public TState Module<TState>(string name)
         where TState : class, new()

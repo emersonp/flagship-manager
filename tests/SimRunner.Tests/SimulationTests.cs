@@ -83,12 +83,65 @@ public class SimulationTests
         SimSummary summary = Simulation.Run(new SimOptions(Legacies: 3, Cycles: 20, Seed: 1), Pack);
 
         Assert.Equal(new ulong[] { 1, 2, 3 }, summary.Legacies.Select(l => l.Seed));
+        int levelsGained = 0;
         Assert.All(summary.Legacies, l =>
         {
             Assert.True(l.Missions.Values.Sum() > 0);
             Assert.Equal(8, l.Alive + l.Deaths);
-            Assert.True(l.HighestLevel >= 1);
+            List<PublishedEvent> events = Play(Pack, l.Seed, 20).Events;
+            Assert.Equal(events.Count(e => e.Event is MissionStarted), l.Missions.Values.Sum());
+            levelsGained += events.Count(e => e.Event is SkillRaised);
         });
+        Assert.True(levelsGained > 0, "No legacy gained a level.");
+    }
+
+    private static (Game Game, LegacyState State, List<PublishedEvent> Events) Play(ContentPack pack, ulong seed, int cycles)
+    {
+        Game game = Game.Build(pack);
+        LegacyState state = TestPack.NewLegacy(seed);
+        var events = new List<PublishedEvent>();
+        while (state.Cycle <= cycles)
+        {
+            events.AddRange(AutoCaptain.PlayCycle(game, state, pack));
+        }
+
+        return (game, state, events);
+    }
+
+    // With a 1d20 check, disasters are common enough to see a death inside a short run.
+    [Fact]
+    public void A_death_in_a_cycle_run_is_published_once_and_ends_that_crew_members_missions()
+    {
+        ContentPack wide = Pack with { Tuning = Pack.Tuning with { CheckDice = new DiceDef(1, 20) } };
+        int deaths = 0;
+        for (ulong seed = 1; seed <= 4; seed++)
+        {
+            (Game game, LegacyState state, List<PublishedEvent> events) = Play(wide, seed, 15);
+
+            var diedInResults = events.Select(e => e.Event).OfType<MissionEnded>()
+                .SelectMany(m => m.Result.Crew.Where(c => c.Status == MemberStatus.Dead).Select(c => (c.Id, m.MissionId)))
+                .ToList();
+            var died = events.Select(e => e.Event).OfType<CrewDied>().Select(d => (d.CrewId, d.MissionId)).ToList();
+            Assert.Equal(diedInResults, died);
+            Assert.Equal(8, game.Bus.View<IRosterView>(state).Roster.Count + died.Count);
+            var dead = new HashSet<string>();
+            foreach (IEvent e in events.Select(e => e.Event))
+            {
+                if (e is CrewDied d)
+                {
+                    dead.Add(d.CrewId);
+                }
+
+                if (e is TeamAssigned assigned)
+                {
+                    Assert.DoesNotContain(assigned.CrewIds, dead.Contains);
+                }
+            }
+
+            deaths += died.Count;
+        }
+
+        Assert.True(deaths > 0, "No death in the run; choose other legacies.");
     }
 
     // Golden seed: this hash changes only when behaviour changes. If the change is intended, update it in the same commit and say why.

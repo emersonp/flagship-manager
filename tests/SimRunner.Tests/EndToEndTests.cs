@@ -1,3 +1,4 @@
+using System.Text.Json;
 using GameHost;
 using Persistence;
 using Sim.Core;
@@ -25,7 +26,12 @@ public sealed class EndToEndTests : IDisposable
 
     private static bool CallIsWaiting(LegacyState state)
     {
-        return state.Modules.TryGetValue("missions", out object? module) && ((MissionsState)module).Site?.Mission?.State.Pending is not null;
+        return state.TryModule(MissionsModule.Name, out MissionsState? missions) && missions.Site?.Mission?.State.Pending is not null;
+    }
+
+    private static string Books(LegacyState state)
+    {
+        return JsonSerializer.Serialize(new SortedDictionary<string, object>(state.Modules, StringComparer.Ordinal), SimJson.Options);
     }
 
     [Fact]
@@ -60,5 +66,7 @@ public sealed class EndToEndTests : IDisposable
         Assert.True(stepsWhileWaiting > 0, "No step was taken while a call was waiting; choose another seed.");
         Assert.Equal(expected, store.ReadEvents(id));
         Assert.Equal(straight.Cycle, state.Cycle);
+        Assert.Equal(Books(straight), Books(state));
+        Assert.Equal(straight.RngStates.OrderBy(r => r.Key, StringComparer.Ordinal), state.RngStates.OrderBy(r => r.Key, StringComparer.Ordinal));
     }
 }

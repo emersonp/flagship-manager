@@ -9,12 +9,14 @@ public sealed class CycleState
 
 public static class CycleModule
 {
+    public const string Name = "cycle";
+
     // One week per cycle for now; transit will vary it.
     private const int WeeksPerCycle = 1;
 
     public static void Register(EventBus bus)
     {
-        bus.Module<CycleState>("cycle");
+        bus.Module<CycleState>(Name);
         bus.Guard<FoundLegacy>(0, "not-yet-founded", (_, context) => context.Module<CycleState>().Founded ? "The legacy is already founded." : null);
         bus.Guard<AdvancePhase>(0, "founded", (_, context) => context.Module<CycleState>().Founded ? null : "The legacy has not been founded.");
         bus.Handle<FoundLegacy>(OnFoundLegacy);

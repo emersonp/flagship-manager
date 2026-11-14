@@ -30,13 +30,13 @@ public static class AutoCaptain
 
     private static ICommand NextCommand(Game game, LegacyState state, ContentPack pack)
     {
-        // Read the module directly: the state of a legacy that is not founded has no modules yet.
-        if (!state.Modules.TryGetValue("cycle", out object? cycle) || !((CycleState)cycle).Founded)
+        // The state of a legacy that is not founded has no modules yet, and a read must not create one.
+        if (!state.TryModule(CycleModule.Name, out CycleState? cycle) || !cycle.Founded)
         {
             return new FoundLegacy();
         }
 
-        SiteState? site = state.Modules.TryGetValue("missions", out object? missions) ? ((MissionsState)missions).Site : null;
+        SiteState? site = state.TryModule(MissionsModule.Name, out MissionsState? missions) ? missions.Site : null;
         if (state.Phase == CyclePhase.Briefing && site is { Briefing: null } && ChooseTeam(game, state, pack, site) is { } assign)
         {
             return assign;

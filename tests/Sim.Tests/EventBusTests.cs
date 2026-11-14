@@ -214,6 +214,28 @@ public class EventBusTests
     }
 
     [Fact]
+    public void A_read_of_an_absent_module_returns_false_and_inserts_nothing()
+    {
+        LegacyState state = NewState();
+
+        Assert.False(state.TryModule("counter", out Counter? absent));
+
+        Assert.Null(absent);
+        Assert.Empty(state.Modules);
+    }
+
+    [Fact]
+    public void A_read_of_a_present_module_returns_the_stored_instance()
+    {
+        LegacyState state = NewState();
+        Counter stored = state.Module<Counter>("counter");
+
+        Assert.True(state.TryModule("counter", out Counter? found));
+
+        Assert.Same(stored, found);
+    }
+
+    [Fact]
     public void A_module_holding_another_type_throws_naming_both()
     {
         LegacyState state = NewState();

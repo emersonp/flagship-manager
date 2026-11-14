@@ -51,10 +51,10 @@ public static class Simulation
             missions[ended.Result.Outcome]++;
         }
 
-        CrewState crew = state.Module<CrewState>("crew");
+        IEnumerable<CrewMember> members = state.TryModule(CrewModule.Name, out CrewState? crew) ? crew.Members : [];
         int deaths = events.Count(e => e.Event is CrewDied);
         int alive = game.Bus.View<IRosterView>(state).Roster.Count;
-        int highest = crew.Members.SelectMany(m => m.Skills.Values).Max(s => s.Level);
+        int highest = members.SelectMany(m => m.Skills.Values).Select(s => s.Level).DefaultIfEmpty(0).Max();
         return new LegacySummary(seed, cycles, events.Count, Hash(events.Select(game.Events.ToEnvelope)), missions, deaths, alive, highest);
     }
 
