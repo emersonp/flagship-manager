@@ -1,4 +1,5 @@
 using Sim.Content;
+using Sim.Core.Content;
 
 namespace Sim.Tests;
 
@@ -12,6 +13,7 @@ public class ContentLoaderTests
         ContentLoadResult result = ContentLoader.Load(new Dictionary<string, string>
         {
             ["pack.yaml"] = Manifest,
+            ["tuning/missions.yaml"] = TestContent.TuningText,
             ["skills/base.yaml"] = "- id: SKILL_A\n  tags: [technical]\n- id: SKILL_B\n",
         });
 
@@ -29,6 +31,7 @@ public class ContentLoaderTests
         ContentLoadResult result = ContentLoader.Load(new Dictionary<string, string>
         {
             ["pack.yaml"] = "id: core\nversion: 0\n",
+            ["tuning/missions.yaml"] = TestContent.TuningText,
             ["skills/a.yaml"] = "- id: SKILL_A\n- id: skill b\n",
             ["skills/b.yaml"] = "- id: SKILL_A\n",
             ["skils/c.yaml"] = "- id: SKILL_C\n",
@@ -52,7 +55,7 @@ public class ContentLoaderTests
     [Fact]
     public void A_missing_manifest_is_an_error()
     {
-        ContentLoadResult result = ContentLoader.Load(new Dictionary<string, string>());
+        ContentLoadResult result = ContentLoader.Load(new Dictionary<string, string> { ["tuning/missions.yaml"] = TestContent.TuningText });
 
         Assert.Equal("The pack has no pack.yaml.", Assert.Single(result.Errors).Message);
     }
@@ -63,6 +66,7 @@ public class ContentLoaderTests
         ContentLoadResult result = ContentLoader.Load(new Dictionary<string, string>
         {
             ["pack.yaml"] = Manifest,
+            ["tuning/missions.yaml"] = TestContent.TuningText,
             ["skills/a.yaml"] = "- id: SKILL_A\n-\n",
         });
 
@@ -76,6 +80,7 @@ public class ContentLoaderTests
         ContentLoadResult result = ContentLoader.Load(new Dictionary<string, string>
         {
             ["pack.yaml"] = Manifest,
+            ["tuning/missions.yaml"] = TestContent.TuningText,
             ["skills/a.yaml"] = "- id: SKILL_A\n  tags:\n",
         });
 
@@ -89,6 +94,7 @@ public class ContentLoaderTests
         ContentLoadResult result = ContentLoader.Load(new Dictionary<string, string>
         {
             ["pack.yaml"] = Manifest,
+            ["tuning/missions.yaml"] = TestContent.TuningText,
             ["skills/a.yaml"] = "- id: SKILL_A\n  id: SKILL_B\n",
         });
 

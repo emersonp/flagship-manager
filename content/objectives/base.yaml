@@ -1,0 +1,18 @@
+# Placeholders. The author replaces these.
+- id: OBJECTIVE_TEMPLATE_1
+  tags: [science]
+  teamSize: [2, 4]
+  need: 4
+  stages:
+    - { slot: approach, draw: { tags: [field] }, count: 1 }
+    - { slot: complication, draw: { tags: [field] }, count: 2 }
+    - { slot: objective, draw: { tags: [field] }, count: 1 }
+    - { slot: extraction, draw: { tags: [field] }, count: 1, skippable: true }
+- id: OBJECTIVE_TEMPLATE_2
+  tags: [repair]
+  teamSize: [2, 3]
+  need: 3
+  stages:
+    - { slot: approach, draw: { tags: [hazard, field] }, count: 1 }
+    - { slot: objective, draw: { tags: [technical] }, count: [1, 2] }
+    - { slot: extraction, draw: { tags: [social] }, count: 1, skippable: true }

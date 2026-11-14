@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using Sim.Core.Content;
 using YamlDotNet.Core;
 using YamlDotNet.Serialization;
 using YamlDotNet.Serialization.NamingConventions;
@@ -8,7 +9,8 @@ namespace Sim.Content;
 public static partial class ContentLoader
 {
     private const string ManifestFile = "pack.yaml";
-    private static readonly string[] KnownFolders = ["skills"];
+    private const string TuningFile = "tuning/missions.yaml";
+    private static readonly string[] KnownFolders = ["skills", "encounters", "objectives", "tuning"];
 
     // Keys are paths relative to the pack root, with forward slashes.
     public static ContentLoadResult Load(IReadOnlyDictionary<string, string> files)
@@ -35,46 +37,48 @@ public static partial class ContentLoader
         }
 
         var skills = new List<SkillDef>();
+        var encounters = new List<(string File, EncounterDto Dto)>();
+        var objectives = new List<(string File, ObjectiveDto Dto)>();
         var seenIn = new Dictionary<string, string>();
         foreach ((string path, string text) in files.OrderBy(f => f.Key, StringComparer.Ordinal))
         {
-            if (path == ManifestFile)
+            if (path == ManifestFile || path == TuningFile)
             {
                 continue;
             }
 
             string folder = path.Contains('/') ? path[..path.IndexOf('/')] : "";
-            if (!KnownFolders.Contains(folder))
+            switch (folder)
             {
-                errors.Add(new ContentError(path, $"Unknown content folder '{folder}'."));
-                continue;
-            }
+                case "skills":
+                    foreach (SkillDto dto in Items<SkillDto>(yaml, path, text, d => d.Id, seenIn, errors))
+                    {
+                        skills.Add(new SkillDef(dto.Id!, dto.Tags ?? []));
+                    }
 
-            foreach (SkillDto? dto in Parse<List<SkillDto?>>(yaml, path, text, errors) ?? [])
-            {
-                if (dto is null)
-                {
-                    errors.Add(new ContentError(path, "A list item is blank."));
-                    continue;
-                }
-
-                if (!CheckId(path, dto.Id, errors))
-                {
-                    continue;
-                }
-
-                if (seenIn.TryGetValue(dto.Id, out string? first))
-                {
-                    errors.Add(new ContentError(path, $"Duplicate id '{dto.Id}', first defined in {first}."));
-                    continue;
-                }
-
-                seenIn[dto.Id] = path;
-                skills.Add(new SkillDef(dto.Id, dto.Tags ?? []));
+                    break;
+                case "encounters":
+                    encounters.AddRange(Items<EncounterDto>(yaml, path, text, d => d.Id, seenIn, errors).Select(d => (path, d)));
+                    break;
+                case "objectives":
+                    objectives.AddRange(Items<ObjectiveDto>(yaml, path, text, d => d.Id, seenIn, errors).Select(d => (path, d)));
+                    break;
+                case "tuning":
+                    errors.Add(new ContentError(path, $"Unknown tuning file. The only tuning file is {TuningFile}."));
+                    break;
+                default:
+                    errors.Add(new ContentError(path, $"Unknown content folder '{folder}'."));
+                    break;
             }
         }
 
-        ContentPack? pack = errors.Count == 0 ? new ContentPack(manifest!.Id!, manifest.Version, skills) : null;
+        List<EncounterDef> encounterDefs = BuildEncounters(encounters, skills, errors);
+        List<ObjectiveDef> objectiveDefs = BuildObjectives(objectives, encounterDefs, errors);
+        (MissionTuning? tuning, BenchTuning? bench) = LoadTuning(yaml, files, errors);
+
+        ContentPack? pack = errors.Count == 0
+            ? new ContentPack(manifest!.Id!, manifest.Version, skills, encounterDefs, objectiveDefs, tuning!, bench!)
+            : null;
         return new ContentLoadResult(pack, errors);
     }
 
@@ -89,6 +93,37 @@ public static partial class ContentLoader
             .EnumerateFiles(root, "*.yaml", SearchOption.AllDirectories)
             .ToDictionary(f => Path.GetRelativePath(root, f).Replace('\\', '/'), File.ReadAllText);
         return Load(files);
+    }
+
+    // The valid, uniquely named items of one list file. Ids are unique across the whole pack.
+    private static List<T> Items<T>(IDeserializer yaml, string path, string text, Func<T, string?> id, Dictionary<string, string> seenIn, List<ContentError> errors)
+        where T : class
+    {
+        var items = new List<T>();
+        foreach (T? dto in Parse<List<T?>>(yaml, path, text, errors) ?? [])
+        {
+            if (dto is null)
+            {
+                errors.Add(new ContentError(path, "A list item is blank."));
+                continue;
+            }
+
+            if (!CheckId(path, id(dto), errors))
+            {
+                continue;
+            }
+
+            if (seenIn.TryGetValue(id(dto)!, out string? first))
+            {
+                errors.Add(new ContentError(path, $"Duplicate id '{id(dto)}', first defined in {first}."));
+                continue;
+            }
+
+            seenIn[id(dto)!] = path;
+            items.Add(dto);
+        }
+
+        return items;
     }
 
     private static T? Parse<T>(IDeserializer yaml, string file, string text, List<ContentError> errors)
@@ -134,8 +169,8 @@ public static partial class ContentLoader
 
     private sealed class SkillDto
     {
-        public string Id { get; set; } = "";
+        public string? Id { get; set; }
 
-        public List<string>? Tags { get; set; } = [];
+        public List<string>? Tags { get; set; }
     }
 }

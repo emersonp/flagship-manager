@@ -1,0 +1,85 @@
+# Placeholders. The author replaces these. Fast is authored one harder than careful.
+- id: ENCOUNTER_01
+  tags: [field, hazard]
+  chain: ENCOUNTER_CHAIN
+  approaches:
+    careful: { skill: SKILL_A, difficulty: 5, gearTag: scanner }
+    fast: { skill: SKILL_C, difficulty: 6 }
+  decision:
+    id: DECISION_PROMPT_1
+    stakes: 1
+    bold: [{ momentum: 1 }, { strain: 1 }]
+    safe: []
+- id: ENCOUNTER_02
+  tags: [field, social]
+  chain: ENCOUNTER_CHAIN
+  approaches:
+    careful: { skill: SKILL_D, difficulty: 5 }
+    fast: { skill: SKILL_B, difficulty: 6 }
+  decision:
+    id: DECISION_PROMPT_2
+    stakes: 2
+    bold: [{ progress: 1 }, { injuryRoll: light }]
+    safe: [{ strain: -1 }]
+- id: ENCOUNTER_03
+  tags: [field, technical]
+  chain: ENCOUNTER_CHAIN
+  approaches:
+    careful: { skill: SKILL_B, difficulty: 6, gearTag: tools }
+    fast: { skill: SKILL_A, difficulty: 7 }
+  decision:
+    id: DECISION_PROMPT_3
+    stakes: 3
+    bold: [{ progress: 1 }, { strain: 2 }]
+    safe: [{ momentum: -1 }]
+- id: ENCOUNTER_04
+  tags: [field, hazard]
+  chain: ENCOUNTER_CHAIN
+  approaches:
+    careful: { skill: SKILL_C, difficulty: 5 }
+    fast: { skill: SKILL_C, difficulty: 6 }
+- id: ENCOUNTER_05
+  tags: [field, technical]
+  chain: ENCOUNTER_CHAIN
+  approaches:
+    careful: { skill: SKILL_A, difficulty: 6, gearTag: scanner }
+    fast: { skill: SKILL_B, difficulty: 7 }
+  decision:
+    id: DECISION_PROMPT_4
+    stakes: 4
+    bold: [{ progress: 2 }, { injuryRoll: severe }]
+    safe: [{ strain: -1 }, { momentum: -2 }]
+- id: ENCOUNTER_06
+  tags: [field, hazard]
+  commsBlocked: true
+  chain: ENCOUNTER_CHAIN
+  approaches:
+    careful: { skill: SKILL_C, difficulty: 6 }
+    fast: { skill: SKILL_D, difficulty: 7 }
+  decision:
+    id: DECISION_PROMPT_5
+    stakes: 3
+    bold: [{ progress: 1 }, { strain: 1 }]
+    safe: []
+- id: ENCOUNTER_07
+  tags: [field, social]
+  chain: ENCOUNTER_CHAIN
+  approaches:
+    careful: { skill: SKILL_D, difficulty: 6 }
+    fast: { skill: SKILL_D, difficulty: 7 }
+- id: ENCOUNTER_08
+  tags: [field, technical]
+  chain: ENCOUNTER_CHAIN
+  approaches:
+    careful: { skill: SKILL_B, difficulty: 5, gearTag: tools }
+    fast: { skill: SKILL_C, difficulty: 6 }
+  decision:
+    id: DECISION_PROMPT_6
+    stakes: 2
+    bold: [{ momentum: 2 }, { injuryRoll: light }]
+    safe: []
+- id: ENCOUNTER_CHAIN
+  tags: [chained, hazard]
+  approaches:
+    careful: { skill: SKILL_C, difficulty: 6 }
+    fast: { skill: SKILL_A, difficulty: 7 }

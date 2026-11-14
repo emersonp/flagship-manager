@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Sim.Content;
+using Sim.Core.Content;
 using SimRunner;
 
 if (args.Length == 0 || args[0] != "cycles")
