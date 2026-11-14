@@ -136,7 +136,7 @@ public class BenchTests
     public void Each_policy_answers_calls_its_own_way()
     {
         var call = new PendingCall("DECISION_PROMPT_1", 3, 1.5, "CREW_01", CallAnswer.Bold, [CallAnswer.Bold, CallAnswer.Safe, CallAnswer.Withdraw], "dec:0");
-        PendingCall abort = call with { DecisionId = MissionResolver.AbortDecisionId, Options = [CallAnswer.Bold, CallAnswer.Safe] };
+        PendingCall abort = call with { DecisionId = DecisionIds.Abort, Options = [CallAnswer.Bold, CallAnswer.Safe] };
 
         Assert.Equal(CallAnswer.Bold, Bench.Answer(CallPolicy.BackLead, call));
         Assert.Equal(CallAnswer.Safe, Bench.Answer(CallPolicy.BackLead, abort));

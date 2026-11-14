@@ -190,7 +190,7 @@ internal sealed class EncounterKind : KindForm
 
         if (chain == id)
         {
-            errors["chain"] = $"{id} chains to itself.";
+            errors["chain"] = "Chains to itself.";
         }
 
         ApproachModel? careful = BindApproach(values, "careful", choices, errors);

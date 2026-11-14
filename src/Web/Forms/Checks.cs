@@ -40,7 +40,7 @@ internal static partial class Checks
         {
             errors[field] = "An id must be upper case letters, digits, and underscores, starting with a letter.";
         }
-        else if (id == "DECISION_ABORT")
+        else if (id == Sim.Core.Content.DecisionIds.Abort)
         {
             errors[field] = "That id is reserved for the abort call.";
         }

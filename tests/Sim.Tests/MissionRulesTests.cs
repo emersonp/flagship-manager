@@ -218,7 +218,7 @@ public class MissionRulesTests
 
         MissionStep step = MissionResolver.Advance(state);
 
-        Assert.Equal(MissionResolver.AbortDecisionId, step.Pending!.DecisionId);
+        Assert.Equal(DecisionIds.Abort, step.Pending!.DecisionId);
         Assert.Equal(new[] { CallAnswer.Bold, CallAnswer.Safe }, step.Pending.Options);
         Assert.Equal(MissionOutcome.Withdrawal, MissionResolver.Advance(step.State, Reply(step, CallAnswer.Safe)).Result!.Outcome);
         Assert.Null(MissionResolver.Advance(step.State, Reply(step, CallAnswer.Bold)).Pending);
@@ -234,7 +234,7 @@ public class MissionRulesTests
         MissionStep step = MissionResolver.Advance(state);
 
         NoticeBeat notice = step.Beats.OfType<NoticeBeat>().Single();
-        Assert.Equal((MissionResolver.AbortDecisionId, CallAnswer.Bold, true), (notice.DecisionId, notice.Chose, notice.Blocked));
+        Assert.Equal((DecisionIds.Abort, CallAnswer.Bold, true), (notice.DecisionId, notice.Chose, notice.Blocked));
         Assert.Equal((0, 1), (step.Result!.Calls, step.Result.Notices));
     }
 

@@ -90,7 +90,7 @@ public class MissionContentTests
 
         Assert.Null(result.Pack);
         ContentError error = Assert.Single(result.Errors);
-        Assert.Equal(("encounters/a.yaml", "Duplicate decision id 'DECISION_PROMPT_1', first used by ENCOUNTER_01."), (error.File, error.Message));
+        Assert.Equal(("encounters/a.yaml", "ENCOUNTER_02: decision id 'DECISION_PROMPT_1' is also used by ENCOUNTER_01."), (error.File, error.Message));
     }
 
     // The resolver raises the abort call with this id.
@@ -101,7 +101,7 @@ public class MissionContentTests
 
         Assert.Null(result.Pack);
         ContentError error = result.Errors[0];
-        Assert.Equal(("encounters/a.yaml", "ENCOUNTER_01 decision id 'DECISION_ABORT' is reserved for the abort call."), (error.File, error.Message));
+        Assert.Equal(("encounters/a.yaml", "ENCOUNTER_01: decision id 'DECISION_ABORT' is reserved for the abort call."), (error.File, error.Message));
     }
 
     [Fact]
@@ -110,7 +110,7 @@ public class MissionContentTests
         ContentLoadResult result = Load(Encounter.Replace("tags: [field]", "tags: [field]\n  chain: ENCOUNTER_01"), Objective);
 
         Assert.Null(result.Pack);
-        Assert.Contains(result.Errors, e => e is { File: "encounters/a.yaml", Message: "ENCOUNTER_01 chains to itself." });
+        Assert.Contains(result.Errors, e => e is { File: "encounters/a.yaml", Message: "ENCOUNTER_01: chains to itself." });
     }
 
     // A stage written without draw, with an empty draw, or with empty tags draws by no tag.

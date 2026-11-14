@@ -57,6 +57,19 @@ public class ArchitectureTests
         Assert.Contains(banned, line => line.StartsWith("N:Microsoft.Data.Sqlite;", StringComparison.Ordinal));
     }
 
+    // The abort call's id has one home, which the loader, the editor's check, and the resolver all use.
+    [Fact]
+    public void The_abort_decision_id_is_written_once_in_the_source()
+    {
+        List<string> holders = Directory.EnumerateFiles(Path.Combine(Root, "src"), "*.*", SearchOption.AllDirectories)
+            .Where(f => (f.EndsWith(".cs", StringComparison.Ordinal) || f.EndsWith(".razor", StringComparison.Ordinal)) && !f.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}", StringComparison.Ordinal))
+            .Where(f => File.ReadAllText(f).Contains("\"DECISION_ABORT\"", StringComparison.Ordinal))
+            .Select(f => Path.GetRelativePath(Root, f).Replace('\\', '/'))
+            .ToList();
+
+        Assert.Equal(["src/Sim.Core/Content/MissionContent.cs"], holders);
+    }
+
     private static IEnumerable<string> References(string project)
     {
         XDocument csproj = XDocument.Load(Path.Combine(Root, "src", project, project + ".csproj"));

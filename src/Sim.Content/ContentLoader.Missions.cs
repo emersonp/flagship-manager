@@ -5,9 +5,6 @@ namespace Sim.Content;
 
 public static partial class ContentLoader
 {
-    // The id the resolver gives the abort call (MissionResolver), so no decision may use it.
-    private const string AbortDecisionId = "DECISION_ABORT";
-
     private static List<EncounterDef> BuildEncounters(List<(string File, EncounterDto Dto)> items, List<SkillDef> skills, List<ContentError> errors)
     {
         var skillIds = skills.Select(s => s.Id).ToHashSet();
@@ -52,7 +49,7 @@ public static partial class ContentLoader
 
             if (dto.Chain is not null && dto.Chain == dto.Id)
             {
-                errors.Add(new ContentError(file, $"{dto.Id} chains to itself."));
+                Error("chains to itself.");
             }
 
             DecisionDef? decision = null;
@@ -68,13 +65,13 @@ public static partial class ContentLoader
                     Error("The decision's stakes must be 1 to 5.");
                 }
 
-                if (dto.Decision.Id == AbortDecisionId)
+                if (dto.Decision.Id == DecisionIds.Abort)
                 {
-                    errors.Add(new ContentError(file, $"{dto.Id} decision id '{AbortDecisionId}' is reserved for the abort call."));
+                    Error($"decision id '{DecisionIds.Abort}' is reserved for the abort call.");
                 }
                 else if (dto.Decision.Id is not null && !decisionOwners.TryAdd(dto.Decision.Id, dto.Id!))
                 {
-                    errors.Add(new ContentError(file, $"Duplicate decision id '{dto.Decision.Id}', first used by {decisionOwners[dto.Decision.Id]}."));
+                    Error($"decision id '{dto.Decision.Id}' is also used by {decisionOwners[dto.Decision.Id]}.");
                 }
 
                 string? decisionName = dto.Decision.Id is null ? null : CheckName(file, $"{dto.Id} decision {dto.Decision.Id}", dto.Decision.Name, errors);

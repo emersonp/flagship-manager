@@ -6,8 +6,6 @@ namespace Sim.Missions;
 // The default resolver (GDD 4.6). Pure: the same inputs always give the same step.
 public static class MissionResolver
 {
-    public const string AbortDecisionId = "DECISION_ABORT";
-
     // drawSeed lets the bench hold the encounters fixed while the dice vary.
     public static MissionState Start(
         ObjectiveDef objective,
@@ -185,7 +183,7 @@ public static class MissionResolver
                         else if (State.Strain >= T.AbortCallAt && !State.AbortAsked)
                         {
                             State.AbortAsked = true;
-                            Raise(AbortDecisionId, T.AbortStakes, new EffectDef(), new EffectDef(Withdraw: true), $"abort:{Current.Encounter.Id}", alwaysCall: true);
+                            Raise(DecisionIds.Abort, T.AbortStakes, new EffectDef(), new EffectDef(Withdraw: true), $"abort:{Current.Encounter.Id}", alwaysCall: true);
                         }
 
                         break;
@@ -338,7 +336,7 @@ public static class MissionResolver
             Beats.Add(new AnswerBeat(answer, standing, pending.LeadId));
 
             DecisionDef? decision = Current.Encounter.Decision;
-            bool abort = pending.DecisionId == AbortDecisionId;
+            bool abort = pending.DecisionId == DecisionIds.Abort;
             EffectDef effect = answer switch
             {
                 CallAnswer.Withdraw => new EffectDef(Withdraw: true),

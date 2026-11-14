@@ -42,7 +42,7 @@ public class MissionWalkthroughTests
     {
         (_, List<Beat> beats, _) = TestContent.Play(TestContent.Team(2, 2, 7, 8), seed: 1);
 
-        Assert.Contains(beats.OfType<CallBeat>(), c => c.Call.DecisionId == MissionResolver.AbortDecisionId);
+        Assert.Contains(beats.OfType<CallBeat>(), c => c.Call.DecisionId == DecisionIds.Abort);
     }
 
     [Fact]

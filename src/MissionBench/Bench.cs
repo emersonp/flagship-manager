@@ -110,7 +110,7 @@ public static class Bench
             CallPolicy.Bold => CallAnswer.Bold,
             CallPolicy.Safe => CallAnswer.Safe,
             CallPolicy.Withdraw => call.Options.Contains(CallAnswer.Withdraw) ? CallAnswer.Withdraw : CallAnswer.Safe,
-            _ => call.DecisionId == MissionResolver.AbortDecisionId ? CallAnswer.Safe : call.LeadPrefers,
+            _ => call.DecisionId == DecisionIds.Abort ? CallAnswer.Safe : call.LeadPrefers,
         };
     }
 

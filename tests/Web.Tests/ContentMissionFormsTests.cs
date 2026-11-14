@@ -336,7 +336,7 @@ public sealed class ContentMissionFormsTests(RepoContentGuard guard) : IClassFix
         { "/dev/content/encounters/ENCOUNTER_01", Encounter1, "fast.difficulty=", "Enter a whole number." },
         { "/dev/content/encounters/ENCOUNTER_01", Encounter1, "careful.gearTag=not_a_tag", "Unknown gear tag." },
         { "/dev/content/encounters/ENCOUNTER_01", Encounter1, "chain=ENCOUNTER_NOT_THERE", "Unknown encounter." },
-        { "/dev/content/encounters/ENCOUNTER_01", Encounter1, "chain=ENCOUNTER_01", "ENCOUNTER_01 chains to itself." },
+        { "/dev/content/encounters/ENCOUNTER_01", Encounter1, "chain=ENCOUNTER_01", "Chains to itself." },
         { "/dev/content/encounters/ENCOUNTER_01", Encounter1, "decision.stakes=6", "Must be 1 to 5." },
         { "/dev/content/encounters/ENCOUNTER_01", Encounter1, "decision.stakes=", "Enter a whole number." },
         { "/dev/content/encounters/ENCOUNTER_01", Encounter1, "bold[0].momentum=x", "Must be a whole number." },
