@@ -24,7 +24,7 @@
         <div class="well__head"><h2 id="log-head">Mission log</h2><p class="note">Newest last</p></div>
         <MissionLog Lines="@(Mission?.Log ?? [])" />
     </section>
-    <CallPanel LegacyId="LegacyId" Bar="Bar" MissionId="@(Mission?.MissionId ?? "")" Call="Mission?.Call" />
+    <CallPanel LegacyId="LegacyId" Bar="Bar" MissionId="@(Mission?.MissionId ?? "")" Call="Mission?.Call" Reason="@CallReason" />
     <div class="actions well">
         <ResolutionFooter LegacyId="LegacyId" Bar="Bar" Show="@(Mission is null || Mission.Outcome is not null)" />
         <Refusal Reason="@Reason" />
@@ -45,4 +45,6 @@
     [Parameter] public bool HideMeter { get; set; }
 
     [Parameter] public string? Reason { get; set; }
+
+    [Parameter] public string? CallReason { get; set; }
 }

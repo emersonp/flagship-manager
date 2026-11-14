@@ -24,12 +24,12 @@ public static class BridgeEndpoints
         app.MapPost("/legacy/{id}/answer", Answer);
     }
 
-    private static async Task<IResult> Page(string id, GameServices game, LegacySession sessions, Render render, CancellationToken cancellation)
+    private static async Task<IResult> Page(string id, HttpContext http, GameServices game, LegacySession sessions, Render render, CancellationToken cancellation)
     {
         LoadedLegacy? legacy = Guid.TryParse(id, out Guid legacyId) ? await sessions.Read(legacyId, cancellation) : null;
         if (legacy is null)
         {
-            return await NotFound(render);
+            return await NotFound(render, http);
         }
 
         string html = await render.Html<BridgePage>(new Dictionary<string, object?> { ["LegacyId"] = legacyId, ["View"] = View(game, legacy) });
@@ -57,7 +57,7 @@ public static class BridgeEndpoints
         IFormCollection? form = await ReadForm(http.Request, cancellation);
         Stamp? stamp = StampOf(form);
         AssignTeam? team = Bind(form);
-        return await SendPaced<Refusal>(id, game, sessions, render, settings.Value.BeatDelayMs, legacy =>
+        return await SendPaced<Refusal>(id, http, game, sessions, render, settings.Value.BeatDelayMs, legacy =>
         {
             Check(stamp, game, legacy);
             if (team is null)
@@ -75,7 +75,7 @@ public static class BridgeEndpoints
         IFormCollection? form = await ReadForm(http.Request, cancellation);
         Stamp? stamp = StampOf(form);
         AnswerCall? answer = BindAnswer(form);
-        return await SendPaced<CallRefusal>(id, game, sessions, render, settings.Value.BeatDelayMs, legacy =>
+        return await SendPaced<CallRefusal>(id, http, game, sessions, render, settings.Value.BeatDelayMs, legacy =>
         {
             Check(stamp, game, legacy);
             if (answer is null)
@@ -89,12 +89,12 @@ public static class BridgeEndpoints
 
     // Commits first, then plays this request's new beats one at a time; the view before the commit rides along so the
     // opening patches and the held-back parts do not give the result away.
-    private static async Task<IResult> SendPaced<TRefusal>(string id, GameServices game, LegacySession sessions, Render render, int beatDelayMs, Action<LoadedLegacy> commands, CancellationToken cancellation)
+    private static async Task<IResult> SendPaced<TRefusal>(string id, HttpContext http, GameServices game, LegacySession sessions, Render render, int beatDelayMs, Action<LoadedLegacy> commands, CancellationToken cancellation)
         where TRefusal : IComponent
     {
         if (!Guid.TryParse(id, out Guid legacyId))
         {
-            return await NotFound(render);
+            return await NotFound(render, http);
         }
 
         Turn? turn;
@@ -113,14 +113,14 @@ public static class BridgeEndpoints
         }
         catch (CommandRejectedException rejected)
         {
-            // Nothing on the page to patch the refusal into once the call is gone: show the current screen instead.
+            // A refused answer may be for a call no longer on screen: redraw from the stored state, the reason in the
+            // waiting call's panel or, with none waiting, in the bar, so the page never stays on a dead call.
             if (typeof(TRefusal) == typeof(CallRefusal) && await sessions.Read(legacyId, cancellation) is { } current)
             {
                 BridgeView corrected = View(game, current);
-                if (corrected.Mission?.Call is null)
-                {
-                    return await Patches(render, legacyId, corrected, rejected.Message);
-                }
+                return corrected.Mission?.Call is null
+                    ? await Patches(render, legacyId, corrected, rejected.Message)
+                    : await Patches(render, legacyId, corrected, null, rejected.Message);
             }
 
             string refusal = await render.Html<TRefusal>(new Dictionary<string, object?> { ["Reason"] = rejected.Message });
@@ -132,7 +132,7 @@ public static class BridgeEndpoints
 
         if (turn is null)
         {
-            return await NotFound(render);
+            return await NotFound(render, http);
         }
 
         BridgeView after = turn.After;
@@ -206,10 +206,10 @@ public static class BridgeEndpoints
         });
     }
 
-    private static async Task<IResult> Patches(Render render, Guid legacyId, BridgeView view, string? reason)
+    private static async Task<IResult> Patches(Render render, Guid legacyId, BridgeView view, string? reason, string? callReason = null)
     {
         string topBar = await render.Html<TopBar>(new Dictionary<string, object?> { ["Bar"] = view.TopBar });
-        string main = await render.Html<MainScreen>(new Dictionary<string, object?> { ["LegacyId"] = legacyId, ["View"] = view, ["Reason"] = reason });
+        string main = await render.Html<MainScreen>(new Dictionary<string, object?> { ["LegacyId"] = legacyId, ["View"] = view, ["Reason"] = reason, ["CallReason"] = callReason });
         string roster = await render.Html<Roster>(new Dictionary<string, object?> { ["Rows"] = view.Roster });
         return new StreamResult(async response =>
         {
@@ -234,7 +234,7 @@ public static class BridgeEndpoints
     {
         if (!Guid.TryParse(id, out Guid legacyId))
         {
-            return await NotFound(render);
+            return await NotFound(render, http);
         }
 
         BridgeView? view;
@@ -261,7 +261,7 @@ public static class BridgeEndpoints
 
         if (view is null)
         {
-            return await NotFound(render);
+            return await NotFound(render, http);
         }
 
         string topBar = await render.Html<TopBar>(new Dictionary<string, object?> { ["Bar"] = view.TopBar });
@@ -374,8 +374,18 @@ public static class BridgeEndpoints
         return BridgeReader.Read(legacy.Record, game.Pack, events);
     }
 
-    private static async Task<IResult> NotFound(Render render)
+    // A Datastar request gets the words as a patch of the main screen; a 404 page would change nothing on screen.
+    private static async Task<IResult> NotFound(Render render, HttpContext http)
     {
+        if (Sse.IsDatastar(http.Request))
+        {
+            string main = await render.Html<NotFoundMain>(new Dictionary<string, object?>());
+            return new StreamResult(async response =>
+            {
+                await Sse.PatchElements(response, main);
+            });
+        }
+
         string html = await render.Html<NotFoundPage>(new Dictionary<string, object?>());
         return Results.Content(html, "text/html; charset=utf-8", statusCode: StatusCodes.Status404NotFound);
     }

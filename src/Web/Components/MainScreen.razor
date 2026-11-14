@@ -8,7 +8,7 @@ else if (Phase == CyclePhase.Orders)
 }
 else if (Phase == CyclePhase.Resolution)
 {
-    <ResolutionScreen LegacyId="LegacyId" Bar="View.TopBar" Mission="View.Mission" ObjectiveName="@ObjectiveName" HideMeter="HideMeter" Reason="@Reason" />
+    <ResolutionScreen LegacyId="LegacyId" Bar="View.TopBar" Mission="View.Mission" ObjectiveName="@ObjectiveName" HideMeter="HideMeter" Reason="@Reason" CallReason="@CallReason" />
 }
 else if (Phase == CyclePhase.Aftermath)
 {
@@ -25,6 +25,9 @@ else
     [Parameter, EditorRequired] public BridgeView View { get; set; } = null!;
 
     [Parameter] public string? Reason { get; set; }
+
+    // A refused answer's reason, shown in the waiting call's panel.
+    [Parameter] public string? CallReason { get; set; }
 
     [Parameter] public bool HideMeter { get; set; }
 

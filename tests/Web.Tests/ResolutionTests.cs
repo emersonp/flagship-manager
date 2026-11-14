@@ -397,13 +397,14 @@ public sealed class ResolutionTests : IDisposable
         await captain.Post("answer", form);
         int stored = app.Game.Store.ReadEvents(id).Count;
 
+        bool callWaits = Pending(await captain.Read());
+
         string second = await captain.Post("answer", form);
 
+        // The page is redrawn from the stored state, with the reason in the call panel when a call waits, else in the bar.
         List<string> patches = Patches(second);
-        Assert.Single(patches);
-        Assert.Contains("id=\"call-refusal\"", patches[0]);
-        Assert.Contains("role=\"alert\"", patches[0]);
-        Assert.Matches("(No mission is waiting for an answer|The pending call is)", patches[0]);
+        Assert.Equal(3, patches.Count);
+        Assert.Matches(callWaits ? "<p id=\"call-refusal\" role=\"alert\">The pending call is" : "<p id=\"refusal\" role=\"alert\">No mission is waiting for an answer", patches[1]);
         Assert.Equal(stored, app.Game.Store.ReadEvents(id).Count);
     }
 
@@ -606,16 +607,64 @@ public sealed class ResolutionTests : IDisposable
         Assert.Fail("No seed to 200 had a launch that ended with no call and changed the roster.");
     }
 
+    // An answer from another tab to a call already answered, with a new call waiting: the page moves to the new call,
+    // shows why, and the new call can be answered from the patched page without a reload.
     [Fact]
-    public async Task A_refused_answer_with_a_call_waiting_patches_only_the_call_refusal()
+    public async Task A_refused_answer_to_an_old_call_patches_the_page_to_the_new_call_and_the_next_answer_succeeds()
     {
-        (Guid id, WebCaptain captain, _) = await LaunchedWithCall();
-        (string mission, _, string option) = await CallFields(id);
+        for (ulong seed = 1; seed < 200; seed++)
+        {
+            Guid id = await app.Sessions.CreateLegacy($"LEGACY_{seed}", seed);
+            var captain = new WebCaptain(app, client, id);
+            for (int steps = 0; steps < 50 && !Pending(await captain.Read()) && (await captain.Read()).State.Cycle == 1; steps++)
+            {
+                await captain.Step();
+            }
 
-        List<string> patches = Patches(await captain.Post("answer", [new("mission", mission), new("call", "nope"), new("answer", option)]));
+            if (!Pending(await captain.Read()))
+            {
+                continue;
+            }
 
-        Assert.Single(patches);
-        Assert.StartsWith("<p id=\"call-refusal\"", patches[0]);
+            (string mission, string oldCall, string option) = await CallFields(id);
+            KeyValuePair<string, string>[] old = [new("mission", mission), new("call", oldCall), new("answer", option)];
+            await captain.Post("answer", old);
+            if (!Pending(await captain.Read()))
+            {
+                continue;
+            }
+
+            (_, string newCall, _) = await CallFields(id);
+            int stored = app.Game.Store.ReadEvents(id).Count;
+
+            List<string> patches = Patches(await captain.Post("answer", old));
+
+            Assert.Equal(3, patches.Count);
+            Assert.StartsWith("<header id=\"topbar\"", patches[0]);
+            Assert.StartsWith("<main id=\"main\"", patches[1]);
+            Assert.StartsWith("<aside id=\"roster\"", patches[2]);
+            Assert.Contains($"name=\"call\" value=\"{newCall}\"", Entity(patches[1]));
+            Assert.Matches("<p id=\"call-refusal\" role=\"alert\">The pending call is [^<]+</p>", Entity(patches[1]));
+            Assert.Contains("<p id=\"refusal\" role=\"alert\"></p>", patches[1]);
+            Assert.Equal(stored, app.Game.Store.ReadEvents(id).Count);
+
+            // The next answer is built from the patched page alone.
+            string patched = Entity(patches[1]);
+            var form = new List<KeyValuePair<string, string>>
+            {
+                new("mission", Regex.Match(patched, "name=\"mission\" value=\"([^\"]+)\"").Groups[1].Value),
+                new("call", Regex.Match(patched, "name=\"call\" value=\"([^\"]+)\"").Groups[1].Value),
+                new("answer", Regex.Match(patched, "name=\"answer\" value=\"([^\"]+)\"").Groups[1].Value),
+                new("cycle", Regex.Match(patched, "name=\"cycle\" value=\"([^\"]+)\"").Groups[1].Value),
+                new("phase", Regex.Match(patched, "name=\"phase\" value=\"([^\"]+)\"").Groups[1].Value),
+            };
+            string next = await captain.Post("answer", form);
+            Assert.NotEmpty(LogPatches(next));
+            Assert.True(app.Game.Store.ReadEvents(id).Count > stored, "The answer to the new call was stored.");
+            return;
+        }
+
+        Assert.Fail("No seed to 200 had an answer followed by a second call.");
     }
 
     [Fact]

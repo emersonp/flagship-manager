@@ -10,6 +10,9 @@ public sealed class LegacySession(GameServices services)
 {
     private readonly ConcurrentDictionary<Guid, SemaphoreSlim> locks = new();
 
+    // A test hook: runs after a run's commit, inside the lock.
+    internal Action<Guid>? AfterCommit { get; set; }
+
     // Runs work under the legacy's lock on a freshly loaded state, commits what it published, and returns its result.
     // Returns null when the legacy does not exist. A rejected command rolls nothing forward and is rethrown.
     public async Task<T?> Run<T>(Guid legacyId, Func<LoadedLegacy, T> work, CancellationToken cancellation = default)
@@ -25,6 +28,7 @@ public sealed class LegacySession(GameServices services)
         long loadedAt = legacy.State.NextSequence;
         T result = work(legacy);
         services.Store.Commit(legacy.State, legacy.Envelopes, loadedAt);
+        AfterCommit?.Invoke(legacyId);
         return result;
     }
 

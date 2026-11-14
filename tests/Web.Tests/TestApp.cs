@@ -118,6 +118,9 @@ public sealed class CapturedLogs : ILoggerProvider
 {
     private readonly List<(LogLevel Level, string Category, string Message)> entries = [];
 
+    // Called with each entry as it is written, so a test can wait on one instead of polling.
+    public Action<(LogLevel Level, string Category, string Message)>? OnEntry { get; set; }
+
     public IReadOnlyList<(LogLevel Level, string Category, string Message)> Entries
     {
         get
@@ -153,10 +156,13 @@ public sealed class CapturedLogs : ILoggerProvider
 
         public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
         {
+            (LogLevel, string, string) entry = (logLevel, category, formatter(state, exception) + (exception is null ? "" : " " + exception));
             lock (owner.entries)
             {
-                owner.entries.Add((logLevel, category, formatter(state, exception) + (exception is null ? "" : " " + exception)));
+                owner.entries.Add(entry);
             }
+
+            owner.OnEntry?.Invoke(entry);
         }
     }
 }

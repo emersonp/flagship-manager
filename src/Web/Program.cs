@@ -29,20 +29,32 @@ builder.Services.AddSingleton<Render>();
 WebApplication app = builder.Build();
 app.Services.GetRequiredService<GameServices>();
 
-// An unexpected failure discards the request's state; the stored legacy is exactly as it was.
+// An unexpected failure: the request may have stored its commands before it failed, so the player is sent to reload.
+// A Datastar request gets the words as a patch of the main screen, or the page would not change at all.
 app.Use(async (context, next) =>
 {
     try
     {
         await next();
     }
+    catch (OperationCanceledException) when (context.RequestAborted.IsCancellationRequested)
+    {
+        // The client left, for example while another request held the legacy: nothing failed.
+    }
     catch (Exception e) when (!context.Response.HasStarted)
     {
         app.Logger.LogError(e, "Request failed.");
         context.Response.Clear();
+        if (Sse.IsDatastar(context.Request))
+        {
+            await Sse.Start(context.Response);
+            await Sse.PatchElements(context.Response, ErrorContent.Main);
+            return;
+        }
+
         context.Response.StatusCode = StatusCodes.Status500InternalServerError;
         context.Response.ContentType = "text/html; charset=utf-8";
-        await context.Response.WriteAsync("<!DOCTYPE html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>Error</title><link rel=\"icon\" href=\"/favicon.svg\" type=\"image/svg+xml\"><link rel=\"stylesheet\" href=\"/css/app.css\"></head><body><div class=\"page\"><main id=\"main\"><div class=\"page-col\"><div class=\"view-head\"><h1>Something went wrong</h1><p>The request failed, and the legacy was not changed. Go back and try again.</p></div><div class=\"actions well\"><a class=\"btn btn--primary\" href=\"/\">Back to the legacies</a></div></div></main></div></body></html>");
+        await context.Response.WriteAsync(ErrorContent.Page);
     }
 });
 app.UseStaticFiles();
@@ -74,6 +86,14 @@ BridgeEndpoints.Map(app);
 app.Run();
 
 public partial class Program;
+
+// Written by hand, not rendered: it must not depend on what may have failed.
+internal static class ErrorContent
+{
+    public const string Main = "<main id=\"main\"><div class=\"page-col\"><div class=\"view-head\"><h1>Something went wrong</h1><p>Reload to see where things stand.</p></div><div class=\"actions well\"><a class=\"btn btn--primary\" href=\"/\">Back to the legacies</a></div></div></main>";
+
+    public const string Page = "<!DOCTYPE html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>Error</title><link rel=\"icon\" href=\"/favicon.svg\" type=\"image/svg+xml\"><link rel=\"stylesheet\" href=\"/css/app.css\"></head><body><div class=\"page\">" + Main + "</div></body></html>";
+}
 
 internal sealed class SeeOtherResult(string url) : IResult
 {

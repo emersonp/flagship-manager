@@ -6,6 +6,12 @@ namespace Web;
 // Datastar 1.0.5 stream events, written by hand.
 public static class Sse
 {
+    // Datastar sends this header with every request it makes.
+    public static bool IsDatastar(HttpRequest request)
+    {
+        return request.Headers["Datastar-Request"] == "true";
+    }
+
     public static Task Start(HttpResponse response)
     {
         response.ContentType = "text/event-stream";
