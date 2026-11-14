@@ -37,6 +37,17 @@ From the review of the first part. None is a rule change; each is something the 
 - **Small test gaps left from the first part:** no committed test reads every event type back from its stored form (a probe did, and all passed); a stored event missing a member that has a default in its record is not refused.
 - **For the author:** experience in a skill a crew member does not have is dropped (the starter crew all list every skill), and light injuries have no cap across missions (the most seen on one crew member in 10,000 missions was 2).
 
+## Small things left in the browser part
+
+Seen in the last review; none blocks play.
+
+- A refused answer shows the bus's own words, with resolver ids ("The pending call is 'abort:ENCOUNTER_07', not 'dec:ENCOUNTER_03'."). Plainer words belong with the narrative slice (1d).
+- During a mission the roster holds until the mission ends, so a crew member who dies at line 15 still reads Active beside the log until the end. It lags the log; it never runs ahead.
+- A check's own effects have no beat, so the meters can move with no log line saying why. The report (1d) should say it.
+- A not-found answer to a stream request replaces only the main region; the top bar and roster keep the old legacy.
+- At 400 wide the objectives table's skills column is cut at the edge of its scroll region.
+- Two test gaps from the first part remain: no committed test reads every event type back from its stored form, and a stored event missing a member that has a default is not refused.
+
 ## Carried forward to going online
 
 Noted while building the browser part; none matters while the game is local and single-player.
