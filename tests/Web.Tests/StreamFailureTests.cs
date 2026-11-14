@@ -116,9 +116,11 @@ public sealed class StreamFailureTests : IDisposable
             }
         };
 
+        var waitingForLock = new TaskCompletionSource();
+        app.Sessions.BeforeLock = _ => waitingForLock.TrySetResult();
         using var cancel = new CancellationTokenSource();
         Task<HttpResponseMessage> waiting = client.SendAsync(Request($"/legacy/{id}/advance", true, stamp), cancel.Token);
-        await Task.Delay(200);
+        await waitingForLock.Task.WaitAsync(TimeSpan.FromSeconds(30));
         await cancel.CancelAsync();
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => waiting);
         await finished.Task.WaitAsync(TimeSpan.FromSeconds(30));

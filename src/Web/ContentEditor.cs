@@ -39,6 +39,9 @@ public sealed class ContentEditor
     // A test hook: runs once the save holds the lock, before the files are read, to stand for another writer getting in first.
     internal Action? AfterGate { get; set; }
 
+    // A test hook: runs as a save starts to wait for the lock, so a test knows a second save has reached it.
+    internal Action? BeforeGate { get; set; }
+
     // The files on disk now: the disk is the truth, since the author may edit files by hand or with git.
     public ContentFileSet Read()
     {
@@ -65,6 +68,7 @@ public sealed class ContentEditor
 
     private async Task<SaveResult> Commit(Func<ContentFileSet, ContentFileSet> change, Func<string, int>? writeOrder, CancellationToken cancellation)
     {
+        BeforeGate?.Invoke();
         await gate.WaitAsync(cancellation);
         try
         {

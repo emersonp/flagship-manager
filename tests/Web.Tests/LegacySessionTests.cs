@@ -28,13 +28,17 @@ public sealed class LegacySessionTests : IDisposable
             return new object();
         }));
         await firstEntered.Task;
+        var secondWaiting = new TaskCompletionSource();
+        app.Sessions.BeforeLock = _ => secondWaiting.TrySetResult();
         Task second = Task.Run(() => app.Sessions.Run<object>(app.Live, id, legacy =>
         {
             Interlocked.Increment(ref secondEntered);
             legacy.Send(new AdvancePhase());
             return new object();
         }));
-        await Task.Delay(300);
+        await secondWaiting.Task.WaitAsync(TimeSpan.FromSeconds(30));
+        // The one wait kept: it shows the second run does not get in, which no signal can say.
+        await Task.Delay(100);
         int enteredWhileHeld = Volatile.Read(ref secondEntered);
         gate.SetResult();
         await Task.WhenAll(first, second);

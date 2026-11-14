@@ -265,8 +265,12 @@ public sealed class ContentHostTests : IClassFixture<RepoContentGuard>, IDisposa
             return Rename(files, "CREW_01", "NAME_PLACEHOLDER_A");
         }));
         await entered.Task;
+        var secondWaiting = new TaskCompletionSource();
+        editor.BeforeGate = () => secondWaiting.TrySetResult();
         Task<SaveResult> second = Task.Run(() => editor.Save(files => Rename(files, "CREW_02", "NAME_PLACEHOLDER_B")));
-        await Task.Delay(200);
+        await secondWaiting.Task.WaitAsync(TimeSpan.FromSeconds(30));
+        // The one wait kept: it shows the second save does not get in, which no signal can say.
+        await Task.Delay(100);
         Assert.False(second.IsCompleted, "The second save waits for the first.");
         release.SetResult();
         SaveResult[] results = await Task.WhenAll(first, second);

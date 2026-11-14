@@ -18,6 +18,9 @@ public sealed class LegacySession(GameServices services)
 
     internal int LockCount => locks.Count;
 
+    // A test hook: runs as a request starts to wait for a legacy's lock, so a test knows it has reached it.
+    internal Action<Guid>? BeforeLock { get; set; }
+
     // Runs work under the legacy's lock on a freshly loaded state, commits what it published, and returns its result.
     // Returns null when the legacy does not exist. A rejected command rolls nothing forward and is rethrown.
     // The pack is the caller's snapshot: the load, the commands, and the events all use it, whatever is swapped meanwhile.
@@ -96,6 +99,7 @@ public sealed class LegacySession(GameServices services)
     private async Task<Held> Hold(Guid legacyId, CancellationToken cancellation)
     {
         SemaphoreSlim gate = locks.GetOrAdd(legacyId, _ => new SemaphoreSlim(1, 1));
+        BeforeLock?.Invoke(legacyId);
         await gate.WaitAsync(cancellation);
         return new Held(this, legacyId, gate);
     }
