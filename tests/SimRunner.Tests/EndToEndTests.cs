@@ -49,7 +49,7 @@ public sealed class EndToEndTests : IDisposable
         var store = new SqliteLegacyStore($"Data Source={path}");
         LegacyState state = TestPack.NewLegacy(Seed);
         Guid id = state.LegacyId;
-        store.Create(new LegacyRecord(state, Pack.Id, Pack.Version));
+        store.Create(new LegacyRecord(state, Pack.Id, Pack.Version, "LEGACY", new DateTimeOffset(2026, 11, 14, 8, 30, 0, TimeSpan.Zero)));
         int stepsWhileWaiting = 0;
         while (state.Cycle <= Cycles)
         {
@@ -58,8 +58,9 @@ public sealed class EndToEndTests : IDisposable
                 stepsWhileWaiting++;
             }
 
+            long sequenceLoadedAt = state.NextSequence;
             IReadOnlyList<EventEnvelope> events = AutoCaptain.Step(game, state, Pack).Select(game.Events.ToEnvelope).ToList();
-            store.Commit(state, events);
+            store.Commit(state, events, sequenceLoadedAt);
             state = store.Load(id, game.ModuleTypes)!.State;
         }
 

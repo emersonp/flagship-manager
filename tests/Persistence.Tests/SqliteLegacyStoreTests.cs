@@ -36,10 +36,12 @@ public sealed class SqliteLegacyStoreTests : IDisposable
         return new SqliteLegacyStore($"Data Source={path}");
     }
 
+    private static readonly DateTimeOffset Created = new(2026, 11, 14, 8, 30, 0, TimeSpan.Zero);
+
     private static LegacyRecord NewRecord(Guid id)
     {
         // A seed above long.MaxValue checks that the full unsigned range survives storage.
-        return new LegacyRecord(new LegacyState { LegacyId = id, Seed = ulong.MaxValue - 5 }, "CORE", 1);
+        return new LegacyRecord(new LegacyState { LegacyId = id, Seed = ulong.MaxValue - 5 }, "CORE", 1, "LEGACY", Created);
     }
 
     [Fact]
@@ -62,7 +64,7 @@ public sealed class SqliteLegacyStoreTests : IDisposable
             Loyalty = 55,
             AwayMissions = 2,
         });
-        store.Commit(record.State, Array.Empty<EventEnvelope>());
+        store.Commit(record.State, Array.Empty<EventEnvelope>(), 1);
 
         var types = new Dictionary<string, Type> { ["crew"] = typeof(CrewState) };
         CrewMember loaded = NewStore().Load(id, types)!.State.Module<CrewState>("crew").Members.Single();
@@ -89,7 +91,7 @@ public sealed class SqliteLegacyStoreTests : IDisposable
         record.State.Module<LogState>("log").Lines.Add("CREW_01");
         var events = new[] { new EventEnvelope(1, 3, "A", 1, "{}"), new EventEnvelope(2, 4, "B", 2, """{"X":1}""") };
 
-        store.Commit(record.State, events);
+        store.Commit(record.State, events, 1);
 
         LegacyRecord loaded = NewStore().Load(id, ModuleTypes)!;
         Assert.Equal(id, loaded.State.LegacyId);
@@ -120,11 +122,11 @@ public sealed class SqliteLegacyStoreTests : IDisposable
         SqliteLegacyStore store = NewStore();
         LegacyRecord record = NewRecord(id);
         store.Create(record);
-        store.Commit(record.State, [new EventEnvelope(1, 1, "A", 1, "{}")]);
+        store.Commit(record.State, [new EventEnvelope(1, 1, "A", 1, "{}")], 1);
         record.State.Cycle = 9;
         record.State.Module<FuelState>("fuel").Units = 99;
 
-        Assert.ThrowsAny<Exception>(() => store.Commit(record.State, [new EventEnvelope(1, 1, "Duplicate", 1, "{}")]));
+        Assert.ThrowsAny<Exception>(() => store.Commit(record.State, [new EventEnvelope(1, 1, "Duplicate", 1, "{}")], 1));
 
         Assert.Equal(1, store.Load(id, ModuleTypes)!.State.Cycle);
         Assert.Empty(store.Load(id, ModuleTypes)!.State.Modules);
@@ -140,8 +142,8 @@ public sealed class SqliteLegacyStoreTests : IDisposable
         SqliteLegacyStore store = NewStore();
         store.Create(NewRecord(first));
         store.Create(NewRecord(second));
-        store.Commit(NewRecord(first).State, [new EventEnvelope(1, 1, "A", 1, "{}")]);
-        store.Commit(NewRecord(second).State, [new EventEnvelope(1, 1, "B", 1, "{}")]);
+        store.Commit(NewRecord(first).State, [new EventEnvelope(1, 1, "A", 1, "{}")], 1);
+        store.Commit(NewRecord(second).State, [new EventEnvelope(1, 1, "B", 1, "{}")], 1);
 
         Assert.Equal("A", Assert.Single(store.ReadEvents(first)).Type);
         Assert.Equal("B", Assert.Single(store.ReadEvents(second)).Type);
@@ -160,7 +162,7 @@ public sealed class SqliteLegacyStoreTests : IDisposable
         record.State.NextSequence = 2;
         record.State.RngStates["2:missions"] = 77;
         record.State.Module<FuelState>("fuel").Units = 5;
-        store.Commit(record.State, [new EventEnvelope(1, 1, "A", 1, "{}")]);
+        store.Commit(record.State, [new EventEnvelope(1, 1, "A", 1, "{}")], 1);
         string json = LegacyExport.Export(store, id, ModuleTypes);
 
         Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
@@ -188,9 +190,146 @@ public sealed class SqliteLegacyStoreTests : IDisposable
         store.Create(NewRecord(id));
         string json = LegacyExport.Export(store, id, ModuleTypes);
 
-        Assert.Contains("\"FormatVersion\": 2", json);
-        Assert.Throws<InvalidOperationException>(() => LegacyExport.Import(store, json.Replace("\"FormatVersion\": 2", "\"FormatVersion\": 1"), ModuleTypes));
-        Assert.Throws<InvalidOperationException>(() => LegacyExport.Import(store, json.Replace("\"FormatVersion\": 2,", ""), ModuleTypes));
+        Assert.Contains("\"FormatVersion\": 3", json);
+        Assert.Throws<InvalidOperationException>(() => LegacyExport.Import(store, json.Replace("\"FormatVersion\": 3", "\"FormatVersion\": 1"), ModuleTypes));
+        Assert.Throws<InvalidOperationException>(() => LegacyExport.Import(store, json.Replace("\"FormatVersion\": 3,", ""), ModuleTypes));
+    }
+
+    // Name and creation time are record facts, stored as given (time as a UTC instant).
+    [Fact]
+    public void A_legacys_name_and_creation_time_round_trip()
+    {
+        Guid id = Guid.NewGuid();
+        SqliteLegacyStore store = NewStore();
+        var local = new DateTimeOffset(2026, 11, 14, 3, 30, 0, TimeSpan.FromHours(-5));
+        store.Create(new LegacyRecord(new LegacyState { LegacyId = id, Seed = 1 }, "CORE", 1, "  SHIP_NAME  ", local));
+
+        LegacyRecord loaded = NewStore().Load(id, ModuleTypes)!;
+
+        Assert.Equal("SHIP_NAME", loaded.Name);
+        Assert.Equal(local, loaded.CreatedAt);
+        Assert.Equal(TimeSpan.Zero, loaded.CreatedAt.Offset);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void A_blank_name_is_refused(string name)
+    {
+        Assert.Throws<ArgumentException>(() => NewStore().Create(NewRecord(Guid.NewGuid()) with { Name = name }));
+    }
+
+    [Fact]
+    public void A_name_is_limited_to_sixty_characters_after_trimming()
+    {
+        SqliteLegacyStore store = NewStore();
+
+        Assert.Throws<ArgumentException>(() => store.Create(NewRecord(Guid.NewGuid()) with { Name = new string('A', 61) }));
+        store.Create(NewRecord(Guid.NewGuid()) with { Name = " " + new string('A', 60) + " " });
+    }
+
+    [Fact]
+    public void Legacies_list_newest_first_with_their_current_week_and_cycle()
+    {
+        Guid older = Guid.NewGuid();
+        Guid newer = Guid.NewGuid();
+        SqliteLegacyStore store = NewStore();
+        store.Create(NewRecord(older) with { Name = "OLDER", CreatedAt = Created });
+        store.Create(NewRecord(newer) with { Name = "NEWER", CreatedAt = Created.AddHours(1) });
+        LegacyState state = store.Load(older, ModuleTypes)!.State;
+        state.Cycle = 3;
+        state.Week = 8;
+        store.Commit(state, [], 1);
+
+        IReadOnlyList<LegacyListing> listing = store.ListLegacies();
+
+        Assert.Equal(
+            [new LegacyListing(newer, "NEWER", Created.AddHours(1), 1, 1), new LegacyListing(older, "OLDER", Created, 8, 3)],
+            listing);
+    }
+
+    // Equal creation times fall back to the id so the order is stable.
+    [Fact]
+    public void Legacies_created_at_the_same_time_list_by_id()
+    {
+        Guid[] ids = [Guid.Parse("00000000-0000-0000-0000-000000000002"), Guid.Parse("00000000-0000-0000-0000-000000000001")];
+        SqliteLegacyStore store = NewStore();
+        foreach (Guid id in ids)
+        {
+            store.Create(NewRecord(id));
+        }
+
+        Assert.Equal(ids.OrderBy(i => i.ToString()), store.ListLegacies().Select(l => l.LegacyId));
+    }
+
+    [Fact]
+    public void A_commit_at_a_stale_sequence_is_refused_and_writes_nothing()
+    {
+        Guid id = Guid.NewGuid();
+        SqliteLegacyStore store = NewStore();
+        LegacyRecord record = NewRecord(id);
+        store.Create(record);
+        record.State.NextSequence = 2;
+        record.State.Module<FuelState>("fuel").Units = 4;
+        store.Commit(record.State, [new EventEnvelope(1, 1, "A", 1, "{}"), new EventEnvelope(2, 1, "B", 1, "{}")], 1);
+        LegacyState stale = store.Load(id, ModuleTypes)!.State;
+        stale.Cycle = 9;
+        stale.NextSequence = 3;
+        stale.Module<FuelState>("fuel").Units = 99;
+
+        var ex = Assert.Throws<StaleLegacyException>(() => store.Commit(stale, [new EventEnvelope(3, 9, "C", 1, "{}")], 1));
+
+        Assert.Contains(id.ToString(), ex.Message);
+        LegacyState kept = store.Load(id, ModuleTypes)!.State;
+        Assert.Equal(1, kept.Cycle);
+        Assert.Equal(2, kept.NextSequence);
+        Assert.Equal(4, kept.Module<FuelState>("fuel").Units);
+        Assert.Equal(["A", "B"], store.ReadEvents(id).Select(e => e.Type));
+    }
+
+    [Fact]
+    public void Events_read_by_cycle_in_sequence_order()
+    {
+        Guid id = Guid.NewGuid();
+        SqliteLegacyStore store = NewStore();
+        LegacyRecord record = NewRecord(id);
+        store.Create(record);
+        store.Commit(
+            record.State,
+            [new EventEnvelope(3, 2, "C", 1, "{}"), new EventEnvelope(1, 1, "A", 1, "{}"), new EventEnvelope(2, 2, "B", 1, "{}")],
+            1);
+
+        Assert.Equal(["B", "C"], store.ReadEvents(id, 2).Select(e => e.Type));
+        Assert.Empty(store.ReadEvents(id, 7));
+    }
+
+    [Fact]
+    public void An_export_at_format_2_is_refused()
+    {
+        Guid id = Guid.NewGuid();
+        SqliteLegacyStore store = NewStore();
+        store.Create(NewRecord(id));
+        string json = LegacyExport.Export(store, id, ModuleTypes);
+
+        Assert.Throws<InvalidOperationException>(() => LegacyExport.Import(store, json.Replace("\"FormatVersion\": 3", "\"FormatVersion\": 2"), ModuleTypes));
+    }
+
+    [Fact]
+    public void An_import_carries_the_name_and_creation_time()
+    {
+        Guid id = Guid.NewGuid();
+        SqliteLegacyStore store = NewStore();
+        store.Create(NewRecord(id));
+        string json = LegacyExport.Export(store, id, ModuleTypes);
+        Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+        File.Delete(path);
+        SqliteLegacyStore empty = NewStore();
+
+        LegacyExport.Import(empty, json, ModuleTypes);
+
+        LegacyRecord loaded = empty.Load(id, ModuleTypes)!;
+        Assert.Equal("LEGACY", loaded.Name);
+        Assert.Equal(Created, loaded.CreatedAt);
     }
 
     // Load must not skip rows it cannot type.
@@ -202,7 +341,7 @@ public sealed class SqliteLegacyStoreTests : IDisposable
         LegacyRecord record = NewRecord(id);
         store.Create(record);
         record.State.Module<FuelState>("fuel").Units = 1;
-        store.Commit(record.State, []);
+        store.Commit(record.State, [], 1);
 
         var ex = Assert.Throws<InvalidOperationException>(() => store.Load(id, new Dictionary<string, Type>()));
 
@@ -233,7 +372,7 @@ public sealed class SqliteLegacyStoreTests : IDisposable
     [Theory]
     [InlineData(0)]
     [InlineData(1)]
-    [InlineData(3)]
+    [InlineData(2)]
     public void A_database_from_another_schema_is_refused(int version)
     {
         using (var connection = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={path}"))
@@ -246,7 +385,7 @@ public sealed class SqliteLegacyStoreTests : IDisposable
 
         var ex = Assert.Throws<InvalidOperationException>(() => NewStore());
 
-        Assert.Equal($"This database is from a different build (schema {version}, this build reads 2). Delete it or export its legacies with the build that wrote it.", ex.Message);
+        Assert.Equal($"This database is from a different build (schema {version}, this build reads 3). Delete it or export its legacies with the build that wrote it.", ex.Message);
     }
 
     // A phase stored as a number would parse as a member by accident; the store refuses it.
@@ -269,7 +408,7 @@ public sealed class SqliteLegacyStoreTests : IDisposable
 
     // A fresh database must carry the version later builds check.
     [Fact]
-    public void A_new_database_is_created_at_schema_version_2()
+    public void A_new_database_is_created_at_schema_version_3()
     {
         NewStore();
 
@@ -277,7 +416,7 @@ public sealed class SqliteLegacyStoreTests : IDisposable
         connection.Open();
         using Microsoft.Data.Sqlite.SqliteCommand command = connection.CreateCommand();
         command.CommandText = "PRAGMA user_version";
-        Assert.Equal(2L, command.ExecuteScalar());
+        Assert.Equal(3L, command.ExecuteScalar());
     }
 
     // Every module the state no longer holds is dropped from storage with the commit.
@@ -290,10 +429,10 @@ public sealed class SqliteLegacyStoreTests : IDisposable
         store.Create(record);
         record.State.Module<FuelState>("fuel").Units = 1;
         record.State.Module<LogState>("log");
-        store.Commit(record.State, []);
+        store.Commit(record.State, [], 1);
         record.State.Modules.Remove("log");
 
-        store.Commit(record.State, []);
+        store.Commit(record.State, [], 1);
 
         Assert.Equal(["fuel"], store.Load(id, ModuleTypes)!.State.Modules.Keys);
     }
@@ -307,7 +446,7 @@ public sealed class SqliteLegacyStoreTests : IDisposable
         LegacyRecord record = NewRecord(id);
         store.Create(record);
         record.State.Module<FuelState>("fuel").Units = 1;
-        store.Commit(record.State, []);
+        store.Commit(record.State, [], 1);
         string json = LegacyExport.Export(store, id, ModuleTypes);
         Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
         File.Delete(path);
@@ -354,7 +493,7 @@ public sealed class SqliteLegacyStoreTests : IDisposable
         SqliteLegacyStore store = NewStore();
         LegacyRecord record = NewRecord(id);
         store.Create(record);
-        store.Commit(record.State, [new EventEnvelope(1, 1, "A", 1, "{}")]);
+        store.Commit(record.State, [new EventEnvelope(1, 1, "A", 1, "{}")], 1);
         var node = System.Text.Json.Nodes.JsonNode.Parse(LegacyExport.Export(store, id, ModuleTypes))!;
         string[] assign = edit.Split('=', 2);
         string[] path = assign[0].Split('.');

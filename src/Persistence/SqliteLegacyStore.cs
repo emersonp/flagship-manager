@@ -7,7 +7,9 @@ namespace Persistence;
 
 public sealed class SqliteLegacyStore : ILegacyStore
 {
-    private const int SchemaVersion = 2;
+    private const int MaxNameLength = 60;
+
+    private const int SchemaVersion = 3;
 
     private const string Schema = """
         CREATE TABLE IF NOT EXISTS legacy (
@@ -19,7 +21,9 @@ public sealed class SqliteLegacyStore : ILegacyStore
             next_sequence INTEGER NOT NULL,
             rng_states TEXT NOT NULL,
             content_pack_id TEXT NOT NULL,
-            content_pack_version INTEGER NOT NULL
+            content_pack_version INTEGER NOT NULL,
+            name TEXT NOT NULL,
+            created_at TEXT NOT NULL
         );
         CREATE TABLE IF NOT EXISTS module_state (
             legacy_id TEXT NOT NULL,
@@ -59,13 +63,24 @@ public sealed class SqliteLegacyStore : ILegacyStore
 
     public void Create(LegacyRecord record)
     {
+        string name = record.Name.Trim();
+        if (name.Length is < 1 or > MaxNameLength)
+        {
+            throw new ArgumentException($"A legacy name is 1 to {MaxNameLength} characters.", nameof(record));
+        }
+
         using SqliteConnection connection = Open();
         using SqliteTransaction transaction = connection.BeginTransaction();
         Execute(
             connection,
             transaction,
-            "INSERT INTO legacy (legacy_id, seed, cycle, phase, week, next_sequence, rng_states, content_pack_id, content_pack_version) VALUES ($id, $seed, $cycle, $phase, $week, $next, $rng, $packId, $packVersion)",
-            StateParameters(record.State).Append(("$packId", record.ContentPackId)).Append(("$packVersion", record.ContentPackVersion)).ToArray());
+            "INSERT INTO legacy (legacy_id, seed, cycle, phase, week, next_sequence, rng_states, content_pack_id, content_pack_version, name, created_at) VALUES ($id, $seed, $cycle, $phase, $week, $next, $rng, $packId, $packVersion, $name, $createdAt)",
+            StateParameters(record.State)
+                .Append(("$packId", record.ContentPackId))
+                .Append(("$packVersion", record.ContentPackVersion))
+                .Append(("$name", name))
+                .Append(("$createdAt", record.CreatedAt.ToUniversalTime().ToString("O", CultureInfo.InvariantCulture)))
+                .ToArray());
         WriteModules(connection, transaction, record.State);
         transaction.Commit();
     }
@@ -74,7 +89,7 @@ public sealed class SqliteLegacyStore : ILegacyStore
     {
         using SqliteConnection connection = Open();
         using SqliteCommand command = connection.CreateCommand();
-        command.CommandText = "SELECT seed, cycle, phase, week, next_sequence, rng_states, content_pack_id, content_pack_version FROM legacy WHERE legacy_id = $id";
+        command.CommandText = "SELECT seed, cycle, phase, week, next_sequence, rng_states, content_pack_id, content_pack_version, name, created_at FROM legacy WHERE legacy_id = $id";
         command.Parameters.AddWithValue("$id", legacyId.ToString());
         using SqliteDataReader reader = command.ExecuteReader();
         if (!reader.Read())
@@ -93,24 +108,28 @@ public sealed class SqliteLegacyStore : ILegacyStore
             RngStates = JsonSerializer.Deserialize<Dictionary<string, ulong>>(reader.GetString(5), SimJson.Options)
                 ?? throw new InvalidOperationException($"Legacy {legacyId} has no stored RNG states."),
         };
-        var record = new LegacyRecord(state, reader.GetString(6), reader.GetInt32(7));
+        var record = new LegacyRecord(state, reader.GetString(6), reader.GetInt32(7), reader.GetString(8), ParseTime(reader.GetString(9)));
         reader.Close();
         ReadModules(connection, state, moduleTypes);
         return record;
     }
 
-    public void Commit(LegacyState state, IReadOnlyList<EventEnvelope> newEvents)
+    public void Commit(LegacyState state, IReadOnlyList<EventEnvelope> newEvents, long expectedSequence)
     {
         using SqliteConnection connection = Open();
         using SqliteTransaction transaction = connection.BeginTransaction();
         int updated = Execute(
             connection,
             transaction,
-            "UPDATE legacy SET cycle = $cycle, phase = $phase, week = $week, next_sequence = $next, rng_states = $rng WHERE legacy_id = $id AND seed = $seed",
-            StateParameters(state).ToArray());
+            "UPDATE legacy SET cycle = $cycle, phase = $phase, week = $week, next_sequence = $next, rng_states = $rng WHERE legacy_id = $id AND seed = $seed AND next_sequence = $expected",
+            StateParameters(state).Append(("$expected", expectedSequence)).ToArray());
         if (updated != 1)
         {
-            throw new InvalidOperationException($"Legacy {state.LegacyId} does not exist.");
+            // Nothing was written yet, so the transaction rolls back on dispose.
+            long? found = StoredSequence(connection, transaction, state.LegacyId);
+            throw found is null
+                ? new InvalidOperationException($"Legacy {state.LegacyId} does not exist.")
+                : new StaleLegacyException(state.LegacyId, expectedSequence, found.Value);
         }
 
         Execute(connection, transaction, "DELETE FROM module_state WHERE legacy_id = $id", ("$id", state.LegacyId.ToString()));
@@ -135,10 +154,40 @@ public sealed class SqliteLegacyStore : ILegacyStore
 
     public IReadOnlyList<EventEnvelope> ReadEvents(Guid legacyId)
     {
+        return ReadEvents(legacyId, "");
+    }
+
+    public IReadOnlyList<EventEnvelope> ReadEvents(Guid legacyId, int cycle)
+    {
+        return ReadEvents(legacyId, " AND cycle = $cycle", ("$cycle", cycle));
+    }
+
+    public IReadOnlyList<LegacyListing> ListLegacies()
+    {
         using SqliteConnection connection = Open();
         using SqliteCommand command = connection.CreateCommand();
-        command.CommandText = "SELECT sequence, cycle, type, version, payload FROM event_log WHERE legacy_id = $id ORDER BY sequence";
+        command.CommandText = "SELECT legacy_id, name, created_at, week, cycle FROM legacy ORDER BY created_at DESC, legacy_id";
+        using SqliteDataReader reader = command.ExecuteReader();
+        var listings = new List<LegacyListing>();
+        while (reader.Read())
+        {
+            listings.Add(new LegacyListing(Guid.Parse(reader.GetString(0)), reader.GetString(1), ParseTime(reader.GetString(2)), reader.GetInt32(3), reader.GetInt32(4)));
+        }
+
+        return listings;
+    }
+
+    private IReadOnlyList<EventEnvelope> ReadEvents(Guid legacyId, string filter, params (string Name, object Value)[] parameters)
+    {
+        using SqliteConnection connection = Open();
+        using SqliteCommand command = connection.CreateCommand();
+        command.CommandText = $"SELECT sequence, cycle, type, version, payload FROM event_log WHERE legacy_id = $id{filter} ORDER BY sequence";
         command.Parameters.AddWithValue("$id", legacyId.ToString());
+        foreach ((string name, object value) in parameters)
+        {
+            command.Parameters.AddWithValue(name, value);
+        }
+
         using SqliteDataReader reader = command.ExecuteReader();
         var events = new List<EventEnvelope>();
         while (reader.Read())
@@ -187,6 +236,20 @@ public sealed class SqliteLegacyStore : ILegacyStore
                 throw new InvalidOperationException($"Stored module '{module}' does not read as {type.Name}: {e.Message}", e);
             }
         }
+    }
+
+    private static DateTimeOffset ParseTime(string stored)
+    {
+        return DateTimeOffset.Parse(stored, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind);
+    }
+
+    private static long? StoredSequence(SqliteConnection connection, SqliteTransaction transaction, Guid legacyId)
+    {
+        using SqliteCommand command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = "SELECT next_sequence FROM legacy WHERE legacy_id = $id";
+        command.Parameters.AddWithValue("$id", legacyId.ToString());
+        return (long?)command.ExecuteScalar();
     }
 
     private static long Scalar(SqliteConnection connection, string sql)

@@ -6,7 +6,7 @@ namespace Persistence;
 // Developer mode only: the way to keep a legacy safe from bugs while the game is under construction.
 public static class LegacyExport
 {
-    private const int CurrentFormatVersion = 2;
+    private const int CurrentFormatVersion = 3;
 
     private static readonly JsonSerializerOptions Options = new(SimJson.Options) { WriteIndented = true };
 
@@ -30,7 +30,9 @@ public static class LegacyExport
             state.RngStates,
             modules,
             record.ContentPackId,
-            record.ContentPackVersion);
+            record.ContentPackVersion,
+            record.Name,
+            record.CreatedAt);
         return JsonSerializer.Serialize(new Snapshot(CurrentFormatVersion, legacy, store.ReadEvents(legacyId)), Options);
     }
 
@@ -80,8 +82,8 @@ public static class LegacyExport
             }
         }
 
-        store.Create(new LegacyRecord(state, legacy.ContentPackId, legacy.ContentPackVersion));
-        store.Commit(state, snapshot.Events);
+        store.Create(new LegacyRecord(state, legacy.ContentPackId, legacy.ContentPackVersion, legacy.Name, legacy.CreatedAt));
+        store.Commit(state, snapshot.Events, state.NextSequence);
         return state.LegacyId;
     }
 
@@ -98,4 +100,6 @@ internal sealed record SnapshotLegacy(
     Dictionary<string, ulong> RngStates,
     SortedDictionary<string, JsonElement> Modules,
     string ContentPackId,
-    int ContentPackVersion);
+    int ContentPackVersion,
+    string Name,
+    DateTimeOffset CreatedAt);
