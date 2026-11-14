@@ -504,6 +504,8 @@ Built in slice 1c (`src/Web`, run with `./run.sh`):
 - **The screens so far:** the list of legacies, orders, briefing, resolution, and aftermath, with the top bar (week, cycle, and the five phases) and the roster beside each. The inbox and the crew file come with slices 1d and 1e.
 - **Beat lines are plain and structural** until the narrative report (slice 1d) replaces them: `CREW_02 checks SKILL_B at ENCOUNTER_01, helped by CREW_05: 6 + 3 against 15, failure (−6).`
 - **A legacy played through the browser has exactly the simulator's event log** for the same seed and choices; a test holds the two together.
+- **Everything authored has a display name** (slice 1c-editor): skills, crew, gear, objective templates, encounters, decisions, and assignments. Ids stay the keys in saves, events, and references; the screens and the log show the name and fall back to the id. Two items that share a name show their ids beside it.
+- **The content editor** (slice 1c-editor, `/dev/content`, developer mode only; `run.sh` turns it on): a form for each kind of content, and the tuning and pack files as text. A save builds the whole pack as it would be, runs the loader on it, and only then writes one file and swaps the pack in the running game; a save the loader refuses writes nothing and shows the reasons. A file holding anything the editor cannot keep faithfully is never rewritten. Names and gear reach games in progress at once; a legacy's crew keep the levels they started with. Git stays the record.
 - **The look** is recorded in `docs/design/` (the mock-up, the tokens, and the component recipes): a blue-slate ground, one azure signal, a serif for headings over a technical grotesk, monospaced figures, and the mission log as one numbered trail that runs into the call. Screens are in `docs/screens/1c/`.
 
 ## 8. Engine recommendation
@@ -638,7 +640,7 @@ What has been built, slice by slice. A phase is cut into slices when it is plann
 | 1. Thinnest game | 1b. Mission bench | One mission run thousands of times from the command line, with before and after comparison | Done 2026-11-14 |
 | 1. Thinnest game | 1c, part one. A whole cycle, headless | Crew that grow, are hurt, heal, and die; missions on the event bus; module state stored; the simulator plays real cycles | Done 2026-11-14 |
 | 1. Thinnest game | 1c, part two. The cycle in the browser | Legacy selection, orders, briefing, resolution with paced beats and calls, aftermath, and the visual design | Done 2026-11-14 |
-| 1. Thinnest game | 1c-editor. Content editor | Developer-mode pages that write the content files, validated on save; display names for crew, skills, gear, objectives, encounters, and assignments | In progress |
+| 1. Thinnest game | 1c-editor. Content editor | Developer-mode pages that write the content files, validated on save; display names for crew, skills, gear, objectives, encounters, and assignments | Done 2026-11-14 |
 | 1. Thinnest game | 1d. Reports | The grammar engine and the narrative report built from beats | Next |
 | 1. Thinnest game | 1e. Life aboard | Storylets, morale, captain's time, the inbox and crew file, and the chronicle list | Later |
 | 1. Thinnest game | 1f. Tuning in play | The mission bench and the tuning page in the browser | Later |

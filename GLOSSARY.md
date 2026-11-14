@@ -224,5 +224,13 @@ The per-cycle summary of what department heads resolved without the captain.
 **Salience**:
 The measure of how much a piece of content deserves the player's attention this cycle.
 
+**Developer mode**:
+A setting of the running game that adds the content editor and, later, the bench and tuning pages. Off in normal play.
+_Avoid_: Debug mode, admin
+
+**Display name**:
+What the screens show for an authored thing. Optional; the id is shown when there is none. Never used as a key.
+_Avoid_: Label, title
+
 **Content pack**:
 The author-written data: names, species, templates, storylet text, and grammars. Separate from systems.
