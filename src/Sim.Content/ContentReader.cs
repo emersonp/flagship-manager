@@ -10,21 +10,26 @@ internal static class ContentReader
     // One list entry as written, and the model read from it (null when it is not a mapping or has no id).
     public sealed record Entry(YamlNode Node, IContentModel? Model, string? RawId);
 
+    // The entries of the first document, and whether more documents follow (the loader reads only the first).
+    public sealed record FileRead(List<Entry> Entries, bool ExtraDocuments);
+
     // Null when the text does not parse or is not a list. Items with no usable id are skipped.
     public static List<IContentModel>? ReadItems(ContentKind kind, string text)
     {
-        return ReadEntries(kind, text)?.Where(e => e.Model is not null).Select(e => e.Model!).ToList();
+        return ReadEntries(kind, text)?.Entries.Where(e => e.Model is not null).Select(e => e.Model!).ToList();
     }
 
     // Null when the text does not parse or is not a list; every entry otherwise, in order, whether or not it can be modelled.
-    public static List<Entry>? ReadEntries(ContentKind kind, string text)
+    public static FileRead? ReadEntries(ContentKind kind, string text)
     {
         YamlNode? root;
+        bool extra;
         try
         {
             var stream = new YamlStream();
             stream.Load(new StringReader(text));
             root = stream.Documents.Count == 0 ? null : stream.Documents[0].RootNode;
+            extra = stream.Documents.Count > 1;
         }
         catch (Exception e) when (e is YamlException or ArgumentException)
         {
@@ -34,7 +39,7 @@ internal static class ContentReader
         // A blank or comment-only file is an empty list for editing purposes; the loader reports it separately.
         if (root is null || root is YamlScalarNode { Value: null or "" or "~" or "null" })
         {
-            return [];
+            return new FileRead([], extra);
         }
 
         if (root is not YamlSequenceNode sequence)
@@ -50,7 +55,7 @@ internal static class ContentReader
             items.Add(new Entry(node, item, node is YamlMappingNode raw ? Str(Get(Map(raw), "id")) : null));
         }
 
-        return items;
+        return new FileRead(items, extra);
     }
 
     private static IContentModel? Item(ContentKind kind, Dictionary<string, YamlNode> m)
@@ -94,7 +99,7 @@ internal static class ContentReader
                 {
                     Dictionary<string, YamlNode> s = Map(stage);
                     (int countMin, int countMax) = Range(Get(s, "count"));
-                    stages.Add(new StageModel(Str(Get(s, "slot")) ?? "", Strings(Get(Map(Get(s, "draw")), "tags")), countMin, countMax, Bool(Get(s, "skippable"))));
+                    stages.Add(new StageModel(Str(Get(s, "slot")) ?? "", Strings(Get(Map(Get(s, "draw")), "tags")), countMin, countMax, YamlBool(Str(Get(s, "skippable")))));
                 }
 
                 return new ObjectiveModel(id, name, Strings(Get(m, "tags")), teamMin, teamMax, Int(Get(m, "need")) ?? 0, Int(Get(Map(Get(m, "ifUnattended")), "difficulty")), stages);
@@ -107,7 +112,7 @@ internal static class ContentReader
                     decision = new DecisionModel(Str(Get(dm, "id")) ?? "", Str(Get(dm, "name")), Int(Get(dm, "stakes")) ?? 0, Effects(Get(dm, "bold")), Effects(Get(dm, "safe")));
                 }
 
-                return new EncounterModel(id, name, Strings(Get(m, "tags")), Bool(Get(m, "commsBlocked")), Str(Get(m, "chain")), Approach(Get(approaches, "careful")), Approach(Get(approaches, "fast")), decision);
+                return new EncounterModel(id, name, Strings(Get(m, "tags")), YamlBool(Str(Get(m, "commsBlocked"))), Str(Get(m, "chain")), Approach(Get(approaches, "careful")), Approach(Get(approaches, "fast")), decision);
             default:
                 return null;
         }
@@ -126,7 +131,7 @@ internal static class ContentReader
         {
             Dictionary<string, YamlNode> e = Map(entry);
             string? injury = Str(Get(e, "injuryRoll"));
-            effects.Add(new EffectModel(Int(Get(e, "progress")), Int(Get(e, "momentum")), Int(Get(e, "strain")), injury, Bool(Get(e, "withdraw"))));
+            effects.Add(new EffectModel(RawInt(Get(e, "progress")), RawInt(Get(e, "momentum")), RawInt(Get(e, "strain")), injury, Str(Get(e, "withdraw")) == "true"));
         }
 
         return effects;
@@ -137,10 +142,10 @@ internal static class ContentReader
     {
         if (node is YamlSequenceNode { Children.Count: 2 } pair)
         {
-            return (Int(pair.Children[0]) ?? 0, Int(pair.Children[1]) ?? 0);
+            return (RawInt(pair.Children[0]) ?? 0, RawInt(pair.Children[1]) ?? 0);
         }
 
-        int? single = Int(node);
+        int? single = RawInt(node);
         return (single ?? 0, single ?? 0);
     }
 
@@ -202,5 +207,31 @@ internal static class ContentReader
 
     private static readonly System.Text.RegularExpressions.Regex IntShape = new("^[+-]?[0-9][0-9A-Za-z_]*$", System.Text.RegularExpressions.RegexOptions.CultureInvariant);
 
-    private static bool Bool(YamlNode? node) => string.Equals(Str(node), "true", StringComparison.OrdinalIgnoreCase);
+    // The loader reads effect values, teamSize, and a stage's count from the raw text with int.TryParse, not as YAML integers.
+    public static int? RawInt(YamlNode? node) => RawInt(Str(node));
+
+    public static int? RawInt(string? text) => int.TryParse(text, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out int n) ? n : null;
+
+    private static readonly System.Text.RegularExpressions.Regex BoolShape = new("^[A-Za-z]+$", System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+
+    // A flag exactly as the loader's deserialiser reads a bool property (skippable, commsBlocked); false when it is not one.
+    public static bool YamlBool(string? text) => IsBool(text) ?? false;
+
+    // The value the loader's deserialiser reads for a bool property, or null when it reads none.
+    public static bool? IsBool(string? text)
+    {
+        if (text is null || !BoolShape.IsMatch(text))
+        {
+            return null;
+        }
+
+        try
+        {
+            return IntReader.Deserialize<bool>(text);
+        }
+        catch (Exception e) when (e is YamlException or FormatException or InvalidCastException)
+        {
+            return null;
+        }
+    }
 }

@@ -195,8 +195,8 @@ public static partial class ContentLoader
             _ => [value, value],
         };
         if (parts.Count == 2
-            && int.TryParse(parts[0].ToString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out int min)
-            && int.TryParse(parts[1].ToString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out int max)
+            && int.TryParse(parts[0]?.ToString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out int min)
+            && int.TryParse(parts[1]?.ToString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out int max)
             && min >= 1
             && max >= min)
         {

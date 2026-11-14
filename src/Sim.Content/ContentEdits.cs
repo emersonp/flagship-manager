@@ -96,7 +96,8 @@ public static class ContentEdits
         return Replace(files, path, text);
     }
 
-    // What a rewrite of this file would lose, item by item; empty when the file is faithful or is not a list file.
+    // What a rewrite of this file would lose, item by item; empty when the file is faithful or is not a list file. A file-level problem
+    // (a top-level map, a second document) appears only here, with a null Item, and not as ContentItemRef.Lossy, so a caller must check both.
     public static IReadOnlyList<ContentLoss> Losses(ContentFileSet files, string path)
     {
         ContentKind? kind = Enum.GetValues<ContentKind>().Cast<ContentKind?>().FirstOrDefault(k => path.StartsWith(ContentFolders.Folder(k!.Value) + "/", StringComparison.Ordinal));

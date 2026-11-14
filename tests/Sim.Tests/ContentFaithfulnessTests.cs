@@ -362,6 +362,111 @@ public class ContentFaithfulnessTests : IClassFixture<RepoContentGuard>
         }
     }
 
+    public sealed record Loss2(string Name, ContentKind Kind, string Path, string Marker, string Find, string Replace, string Other)
+    {
+        public override string ToString() => Name;
+    }
+
+    private static Loss2 Enc(string name, string find, string replace) => new(name, ContentKind.Encounter, "encounters/base.yaml", "- id: ENCOUNTER_02", find, replace, "ENCOUNTER_01");
+
+    private static Loss2 Obj(string name, string find, string replace) => new(name, ContentKind.Objective, "objectives/base.yaml", "- id: OBJECTIVE_TEMPLATE_2", find, replace, "OBJECTIVE_TEMPLATE_1");
+
+    // Each key is compared the way the loader reads that key: effect numbers, teamSize, and count as raw integers; withdraw as exactly "true".
+    private static readonly Loss2[] Strict = BuildStrict();
+
+    private static Loss2[] BuildStrict()
+    {
+        var list = new List<Loss2>();
+        foreach (string v in new[] { "0x7FFFFFFF", "0b11", "-0x10", "+0x5", "1_000", "1__0", "5_", "0_1", "!!str 0x10" })
+        {
+            list.Add(Enc("progress " + v, "{ progress: 1 }", "{ progress: " + v + " }"));
+            list.Add(Enc("momentum " + v, "{ strain: -1 }", "{ momentum: " + v + " }"));
+            list.Add(Obj("teamSize scalar " + v, "teamSize: [2, 3]", "teamSize: " + v));
+            list.Add(Obj("teamSize pair " + v, "teamSize: [2, 3]", "teamSize: [2, " + v + "]"));
+            list.Add(Obj("count scalar " + v, "count: 1 }", "count: " + v + " }"));
+            list.Add(Obj("count pair " + v, "count: [1, 2]", "count: [1, " + v + "]"));
+        }
+
+        foreach (string v in new[] { "True", "TRUE", "False", "!!bool true", "yes" })
+        {
+            list.Add(Enc("withdraw " + v, "{ strain: -1 }", "{ withdraw: " + v + " }"));
+        }
+
+        list.Add(Enc("tagged null", "{ progress: 1 }", "{ progress: 1 }, { injuryRoll: !!null x }"));
+        list.Add(Enc("tagged string", "difficulty: 5 }", "difficulty: !!str 5 }"));
+        list.Add(Enc("tagged flag", "tags: [field, social]", "commsBlocked: !!bool true\n  tags: [field, social]"));
+        list.Add(Obj("tagged count", "count: 1 }", "count: !!int 1 }"));
+        return [.. list];
+    }
+
+    public static TheoryData<Loss2> StrictCases()
+    {
+        var data = new TheoryData<Loss2>();
+        foreach (Loss2 c in Strict)
+        {
+            data.Add(c);
+        }
+
+        return data;
+    }
+
+    private static ContentFileSet Mutated(Loss2 c)
+    {
+        ContentFileSet repo = Repo();
+        return ContentEdits.ReplaceText(repo, c.Path, EditBlock(repo.Files[c.Path], c.Marker, b => b.Replace(c.Find, c.Replace)));
+    }
+
+    [Theory]
+    [MemberData(nameof(StrictCases))]
+    public void A_value_the_loader_reads_differently_is_refused_not_repaired(Loss2 c)
+    {
+        ContentFileSet files = Mutated(c);
+        ContentLossException e = Assert.Throws<ContentLossException>(() => ContentEdits.Upsert(files, c.Kind, ModelOf(files, c.Kind, c.Other)));
+        Assert.Contains(c.Path, e.Message);
+    }
+
+    // The loader reads these effect and count values with int.TryParse, so leading zeros and signs are plain decimals.
+    [Theory]
+    [InlineData("0010", "10")]
+    [InlineData("+5", "5")]
+    [InlineData("\"7\"", "7")]
+    public void A_value_the_loader_parses_as_decimal_is_kept_as_that_value(string written, string kept)
+    {
+        ContentFileSet files = Mutated(Enc("momentum", "{ strain: -1 }", "{ momentum: " + written + " }"));
+        ContentFileSet edited = ContentEdits.Upsert(files, ContentKind.Encounter, ModelOf(files, ContentKind.Encounter, "ENCOUNTER_01"));
+        Assert.Contains("{ momentum: " + kept + " }", edited.Files["encounters/base.yaml"]);
+        Assert.Equal(JsonSerializer.Serialize(files.Validate().Pack, SimJson.Options), JsonSerializer.Serialize(edited.Validate().Pack, SimJson.Options));
+        ContentFileSet counts = Mutated(Obj("count", "count: [1, 2]", "count: [0001, 0003]"));
+        ContentFileSet countsEdited = ContentEdits.Upsert(counts, ContentKind.Objective, ModelOf(counts, ContentKind.Objective, "OBJECTIVE_TEMPLATE_1"));
+        Assert.Contains("count: [1, 3]", countsEdited.Files["objectives/base.yaml"]);
+    }
+
+    // A file with a second document would lose it on a rewrite.
+    [Fact]
+    public void A_file_with_a_second_document_is_a_file_level_loss()
+    {
+        ContentFileSet repo = Repo();
+        ContentFileSet files = ContentEdits.ReplaceText(repo, "gear/base.yaml", repo.Files["gear/base.yaml"] + "---\n- id: GEAR_09\n  tag: other\n");
+        ContentLoss loss = Assert.Single(ContentEdits.Losses(files, "gear/base.yaml"));
+        Assert.Null(loss.Item);
+        Assert.Contains("second document", loss.Problem);
+        Assert.Throws<ContentLossException>(() => ContentEdits.Upsert(files, ContentKind.Gear, ModelOf(files, ContentKind.Gear, "GEAR_01")));
+        Assert.DoesNotContain(files.Index(), i => i.Lossy);
+    }
+
+    // The loader reports a pair of nulls as it reports a non-number, instead of crashing.
+    [Theory]
+    [InlineData("teamSize: [2, 3]", "teamSize: [~, ~]", "teamSize must be")]
+    [InlineData("count: [1, 2]", "count: [~, ~]", "count must be")]
+    public void The_loader_reports_a_pair_of_nulls(string find, string replace, string message)
+    {
+        ContentFileSet repo = Repo();
+        ContentFileSet files = ContentEdits.ReplaceText(repo, "objectives/base.yaml", repo.Files["objectives/base.yaml"].Replace(find, replace));
+        ContentLoadResult result = files.Validate();
+        Assert.Null(result.Pack);
+        Assert.Contains(result.Errors, e => e.Message.Contains(message, StringComparison.Ordinal));
+    }
+
     private static string Temp()
     {
         string path = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "content-faith-" + System.IO.Path.GetRandomFileName());

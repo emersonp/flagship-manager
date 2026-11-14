@@ -10,7 +10,8 @@ public enum ContentKind
     Encounter,
 }
 
-// Lossy: this item has something the editor cannot show, so saving it replaces what it cannot show.
+// Lossy: this item has something the editor cannot show, so saving it replaces what it cannot show. A file-level problem (a top-level map,
+// a second document) is not flagged here, only in ContentEdits.Losses, so a caller must check both.
 public sealed record ContentItemRef(ContentKind Kind, string Id, string? Name, string File, bool Lossy = false);
 
 // What every kind's model shares, so the writer and the index can treat them alike.

@@ -34,24 +34,36 @@ internal static class ContentFaithfulness
     private static readonly HashSet<string> EmptyListKeys = ["tags", "bold", "safe", "stages"];
     private static readonly HashSet<string> EmptyMapKeys = ["skills", "offer", "objectives"];
 
-    // Flags the loader reads as false when absent.
-    private static readonly HashSet<string> FlagKeys = ["skippable", "commsBlocked", "withdraw"];
+    // Properties the loader deserialises as bool: any case of true and false.
+    private static readonly HashSet<string> FlagKeys = ["skippable", "commsBlocked"];
 
-    // Numbers the loader reads as 0 when absent.
-    private static readonly HashSet<string> NumberKeys = ["seniority", "caution", "discipline", "loadoutLimit", "need", "stakes", "difficulty", "teamSize", "count"];
+    // Properties the loader deserialises as int (YAML integers: 0x10, 1_0, 0010 as octal).
+    private static readonly HashSet<string> YamlIntKeys = ["seniority", "caution", "discipline", "loadoutLimit", "need", "stakes", "difficulty"];
+
+    // Values the loader reads from the raw text with int.TryParse (effects, teamSize, a stage's count).
+    private static readonly HashSet<string> RawIntKeys = ["progress", "momentum", "strain", "teamSize", "count"];
+
+    // Numbers that read as 0 when absent.
+    private static readonly HashSet<string> ZeroKeys = ["seniority", "caution", "discipline", "loadoutLimit", "need", "stakes", "difficulty", "teamSize", "count"];
 
     private static readonly HashSet<string> CountKeys = ["teamSize", "count"];
 
     // Each loss as (entry index, loss). Null when the text does not parse as a list. A file-level problem has index -1.
     public static List<(int Index, ContentLoss Loss)>? Analyse(ContentKind kind, string path, string text, string? excludeId = null, bool excludeFirstOnly = false)
     {
-        List<ContentReader.Entry>? entries = ContentReader.ReadEntries(kind, text);
-        if (entries is null)
+        ContentReader.FileRead? read = ContentReader.ReadEntries(kind, text);
+        if (read is null)
         {
             return null;
         }
 
+        List<ContentReader.Entry> entries = read.Entries;
         var losses = new List<(int, ContentLoss)>();
+        if (read.ExtraDocuments)
+        {
+            losses.Add((-1, new ContentLoss(path, null, "has a second document, which the editor cannot keep.")));
+        }
+
         bool excluded = false;
         for (int i = 0; i < entries.Count; i++)
         {
@@ -71,8 +83,8 @@ internal static class ContentFaithfulness
             }
 
             var problems = new List<string>();
-            Tree original = Convert(entry.Node, null);
-            Tree written = Convert(Rendered(entry.Model), null);
+            Tree original = Convert(entry.Node, null, null);
+            Tree written = Convert(Rendered(entry.Model), null, null);
             Diff(original, written, "", problems);
             losses.AddRange(problems.Select(p => (i, new ContentLoss(path, label, p))));
         }
@@ -87,14 +99,20 @@ internal static class ContentFaithfulness
         return ((YamlSequenceNode)stream.Documents[0].RootNode).Children[0];
     }
 
-    private static Tree Convert(YamlNode node, string? key)
+    // key is the mapping key the node sits under; parent is the key of the collection it is an element or value of.
+    private static Tree Convert(YamlNode node, string? key, string? parent)
     {
+        if (!node.Tag.IsEmpty)
+        {
+            return new Scalar($"{node.Tag} (an explicit tag)");
+        }
+
         switch (node)
         {
             case YamlScalarNode scalar:
-                return ScalarOf(scalar);
+                return ScalarOf(scalar, key, parent);
             case YamlSequenceNode sequence:
-                List<Tree> items = sequence.Children.Select(c => Convert(c, null)).ToList();
+                List<Tree> items = sequence.Children.Select(c => Convert(c, null, key)).ToList();
                 if (key is not null && CountKeys.Contains(key) && items.Count == 2 && items[0] == items[1])
                 {
                     return items[0];
@@ -106,7 +124,12 @@ internal static class ContentFaithfulness
                 foreach ((YamlNode k, YamlNode v) in mapping.Children)
                 {
                     string name = k is YamlScalarNode { Value: { } text } ? text : "<not a plain key>";
-                    Tree value = Convert(v, name);
+                    if (key == "offer" && ContentReader.YamlInt(name) is { } number)
+                    {
+                        name = number.ToString(CultureInfo.InvariantCulture);
+                    }
+
+                    Tree value = Convert(v, name, key);
                     if (!Droppable(name, value))
                     {
                         entries[name] = value;
@@ -119,8 +142,9 @@ internal static class ContentFaithfulness
         }
     }
 
-    // Normalize: a plain null, ~, or empty value is null; true and false ignore case; an integer is its decimal value as the loader reads it.
-    private static Scalar ScalarOf(YamlScalarNode node)
+    // Normalize: a plain null, ~, or empty value is null. Beyond that each value is read as the loader reads that key: a bool property
+    // ignores case; an int property is a YAML integer; effect values, teamSize, and count are int.TryParse of the raw text; the rest are strings.
+    private static Scalar ScalarOf(YamlScalarNode node, string? key, string? parent)
     {
         string? value = node.Value;
         if (node.Style == ScalarStyle.Plain && value is null or "" or "~" or "null" or "Null" or "NULL")
@@ -128,12 +152,24 @@ internal static class ContentFaithfulness
             return new Scalar(null);
         }
 
-        if (string.Equals(value, "true", StringComparison.OrdinalIgnoreCase) || string.Equals(value, "false", StringComparison.OrdinalIgnoreCase))
+        if (key is not null && FlagKeys.Contains(key) && ContentReader.IsBool(value) is { } flag)
         {
-            return new Scalar(value!.ToLowerInvariant());
+            return new Scalar(flag ? "true" : "false");
         }
 
-        return new Scalar(ContentReader.YamlInt(value) is { } n ? n.ToString(CultureInfo.InvariantCulture) : value);
+        bool rawInt = (key is not null && RawIntKeys.Contains(key)) || (parent is not null && CountKeys.Contains(parent));
+        bool yamlInt = (key is not null && YamlIntKeys.Contains(key)) || parent is "skills" or "offer";
+        if (rawInt && ContentReader.RawInt(value) is { } raw)
+        {
+            return new Scalar(raw.ToString(CultureInfo.InvariantCulture));
+        }
+
+        if (yamlInt && ContentReader.YamlInt(value) is { } n)
+        {
+            return new Scalar(n.ToString(CultureInfo.InvariantCulture));
+        }
+
+        return new Scalar(value);
     }
 
     // Normalize: for these known optional keys, an absent value, a null, a false flag, a zero, or an empty list or map read the same.
@@ -141,7 +177,7 @@ internal static class ContentFaithfulness
     {
         return (NullKeys.Contains(key) && value is Scalar { Value: null })
             || (FlagKeys.Contains(key) && value is Scalar { Value: "false" })
-            || (NumberKeys.Contains(key) && value is Scalar { Value: "0" })
+            || (ZeroKeys.Contains(key) && value is Scalar { Value: "0" })
             || (EmptyListKeys.Contains(key) && value is Seq { Items.Count: 0 })
             || (EmptyMapKeys.Contains(key) && value is Map { Entries.Count: 0 });
     }

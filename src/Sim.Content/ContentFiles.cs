@@ -29,7 +29,7 @@ public sealed record ContentFileSet(IReadOnlyDictionary<string, string> Files)
         {
             foreach (string path in ContentFolders.FilesOf(this, kind))
             {
-                List<ContentReader.Entry> entries = ContentReader.ReadEntries(kind, Files[path]) ?? [];
+                List<ContentReader.Entry> entries = ContentReader.ReadEntries(kind, Files[path])?.Entries ?? [];
                 HashSet<int> lossy = ContentFaithfulness.Analyse(kind, path, Files[path])?.Select(l => l.Index).ToHashSet() ?? [];
                 for (int i = 0; i < entries.Count; i++)
                 {
