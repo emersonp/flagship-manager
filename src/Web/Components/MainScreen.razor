@@ -1,6 +1,6 @@
 @if (View.Briefing is not null && Phase == CyclePhase.Briefing)
 {
-    <BriefingScreen LegacyId="LegacyId" Bar="View.TopBar" Briefing="View.Briefing" Heading="@View.Site?.AssignmentId" Reason="@Reason" />
+    <BriefingScreen LegacyId="LegacyId" Bar="View.TopBar" Briefing="View.Briefing" Heading="@View.Site?.AssignmentShown" Reason="@Reason" />
 }
 else if (Phase == CyclePhase.Orders)
 {
@@ -35,6 +35,6 @@ else
 
     // The mission's objective by its template, read from the site the page already has.
     private string? ObjectiveName => View.Mission is { } mission
-        ? View.Site?.Objectives.FirstOrDefault(o => o.Id == mission.ObjectiveId)?.TemplateId ?? mission.ObjectiveId
+        ? View.Site?.Objectives.FirstOrDefault(o => o.Id == mission.ObjectiveId)?.Shown ?? mission.ObjectiveId
         : null;
 }

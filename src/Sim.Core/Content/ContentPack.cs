@@ -1,6 +1,6 @@
 namespace Sim.Core.Content;
 
-public sealed record SkillDef(string Id, IReadOnlyList<string> Tags);
+public sealed record SkillDef(string Id, IReadOnlyList<string> Tags, string? Name = null);
 
 public sealed record ContentPack(
     string Id,

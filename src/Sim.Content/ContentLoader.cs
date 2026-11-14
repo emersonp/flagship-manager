@@ -56,7 +56,7 @@ public static partial class ContentLoader
                 case "skills":
                     foreach (SkillDto dto in Items<SkillDto>(yaml, path, text, d => d.Id, seenIn, errors))
                     {
-                        skills.Add(new SkillDef(dto.Id!, dto.Tags ?? []));
+                        skills.Add(new SkillDef(dto.Id!, dto.Tags ?? [], CheckName(path, dto.Id!, dto.Name, errors)));
                     }
 
                     break;
@@ -162,6 +162,24 @@ public static partial class ContentLoader
         }
     }
 
+    // The trimmed display name, or null when absent or refused. An unusable name is a loader error naming the file and the id.
+    private static string? CheckName(string file, string id, string? name, List<ContentError> errors)
+    {
+        if (name is null)
+        {
+            return null;
+        }
+
+        string trimmed = name.Trim();
+        if (trimmed.Length is < 1 or > 80 || trimmed.IndexOfAny(['\r', '\n', '\u0085', '\u2028', '\u2029']) >= 0)
+        {
+            errors.Add(new ContentError(file, $"{id}: name must be 1 to 80 characters with no line break."));
+            return null;
+        }
+
+        return trimmed;
+    }
+
     private static bool CheckId(string file, string? id, List<ContentError> errors)
     {
         if (id is not null && IdPattern().IsMatch(id))
@@ -186,6 +204,8 @@ public static partial class ContentLoader
     private sealed class SkillDto
     {
         public string? Id { get; set; }
+
+        public string? Name { get; set; }
 
         public List<string>? Tags { get; set; }
     }

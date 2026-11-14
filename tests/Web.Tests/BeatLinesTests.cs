@@ -190,4 +190,80 @@ public class BeatLinesTests
             CultureInfo.CurrentCulture = saved;
         }
     }
+
+    private static readonly string[] SampleCrew = ["CREW_01", "CREW_02", "CREW_03"];
+
+    // Names for every id the samples use: crew, skill, encounters, and the two decisions (carried on encounters).
+    private static Names SampleNames(string crew02 = "NAME_PLACEHOLDER_CREW_02")
+    {
+        var approach = new ApproachDef("SKILL_A", 1, null);
+        ContentPack pack = BridgePack.Load() with
+        {
+            Crew = SampleCrew.Select(id => new CrewDef(id, 1, new Dictionary<string, int>(), 0, 0, id == "CREW_02" ? crew02 : "NAME_PLACEHOLDER_" + id)).ToList(),
+            Skills = [new SkillDef("SKILL_A", [], "NAME_PLACEHOLDER_SKILL_A")],
+            Encounters =
+            [
+                new EncounterDef("ENCOUNTER_02", [], false, null, approach, approach, null, "NAME_PLACEHOLDER_ENCOUNTER_02"),
+                new EncounterDef("ENCOUNTER_03", [], false, null, approach, approach, null, "NAME_PLACEHOLDER_ENCOUNTER_03"),
+                new EncounterDef("ENCOUNTER_04", [], false, null, approach, approach, null, "NAME_PLACEHOLDER_ENCOUNTER_04"),
+                new EncounterDef("ENCOUNTER_05", [], false, null, approach, approach, new DecisionDef("DECISION_1", 1, new EffectDef(), new EffectDef(), "NAME_PLACEHOLDER_DECISION_1"), "NAME_PLACEHOLDER_ENCOUNTER_05"),
+                new EncounterDef("ENCOUNTER_06", [], false, null, approach, approach, new DecisionDef("DECISION_2", 1, new EffectDef(), new EffectDef(), "NAME_PLACEHOLDER_DECISION_2"), "NAME_PLACEHOLDER_ENCOUNTER_06"),
+            ],
+        };
+        return new Names(pack);
+    }
+
+    private static string WithNames(string text)
+    {
+        return text.Replace("CREW_0", "NAME_PLACEHOLDER_CREW_0", StringComparison.Ordinal)
+            .Replace("SKILL_A", "NAME_PLACEHOLDER_SKILL_A", StringComparison.Ordinal)
+            .Replace("ENCOUNTER_0", "NAME_PLACEHOLDER_ENCOUNTER_0", StringComparison.Ordinal)
+            .Replace("DECISION_", "NAME_PLACEHOLDER_DECISION_", StringComparison.Ordinal);
+    }
+
+    // The shapes stay; only the ids inside them become names.
+    [Fact]
+    public void With_names_every_line_keeps_its_shape_and_swaps_ids_for_names()
+    {
+        Names names = SampleNames();
+
+        for (int i = 0; i < Samples.Length; i++)
+        {
+            string plain = BeatLines.Line(0, Samples[i], 3).Text;
+            string named = BeatLines.Line(0, Samples[i], 3, names).Text;
+            Assert.Equal(WithNames(plain), named);
+        }
+
+        Assert.Contains("NAME_PLACEHOLDER_CREW_02", BeatLines.Line(0, Samples[2], 3, names).Text);
+    }
+
+    [Fact]
+    public void A_line_without_names_has_the_same_text_and_parts_whose_names_are_the_ids()
+    {
+        LogLine line = BeatLines.Line(0, Samples[2]);
+
+        Assert.Equal("CREW_02 checks SKILL_A at ENCOUNTER_03: 3 + 6 against 11, partial (\u22122).", line.Text);
+        Assert.Equal(["CREW_02", "SKILL_A", "ENCOUNTER_03"], line.Segments.Where(p => p.IsName).Select(p => p.Text));
+        Assert.Equal(line.Text, string.Concat(line.Segments.Select(p => p.Text)));
+    }
+
+    [Fact]
+    public void The_parts_hold_each_name_whole_and_join_to_the_text()
+    {
+        Names names = SampleNames("NAME 7, <b> & -3");
+        var beat = new CheckBeat("ENCOUNTER_03", Approach.Careful, "SKILL_A", "CREW_02", "CREW_01", false, 3, 0, 0, 0, 0, 3, 6, 11, 4, Tier.Success, 0, false, 0);
+
+        LogLine line = BeatLines.Line(0, beat, 0, names);
+
+        Assert.Equal(["NAME 7, <b> & -3", "NAME_PLACEHOLDER_SKILL_A", "NAME_PLACEHOLDER_ENCOUNTER_03", "NAME_PLACEHOLDER_CREW_01"], line.Segments.Where(p => p.IsName).Select(p => p.Text));
+        Assert.Equal(line.Text, string.Concat(line.Segments.Select(p => p.Text)));
+    }
+
+    [Fact]
+    public void A_stage_line_carries_the_encounters_name_beside_its_id()
+    {
+        LogLine stage = BeatLines.Line(0, new StageBeat(5, "ENCOUNTER_02", "SLOT_9", true, 3, 4), 1, SampleNames());
+
+        Assert.Equal(("ENCOUNTER_02", "NAME_PLACEHOLDER_ENCOUNTER_02"), (stage.EncounterId, stage.EncounterName));
+    }
 }

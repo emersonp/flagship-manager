@@ -112,4 +112,87 @@ public sealed class ComponentTests : IDisposable
         Assert.Contains(Regex.Replace(words, "^(\\d+)", "<span class=\"m\">$1</span>"), html);
         Assert.Equal(count, Regex.Matches(html, "<li ").Count);
     }
+
+    private const string Odd = "NAME 7 <b> & -3";
+
+    private static string Encoded => "NAME 7 &lt;b&gt; &amp; -3";
+
+    [Fact]
+    public async Task The_roster_shows_names_and_skill_names_encoded_while_the_row_key_stays_the_id()
+    {
+        CrewRow row = Crew("CREW_01", "Active", 5, 0) with { Name = Odd, Skills = [new SkillCell("SKILL_A", 5, 5, "SKILL " + Odd)] };
+
+        string html = await Html<Roster>(new() { ["Rows"] = new[] { row } });
+
+        Assert.Contains("<tr data-crew=\"CREW_01\"", html);
+        Assert.Contains($"<td class=\"who\">{Encoded}</td>", html);
+        Assert.Contains($"SKILL {Encoded}</th>", html);
+        Assert.DoesNotContain("<b>", html);
+    }
+
+    [Fact]
+    public async Task The_route_shows_the_encounters_name_when_the_line_has_one()
+    {
+        LogLine[] lines = [new(0, "stage", "TEXT_1", "ENCOUNTER_01", false, 1, 2, null, Odd)];
+
+        string html = await Html<StageRoute>(new() { ["Lines"] = lines });
+
+        Assert.Contains($"<span class=\"stop__id\">{Encoded}</span>", html);
+        Assert.DoesNotContain("<b>", html);
+    }
+
+    [Fact]
+    public async Task The_log_sets_a_names_digits_as_plain_text_and_the_lines_own_figures_as_figures()
+    {
+        Sim.Core.Content.ContentPack pack = BridgePack.Load();
+        var names = new Names(pack with { Crew = [new Sim.Core.Content.CrewDef("CREW_02", 1, new Dictionary<string, int>(), 0, 0, Odd)] });
+        LogLine line = BeatLines.Line(0, new Sim.Missions.LeadChangeBeat("CREW_02"), 0, names);
+        LogLine call = BeatLines.Line(1, new Sim.Missions.CallBeat(new Sim.Missions.PendingCall("DECISION_1", 3, 2.5, "CREW_02", Sim.Missions.CallAnswer.Safe, [Sim.Missions.CallAnswer.Safe], "c1")), 0, names);
+
+        string html = await Html<MissionLog>(new() { ["Lines"] = new[] { line, call } });
+
+        Assert.Contains($"{Encoded} becomes lead.", html);
+        Assert.Contains($"{Encoded} calls: DECISION_1. Stakes <span class=\"m\">3</span>.", html);
+        Assert.DoesNotContain("<b>", html);
+        Assert.DoesNotContain("<span class=\"m\">7", html);
+    }
+
+    [Fact]
+    public async Task The_call_panel_shows_the_lead_and_decision_names_encoded()
+    {
+        var call = new CallView("c1", "DECISION_1", 2, ["Bold", "Safe"], "Safe", "CREW_01", Odd, Odd + " lead");
+
+        string html = await Html<CallPanel>(new() { ["LegacyId"] = Guid.NewGuid(), ["MissionId"] = "m_1_1", ["Bar"] = Bar, ["Call"] = call });
+
+        Assert.Contains($"{Encoded} lead is calling", html);
+        Assert.Contains($"<dd>{Encoded}</dd>", html);
+        Assert.DoesNotContain("<b>", html);
+    }
+
+    [Fact]
+    public async Task The_team_line_and_gear_show_names_and_mark_the_lead_by_id()
+    {
+        var mission = new MissionView("m_1_1", "o_1_1", ["CREW_01", "CREW_02"], "CREW_02", 1, 1, [], null, null, ["GEAR_01"], 5, "CREW_01", ["NAME_A", Odd], ["NAME_G"]);
+
+        string html = await Html<ResolutionScreen>(new() { ["LegacyId"] = Guid.NewGuid(), ["Bar"] = Bar, ["Mission"] = mission });
+
+        Assert.Contains($"<dd id=\"team\">NAME_A and {Encoded} (lead)</dd>", html);
+        Assert.Contains("<dd>NAME_G</dd>", html);
+        Assert.DoesNotContain("<b>", html);
+    }
+
+    [Fact]
+    public async Task The_aftermath_head_and_changes_show_names_and_an_unattended_line_shows_the_template_name()
+    {
+        var mission = new MissionView("m_1_1", "o_1_1", ["CREW_01", "CREW_02"], "CREW_02", 1, 1, [], null, "PartialSuccess", [], 5, "CREW_01", ["NAME_A", Odd]);
+        var change = new CrewChange("CREW_02", "death", $"{Odd} died.", [new LinePart(true, Odd), new LinePart(false, " died.")]);
+        var aftermath = new AftermathView("PartialSuccess", [change], [new("o_1_2", "OBJECTIVE_TEMPLATE_2", 6, 15, false, Odd)]);
+
+        string html = await Html<AftermathScreen>(new() { ["LegacyId"] = Guid.NewGuid(), ["Bar"] = Bar, ["Aftermath"] = aftermath, ["Mission"] = mission, ["ObjectiveName"] = Odd });
+
+        Assert.Contains($"Outcome of {Encoded}, team NAME_A and {Encoded} (lead)", html);
+        Assert.Contains($"<span>{Encoded} died.</span>", html);
+        Assert.Contains($"<p>{Encoded}, rolled", html);
+        Assert.DoesNotContain("<b>", html);
+    }
 }

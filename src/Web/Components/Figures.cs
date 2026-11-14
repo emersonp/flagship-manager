@@ -2,6 +2,7 @@ using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Components;
+using Web.Bridge;
 
 namespace Web.Components;
 
@@ -22,8 +23,31 @@ public static partial class Figures
         return new MarkupString(MonoHtml(text));
     }
 
+    // A line cut into parts: each name is encoded plain text, never scanned for figures; the text between is set as Mono does.
+    public static MarkupString Mono(IReadOnlyList<LinePart> parts)
+    {
+        return new MarkupString(Join(parts, MonoHtml));
+    }
+
+    public static MarkupString Check(IReadOnlyList<LinePart> parts)
+    {
+        return new MarkupString(Join(parts, CheckHtml));
+    }
+
+    // The outcome is the last clause of the last part of text, so a name containing a comma cannot move it.
+    public static MarkupString Injury(IReadOnlyList<LinePart> parts)
+    {
+        int last = parts.Count - 1;
+        return new MarkupString(Join(parts, MonoHtml, last >= 0 && !parts[last].IsName ? last : -1, InjuryHtml));
+    }
+
     // A check line: figures in mono, the result word in ink, or harm for a failure.
     public static MarkupString Check(string text)
+    {
+        return new MarkupString(CheckHtml(text));
+    }
+
+    private static string CheckHtml(string text)
     {
         var html = new StringBuilder();
         int at = 0;
@@ -36,21 +60,44 @@ public static partial class Figures
         }
 
         html.Append(MonoHtml(text[at..]));
-        return new MarkupString(html.ToString());
+        return html.ToString();
     }
 
     // An injury line: the outcome, its last clause, is harm unless the member was unharmed.
     public static MarkupString Injury(string text)
     {
+        return new MarkupString(InjuryHtml(text));
+    }
+
+    private static string InjuryHtml(string text)
+    {
         int comma = text.LastIndexOf(", ", StringComparison.Ordinal);
         if (comma < 0 || !text.EndsWith('.'))
         {
-            return Mono(text);
+            return MonoHtml(text);
         }
 
         string outcome = text[(comma + 2)..^1];
         string css = outcome == "unharmed" ? "res" : "res res--fail";
-        return new MarkupString($"{MonoHtml(text[..(comma + 2)])}<span class=\"{css}\">{HtmlEncoder.Default.Encode(outcome)}</span>.");
+        return $"{MonoHtml(text[..(comma + 2)])}<span class=\"{css}\">{HtmlEncoder.Default.Encode(outcome)}</span>.";
+    }
+
+    private static string Join(IReadOnlyList<LinePart> parts, Func<string, string> text, int special = -1, Func<string, string>? specialText = null)
+    {
+        var html = new StringBuilder();
+        for (int i = 0; i < parts.Count; i++)
+        {
+            if (parts[i].IsName)
+            {
+                html.Append(HtmlEncoder.Default.Encode(parts[i].Text));
+            }
+            else
+            {
+                html.Append(i == special ? specialText!(parts[i].Text) : text(parts[i].Text));
+            }
+        }
+
+        return html.ToString();
     }
 
     // "A", "A and B", "A, B, and C".

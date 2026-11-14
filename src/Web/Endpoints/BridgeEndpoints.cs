@@ -173,7 +173,7 @@ public static class BridgeEndpoints
         string meter = await render.Html<Meter>(new Dictionary<string, object?> { ["Mission"] = mission });
         string call = await render.Html<CallPanel>(new Dictionary<string, object?> { ["LegacyId"] = legacyId, ["Bar"] = after.TopBar, ["MissionId"] = mission?.MissionId ?? "", ["Call"] = mission?.Call });
         string footer = await render.Html<ResolutionFooter>(new Dictionary<string, object?> { ["LegacyId"] = legacyId, ["Bar"] = after.TopBar, ["Show"] = mission is null || mission.Outcome is not null });
-        string? team = mission is null ? null : await render.Html<TeamLine>(new Dictionary<string, object?> { ["Team"] = mission.Team, ["LeadId"] = mission.LeadId });
+        string? team = mission is null ? null : await render.Html<TeamLine>(new Dictionary<string, object?> { ["Team"] = mission.Team, ["TeamNames"] = mission.TeamShown, ["LeadId"] = mission.LeadId });
         string finalRoster = await render.Html<Roster>(new Dictionary<string, object?> { ["Rows"] = after.Roster });
         return new StreamResult(async response =>
         {

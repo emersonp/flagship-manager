@@ -13,7 +13,8 @@ public static class BridgeReader
     public static BridgeView Read(LegacyRecord record, ContentPack pack, IReadOnlyList<IEvent> cycleEvents)
     {
         LegacyState state = record.State;
-        IReadOnlyList<CrewRow> roster = Roster(state);
+        var names = new Names(pack);
+        IReadOnlyList<CrewRow> roster = Roster(state, names);
         SiteState? site = state.TryModule(MissionsModule.Name, out MissionsState? missions) ? missions.Site : null;
         CyclePhase phase = state.Phase;
 
@@ -22,16 +23,16 @@ public static class BridgeReader
         bool showMission = site?.Mission is not null && phase is CyclePhase.Resolution or CyclePhase.Aftermath;
         bool showAftermath = site is not null && phase is CyclePhase.Aftermath or CyclePhase.Advance;
 
-        List<ObjectiveView> objectives = site is null ? [] : site.Objectives.Select(o => Objective(pack, site, o)).ToList();
-        MissionView? mission = showMission ? Mission(site!.Mission!, site.Briefing, cycleEvents) : null;
+        List<ObjectiveView> objectives = site is null ? [] : site.Objectives.Select(o => Objective(pack, names, site, o)).ToList();
+        MissionView? mission = showMission ? Mission(site!.Mission!, site.Briefing, cycleEvents, names) : null;
         return new BridgeView(
             TopBar(record, pack),
             // Only while the mission plays: the aftermath names the team in its head instead.
             mission is null || phase != CyclePhase.Resolution ? roster : MarkAway(roster, mission.Team, mission.LeadId),
-            showSite ? new SiteView(site!.AssignmentId, objectives) : null,
-            showBriefing ? Briefing(pack, site!, objectives, roster) : null,
+            showSite ? new SiteView(site!.AssignmentId, objectives, names.Assignment(site.AssignmentId)) : null,
+            showBriefing ? Briefing(pack, names, site!, objectives, roster) : null,
             mission,
-            showAftermath ? Aftermath(site!, state, cycleEvents) : null);
+            showAftermath ? Aftermath(site!, state, cycleEvents, names) : null);
     }
 
     // The away team's living rows, with the lead flagged; everyone else unmarked. Used for a lead other than the stored one too.
@@ -52,7 +53,7 @@ public static class BridgeReader
         return new TopBarView(record.Name, record.State.Week, record.State.Cycle, record.State.Phase, warning);
     }
 
-    private static IReadOnlyList<CrewRow> Roster(LegacyState state)
+    private static IReadOnlyList<CrewRow> Roster(LegacyState state, Names names)
     {
         if (!state.TryModule(CrewModule.Name, out CrewState? crew))
         {
@@ -60,15 +61,15 @@ public static class BridgeReader
         }
 
         // Stable sort: the dead go last, the rest keep roster order.
-        return crew.Members.OrderBy(m => m.Status == CrewStatus.Dead).Select(Row).ToList();
+        return crew.Members.OrderBy(m => m.Status == CrewStatus.Dead).Select(m => Row(m, names)).ToList();
     }
 
-    private static CrewRow Row(CrewMember member)
+    private static CrewRow Row(CrewMember member, Names names)
     {
         int injuries = member.LightInjuriesHealAtWeek.Count;
         List<SkillCell> skills = member.Skills
             .OrderBy(s => s.Key, StringComparer.Ordinal)
-            .Select(s => new SkillCell(s.Key, s.Value.Level, Math.Max(0, s.Value.Level - injuries)))
+            .Select(s => new SkillCell(s.Key, s.Value.Level, Math.Max(0, s.Value.Level - injuries), names.Skill(s.Key)))
             .ToList();
         return new CrewRow(
             member.Id,
@@ -79,10 +80,11 @@ public static class BridgeReader
             member.LightInjuriesHealAtWeek.ToList(),
             member.ReturnsAtWeek,
             member.Loyalty,
-            member.AwayMissions);
+            member.AwayMissions,
+            Name: names.Crew(member.Id));
     }
 
-    private static ObjectiveView Objective(ContentPack pack, SiteState site, SiteObjective objective)
+    private static ObjectiveView Objective(ContentPack pack, Names names, SiteState site, SiteObjective objective)
     {
         // A stored legacy may name a template the loaded pack lacks: the pack warning explains it, so a miss reads as empty.
         ObjectiveDef? template = pack.Objectives.FirstOrDefault(o => o.Id == objective.TemplateId);
@@ -100,50 +102,56 @@ public static class BridgeReader
             template?.TeamSizeMin ?? 0,
             template?.TeamSizeMax ?? 0,
             template?.UnattendedDifficulty,
-            site.Briefing?.ObjectiveId == objective.Id);
+            site.Briefing?.ObjectiveId == objective.Id,
+            names.Objective(objective.TemplateId),
+            skills.Select(names.Skill).ToList());
     }
 
-    private static BriefingView Briefing(ContentPack pack, SiteState site, IReadOnlyList<ObjectiveView> objectives, IReadOnlyList<CrewRow> roster)
+    private static BriefingView Briefing(ContentPack pack, Names names, SiteState site, IReadOnlyList<ObjectiveView> objectives, IReadOnlyList<CrewRow> roster)
     {
         AssignmentDef? assignment = pack.Assignments.FirstOrDefault(a => a.Id == site.AssignmentId);
         return new BriefingView(
             objectives,
             roster.Where(c => c.Status != nameof(CrewStatus.Dead)).ToList(),
-            pack.Gear.Select(g => new GearChoice(g.Id, g.Tag)).ToList(),
+            pack.Gear.Select(g => new GearChoice(g.Id, g.Tag, names.Gear(g.Id))).ToList(),
             assignment?.LoadoutLimit ?? 0);
     }
 
-    private static MissionView Mission(MissionInFlight mission, Briefing? briefing, IReadOnlyList<IEvent> cycleEvents)
+    private static MissionView Mission(MissionInFlight mission, Briefing? briefing, IReadOnlyList<IEvent> cycleEvents, Names names)
     {
         MissionState state = mission.State;
         List<MissionBeat> beats = cycleEvents.OfType<MissionBeat>().Where(b => b.MissionId == mission.Id).OrderBy(b => b.Index).ToList();
         CallView? call = state.Pending is { } pending
-            ? new CallView(pending.CallId, pending.DecisionId, pending.Stakes, pending.Options.Select(o => o.ToString()).ToList(), pending.LeadPrefers.ToString(), pending.LeadId)
+            ? new CallView(pending.CallId, pending.DecisionId, pending.Stakes, pending.Options.Select(o => o.ToString()).ToList(), pending.LeadPrefers.ToString(), pending.LeadId, names.Decision(pending.DecisionId), names.Crew(pending.LeadId))
             : null;
+        List<string> team = state.Team.Select(m => m.Member.Id).ToList();
+        IReadOnlyList<string> gear = Gear(mission, briefing, cycleEvents);
         return new MissionView(
             mission.Id,
             mission.ObjectiveId,
-            state.Team.Select(m => m.Member.Id).ToList(),
+            team,
             state.LeadId,
             state.Momentum,
             state.Strain,
-            Lines(beats),
+            Lines(beats, names),
             call,
             state.Result?.Outcome.ToString(),
-            Gear(mission, briefing, cycleEvents),
+            gear,
             state.Tuning.Cap,
-            StartLead(mission, briefing, cycleEvents) ?? state.LeadId);
+            StartLead(mission, briefing, cycleEvents) ?? state.LeadId,
+            team.Select(names.Crew).ToList(),
+            gear.Select(names.Gear).ToList());
     }
 
     // The log's stage beats are numbered from 1 in order; the beat's own cursor also counts skipped slots.
-    private static List<LogLine> Lines(IReadOnlyList<MissionBeat> beats)
+    private static List<LogLine> Lines(IReadOnlyList<MissionBeat> beats, Names names)
     {
         int stage = 0;
         var lines = new List<LogLine>();
         foreach (MissionBeat b in beats)
         {
             stage += b.Beat is StageBeat ? 1 : 0;
-            lines.Add(BeatLines.Line(b.Index, b.Beat, stage));
+            lines.Add(BeatLines.Line(b.Index, b.Beat, stage, names));
         }
 
         return lines;
@@ -174,7 +182,14 @@ public static class BridgeReader
         return text.ToString(CultureInfo.InvariantCulture);
     }
 
-    private static AftermathView Aftermath(SiteState site, LegacyState state, IReadOnlyList<IEvent> cycleEvents)
+    // A crew change whose line names the member; the id stays in CrewId.
+    private static CrewChange Change(string crewId, string kind, Names names, Func<BeatLines.Nm, List<LinePart>> line)
+    {
+        List<LinePart> parts = line(new BeatLines.Nm(names.Crew(crewId)));
+        return new CrewChange(crewId, kind, string.Concat(parts.Select(p => p.Text)), parts);
+    }
+
+    private static AftermathView Aftermath(SiteState site, LegacyState state, IReadOnlyList<IEvent> cycleEvents, Names names)
     {
         CrewState? crew = state.TryModule(CrewModule.Name, out CrewState? found) ? found : null;
         string? outcome = null;
@@ -190,36 +205,36 @@ public static class BridgeReader
                     {
                         if (crew?.Members.FirstOrDefault(m => m.Id == result.Id) is { } member)
                         {
-                            changes.Add(new CrewChange(member.Id, "loyalty", Inv($"{member.Id} loyalty now {member.Loyalty}.")));
+                            changes.Add(Change(member.Id, "loyalty", names, c => BeatLines.Compose($"{c} loyalty now {member.Loyalty}.")));
                         }
                     }
 
                     break;
                 case SkillRaised raised:
-                    changes.Add(new CrewChange(raised.CrewId, "skill", Inv($"{raised.CrewId} raises {raised.SkillId} to level {raised.Level}.")));
+                    changes.Add(Change(raised.CrewId, "skill", names, c => BeatLines.Compose($"{c} raises {new BeatLines.Nm(names.Skill(raised.SkillId))} to level {raised.Level}.")));
                     break;
                 case CrewInjured injured:
                     // One line per light injury with its heal week: this mission's are the last ones the crew state added.
                     IEnumerable<int> heals = crew?.Members.FirstOrDefault(m => m.Id == injured.CrewId)?.LightInjuriesHealAtWeek.TakeLast(injured.LightInjuries) ?? [];
                     foreach (int week in heals)
                     {
-                        changes.Add(new CrewChange(injured.CrewId, "injury", Inv($"{injured.CrewId} lightly injured, heals week {week}.")));
+                        changes.Add(Change(injured.CrewId, "injury", names, c => BeatLines.Compose($"{c} lightly injured, heals week {week}.")));
                     }
 
                     if (injured.Outcome == MemberStatus.Incapacitated)
                     {
-                        changes.Add(new CrewChange(injured.CrewId, "injury", Inv($"{injured.CrewId} incapacitated, returns week {injured.ReturnsAtWeek}.")));
+                        changes.Add(Change(injured.CrewId, "injury", names, c => BeatLines.Compose($"{c} incapacitated, returns week {injured.ReturnsAtWeek}.")));
                     }
 
                     break;
                 case CrewDied died:
-                    changes.Add(new CrewChange(died.CrewId, "death", $"{died.CrewId} died."));
+                    changes.Add(Change(died.CrewId, "death", names, c => BeatLines.Compose($"{c} died.")));
                     break;
                 case CrewRecovered recovered:
-                    changes.Add(new CrewChange(recovered.CrewId, "recovery", $"{recovered.CrewId} recovered."));
+                    changes.Add(Change(recovered.CrewId, "recovery", names, c => BeatLines.Compose($"{c} recovered.")));
                     break;
                 case ObjectiveUnattended u:
-                    unattended.Add(new UnattendedView(u.ObjectiveId, u.TemplateId, u.Roll, u.Target, u.Succeeded));
+                    unattended.Add(new UnattendedView(u.ObjectiveId, u.TemplateId, u.Roll, u.Target, u.Succeeded, names.Objective(u.TemplateId)));
                     break;
             }
         }

@@ -1,11 +1,12 @@
 namespace Sim.Core.Content;
 
-public sealed record CrewDef(string Id, int Seniority, IReadOnlyDictionary<string, int> Skills, int Caution, int Discipline);
+public sealed record CrewDef(string Id, int Seniority, IReadOnlyDictionary<string, int> Skills, int Caution, int Discipline, string? Name = null);
 
-public sealed record GearDef(string Id, string Tag);
+public sealed record GearDef(string Id, string Tag, string? Name = null);
 
+// Name is display only; the id stays the key.
 // Offer maps a number of objectives to the weight of a site offering that many.
-public sealed record AssignmentDef(string Id, IReadOnlyList<string> ObjectiveTags, IReadOnlyDictionary<int, int> Offer, int LoadoutLimit);
+public sealed record AssignmentDef(string Id, IReadOnlyList<string> ObjectiveTags, IReadOnlyDictionary<int, int> Offer, int LoadoutLimit, string? Name = null);
 
 // Every number the crew module uses (design section 6).
 public sealed record CrewTuning

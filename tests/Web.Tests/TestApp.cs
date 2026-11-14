@@ -10,7 +10,7 @@ using Web;
 namespace Web.Tests;
 
 // The real app on a throwaway database file, with the repository's content and no beat delay.
-public sealed class TestApp(int beatDelayMs = 0, bool wideDice = false, bool noCalls = false) : WebApplicationFactory<Program>
+public sealed class TestApp(int beatDelayMs = 0, bool wideDice = false, bool noCalls = false, bool oddNames = false) : WebApplicationFactory<Program>
 {
     private string? wideContent;
 
@@ -52,7 +52,7 @@ public sealed class TestApp(int beatDelayMs = 0, bool wideDice = false, bool noC
         builder.ConfigureAppConfiguration((_, config) => config.AddInMemoryCollection(new Dictionary<string, string?>
         {
             ["Web:DatabasePath"] = path,
-            ["Web:ContentDirectory"] = wideDice ? WideContent() : Path.Combine(RepositoryRoot(), "content"),
+            ["Web:ContentDirectory"] = wideDice || oddNames ? WideContent() : Path.Combine(RepositoryRoot(), "content"),
             ["Web:BeatDelayMs"] = beatDelayMs.ToString(),
         }));
     }
@@ -85,6 +85,16 @@ public sealed class TestApp(int beatDelayMs = 0, bool wideDice = false, bool noC
             File.Copy(file, target);
         }
 
+        if (oddNames)
+        {
+            NameEverything(wideContent);
+        }
+
+        if (!wideDice)
+        {
+            return wideContent;
+        }
+
         string tuning = Path.Combine(wideContent, "tuning", "missions.yaml");
         string text = File.ReadAllText(tuning);
         string wide = text.Replace("dice: { count: 2, sides: 6 }   # every check", "dice: { count: 1, sides: 20 }   # every check", StringComparison.Ordinal);
@@ -99,6 +109,21 @@ public sealed class TestApp(int beatDelayMs = 0, bool wideDice = false, bool noC
         wide = noCalls ? wide.Replace("  base: 3\n", "  base: 50\n", StringComparison.Ordinal) : wide;
         File.WriteAllText(tuning, wide);
         return wideContent;
+    }
+
+    public const string OddName = "NAME 7 <b> & -3";
+
+    // Every item gets a name made of markup, an ampersand, and digits, then its id.
+    private static void NameEverything(string root)
+    {
+        foreach (string file in Directory.GetFiles(root, "*.yaml", SearchOption.AllDirectories).Where(f => !f.Contains("tuning", StringComparison.Ordinal)))
+        {
+            string text = File.ReadAllText(file);
+            text = System.Text.RegularExpressions.Regex.Replace(text, @"(?m)^(\s*)- id: (\w+)\n", m => $"{m.Value}{m.Groups[1].Value}  name: \"{OddName} {m.Groups[2].Value}\"\n");
+            text = System.Text.RegularExpressions.Regex.Replace(text, @"(?m)^(    )id: (DECISION\w+)\n", m => $"{m.Value}    name: \"{OddName} {m.Groups[2].Value}\"\n");
+            text = System.Text.RegularExpressions.Regex.Replace(text, @"\{ id: (GEAR\w+),", m => $"{{ id: {m.Groups[1].Value}, name: \"{OddName} {m.Groups[1].Value}\",");
+            File.WriteAllText(file, text);
+        }
     }
 
     private static string RepositoryRoot()

@@ -13,7 +13,7 @@
                 {
                     LogLine stop = Stages[i];
                     bool current = !Ended && i == Stages.Count - 1;
-                    <li class="stop" aria-current="@(current ? "step" : null)"><span class="stop__no">Stage <span class="m">@(i + 1)</span>@(current ? ", current" : "")</span><span class="stop__id">@stop.EncounterId</span>@if (stop.CommsBlocked == true)
+                    <li class="stop" aria-current="@(current ? "step" : null)"><span class="stop__no">Stage <span class="m">@(i + 1)</span>@(current ? ", current" : "")</span><span class="stop__id">@(stop.EncounterName ?? stop.EncounterId)</span>@if (stop.CommsBlocked == true)
                         {
                             <span class="stop__note">Comms blocked</span>
                         }</li>

@@ -59,12 +59,14 @@ public static partial class ContentLoader
                     Error("The decision's stakes must be 1 to 5.");
                 }
 
-                decision = new DecisionDef(dto.Decision.Id ?? "", dto.Decision.Stakes, Effects(dto.Decision.Bold, Error), Effects(dto.Decision.Safe, Error));
+                string? decisionName = dto.Decision.Id is null ? null : CheckName(file, dto.Decision.Id, dto.Decision.Name, errors);
+                decision = new DecisionDef(dto.Decision.Id ?? "", dto.Decision.Stakes, Effects(dto.Decision.Bold, Error), Effects(dto.Decision.Safe, Error), decisionName);
             }
 
+            string? name = CheckName(file, dto.Id!, dto.Name, errors);
             if (errors.Count == before)
             {
-                defs.Add(new EncounterDef(dto.Id!, dto.Tags ?? [], dto.CommsBlocked, dto.Chain, careful!, fast!, decision));
+                defs.Add(new EncounterDef(dto.Id!, dto.Tags ?? [], dto.CommsBlocked, dto.Chain, careful!, fast!, decision, name));
             }
         }
 
@@ -156,9 +158,10 @@ public static partial class ContentLoader
                 CheckWorstCase(stages, drawable, Error);
             }
 
+            string? name = CheckName(file, dto.Id!, dto.Name, errors);
             if (errors.Count == before)
             {
-                defs.Add(new ObjectiveDef(dto.Id!, dto.Tags ?? [], min, max, dto.Need, stages, dto.IfUnattended?.Difficulty));
+                defs.Add(new ObjectiveDef(dto.Id!, dto.Tags ?? [], min, max, dto.Need, stages, dto.IfUnattended?.Difficulty, name));
             }
         }
 
@@ -208,6 +211,8 @@ public static partial class ContentLoader
     {
         public string? Id { get; set; }
 
+        public string? Name { get; set; }
+
         public List<string>? Tags { get; set; }
 
         public bool CommsBlocked { get; set; }
@@ -239,6 +244,8 @@ public static partial class ContentLoader
     {
         public string? Id { get; set; }
 
+        public string? Name { get; set; }
+
         public int Stakes { get; set; }
 
         public List<Dictionary<string, string>?>? Bold { get; set; }
@@ -249,6 +256,8 @@ public static partial class ContentLoader
     private sealed class ObjectiveDto
     {
         public string? Id { get; set; }
+
+        public string? Name { get; set; }
 
         public List<string>? Tags { get; set; }
 

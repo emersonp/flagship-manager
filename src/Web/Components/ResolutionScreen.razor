@@ -8,10 +8,10 @@
         else
         {
             <dl class="facts">
-                <dt>Team</dt><TeamLine Team="Mission.Team" LeadId="@Mission.LeadId" />
+                <dt>Team</dt><TeamLine Team="Mission.Team" TeamNames="Mission.TeamShown" LeadId="@Mission.LeadId" />
                 @if (Mission.GearIds.Count > 0)
                 {
-                    <dt>Gear</dt><dd>@Figures.List(Mission.GearIds)</dd>
+                    <dt>Gear</dt><dd>@Figures.List(Mission.GearShown)</dd>
                 }
             </dl>
         }

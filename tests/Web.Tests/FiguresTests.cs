@@ -64,4 +64,43 @@ public class FiguresTests
         Assert.Equal("<span class=\"nw\">SKILL_A</span>, <span class=\"nw\">SKILL_B</span>, and <span class=\"nw\">SKILL_C</span>", Figures.Items(["SKILL_A", "SKILL_B", "SKILL_C"]).Value);
         Assert.Equal("<span class=\"nw\">SKILL_A</span> and <span class=\"nw\">SKILL_B</span>", Figures.Items(["SKILL_A", "SKILL_B"]).Value);
     }
+
+    private static readonly Sim.Missions.CheckBeat Check = new("ENCOUNTER_03", Sim.Missions.Approach.Careful, "SKILL_A", "CREW_02", null, false, 3, 0, 0, 0, 0, 3, 6, 11, -2, Sim.Missions.Tier.Partial, 0, false, 0);
+
+    private static Web.Bridge.Names NamedCrew02(string name)
+    {
+        Sim.Core.Content.ContentPack pack = BridgePack.Load();
+        return new Web.Bridge.Names(pack with { Crew = [new Sim.Core.Content.CrewDef("CREW_02", 1, new Dictionary<string, int>(), 0, 0, name)] });
+    }
+
+    // A name is plain text exactly as typed, and the line's own numbers stay figures.
+    [Fact]
+    public void A_name_with_digits_signs_and_markup_is_plain_text_and_the_lines_own_figures_stay_figures()
+    {
+        Web.Bridge.LogLine line = Web.Bridge.BeatLines.Line(0, Check, 0, NamedCrew02("NAME 7 <b> & -3"));
+
+        string raw = Figures.Check(line.Segments).Value;
+        string html = WebUtility.HtmlDecode(raw);
+
+        Assert.DoesNotContain("<b>", raw);
+        Assert.Contains("NAME 7 &lt;b&gt; &amp; -3 checks", raw);
+        Assert.DoesNotContain("<span class=\"m\">7", html);
+        Assert.DoesNotContain("<span class=\"m\">-3", html);
+        Assert.Contains("<span class=\"m\">3 + 6</span> against <span class=\"m\">11</span>, <span class=\"res\">partial</span> <span class=\"m\">(\u22122)</span>.", html);
+    }
+
+    // A name with a comma or a tier word does not move the injury outcome or the result word.
+    [Fact]
+    public void A_name_with_a_comma_or_a_tier_word_does_not_disturb_the_injury_outcome_or_the_tier()
+    {
+        var injury = new Sim.Missions.InjuryBeat("CREW_02", "ENCOUNTER_03", Sim.Core.Content.InjurySeverity.Light, 5, Sim.Missions.InjuryOutcome.LightInjury);
+        Web.Bridge.Names names = NamedCrew02("NAME 7, success");
+
+        string hurt = WebUtility.HtmlDecode(Figures.Injury(Web.Bridge.BeatLines.Line(0, injury, 0, names).Segments).Value);
+        string check = WebUtility.HtmlDecode(Figures.Check(Web.Bridge.BeatLines.Line(0, Check, 0, names).Segments).Value);
+
+        Assert.Contains("NAME 7, success takes a light injury roll at ENCOUNTER_03: <span class=\"m\">5</span>, <span class=\"res res--fail\">light injury</span>.", hurt);
+        Assert.StartsWith("NAME 7, success checks", check);
+        Assert.Single(System.Text.RegularExpressions.Regex.Matches(check, "class=\"res\""));
+    }
 }

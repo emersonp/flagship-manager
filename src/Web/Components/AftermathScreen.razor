@@ -10,7 +10,7 @@
                 @for (int i = 0; i < Changes.Count; i++)
                 {
                     CrewChange change = Changes[i];
-                    <li class="@(change.Kind is "injury" or "death" ? "is-harm" : null)"><span class="changes__no">@((i + 1).ToString("00", System.Globalization.CultureInfo.InvariantCulture))</span><span class="changes__kind">@change.Kind</span><span>@Figures.Mono(Changes[i].Text)</span></li>
+                    <li class="@(change.Kind is "injury" or "death" ? "is-harm" : null)"><span class="changes__no">@((i + 1).ToString("00", System.Globalization.CultureInfo.InvariantCulture))</span><span class="changes__kind">@change.Kind</span><span>@Figures.Mono(change.Segments)</span></li>
                 }
             </ol>
             @if (Changes.Count == 0)
@@ -29,7 +29,7 @@
                 {
                     @foreach (UnattendedView roll in Aftermath!.Unattended)
                     {
-                        <p>@roll.TemplateId, rolled <span class="m">@roll.Roll</span> against <span class="m">@roll.Target</span>, <span class="@(roll.Succeeded ? "res" : "res res--fail")">@(roll.Succeeded ? "succeeded" : "failed")</span>.</p>
+                        <p>@roll.TemplateShown, rolled <span class="m">@roll.Roll</span> against <span class="m">@roll.Target</span>, <span class="@(roll.Succeeded ? "res" : "res res--fail")">@(roll.Succeeded ? "succeeded" : "failed")</span>.</p>
                     }
                 }
             </div>
@@ -58,5 +58,5 @@
     private IReadOnlyList<CrewChange> Changes => Aftermath?.Changes ?? [];
 
     // The team as sent, lead marked, named in the head now that the roster no longer tags it.
-    private string Team => Mission is null ? "" : ", team " + Figures.List(Mission.Team.Select(t => t == Mission.LeadId ? $"{t} (lead)" : t).ToList());
+    private string Team => Mission is null ? "" : ", team " + Figures.List(Mission.Team.Select((t, i) => t == Mission.LeadId ? $"{Mission.TeamShown[i]} (lead)" : Mission.TeamShown[i]).ToList());
 }

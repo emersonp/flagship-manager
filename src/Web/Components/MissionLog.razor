@@ -44,9 +44,9 @@
     {
         return line.Kind switch
         {
-            "check" => Figures.Check(line.Text),
-            "injury" => Figures.Injury(line.Text),
-            _ => Figures.Mono(line.Text),
+            "check" => Figures.Check(line.Segments),
+            "injury" => Figures.Injury(line.Segments),
+            _ => Figures.Mono(line.Segments),
         };
     }
 }

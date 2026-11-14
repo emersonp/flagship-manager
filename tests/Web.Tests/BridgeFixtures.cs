@@ -68,3 +68,22 @@ internal sealed class Played(ContentPack pack, ulong seed)
         return new LegacyRecord(State, Pack.Id, Pack.Version, name, DateTimeOffset.UnixEpoch);
     }
 }
+
+// The pack with every authored item named NAME_PLACEHOLDER_ plus its id, so a test can tell a name from an id.
+internal static class NamedPack
+{
+    public const string Prefix = "NAME_PLACEHOLDER_";
+
+    public static ContentPack Of(ContentPack pack)
+    {
+        return pack with
+        {
+            Skills = pack.Skills.Select(s => s with { Name = Prefix + s.Id }).ToList(),
+            Crew = pack.Crew.Select(c => c with { Name = Prefix + c.Id }).ToList(),
+            Gear = pack.Gear.Select(g => g with { Name = Prefix + g.Id }).ToList(),
+            Objectives = pack.Objectives.Select(o => o with { Name = Prefix + o.Id }).ToList(),
+            Assignments = pack.Assignments.Select(a => a with { Name = Prefix + a.Id }).ToList(),
+            Encounters = pack.Encounters.Select(e => e with { Name = Prefix + e.Id, Decision = e.Decision is null ? null : e.Decision with { Name = Prefix + e.Decision.Id } }).ToList(),
+        };
+    }
+}

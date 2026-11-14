@@ -18,10 +18,10 @@
                             {
                                 <tr>
                                     <td class="lg">
-                                        <label class="obj" for="objective-@objective.Id"><span class="hit"><input type="radio" id="objective-@objective.Id" name="objective" value="@objective.Id" required checked="@(Briefing.Objectives.Count == 1)" data-min="@objective.TeamSizeMin" data-max="@objective.TeamSizeMax" data-skills="@string.Join(' ', objective.PossibleSkills)" data-on:change="@Range"></span>@objective.TemplateId<span class="visually-hidden">, @objective.Id, team @objective.TeamSizeMin to @objective.TeamSizeMax</span></label>
+                                        <label class="obj" for="objective-@objective.Id"><span class="hit"><input type="radio" id="objective-@objective.Id" name="objective" value="@objective.Id" required checked="@(Briefing.Objectives.Count == 1)" data-min="@objective.TeamSizeMin" data-max="@objective.TeamSizeMax" data-skills="@string.Join(' ', objective.PossibleSkills)" data-on:change="@Range"></span>@objective.Shown<span class="visually-hidden">, @objective.Id, team @objective.TeamSizeMin to @objective.TeamSizeMax</span></label>
                                     </td>
                                     <td class="oid">@objective.Id</td>
-                                    <td class="skills">@Figures.Items(objective.PossibleSkills)</td>
+                                    <td class="skills">@Figures.Items(objective.SkillsShown)</td>
                                     <td class="n wide">@objective.TeamSizeMin to @objective.TeamSizeMax</td>
                                     <td class="n wide">@objective.UnattendedDifficulty</td>
                                 </tr>
@@ -43,7 +43,7 @@
                             <th scope="col">Status</th>
                             @foreach (string skill in Skills)
                             {
-                                <th scope="col" class="n" data-show="@Shows(skill)">@skill</th>
+                                <th scope="col" class="n" data-show="@Shows(skill)">@SkillName(skill)</th>
                             }
                             <th scope="col" class="c">Team</th>
                             <th scope="col" class="c">Lead</th>
@@ -53,7 +53,7 @@
                         @foreach (CrewRow row in Briefing.Crew)
                         {
                             <tr class="@(row.Fit ? null : "is-off")">
-                                <td class="who">@row.Id</td>
+                                <td class="who">@row.Shown</td>
                                 <td class="status"><CrewStatusText Row="row" /></td>
                                 @foreach (string skill in Skills)
                                 {
@@ -75,7 +75,7 @@
                 <ul class="gear well__body">
                     @foreach (GearChoice gear in Briefing.Gear)
                     {
-                        <li><label for="gear-@gear.Id"><span class="hit"><input type="checkbox" id="gear-@gear.Id" name="gear" value="@gear.Id" data-on:change="@GearCount" data-attr:disabled="@GearFull"></span><span class="gear__id">@gear.Id</span><span class="gear__kind">@gear.Tag</span></label></li>
+                        <li><label for="gear-@gear.Id"><span class="hit"><input type="checkbox" id="gear-@gear.Id" name="gear" value="@gear.Id" data-on:change="@GearCount" data-attr:disabled="@GearFull"></span><span class="gear__id">@gear.Shown</span><span class="gear__kind">@gear.Tag</span></label></li>
                     }
                 </ul>
             </fieldset>
@@ -132,6 +132,21 @@
 
     private List<string> Skills => Briefing.Objectives.SelectMany(o => o.PossibleSkills).Distinct().ToList();
 
+    // Skill ids are the keys; the header shows the name the objectives carry.
+    private string SkillName(string skill)
+    {
+        foreach (ObjectiveView objective in Briefing.Objectives)
+        {
+            int at = objective.PossibleSkills.ToList().IndexOf(skill);
+            if (at >= 0)
+            {
+                return objective.SkillsShown[at];
+            }
+        }
+
+        return skill;
+    }
+
     private static string Shows(string skill)
     {
         return $"$_skills == '' || $_skills.split(' ').includes('{skill}')";
@@ -139,7 +154,7 @@
 
     private static string Named(string control, CrewRow row)
     {
-        return row.Fit ? $"{control} {row.Id}" : $"{control} {row.Id}, unavailable while {row.Status.ToLowerInvariant()}";
+        return row.Fit ? $"{control} {row.Shown}" : $"{control} {row.Shown}, unavailable while {row.Status.ToLowerInvariant()}";
     }
 
     // The values stay -1, 0, and 1; the words follow the rules: risk is tolerance, autonomy is how readily the lead calls,

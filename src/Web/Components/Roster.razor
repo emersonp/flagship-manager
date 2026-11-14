@@ -9,7 +9,7 @@
                     <th scope="col">Status</th>
                     @foreach (string skill in Skills)
                     {
-                        <th scope="col" class="n">@skill</th>
+                        <th scope="col" class="n">@SkillName(skill)</th>
                     }
                     <th scope="col" class="n">Loyalty</th>
                     <th scope="col" class="n">Away</th>
@@ -19,7 +19,7 @@
                 @foreach (CrewRow row in Rows)
                 {
                     <tr data-crew="@row.Id" class="@RowClass(row)">
-                        <td class="who">@row.Id@if (row.IsAway)
+                        <td class="who">@row.Shown@if (row.IsAway)
                             {
                                 <span class="away-tag tag">@(row.IsLead ? "Away team, lead" : "Away team")</span>
                             }</td>
@@ -47,6 +47,8 @@
         string classes = $"{dead} {away}".Trim();
         return classes.Length == 0 ? null : classes;
     }
+
+    private string SkillName(string skill) => Rows.SelectMany(r => r.Skills).FirstOrDefault(s => s.SkillId == skill)?.Name ?? skill;
 
     private List<string> Skills => Rows.SelectMany(r => r.Skills).Select(s => s.SkillId).Distinct().ToList();
 }

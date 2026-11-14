@@ -91,9 +91,10 @@ public static partial class ContentLoader
                 Error($"discipline must be -2 to 2, not {dto.Discipline}.");
             }
 
+            string? name = CheckName(file, dto.Id!, dto.Name, errors);
             if (errors.Count == before)
             {
-                defs.Add(new CrewDef(dto.Id!, dto.Seniority, dto.Skills ?? [], dto.Caution, dto.Discipline));
+                defs.Add(new CrewDef(dto.Id!, dto.Seniority, dto.Skills ?? [], dto.Caution, dto.Discipline, name));
             }
         }
 
@@ -110,13 +111,14 @@ public static partial class ContentLoader
         var defs = new List<GearDef>();
         foreach ((string file, GearDto dto) in items)
         {
+            string? name = CheckName(file, dto.Id!, dto.Name, errors);
             if (string.IsNullOrWhiteSpace(dto.Tag))
             {
                 errors.Add(new ContentError(file, $"{dto.Id}: tag must not be empty."));
                 continue;
             }
 
-            defs.Add(new GearDef(dto.Id!, dto.Tag));
+            defs.Add(new GearDef(dto.Id!, dto.Tag, name));
         }
 
         return defs;
@@ -165,9 +167,10 @@ public static partial class ContentLoader
                 Error("loadoutLimit must be 0 or more.");
             }
 
+            string? name = CheckName(file, dto.Id!, dto.Name, errors);
             if (errors.Count == before)
             {
-                defs.Add(new AssignmentDef(dto.Id!, tags, offer, dto.LoadoutLimit));
+                defs.Add(new AssignmentDef(dto.Id!, tags, offer, dto.LoadoutLimit, name));
             }
         }
 
@@ -183,6 +186,8 @@ public static partial class ContentLoader
     {
         public string? Id { get; set; }
 
+        public string? Name { get; set; }
+
         public int Seniority { get; set; }
 
         public Dictionary<string, int>? Skills { get; set; }
@@ -196,12 +201,16 @@ public static partial class ContentLoader
     {
         public string? Id { get; set; }
 
+        public string? Name { get; set; }
+
         public string? Tag { get; set; }
     }
 
     private sealed class AssignmentDto
     {
         public string? Id { get; set; }
+
+        public string? Name { get; set; }
 
         public AssignmentObjectivesDto? Objectives { get; set; }
 

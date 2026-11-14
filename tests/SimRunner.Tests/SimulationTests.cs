@@ -144,6 +144,26 @@ public class SimulationTests
         Assert.True(deaths > 0, "No death in the run; choose other legacies.");
     }
 
+    // Names are display only: naming every item leaves the log hash where it was.
+    [Fact]
+    public void Naming_every_item_does_not_move_the_log_hash()
+    {
+        ContentPack named = Pack with
+        {
+            Skills = Pack.Skills.Select(s => s with { Name = "NAME_PLACEHOLDER_1" }).ToList(),
+            Crew = Pack.Crew.Select(c => c with { Name = "NAME_PLACEHOLDER_1" }).ToList(),
+            Gear = Pack.Gear.Select(g => g with { Name = "NAME_PLACEHOLDER_1" }).ToList(),
+            Objectives = Pack.Objectives.Select(o => o with { Name = "NAME_PLACEHOLDER_1" }).ToList(),
+            Assignments = Pack.Assignments.Select(a => a with { Name = "NAME_PLACEHOLDER_1" }).ToList(),
+            Encounters = Pack.Encounters.Select(e => e with { Name = "NAME_PLACEHOLDER_1", Decision = e.Decision is null ? null : e.Decision with { Name = "NAME_PLACEHOLDER_1" } }).ToList(),
+        };
+
+        SimSummary plain = Simulation.Run(new SimOptions(Legacies: 1, Cycles: 10, Seed: 1), Pack);
+        SimSummary withNames = Simulation.Run(new SimOptions(Legacies: 1, Cycles: 10, Seed: 1), named);
+
+        Assert.Equal(plain.Legacies[0].LogHash, withNames.Legacies[0].LogHash);
+    }
+
     // Golden seed: this hash changes only when behaviour changes. If the change is intended, update it in the same commit and say why.
     [Fact]
     public void Golden_seed_1_matches_the_accepted_log()

@@ -1,7 +1,10 @@
-<dd id="team">@Figures.List(Team.Select(t => t == LeadId ? $"{t} (lead)" : t).ToList())</dd>
+<dd id="team">@Figures.List(Team.Select((t, i) => t == LeadId ? $"{TeamNames[i]} (lead)" : TeamNames[i]).ToList())</dd>
 
 @code {
     [Parameter, EditorRequired] public IReadOnlyList<string> Team { get; set; } = null!;
+
+    // Display names parallel to Team; the ids decide who leads.
+    [Parameter, EditorRequired] public IReadOnlyList<string> TeamNames { get; set; } = null!;
 
     [Parameter, EditorRequired] public string LeadId { get; set; } = "";
 }

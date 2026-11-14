@@ -1,6 +1,6 @@
 <main id="main">
     <div class="view-head">
-        <h1>@(Site?.AssignmentId ?? "Orders")</h1>
+        <h1>@(Site?.AssignmentShown ?? "Orders")</h1>
         <p class="note">The site's objectives. Choose one and a team in the briefing.</p>
     </div>
     <section class="well" aria-labelledby="h-site">
@@ -20,9 +20,9 @@
                         @foreach (ObjectiveView objective in Site.Objectives)
                         {
                             <tr>
-                                <td class="who">@objective.TemplateId</td>
+                                <td class="who">@objective.Shown</td>
                                 <td class="oid">@objective.Id</td>
-                                <td class="skills">@Figures.Items(objective.PossibleSkills)</td>
+                                <td class="skills">@Figures.Items(objective.SkillsShown)</td>
                                 <td class="n wide">@objective.TeamSizeMin to @objective.TeamSizeMax</td>
                                 <td class="n wide">@objective.UnattendedDifficulty</td>
                             </tr>
