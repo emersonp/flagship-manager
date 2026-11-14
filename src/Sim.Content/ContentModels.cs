@@ -10,7 +10,8 @@ public enum ContentKind
     Encounter,
 }
 
-public sealed record ContentItemRef(ContentKind Kind, string Id, string? Name, string File);
+// Lossy: this item has something the editor cannot show, so saving it replaces what it cannot show.
+public sealed record ContentItemRef(ContentKind Kind, string Id, string? Name, string File, bool Lossy = false);
 
 // What every kind's model shares, so the writer and the index can treat them alike.
 public interface IContentModel

@@ -5,12 +5,13 @@ namespace Sim.Content;
 // The text of every content file, by path relative to the content root ("crew/starting.yaml"), with forward slashes.
 public sealed record ContentFileSet(IReadOnlyDictionary<string, string> Files)
 {
-    // Reads every .yaml file under the root, keyed as ContentLoader.LoadDirectory keys them.
+    // Reads every .yaml file under the root, keyed as ContentLoader.LoadDirectory keys them. A missing folder gives an empty set,
+    // and Validate on an empty set gives the loader's own errors.
     public static ContentFileSet ReadDirectory(string root)
     {
         if (!Directory.Exists(root))
         {
-            throw new DirectoryNotFoundException($"Content folder not found: {root}");
+            return new ContentFileSet(new Dictionary<string, string>());
         }
 
         return new ContentFileSet(Directory
@@ -28,9 +29,14 @@ public sealed record ContentFileSet(IReadOnlyDictionary<string, string> Files)
         {
             foreach (string path in ContentFolders.FilesOf(this, kind))
             {
-                foreach (IContentModel item in ContentReader.ReadItems(kind, Files[path]) ?? [])
+                List<ContentReader.Entry> entries = ContentReader.ReadEntries(kind, Files[path]) ?? [];
+                HashSet<int> lossy = ContentFaithfulness.Analyse(kind, path, Files[path])?.Select(l => l.Index).ToHashSet() ?? [];
+                for (int i = 0; i < entries.Count; i++)
                 {
-                    items.Add(new ContentItemRef(kind, item.Id, item.Name?.Trim(), path));
+                    if (entries[i].Model is { } item)
+                    {
+                        items.Add(new ContentItemRef(kind, item.Id, item.Name?.Trim(), path, lossy.Contains(i)));
+                    }
                 }
             }
         }

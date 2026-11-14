@@ -1,14 +1,23 @@
-using System.Globalization;
 using YamlDotNet.Core;
 using YamlDotNet.RepresentationModel;
+using YamlDotNet.Serialization;
 
 namespace Sim.Content;
 
 // Reads a list file into models without judging it: a value the loader would refuse is read as far as it goes, so a broken pack can still be opened.
 internal static class ContentReader
 {
+    // One list entry as written, and the model read from it (null when it is not a mapping or has no id).
+    public sealed record Entry(YamlNode Node, IContentModel? Model, string? RawId);
+
     // Null when the text does not parse or is not a list. Items with no usable id are skipped.
     public static List<IContentModel>? ReadItems(ContentKind kind, string text)
+    {
+        return ReadEntries(kind, text)?.Where(e => e.Model is not null).Select(e => e.Model!).ToList();
+    }
+
+    // Null when the text does not parse or is not a list; every entry otherwise, in order, whether or not it can be modelled.
+    public static List<Entry>? ReadEntries(ContentKind kind, string text)
     {
         YamlNode? root;
         try
@@ -33,13 +42,12 @@ internal static class ContentReader
             return null;
         }
 
-        var items = new List<IContentModel>();
+        var items = new List<Entry>();
         foreach (YamlNode node in sequence.Children)
         {
-            if (node is YamlMappingNode map && Item(kind, Map(map)) is { } item && item.Id.Length > 0)
-            {
-                items.Add(item);
-            }
+            IContentModel? item = node is YamlMappingNode map ? Item(kind, Map(map)) : null;
+            item = item is { Id.Length: > 0 } ? item : null;
+            items.Add(new Entry(node, item, node is YamlMappingNode raw ? Str(Get(Map(raw), "id")) : null));
         }
 
         return items;
@@ -72,7 +80,7 @@ internal static class ContentReader
                 var offer = new Dictionary<int, int>();
                 foreach ((string key, YamlNode value) in Map(Get(m, "offer")))
                 {
-                    if (int.TryParse(key, NumberStyles.Integer, CultureInfo.InvariantCulture, out int count))
+                    if (YamlInt(key) is { } count)
                     {
                         offer[count] = Int(value) ?? 0;
                     }
@@ -170,7 +178,29 @@ internal static class ContentReader
         return scalar.Style == ScalarStyle.Plain && scalar.Value is null or "" or "~" or "null" or "Null" or "NULL" ? null : scalar.Value;
     }
 
-    private static int? Int(YamlNode? node) => int.TryParse(Str(node), NumberStyles.Integer, CultureInfo.InvariantCulture, out int n) ? n : null;
+    private static int? Int(YamlNode? node) => YamlInt(Str(node));
+
+    private static readonly IDeserializer IntReader = new DeserializerBuilder().Build();
+
+    // An integer exactly as the loader's deserialiser reads one (0x10, 1_0, +5, and 0010 as octal included), or null.
+    public static int? YamlInt(string? text)
+    {
+        if (text is null || !IntShape.IsMatch(text))
+        {
+            return null;
+        }
+
+        try
+        {
+            return IntReader.Deserialize<int>(text);
+        }
+        catch (Exception e) when (e is YamlException or FormatException or OverflowException or InvalidCastException)
+        {
+            return null;
+        }
+    }
+
+    private static readonly System.Text.RegularExpressions.Regex IntShape = new("^[+-]?[0-9][0-9A-Za-z_]*$", System.Text.RegularExpressions.RegexOptions.CultureInvariant);
 
     private static bool Bool(YamlNode? node) => string.Equals(Str(node), "true", StringComparison.OrdinalIgnoreCase);
 }

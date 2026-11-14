@@ -3,7 +3,7 @@ using Sim.Core.Content;
 
 namespace Sim.Tests;
 
-public class ContentWriterTests
+public class ContentWriterTests : IClassFixture<RepoContentGuard>
 {
     private static string Lines(params string[] lines) => string.Join("\n", lines) + "\n";
 

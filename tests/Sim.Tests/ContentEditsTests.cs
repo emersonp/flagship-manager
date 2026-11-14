@@ -5,7 +5,7 @@ using Sim.Core.Content;
 
 namespace Sim.Tests;
 
-public class ContentEditsTests
+public class ContentEditsTests : IClassFixture<RepoContentGuard>
 {
     private static string ContentRoot => Path.Combine(TestContent.Root, "content");
 

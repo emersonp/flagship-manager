@@ -48,7 +48,8 @@ public static class ContentWriter
         return text.Append('"').ToString();
     }
 
-    // The comment lines at the top of a file, as written, or null. Blank lines before and between them do not count.
+    // The comment lines at the top of a file, as written, or null. Blank lines before the first comment are skipped; the block ends at the
+    // first blank line or the first line that is not a comment, so a comment after a blank line is an inner comment and is dropped.
     public static string? LeadingComment(string text)
     {
         var lines = new List<string>();
@@ -59,19 +60,10 @@ public static class ContentWriter
             {
                 lines.Add(line);
             }
-            else if (line.Length > 0)
+            else if (line.Length > 0 || lines.Count > 0)
             {
                 break;
             }
-            else if (lines.Count > 0)
-            {
-                lines.Add("");
-            }
-        }
-
-        while (lines.Count > 0 && lines[^1].Length == 0)
-        {
-            lines.RemoveAt(lines.Count - 1);
         }
 
         return lines.Count == 0 ? null : string.Join("\n", lines);
