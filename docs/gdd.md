@@ -28,7 +28,7 @@ The central tension is one decision made over and over: send the people most lik
 ### 2.1 Three levels
 
 - An **assignment** is what the ship has been sent to do. It lasts one to about four cycles, and there is usually only one at a time. Some are **mandates**.
-- Each cycle of an assignment presents a **site** with two to four **objectives**: the things an away team could do there.
+- Each cycle of an assignment presents a **site** with one to four **objectives**: the things an away team could do there. Most sites offer one, so the usual cycle is one team on one mission. A site with several is the frequent exception, and is where the opportunity-cost choice lives.
 - A **mission** is one away team sent on one objective.
 
 The player often has no choice of assignment. The choice is in how to carry it out: which objectives to attempt, and with whom. An objective nobody is sent on still resolves, **unattended**, and usually badly. Sending two or three teams means attempting several objectives at once with thinner teams, which is the same dilemma as team selection: one strong team on one objective, or weaker teams on more of them.
@@ -140,7 +140,7 @@ sites:
   draw: { tags: [planetary] }
   weeks: 1                    # length of each cycle
 objectives:
-  offer: [2, 4]               # per site
+  offer: { 1: 6, 2: 3, 3: 1 } # per site: how many objectives, by weight. One is the rule
   draw: { tags: [science, rescue, repair] }
 carry: [SITE_FLAG_A]          # flags an earlier site can set and a later one reads
 rewards: { shipRenown: 4, admiraltyStanding: 2 }
@@ -598,7 +598,7 @@ Each phase ends with something playable, a simulator run, and a short list of wh
 |---|---|---|
 | 0. Skeleton | Core, bus, event log, content loader and validator, RNG streams, `SimRunner` running an empty cycle | Nothing to play; a green simulator run |
 | 1. Thinnest game | 8 crew, 1 skill set, 1 single-cycle assignment template, 2 objective templates, 1 team, 6 encounters, checks with tiers, momentum and strain, 1 decision with the call rule, text report; mission bench (command line, then developer page) with the tuning file and tuning page; morale; 5 vignettes and 2 captain storylets; captain's time; inbox and crew file; chronicle list | A full cycle of both layers in the browser |
-| 2. Growth and loss | Experience, mentoring, injuries, death, memorials, two to four objectives per site, unattended objectives, mandates | The central trade-off exists |
+| 2. Growth and loss | Experience, mentoring, injuries, death, memorials, several objectives at some sites, unattended objectives, mandates | The central trade-off exists |
 | 3. Who you send | Personality-driven calls and notices, operational parameters, gear and requisition | Team choice changes what you are asked |
 | 4. Life aboard | Relationships, storylines with `ifIgnored`, vignette budget, discretionary actions | Ignored problems get worse |
 | 5. Roster | Departments, org chart, duty roster, shipboard training, department heads, digest, insight | Football Manager's weekday |
