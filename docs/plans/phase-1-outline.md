@@ -68,6 +68,9 @@ Noted while building the browser part; none matters while the game is local and 
 
 From its final review; none blocks play.
 
+- **Typing during a row action is lost.** Adding, removing, or moving a row, or ticking a draw tag, redraws the form; anything typed into another field in that instant (about 70 ms here, longer on a slow machine) is dropped, and focus returns to the control that was used.
+- **A skill delete that fails half-way** (the one save that writes two files) says nothing was written when the crew file was, and the running game keeps the old pack until a reload. The pack on disk stays valid.
+- **The aftermath says no objective was left unattended** when one was skipped because its template is gone.
 - **Two tabs on one item:** the second save wins silently, and so does a save over a hand edit made after the form was opened. A hidden hash of the item as opened would let the save refuse.
 - **A legacy does not notice content edits** unless the pack's version is raised by hand; the warning compares id and version only.
 - **A new content kind touches about ten places** (the loader, the core record, the reader, the writer, the faithfulness tables, the index, the form, and the names). One descriptor per kind would cut the web side to two.
