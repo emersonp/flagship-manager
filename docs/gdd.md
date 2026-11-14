@@ -627,6 +627,44 @@ Each phase ends with something playable, a simulator run, and a short list of wh
 
 Phase 1 uses the real architecture at the smallest size. Nothing in it is thrown away.
 
+### 11.1 Progress
+
+What has been built, slice by slice. A phase is cut into slices when it is planned, so later phases have one row until then. Every slice ends with `./check.sh` green and a review. Detail for Phase 1's slices is in `docs/plans/phase-1-outline.md`.
+
+| Phase | Slice | What it adds | Status |
+|---|---|---|---|
+| 0. Skeleton | Whole phase | Core, event bus, event log, SQLite store, content loader, RNG streams, and an empty cycle in `SimRunner` | Done 2026-11-13 |
+| 1. Thinnest game | 1a. Mission resolver | Checks with tiers, momentum and strain, decisions with the call rule, and the tuning file | Done 2026-11-14 |
+| 1. Thinnest game | 1b. Mission bench | One mission run thousands of times from the command line, with before and after comparison | Done 2026-11-14 |
+| 1. Thinnest game | 1c, part one. A whole cycle, headless | Crew that grow, are hurt, heal, and die; missions on the event bus; module state stored; the simulator plays real cycles | Done 2026-11-14 |
+| 1. Thinnest game | 1c, part two. The cycle in the browser | Legacy selection, orders, briefing, resolution with paced beats and calls, aftermath, and the visual design | In progress |
+| 1. Thinnest game | 1c-editor. Content editor | Developer-mode pages that write the content files, validated on save | Next |
+| 1. Thinnest game | 1d. Reports | The grammar engine and the narrative report built from beats | Later |
+| 1. Thinnest game | 1e. Life aboard | Storylets, morale, captain's time, the inbox and crew file, and the chronicle list | Later |
+| 1. Thinnest game | 1f. Tuning in play | The mission bench and the tuning page in the browser | Later |
+| 1. Thinnest game | Playtest | Three legacies of 20 to 30 cycles against the checklist below | Later |
+| 2. Growth and loss | Not yet cut | Mentoring, memorials, several objectives at some sites, and mandates (experience, injuries, death, and unattended objectives arrived early, in 1c) | Not started |
+| 3. Who you send | Not yet cut | Gear and requisition (personality-driven calls and operational parameters arrived early, in 1a) | Not started |
+| 4. Life aboard | Not yet cut | Relationships, storylines, the vignette budget, and discretionary actions | Not started |
+| 5. Roster | Not yet cut | Departments, org chart, duty roster, training, department heads, digest, and insight | Not started |
+| 6. Careers | Not yet cut | Ageing, ranks and promotion, ambitions, poaching, renown, and Admiralty standing | Not started |
+| 7. Split teams and long assignments | Not yet cut | Several missions at once, assignments of several cycles, and transit | Not started |
+| 8. Succession | Not yet cut | Hull loss and succession, captain succession, and the chronicle screen | Not started |
+| 9. Scale | Not yet cut | Larger hulls, salience tuning, and casting performance | Not started |
+| 10. Families | Not yet cut | Relatives and children of crew | Not started |
+| Track: online | Not yet cut | Accounts, hosted database, and one legacy per player | Not started |
+| Track: portraits | Not yet cut | Paper-doll spec, compositor, and the first part set | Not started |
+
+Before Phase 2 starts, the Phase 1 playtest should show all of these:
+
+1. The central trade-off bites: the author has hesitated between sending the best crew and developing a junior.
+2. A loss landed: someone died or a mission was lost, and it mattered.
+3. Calls feel right: zero to two per mission, and who was sent changed what was asked.
+4. The numbers have been tuned in play at least once, including the dice.
+5. Both layers feed each other: a storylet changed who was sent, and a mission outcome reached the inbox.
+6. Authoring is sustainable: an encounter or a storylet takes minutes to add.
+7. The author wants to play one more cycle.
+
 The throwaway mission prototype (risk 1) was built and played on 2026-11-13. The author's verdict: it does not feel passive. Its balance findings are in section 4.
 
 ## 12. Art
