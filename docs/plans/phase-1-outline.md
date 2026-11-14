@@ -18,6 +18,23 @@ Order matters: the mission comes first because it is proven fun (the prototype),
 
 Slices 1a and 1b were built on 2026-11-14 from `2026-11-14-phase-1ab-plan.md`. The first part of 1c (a whole cycle, headless) was built on 2026-11-14 from `2026-11-14-phase-1c-headless-plan.md`: `Sim.Crew`, missions on the event bus, module state in the store, and `SimRunner cycles` playing real cycles. Next is the second part of 1c: the browser.
 
+## Carried forward to the second part of slice 1c (the browser)
+
+From the review of the first part. None is a rule change; each is something the web layer must do or decide.
+
+- **Never share a legacy's state between requests.** Load, send, and commit per request, under a lock per legacy. A view flips a read-only flag on the state while it is built, so a command sent on another thread in that window would lose its write.
+- **Reading for a page must not write.** Reading a module's state outside a guard or a view creates an empty one. Pages need a read that does not create.
+- **Any exception from a command other than a refusal means discard and reload.** Map a refusal to a message beside the control, and anything else to an error page.
+- **A team cannot be changed once assigned,** and sending nobody is just advancing the phase. Decide: the page builds the team and sends it with the launch, or a command to clear the team is added (which is a rule).
+- **Validate at the edge.** A null list in a command raises an error inside a guard, not a refusal.
+- **Concurrency.** The event log's primary key is an accidental optimistic lock today. Make it deliberate (commit only if the stored sequence is the one loaded).
+- **Streaming beats.** A command returns a mission's beats in one batch, up to the call, already committed. The page paces them; the beat index allows resuming. Reading events from a sequence, or by cycle, will be wanted.
+- **Answering a call.** Everything needed is in the missions module's state (mission id, call id, and options). A double submit is refused cleanly.
+- **Seeds are 64-bit numbers** in module rows, stream states, the export, and the simulator's output. Never put those in the browser's signals.
+- **Listing legacies.** The store has no list, and a legacy has no name or creation time. The stored content pack id and version are never checked against the loaded pack.
+- **Import is two transactions.** A failed import can leave a legacy with no events; a retry then fails as already existing.
+- **For the author:** experience in a skill a crew member does not have is dropped (the starter crew all list every skill), and light injuries have no cap across missions (the most seen on one crew member in 10,000 missions was 2).
+
 ## Decisions each slice plan must make first
 
 Slices 1a and 1b are designed in `2026-11-14-phase-1ab-design.md`, which settles their two entries below and where module state lives (one JSON row per module per legacy, built in 1c).
