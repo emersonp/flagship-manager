@@ -26,6 +26,10 @@ _Avoid_: Reign, term
 One round of orders, briefing, resolution, and aftermath. Usually one week long, and longer in transit.
 _Avoid_: Turn, week (a cycle is not always one), tick
 
+**Week**:
+The unit of time. A legacy counts weeks from 1, and anything that takes time (healing, training, ageing) is due at a week, never at a cycle.
+_Avoid_: Day, turn
+
 **Transit**:
 A single long cycle between assignments in which no missions run.
 
@@ -53,6 +57,14 @@ A chronicle entry for a dead crew member or lost hull that later content can ref
 **Crew member**:
 Any simulated person aboard. All crew members are simulated identically regardless of ship size.
 _Avoid_: Character, NPC, unit
+
+**Roster**:
+Every living crew member of the ship. The dead leave the roster and stay in the chronicle.
+_Avoid_: Crew list, party
+
+**Fit**:
+Said of a crew member who can be sent on an away team this week. A lightly injured crew member is fit, at a penalty; an incapacitated one is not.
+_Avoid_: Available, healthy
 
 **Department**:
 A functional grouping of crew members under one head.

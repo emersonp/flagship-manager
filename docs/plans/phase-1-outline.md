@@ -16,7 +16,7 @@ Order matters: the mission comes first because it is proven fun (the prototype),
 | 1e. Life aboard | `Sim.Storylets` with the expression language and quality view; morale; 5 vignettes and 2 captain storylets; captain's time; the inbox and crew file; `Sim.Chronicle` with the chronicle list | A full cycle of both layers in the browser (the Phase 1 result) | 3.7, 3.8, 5.1, 5.2, 5.4 |
 | 1f. Tuning in play | Developer-mode pages: the mission bench in the browser, and the tuning page that edits the tuning file and re-runs the bench on the same seeds, before and after side by side | The author tunes without leaving the game | 4.7, 10.1 |
 
-Slices 1a and 1b were built on 2026-11-14 from `2026-11-14-phase-1ab-plan.md`. Next is 1c.
+Slices 1a and 1b were built on 2026-11-14 from `2026-11-14-phase-1ab-plan.md`. The first part of 1c (a whole cycle, headless) was built on 2026-11-14 from `2026-11-14-phase-1c-headless-plan.md`: `Sim.Crew`, missions on the event bus, module state in the store, and `SimRunner cycles` playing real cycles. Next is the second part of 1c: the browser.
 
 ## Decisions each slice plan must make first
 
@@ -74,7 +74,7 @@ When next touched:
 
 ## Carried forward from the review of slices 1a and 1b
 
-First work of slice 1c, before any mission state is stored (each is expensive to change afterwards):
+Done in the first part of slice 1c, except the last two items (seeds in the browser, and the async bans), which belong to the browser part:
 
 - **Experience per skill.** The result carries one experience number per crew member, but crew hold experience per skill. Make it a map by skill in the mission state and result, and put the helper's share on the check beat.
 - **A version on the stored mission state**, and a deliberate choice between strict and tolerant reading. A tuning number added later makes a stored in-flight mission fail to load.
@@ -83,7 +83,7 @@ First work of slice 1c, before any mission state is stored (each is expensive to
 - Mission seeds must be unique per mission within a legacy (mission dice use cycle 0). A `ulong` seed loses precision as a JSON number in the browser. State and beats are stored in one transaction.
 - Ban `Thread.Sleep(TimeSpan)` and `Task.Delay` in the pure core when async code arrives.
 
-For the author to decide:
+Decided by the author on 2026-11-14: "develop juniors" is carried by the senior (GDD 4.2), so it never beats best qualified; the reckless-lead loss is accepted; rescue at the strain cap stays as it is. The original notes:
 
 - **"Develop juniors" beats best-qualified on evenly skilled teams**, because a supervising senior assists at skill minus 1 and an ordinary helper at half. Generated veteran team, 10,000 runs: 99.0% full success with it, 95.2% without.
 - **Reckless-lead loss is about 17%**, against the 13% accepted on the prototype.
