@@ -36,3 +36,33 @@ Placeholders work throughout, so nothing blocks the build.
 
 - The prototype (`C:\Users\parker00\Dropbox\Work\f-prototype\mission-feel-prototype.html`) is the reference for slice 1a's behaviour, with the six fixes in GDD 4.2 to 4.4 applied on top. It still has the old rules.
 - Its hash-by-key dice are replaced by `RngStream`, so the prototype's seeds will not reproduce; the walkthrough tests are rebuilt on new seeds.
+
+## Carried forward from the Phase 0 review
+
+The whole-branch review of Phase 0 (2026-11-13) left these for Phase 1. Each slice plan picks up the ones in its path.
+
+Decide before slice 1a:
+
+- **Where feature state lives.** `LegacyState` sits in `Sim.Core` and every handler gets the whole mutable object, so today a new mechanic must edit Core and the store's columns. That cuts against "a new mechanic is a new module".
+- **SQLite schema version.** Add `PRAGMA user_version` and named insert columns before the first schema change.
+
+Slice 1a (mission resolver):
+
+- Pin a short `D6` and `Next` sequence; only `NextUInt64` is pinned today.
+- Pass the content pack into `Simulation.Run`.
+- Write one end-to-end test of bus, registry, `Commit`, `Load`, and continue. Document on `Send` that a throw means "discard the state and reload".
+- Move the stream-pruning test to `EventBusTests`, and check that new-cycle streams survive.
+- Replace the banned-token substring test with `Microsoft.CodeAnalysis.BannedApiAnalyzers`, and assert that `Persistence` depends only on Core.
+
+Slice 1b (mission bench):
+
+- Rewrite the `SimRunner` argument parser: a bad value, a flag with no value, or an unknown flag exits 2. Add exit-code and `--out` tests.
+- Consider comparing full event logs for the golden seed, not only a hash.
+
+When next touched:
+
+- Event log: guard a `"null"` payload; test a duplicate name and version, and `ToEnvelope` on an unregistered type.
+- Content loader: load the starter pack through `LoadDirectory` in a test; report `.yml` files and root-level files with a clear error.
+- Store: make `Import` one transaction; strengthen `Events_are_isolated_by_legacy`; report a seed mismatch as a seed mismatch.
+- Project files: strip `TargetFramework`, `ImplicitUsings`, and `Nullable` from each csproj.
+- `PhaseEntered` carries `Cycle` in both payload and envelope; decide before real legacies exist.
