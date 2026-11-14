@@ -1,8 +1,8 @@
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
-using Sim.Core.Content;
 using Sim.Core;
+using Sim.Core.Content;
 using Sim.Missions;
 
 namespace Sim.Tests;
@@ -53,7 +53,7 @@ public class MissionWalkthroughTests
         List<CheckBeat> checks = beats.OfType<CheckBeat>().ToList();
         Assert.Contains(checks, c => c.Supervised);
         Assert.Contains(checks, c => !c.Supervised);
-        Assert.All(checks.Where(c => c.Supervised), c => Assert.True(c.ActorSkill <= c.Assist + TestContent.Tuning.SupervisorPenalty));
+        AssertSupervisionCosts(beats, TestContent.Team(3, 3, 5, 6));
         Assert.True(result.Crew.Where(c => c.Id != "CREW_03").Sum(c => c.Experience.Values.Sum()) > 0);
     }
 
@@ -119,6 +119,33 @@ public class MissionWalkthroughTests
         (_, List<Beat> beats, _) = TestContent.Play(TestContent.Team(1, 1, 3, 5), seed: 1);
 
         Assert.Equal("D8D80EFB120D8EE099C45061FE72B4875952305FCEF84FAC3005239EBAF233C3", Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(Json(beats)))));
+    }
+
+    // Replays injuries from the beats to find the score the senior would have had acting as best qualified.
+    private static void AssertSupervisionCosts(List<Beat> beats, Team team)
+    {
+        var injury = team.Members.ToDictionary(m => m.Id, _ => 0);
+        var gone = new HashSet<string>();
+        foreach (Beat beat in beats)
+        {
+            if (beat is InjuryBeat i)
+            {
+                if (i.Outcome == InjuryOutcome.LightInjury)
+                {
+                    injury[i.CrewId] = Math.Min(TestContent.Tuning.MaxLight, injury[i.CrewId] + 1);
+                }
+                else if (i.Outcome is InjuryOutcome.Dead or InjuryOutcome.Incapacitated)
+                {
+                    gone.Add(i.CrewId);
+                }
+            }
+            else if (beat is CheckBeat { Supervised: true } c)
+            {
+                List<int> skills = team.Members.Where(m => !gone.Contains(m.Id)).Select(m => Math.Max(0, m.Skills[c.Skill] - injury[m.Id])).OrderByDescending(s => s).ToList();
+                int bestQualified = skills[0] + (skills[1] / TestContent.Tuning.AssistDivisor) + c.Gear + c.Momentum - c.Strain;
+                Assert.True(c.Score < bestQualified, $"supervised {c.Score}, best qualified {bestQualified}");
+            }
+        }
     }
 
     private static List<Beat> Finish(MissionState state)

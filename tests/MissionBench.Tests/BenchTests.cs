@@ -1,7 +1,7 @@
 using System.Globalization;
 using System.Text.Json;
-using Sim.Core.Content;
 using Sim.Core;
+using Sim.Core.Content;
 using Sim.Missions;
 
 namespace MissionBench.Tests;
@@ -81,6 +81,7 @@ public class BenchTests
         Assert.True(FullSuccesses(TeamStrength.Mixed) < FullSuccesses(TeamStrength.Veteran));
     }
 
+    // Rookies never qualify for supervision, so their case is equality.
     [Theory]
     [InlineData(TeamStrength.Rookie)]
     [InlineData(TeamStrength.Mixed)]

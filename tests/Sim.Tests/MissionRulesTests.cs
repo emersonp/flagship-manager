@@ -1,5 +1,5 @@
-using Sim.Core.Content;
 using Sim.Core;
+using Sim.Core.Content;
 using Sim.Missions;
 
 namespace Sim.Tests;
@@ -428,6 +428,18 @@ public class MissionRulesTests
         Assert.Throws<System.Text.Json.JsonException>(() => MissionJson.Deserialize(json.Insert(1, "\"Bogus\":1,")));
         Assert.Throws<System.Text.Json.JsonException>(() => MissionJson.Deserialize(json.Replace("\"Seniority\":5,", "\"Seniority\":5,\"Rank\":1,", StringComparison.Ordinal)));
         Assert.Throws<InvalidOperationException>(() => MissionJson.Deserialize(json.Replace("\"Version\":1", "\"Version\":2", StringComparison.Ordinal)));
+    }
+
+    [Fact]
+    public void A_stored_state_with_a_missing_member_is_an_error()
+    {
+        MissionState waiting = MissionResolver.Advance(Start(TestContent.Team(1, 1, 3), new Parameters(), Encounter(1, Stakes2))).State;
+        string json = MissionJson.Serialize(waiting);
+
+        Assert.Throws<System.Text.Json.JsonException>(() => MissionJson.Deserialize(json.Replace("\"Seed\":1,", "", StringComparison.Ordinal)));
+        Assert.Throws<System.Text.Json.JsonException>(() => MissionJson.Deserialize(json.Replace("\"Version\":1,", "", StringComparison.Ordinal)));
+        Assert.Throws<System.Text.Json.JsonException>(() => MissionJson.Deserialize(json.Replace("\"Stakes\":2,", "", StringComparison.Ordinal)));
+        Assert.Throws<System.Text.Json.JsonException>(() => MissionJson.Deserialize(json.Replace("\"Skippable\":false,", "", StringComparison.Ordinal)));
     }
 
     private static TeamMember Flat(string id, int seniority, int skill)

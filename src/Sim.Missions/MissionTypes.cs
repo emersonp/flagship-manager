@@ -47,7 +47,7 @@ public sealed record PendingCall(
 
 public sealed record CallReply(string CallId, CallAnswer Answer);
 
-// How an answer stands with the lead: backing their preference, overruling it, or withdrawing when the lead had no stake in it.
+// Withdrawing when the lead preferred safe is neutral.
 public enum CallStanding
 {
     Backed,

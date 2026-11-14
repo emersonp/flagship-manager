@@ -16,13 +16,13 @@ public sealed class MemberState
 {
     public required TeamMember Member { get; set; }
 
-    public int Injury { get; set; }
+    public required int Injury { get; set; }
 
-    public MemberStatus Status { get; set; }
+    public required MemberStatus Status { get; set; }
 
-    public Dictionary<string, double> Experience { get; set; } = [];
+    public required Dictionary<string, double> Experience { get; set; }
 
-    public int Loyalty { get; set; }
+    public required int Loyalty { get; set; }
 }
 
 // A mission in flight (GDD 4.1). Plain data: it carries its own tuning and encounters,
@@ -31,47 +31,47 @@ public sealed class MissionState
 {
     public required int Version { get; set; }
 
-    public ulong Seed { get; set; }
+    public required ulong Seed { get; set; }
 
-    public string ObjectiveId { get; set; } = "";
+    public required string ObjectiveId { get; set; }
 
-    public int Need { get; set; }
+    public required int Need { get; set; }
 
     public required MissionTuning Tuning { get; set; }
 
-    public List<DrawnEncounter> Encounters { get; set; } = [];
+    public required List<DrawnEncounter> Encounters { get; set; }
 
-    public Dictionary<string, EncounterDef> Chains { get; set; } = [];
+    public required Dictionary<string, EncounterDef> Chains { get; set; }
 
-    public int Cursor { get; set; }
+    public required int Cursor { get; set; }
 
-    public MissionPhase Phase { get; set; }
+    public required MissionPhase Phase { get; set; }
 
-    public int Momentum { get; set; }
+    public required int Momentum { get; set; }
 
-    public int Strain { get; set; }
+    public required int Strain { get; set; }
 
-    public int Progress { get; set; }
+    public required int Progress { get; set; }
 
-    public List<MemberState> Team { get; set; } = [];
+    public required List<MemberState> Team { get; set; }
 
-    public string LeadId { get; set; } = "";
+    public required string LeadId { get; set; }
 
-    public List<string> GearTags { get; set; } = [];
+    public required List<string> GearTags { get; set; }
 
-    public Parameters Parameters { get; set; } = new();
+    public required Parameters Parameters { get; set; }
 
-    public PendingCall? Pending { get; set; }
+    public required PendingCall? Pending { get; set; }
 
-    public MissionResult? Result { get; set; }
+    public required MissionResult? Result { get; set; }
 
-    public bool AbortAsked { get; set; }
+    public required bool AbortAsked { get; set; }
 
-    public bool Chained { get; set; }
+    public required bool Chained { get; set; }
 
-    public int Calls { get; set; }
+    public required int Calls { get; set; }
 
-    public int Notices { get; set; }
+    public required int Notices { get; set; }
 }
 
 public static class MissionJson

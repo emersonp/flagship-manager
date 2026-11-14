@@ -1,5 +1,5 @@
-using Sim.Core.Content;
 using Sim.Core;
+using Sim.Core.Content;
 using Sim.Missions;
 
 namespace MissionBench;
