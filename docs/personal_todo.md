@@ -1,0 +1,1 @@
+- [ ] Mission log newest first, prompt on top
