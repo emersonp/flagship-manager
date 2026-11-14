@@ -95,10 +95,101 @@ public class MissionContentTests
             new[]
             {
                 "check.gearBonus is missing.",
-                "calls.cautionWeight must be a number, not 'lots'.",
+                "calls.cautionWeight must be a finite number, not 'lots'.",
                 "check.gearBonis is not a tuning value.",
             },
             result.Errors.Select(e => e.Message));
+    }
+
+    [Theory]
+    [InlineData("  collapseAt: 5\n", "  collapseAt: 6\n", "compounding.collapseAt")]
+    [InlineData("  skipAtMomentum: 4\n", "  skipAtMomentum: 6\n", "compounding.skipAtMomentum")]
+    [InlineData("  abortCallAt: 4\n", "  abortCallAt: 6\n", "compounding.abortCallAt")]
+    public void A_compounding_threshold_above_the_cap_is_an_error(string from, string to, string name)
+    {
+        ContentLoadResult result = Load(Encounter, Objective, TestContent.TuningText.Replace(from, to));
+
+        Assert.Null(result.Pack);
+        Assert.Contains(result.Errors, e => e.Message.Contains(name, StringComparison.Ordinal) && e.Message.Contains("compounding.cap", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void An_abort_call_above_the_collapse_point_is_an_error()
+    {
+        ContentLoadResult result = Load(Encounter, Objective, TestContent.TuningText.Replace("  abortCallAt: 4\n", "  abortCallAt: 5\n").Replace("  collapseAt: 5\n", "  collapseAt: 4\n"));
+
+        Assert.Null(result.Pack);
+        Assert.Contains(result.Errors, e => e.Message.Contains("compounding.abortCallAt", StringComparison.Ordinal) && e.Message.Contains("compounding.collapseAt", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Injury_thresholds_must_run_from_death_to_incapacity()
+    {
+        ContentLoadResult result = Load(Encounter, Objective, TestContent.TuningText.Replace("  deadBelow: 5 ", "  deadBelow: 9 "));
+
+        Assert.Null(result.Pack);
+        Assert.Contains(result.Errors, e => e.Message.Contains("injury.deadBelow", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void The_close_margin_must_not_pass_the_near_margin()
+    {
+        ContentLoadResult result = Load(Encounter, Objective, TestContent.TuningText.Replace("  closeMargin: 3\n", "  closeMargin: 9\n"));
+
+        Assert.Null(result.Pack);
+        Assert.Contains(result.Errors, e => e.Message.Contains("experience.closeMargin", StringComparison.Ordinal));
+    }
+
+    [Theory]
+    [InlineData("mixed:   { size: 3, skill: [2, 4]", "mixed:   { size: 3, skill: [5, 4]", "bench.teams.mixed.skill")]
+    [InlineData("seniorSkill: [5, 6]", "seniorSkill: [7, 6]", "bench.teams.mixed.seniorSkill")]
+    [InlineData("seniors: 1", "seniors: 4", "bench.teams.mixed.seniors")]
+    public void A_bench_team_with_backwards_ranges_or_too_many_seniors_is_an_error(string from, string to, string name)
+    {
+        ContentLoadResult result = Load(Encounter, Objective, TestContent.TuningText.Replace(from, to));
+
+        Assert.Null(result.Pack);
+        Assert.Contains(result.Errors, e => e.Message.Contains(name, StringComparison.Ordinal));
+    }
+
+    [Theory]
+    [InlineData("NaN")]
+    [InlineData("Infinity")]
+    public void A_number_that_is_not_finite_is_an_error(string text)
+    {
+        ContentLoadResult result = Load(Encounter, Objective, TestContent.TuningText.Replace("  base: 3\n", $"  base: {text}\n"));
+
+        Assert.Null(result.Pack);
+        Assert.Contains(result.Errors, e => e.Message.Contains("calls.base", StringComparison.Ordinal));
+    }
+
+    // The resolver never draws a chain target, so one cannot fill a stage.
+    [Fact]
+    public void A_chain_target_does_not_count_toward_a_stage()
+    {
+        string encounters = Encounter.Replace("tags: [field]", "tags: [field]\n  chain: ENCOUNTER_02") + Encounter.Replace("ENCOUNTER_01", "ENCOUNTER_02").Replace("DECISION_PROMPT_1", "DECISION_PROMPT_2");
+        string objective = Objective.Replace("count: 1", "count: 2");
+
+        ContentLoadResult result = Load(encounters, objective);
+
+        Assert.Null(result.Pack);
+        Assert.Equal("OBJECTIVE_TEMPLATE_1: Stage 'approach' draws up to 2 encounters tagged [field], but only 1 match.", Assert.Single(result.Errors).Message);
+    }
+
+    [Fact]
+    public void Stages_that_share_a_pool_must_all_fill_at_their_maximum_counts()
+    {
+        string encounters = Encounter + Encounter.Replace("ENCOUNTER_01", "ENCOUNTER_02").Replace("DECISION_PROMPT_1", "DECISION_PROMPT_2");
+        string objective = Objective.Replace(
+            "  stages:\n    - { slot: approach, draw: { tags: [field] }, count: 1 }",
+            "  stages:\n    - { slot: approach, draw: { tags: [field] }, count: 1 }\n    - { slot: objective, draw: { tags: [field] }, count: [1, 2] }");
+
+        ContentLoadResult result = Load(encounters, objective);
+
+        Assert.Null(result.Pack);
+        Assert.Equal(
+            "OBJECTIVE_TEMPLATE_1: Stage 'objective' may find only 1 of the 2 encounters it draws, because earlier stages draw from the same pool.",
+            Assert.Single(result.Errors).Message);
     }
 
     [Fact]
@@ -112,7 +203,7 @@ public class MissionContentTests
     [Fact]
     public void A_tuning_file_loads_on_its_own_for_comparison()
     {
-        (MissionTuning? tuning, IReadOnlyList<ContentError> errors) = ContentLoader.LoadTuningText(TestContent.TuningText.Replace("  gearBonus: 2\n", "  gearBonus: 3\n"));
+        (MissionTuning? tuning, _, IReadOnlyList<ContentError> errors) = ContentLoader.LoadTuningText(TestContent.TuningText.Replace("  gearBonus: 2\n", "  gearBonus: 3\n"));
 
         Assert.Empty(errors);
         Assert.Equal(TestContent.Tuning with { GearBonus = 3 }, tuning);

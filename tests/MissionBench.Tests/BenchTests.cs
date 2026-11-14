@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 using Sim.Core.Content;
 using Sim.Missions;
@@ -31,6 +32,40 @@ public class BenchTests
 
         Assert.True(after.Outcomes[MissionOutcome.FullSuccess] < before.Outcomes[MissionOutcome.FullSuccess]);
         Assert.Equal(before.Encounters.Select(e => e.EncounterId), after.Encounters.Select(e => e.EncounterId).Where(id => id != "ENCOUNTER_CHAIN"));
+    }
+
+    [Fact]
+    public void The_summary_names_encounter_positions_and_how_many_runs_reached_them()
+    {
+        BenchFigures figures = Bench.Run(Pack, Pack.Tuning, new BenchOptions("OBJECTIVE_TEMPLATE_1") { Runs = 50 });
+
+        string summary = BenchReport.Summary([("mixed", figures)], showChange: false);
+
+        Assert.Matches(@"Reached encounter 1 %\s+100\.0\r?\nMomentum entering encounter 1\s+\S+\r?\nStrain entering encounter 1", summary);
+        Assert.DoesNotContain("stage", summary, StringComparison.OrdinalIgnoreCase);
+        Assert.EndsWith("Means are over the missions that reached each encounter. A chained encounter shifts later positions." + Environment.NewLine, summary, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Replay_text_does_not_follow_the_current_culture()
+    {
+        CultureInfo before = CultureInfo.CurrentCulture;
+        try
+        {
+            var odd = (CultureInfo)new CultureInfo("de-DE").Clone();
+            odd.NumberFormat.NegativeSign = "~";
+            CultureInfo.CurrentCulture = odd;
+
+            string text = string.Concat(Enumerable.Range(1, 30).Select(seed => BenchReport.Replay(Bench.Replay(Pack, Pack.Tuning, new BenchOptions("OBJECTIVE_TEMPLATE_1"), (ulong)seed))));
+
+            Assert.Contains("margin -", text, StringComparison.Ordinal);
+            Assert.DoesNotContain("~", text, StringComparison.Ordinal);
+            Assert.DoesNotMatch(@"\d,\d", text);
+        }
+        finally
+        {
+            CultureInfo.CurrentCulture = before;
+        }
     }
 
     [Fact]
@@ -103,6 +138,6 @@ public class BenchTests
 
         Assert.Contains("before", same.Split('\n')[0], StringComparison.Ordinal);
         Assert.Contains("change", same.Split('\n')[0], StringComparison.Ordinal);
-        Assert.All(same.Split('\n', StringSplitOptions.RemoveEmptyEntries).Skip(1), row => Assert.Matches(@"(\+0\.0+|-)$", row));
+        Assert.All(same.Split('\n', StringSplitOptions.RemoveEmptyEntries).Skip(1).Where(r => !r.StartsWith("Means", StringComparison.Ordinal)), row => Assert.Matches(@"(\+0\.0+|-)$", row));
     }
 }

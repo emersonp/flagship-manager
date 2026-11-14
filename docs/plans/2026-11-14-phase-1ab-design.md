@@ -162,11 +162,11 @@ The values are the prototype's, with the six accepted fixes applied. `MissionTun
 
 ```
 MissionResolver.Start(ObjectiveDef, EncounterPool, Team, Loadout, Parameters, MissionTuning, ulong seed) → MissionState
-MissionResolver.Advance(MissionState, string? answer) → MissionStep { State, Beats, Pending, Result }
+MissionResolver.Advance(MissionState, CallAnswer? answer) → MissionStep { State, Beats, Pending, Result }
 ```
 
 - **Team member:** `Id`, `Seniority`, `Skills` (id to level), `Caution`, and `Discipline` (each −2 to +2). **Team:** members and `LeadId`. **Loadout:** gear tags. **Parameters:** `Priority`, `Risk`, `Autonomy` (each −1 to +1), and `DevelopJuniors`.
-- **Mission state** is one serialisable record: the seed, the tuning copy, the drawn encounter ids, cursor and step, momentum, strain, progress, the team with injuries and status, the lead, the pending call, the counts of calls and notices, and the result. It round-trips through JSON at any point, including while a call is pending.
+- **Mission state** is one serialisable record: the seed, the tuning copy, the drawn encounters (their full definitions), cursor and step, momentum, strain, progress, the team with injuries and status, the lead, the pending call, the counts of calls and notices, and the result. It round-trips through JSON at any point, including while a call is pending.
 - **`Advance` never mutates its input.** It returns a new state, the beats since the last return, and either a pending call, a result, or neither only in error.
 - **One encounter is four steps:** check, decision, strain, and advance. This is the prototype's loop, kept because it was played and liked.
   - *Check:* approach from lead caution plus risk; actor and helper by GDD 4.2, including the "develop juniors" reach rule; score, keyed 2d6, margin, and tier; tier effects from tuning; experience; an injury roll on failure or disaster; a chained encounter once per mission.

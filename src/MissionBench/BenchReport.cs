@@ -30,8 +30,9 @@ public static class BenchReport
         for (int i = 0; i < stages; i++)
         {
             int stage = i;
-            rows.Add(($"Momentum entering stage {i + 1}", f => stage < f.Stages.Count ? f.Stages[stage].Momentum : null, "0.00"));
-            rows.Add(($"Strain entering stage {i + 1}", f => stage < f.Stages.Count ? f.Stages[stage].Strain : null, "0.00"));
+            rows.Add(($"Reached encounter {i + 1} %", f => stage < f.Stages.Count ? 100.0 * f.Stages[stage].Reached / f.Runs : null, "0.0"));
+            rows.Add(($"Momentum entering encounter {i + 1}", f => stage < f.Stages.Count ? f.Stages[stage].Momentum : null, "0.00"));
+            rows.Add(($"Strain entering encounter {i + 1}", f => stage < f.Stages.Count ? f.Stages[stage].Strain : null, "0.00"));
         }
 
         var table = new List<string[]> { new[] { "" }.Concat(columns.Select(c => c.Name)).Concat(showChange ? ["change"] : Array.Empty<string>()).ToArray() };
@@ -49,7 +50,8 @@ public static class BenchReport
             table.Add(cells.ToArray());
         }
 
-        return Render(table);
+        string note = stages == 0 ? "" : $"Means are over the missions that reached each encounter. A chained encounter shifts later positions.{Environment.NewLine}";
+        return Render(table) + note;
     }
 
     public static string Encounters(BenchFigures figures)
@@ -79,7 +81,7 @@ public static class BenchReport
         text.AppendLine(CultureInfo.InvariantCulture, $"Seed {trace.Seed}. Lead {trace.Team.LeadId}.");
         foreach (TeamMember m in trace.Team.Members)
         {
-            text.AppendLine(CultureInfo.InvariantCulture, $"  {m.Id}: {string.Join(", ", m.Skills.OrderBy(s => s.Key, StringComparer.Ordinal).Select(s => $"{s.Key} {s.Value}"))}; caution {m.Caution}, discipline {m.Discipline}");
+            text.AppendLine(CultureInfo.InvariantCulture, $"  {m.Id}: {string.Join(", ", m.Skills.OrderBy(s => s.Key, StringComparer.Ordinal).Select(s => Inv($"{s.Key} {s.Value}")))}; caution {m.Caution}, discipline {m.Discipline}");
         }
 
         foreach (Beat beat in trace.Beats)
@@ -94,20 +96,25 @@ public static class BenchReport
     {
         return beat switch
         {
-            StageBeat b => $"Stage {b.Cursor + 1} ({b.Slot}): {b.EncounterId}{(b.CommsBlocked ? ", comms blocked" : "")}. Momentum {b.Momentum}, strain {b.Strain}.",
-            SkipBeat b => $"  Skipped {b.EncounterId} on momentum.",
-            CheckBeat b => $"  {b.Approach} {b.Skill}: {b.ActorId} {b.ActorSkill}{(b.HelperId is null ? "" : $" + {b.HelperId} {b.Assist}{(b.Supervised ? " supervising" : "")}")} + gear {b.Gear} + momentum {b.Momentum} - strain {b.Strain} = {b.Score}; rolled {b.Roll} against {b.Target}: margin {b.Margin}, {b.Tier}. Experience {b.Experience.ToString("0.0", CultureInfo.InvariantCulture)}{(b.Mentoring ? " (mentored)" : "")}.",
-            EffectsBeat b => $"  Effects: momentum {b.Effects.Momentum:+0;-0;0}, strain {b.Effects.Strain:+0;-0;0}, progress {b.Effects.Progress:+0;-0;0}{(b.Effects.InjuryRoll is { } r ? $", {r} injury roll" : "")}{(b.Effects.Withdraw ? ", withdraw" : "")}.",
-            InjuryBeat b => $"  {b.Severity} injury roll for {b.CrewId}: {b.Roll}, {b.Outcome}.",
-            LeadChangeBeat b => $"  {b.CrewId} takes the lead.",
-            ChainBeat b => $"  The disaster adds {b.EncounterId}.",
-            CallBeat b => $"  CALL {b.Call.DecisionId} (stakes {b.Call.Stakes}, threshold {b.Call.Threshold.ToString("0.00", CultureInfo.InvariantCulture)}): {b.Call.LeadId} prefers {b.Call.LeadPrefers}.",
-            NoticeBeat b => $"  Notice {b.DecisionId} (stakes {b.Stakes}, threshold {b.Threshold.ToString("0.00", CultureInfo.InvariantCulture)}): {b.LeadId} chose {b.Chose}{(b.Blocked ? ", comms blocked" : "")}.",
-            AnswerBeat b => $"  The captain answers {b.Answer}{(b.Backed ? ", backing the lead" : ", overruling the lead")}.",
+            StageBeat b => Inv($"Stage {b.Cursor + 1} ({b.Slot}): {b.EncounterId}{(b.CommsBlocked ? ", comms blocked" : "")}. Momentum {b.Momentum}, strain {b.Strain}."),
+            SkipBeat b => Inv($"  Skipped {b.EncounterId} on momentum."),
+            CheckBeat b => Inv($"  {b.Approach} {b.Skill}: {b.ActorId} {b.ActorSkill}{(b.HelperId is null ? "" : Inv($" + {b.HelperId} {b.Assist}{(b.Supervised ? " supervising" : "")}"))} + gear {b.Gear} + momentum {b.Momentum} - strain {b.Strain} = {b.Score}; rolled {b.Roll} against {b.Target}: margin {b.Margin}, {b.Tier}. Experience {b.Experience:0.0}{(b.Mentoring ? " (mentored)" : "")}."),
+            EffectsBeat b => Inv($"  Effects: momentum {b.Effects.Momentum:+0;-0;0}, strain {b.Effects.Strain:+0;-0;0}, progress {b.Effects.Progress:+0;-0;0}{(b.Effects.InjuryRoll is { } r ? $", {r} injury roll" : "")}{(b.Effects.Withdraw ? ", withdraw" : "")}."),
+            InjuryBeat b => Inv($"  {b.Severity} injury roll for {b.CrewId}: {b.Roll}, {b.Outcome}."),
+            LeadChangeBeat b => Inv($"  {b.CrewId} takes the lead."),
+            ChainBeat b => Inv($"  The disaster adds {b.EncounterId}."),
+            CallBeat b => Inv($"  CALL {b.Call.DecisionId} (stakes {b.Call.Stakes}, threshold {b.Call.Threshold:0.00}): {b.Call.LeadId} prefers {b.Call.LeadPrefers}."),
+            NoticeBeat b => Inv($"  Notice {b.DecisionId} (stakes {b.Stakes}, threshold {b.Threshold:0.00}): {b.LeadId} chose {b.Chose}{(b.Blocked ? ", comms blocked" : "")}."),
+            AnswerBeat b => Inv($"  The captain answers {b.Answer}{(b.Backed ? ", backing the lead" : ", overruling the lead")}."),
             CollapseBeat => "  The mission collapses under strain.",
-            ResultBeat b => $"Result: {b.Outcome}.",
+            ResultBeat b => Inv($"Result: {b.Outcome}."),
             _ => beat.ToString() ?? "",
         };
+    }
+
+    private static string Inv(FormattableString text)
+    {
+        return text.ToString(CultureInfo.InvariantCulture);
     }
 
     private static double Share(BenchFigures figures, MissionOutcome outcome)

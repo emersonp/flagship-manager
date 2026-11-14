@@ -108,19 +108,35 @@ public static class Cli
             return 1;
         }
 
+        string[] knownGear = ["comms", "medical", .. pack.Encounters.SelectMany(e => new[] { e.Careful.GearTag, e.Fast.GearTag }).OfType<string>()];
+        knownGear = knownGear.Distinct().Order(StringComparer.Ordinal).ToArray();
+        if (options.GearTags.FirstOrDefault(t => !knownGear.Contains(t)) is { } unknown)
+        {
+            error.WriteLine($"Unknown gear tag '{unknown}'. The pack has: {string.Join(", ", knownGear)}.");
+            return 1;
+        }
+
         MissionTuning? other = null;
+        string benchNote = "";
         if (line.Has("--compare"))
         {
-            other = LoadOtherTuning(line.Text("--compare", ""), error);
-            if (other is null)
+            string file = line.Text("--compare", "");
+            if (LoadOtherTuning(file, error) is not var (tuning, otherBench))
             {
                 return 1;
+            }
+
+            other = tuning;
+            if (otherBench != pack.Bench)
+            {
+                benchNote = $"Note: the bench teams come from the content pack; the bench block in {file} is ignored.{Environment.NewLine}";
             }
         }
 
         if (line.Has("--replay"))
         {
             options = options with { Strength = Strength(team) };
+            output.Write(benchNote);
             output.Write(BenchReport.Replay(Bench.Replay(pack, other ?? pack.Tuning, options, line.Seed("--replay", 0))));
             return 0;
         }
@@ -143,7 +159,12 @@ public static class Cli
             }
         }
 
-        output.WriteLine($"{options.ObjectiveId}: {options.Runs} missions from seed {options.Seed}; lead {options.Lead}, policy {options.Policy}.");
+        string gear = options.GearTags.Count == 0 ? "none" : string.Join(", ", options.GearTags);
+        output.WriteLine(
+            $"{options.ObjectiveId}: {options.Runs} missions from seed {options.Seed}. Team {team}, lead {options.Lead}, policy {options.Policy}. "
+            + $"Priority {options.Parameters.Priority}, risk {options.Parameters.Risk}, autonomy {options.Parameters.Autonomy}, develop juniors {(options.Parameters.DevelopJuniors ? "on" : "off")}. "
+            + $"Gear: {gear}. Draw: {(options.FixedDraw ? "fixed" : "fresh each run")}.");
+        output.Write(benchNote);
         output.WriteLine();
         output.Write(BenchReport.Summary(columns, showChange: other is not null));
         foreach ((string name, BenchFigures figures) in columns)
@@ -189,7 +210,7 @@ public static class Cli
         return content.Pack;
     }
 
-    private static MissionTuning? LoadOtherTuning(string file, TextWriter error)
+    private static (MissionTuning Tuning, BenchTuning Bench)? LoadOtherTuning(string file, TextWriter error)
     {
         if (!File.Exists(file))
         {
@@ -197,12 +218,12 @@ public static class Cli
             return null;
         }
 
-        (MissionTuning? tuning, IReadOnlyList<ContentError> errors) = ContentLoader.LoadTuningText(File.ReadAllText(file));
+        (MissionTuning? tuning, BenchTuning? bench, IReadOnlyList<ContentError> errors) = ContentLoader.LoadTuningText(File.ReadAllText(file));
         foreach (ContentError e in errors)
         {
             error.WriteLine($"{file}: {e.Message}");
         }
 
-        return tuning;
+        return tuning is null ? null : (tuning, bench!);
     }
 }

@@ -288,7 +288,7 @@ Chronicle text is rendered once and stored, so later grammar edits never rewrite
 
 ### 4.1 Mission state
 
-A mission in flight is a small serialisable record: the drawn encounter list, a cursor, the team's **momentum** and **strain**, objective progress, injuries so far, the RNG stream position, and the beats recorded.
+A mission in flight is a small serialisable record: the drawn encounter list, a cursor, the team's **momentum** and **strain**, objective progress, injuries so far, and the tuning and encounter definitions it started with. Dice are keyed by seed and encounter, so no stream position is stored; beats are returned by each step, not kept in the state.
 
 ### 4.2 The check
 
@@ -349,7 +349,7 @@ This makes the safest team the worst one for development, which is the point.
 The rest of the game knows only this:
 
 ```
-Start(objective, team, loadout, parameters, seed) → MissionState
+Start(objective, encounter pool, team, loadout, parameters, tuning, seed) → MissionState
 Advance(MissionState, answer?) → { state, beats[], pending: Decision | null, result: MissionResult | null }
 ```
 

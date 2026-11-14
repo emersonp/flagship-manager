@@ -7,12 +7,12 @@ namespace Sim.Content;
 public static partial class ContentLoader
 {
     // One tuning file on its own, for comparing against the pack's.
-    public static (MissionTuning? Tuning, IReadOnlyList<ContentError> Errors) LoadTuningText(string text)
+    public static (MissionTuning? Tuning, BenchTuning? Bench, IReadOnlyList<ContentError> Errors) LoadTuningText(string text)
     {
         var errors = new List<ContentError>();
         IDeserializer yaml = new DeserializerBuilder().WithDuplicateKeyChecking().Build();
-        (MissionTuning? tuning, _) = LoadTuning(yaml, new Dictionary<string, string> { [TuningFile] = text }, errors);
-        return (errors.Count == 0 ? tuning : null, errors);
+        (MissionTuning? tuning, BenchTuning? bench) = LoadTuning(yaml, new Dictionary<string, string> { [TuningFile] = text }, errors);
+        return errors.Count == 0 ? (tuning, bench, errors) : (null, null, errors);
     }
 
     private static (MissionTuning? Tuning, BenchTuning? Bench) LoadTuning(IDeserializer yaml, IReadOnlyDictionary<string, string> files, List<ContentError> errors)
@@ -32,6 +32,7 @@ public static partial class ContentLoader
         var values = new Dictionary<string, string>();
         Flatten("", root, values);
         var read = new TuningReader(values, errors);
+        int errorsBefore = errors.Count;
 
         var tuning = new MissionTuning
         {
@@ -89,7 +90,38 @@ public static partial class ContentLoader
             errors.Add(new ContentError(TuningFile, "check.tiers must fall from critical to failure."));
         }
 
-        return read.ReportUnused() ? (tuning, bench) : (null, null);
+        if (read.Complete)
+        {
+            CheckRanges(tuning, bench, errors);
+        }
+
+        return read.ReportUnused() && errors.Count == errorsBefore ? (tuning, bench) : (null, null);
+    }
+
+    // A threshold or range the wrong way round switches a rule off or crashes a draw, so it is a load error.
+    private static void CheckRanges(MissionTuning t, BenchTuning bench, List<ContentError> errors)
+    {
+        void Above(string name, int value, string limitName, int limit)
+        {
+            if (value > limit)
+            {
+                errors.Add(new ContentError(TuningFile, $"{name} must not be above {limitName}."));
+            }
+        }
+
+        Above("compounding.collapseAt", t.CollapseAt, "compounding.cap", t.Cap);
+        Above("compounding.abortCallAt", t.AbortCallAt, "compounding.cap", t.Cap);
+        Above("compounding.skipAtMomentum", t.SkipAtMomentum, "compounding.cap", t.Cap);
+        Above("compounding.abortCallAt", t.AbortCallAt, "compounding.collapseAt", t.CollapseAt);
+        Above("injury.deadBelow", t.DeadBelow, "injury.incapacitatedBelow", t.IncapacitatedBelow);
+        Above("experience.closeMargin", t.CloseMargin, "experience.nearMargin", t.NearMargin);
+        foreach ((string name, BenchTeamDef team) in new[] { ("rookie", bench.Rookie), ("mixed", bench.Mixed), ("veteran", bench.Veteran) })
+        {
+            string at = $"bench.teams.{name}";
+            Above($"{at}.skill.0", team.SkillMin, $"{at}.skill.1", team.SkillMax);
+            Above($"{at}.seniorSkill.0", team.SeniorSkillMin, $"{at}.seniorSkill.1", team.SeniorSkillMax);
+            Above($"{at}.seniors", team.Seniors, $"{at}.size", team.Size);
+        }
     }
 
     private static BenchTeamDef BenchTeam(TuningReader read, string name)
@@ -159,12 +191,12 @@ public static partial class ContentLoader
                 return 0;
             }
 
-            if (double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out double value))
+            if (double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out double value) && double.IsFinite(value))
             {
                 return value;
             }
 
-            Fail(path, $"must be a number, not '{text}'.");
+            Fail(path, $"must be a finite number, not '{text}'.");
             return 0;
         }
 

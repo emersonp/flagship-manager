@@ -60,9 +60,28 @@ public class CliTests
         (int exit, string output, string error) = Run("bench", "--objective", "OBJECTIVE_TEMPLATE_1", "--runs", "50", "--lead", "cautious", "--autonomy", "-1", "--gear", "scanner,tools", "--content", Content);
 
         Assert.Equal((0, ""), (exit, error));
-        Assert.Contains("OBJECTIVE_TEMPLATE_1: 50 missions from seed 1; lead Cautious, policy BackLead.", output, StringComparison.Ordinal);
+        Assert.Contains("OBJECTIVE_TEMPLATE_1: 50 missions from seed 1. Team mixed, lead Cautious, policy BackLead. Priority 0, risk 0, autonomy -1, develop juniors off. Gear: scanner, tools. Draw: fresh each run.", output, StringComparison.Ordinal);
         Assert.Contains("Full success %", output, StringComparison.Ordinal);
         Assert.Contains("Encounters (mixed); worst run: seed", output, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void The_header_says_no_gear_and_a_fixed_draw_when_so()
+    {
+        (_, string output, _) = Run("bench", "--objective", "OBJECTIVE_TEMPLATE_1", "--runs", "5", "--develop", "--fixed-draw", "--content", Content);
+
+        Assert.Contains("develop juniors on. Gear: none. Draw: fixed.", output, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void A_mistyped_gear_tag_exits_1_and_lists_the_known_ones()
+    {
+        (int exit, string output, string error) = Run("bench", "--objective", "OBJECTIVE_TEMPLATE_1", "--gear", "scaner", "--content", Content);
+
+        Assert.Equal(1, exit);
+        Assert.Equal("", output);
+        Assert.Contains("'scaner'", error, StringComparison.Ordinal);
+        Assert.Contains("comms, medical, scanner, tools", error, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -88,6 +107,26 @@ public class CliTests
             Assert.Equal(0, exit);
             Assert.Matches(@"before\s+after\s+change", output);
             Assert.Matches(@"Full success %\s+\S+\s+\S+\s+-\d", output);
+            Assert.DoesNotContain("Note:", output, StringComparison.Ordinal);
+        }
+        finally
+        {
+            File.Delete(file);
+        }
+    }
+
+    [Fact]
+    public void A_comparison_file_with_other_bench_teams_says_they_are_ignored()
+    {
+        string file = Path.Combine(Path.GetTempPath(), $"tuning-{Guid.NewGuid():N}.yaml");
+        try
+        {
+            File.WriteAllText(file, File.ReadAllText(Path.Combine(Content, "tuning", "missions.yaml")).Replace("mixed:   { size: 3", "mixed:   { size: 4", StringComparison.Ordinal));
+
+            (int exit, string output, _) = Run("bench", "--objective", "OBJECTIVE_TEMPLATE_1", "--runs", "20", "--compare", file, "--content", Content);
+
+            Assert.Equal(0, exit);
+            Assert.Contains($"Note: the bench teams come from the content pack; the bench block in {file} is ignored.", output, StringComparison.Ordinal);
         }
         finally
         {

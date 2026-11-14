@@ -1,3 +1,4 @@
+using System.Globalization;
 using Sim.Core.Content;
 
 namespace Sim.Content;
@@ -77,13 +78,13 @@ public static partial class ContentLoader
         {
             switch (key)
             {
-                case "momentum" when int.TryParse(value, out int n):
+                case "momentum" when int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out int n):
                     effect = effect with { Momentum = effect.Momentum + n };
                     break;
-                case "strain" when int.TryParse(value, out int n):
+                case "strain" when int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out int n):
                     effect = effect with { Strain = effect.Strain + n };
                     break;
-                case "progress" when int.TryParse(value, out int n):
+                case "progress" when int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out int n):
                     effect = effect with { Progress = effect.Progress + n };
                     break;
                 case "injuryRoll" when value is "light" or "severe":
@@ -104,6 +105,9 @@ public static partial class ContentLoader
     private static List<ObjectiveDef> BuildObjectives(List<(string File, ObjectiveDto Dto)> items, List<EncounterDef> encounters, List<ContentError> errors)
     {
         var defs = new List<ObjectiveDef>();
+        // The resolver never draws a chain target, so neither does this check.
+        var chainTargets = encounters.Where(e => e.Chain is not null).Select(e => e.Chain!).ToHashSet();
+        List<EncounterDef> drawable = encounters.Where(e => !chainTargets.Contains(e.Id)).ToList();
         foreach ((string file, ObjectiveDto dto) in items)
         {
             int before = errors.Count;
@@ -129,7 +133,7 @@ public static partial class ContentLoader
 
                 List<string> tags = stage.Draw?.Tags ?? [];
                 (int countMin, int countMax) = Range(stage.Count, $"stage '{stage.Slot}' count", Error);
-                int matches = encounters.Count(e => tags.All(e.Tags.Contains));
+                int matches = drawable.Count(e => tags.All(e.Tags.Contains));
                 if (matches < countMax)
                 {
                     Error($"Stage '{stage.Slot}' draws up to {countMax} encounters tagged [{string.Join(", ", tags)}], but only {matches} match.");
@@ -142,6 +146,10 @@ public static partial class ContentLoader
             {
                 Error("An objective needs at least one stage.");
             }
+            else if (errors.Count == before)
+            {
+                CheckWorstCase(stages, drawable, Error);
+            }
 
             if (errors.Count == before)
             {
@@ -150,6 +158,23 @@ public static partial class ContentLoader
         }
 
         return defs;
+    }
+
+    // Stages draw without repeats from one pool, so every stage at its maximum count must still find enough.
+    private static void CheckWorstCase(List<StageDef> stages, List<EncounterDef> drawable, Action<string> error)
+    {
+        var used = new HashSet<string>();
+        foreach (StageDef stage in stages)
+        {
+            List<EncounterDef> open = drawable.Where(e => !used.Contains(e.Id) && stage.DrawTags.All(e.Tags.Contains)).ToList();
+            if (open.Count < stage.CountMax)
+            {
+                error($"Stage '{stage.Slot}' may find only {open.Count} of the {stage.CountMax} encounters it draws, because earlier stages draw from the same pool.");
+                return;
+            }
+
+            used.UnionWith(open.Take(stage.CountMax).Select(e => e.Id));
+        }
     }
 
     // A count written as one number, or as [min, max].
@@ -162,8 +187,8 @@ public static partial class ContentLoader
             _ => [value, value],
         };
         if (parts.Count == 2
-            && int.TryParse(parts[0].ToString(), out int min)
-            && int.TryParse(parts[1].ToString(), out int max)
+            && int.TryParse(parts[0].ToString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out int min)
+            && int.TryParse(parts[1].ToString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out int max)
             && min >= 1
             && max >= min)
         {

@@ -10,7 +10,6 @@ public static partial class ContentLoader
 {
     private const string ManifestFile = "pack.yaml";
     private const string TuningFile = "tuning/missions.yaml";
-    private static readonly string[] KnownFolders = ["skills", "encounters", "objectives", "tuning"];
 
     // Keys are paths relative to the pack root, with forward slashes.
     public static ContentLoadResult Load(IReadOnlyDictionary<string, string> files)
