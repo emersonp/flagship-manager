@@ -1,0 +1,10 @@
+@using Web.Forms
+<Layout Title="@View.Heading">
+    <div class="page">
+        <ItemMain View="View" />
+    </div>
+</Layout>
+
+@code {
+    [Parameter, EditorRequired] public ItemFormView View { get; set; } = null!;
+}

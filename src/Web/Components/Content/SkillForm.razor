@@ -1,0 +1,7 @@
+@using Web.Forms
+@* A skill's tags are kept as they are; the form edits only the name. *@
+<FormShell View="View" />
+
+@code {
+    [Parameter, EditorRequired] public ItemFormView View { get; set; } = null!;
+}

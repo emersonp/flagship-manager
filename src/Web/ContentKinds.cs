@@ -43,6 +43,20 @@ public static class ContentKinds
         return All.Single(k => k.Kind == kind).Title;
     }
 
+    // What one item of the kind is called in a sentence.
+    public static string Noun(ContentKind kind)
+    {
+        return kind switch
+        {
+            ContentKind.Skill => "skill",
+            ContentKind.Gear => "gear item",
+            ContentKind.Crew => "crew member",
+            ContentKind.Assignment => "assignment",
+            ContentKind.Objective => "objective",
+            _ => "encounter",
+        };
+    }
+
     public static IReadOnlyList<KindColumn> Columns(ContentKind kind)
     {
         return kind switch

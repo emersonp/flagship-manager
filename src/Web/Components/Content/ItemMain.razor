@@ -1,0 +1,28 @@
+@using Sim.Content
+@using Web.Forms
+<ContentShell Title="@View.Heading" Subtitle="@Subtitle" ParentTitle="@ContentKinds.Title(View.Kind)" ParentHref="@($"/dev/content/{View.Segment}")">
+    <ChildContent>
+        @switch (View.Kind)
+        {
+            case ContentKind.Skill:
+                <SkillForm View="View" />
+                break;
+            case ContentKind.Gear:
+                <GearForm View="View" />
+                break;
+            case ContentKind.Crew:
+                <CrewForm View="View" />
+                break;
+            case ContentKind.Assignment:
+                <AssignmentForm View="View" />
+                break;
+        }
+    </ChildContent>
+</ContentShell>
+
+@code {
+    [Parameter, EditorRequired] public ItemFormView View { get; set; } = null!;
+
+    // The crew form stays small: the starting eight only need names and numbers.
+    private string? Subtitle => View.Kind == ContentKind.Crew ? "Crew will be generated from sources later, so this form only names the starting eight and sets their numbers." : null;
+}

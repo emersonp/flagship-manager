@@ -1,0 +1,55 @@
+@using Web.Forms
+<ContentFormWarning View="View" />
+<form id="item-form" class="well" method="post" action="@View.Action" novalidate aria-labelledby="h-fields" data-signals:_rowing="false" data-signals:_deleting="false" data-indicator:_saving data-on:submit="@Post">
+    <div class="well__head"><h2 id="h-fields">@(View.IsNew ? "Details" : "Fields")</h2></div>
+    <div class="well__body fields">
+        @if (View.IsNew)
+        {
+            <Field Name="id" Label="Id" Value="@View.Values.Get("id")" Hint="@Web.Forms.Checks.IdRule" Error="@View.Error("id")" Required="true" />
+        }
+        else
+        {
+            <div class="field">
+                <span class="field__label" id="id-label">Id</span>
+                <span class="m" aria-labelledby="id-label">@View.Id</span>
+                <p class="hint">The id is fixed once the item exists.</p>
+            </div>
+        }
+        <Field Name="name" Label="Name" Value="@View.Values.Get("name")" Hint="Optional. 1 to 80 characters." Error="@View.Error("name")" />
+        @ChildContent
+    </div>
+</form>
+<div class="actions well">
+    <div id="form-alert" class="alert" role="alert">
+        @if (View.Notice is not null)
+        {
+            <p class="alert-ok">@View.Notice</p>
+        }
+        @if (View.Errors.Count > 0)
+        {
+            <p class="error">Nothing was saved. Fix the fields marked above.</p>
+        }
+        @if (View.Reasons.Count > 0)
+        {
+            <p class="error">The change was refused. Nothing was written.</p>
+            <ContentProblems Errors="View.Reasons" />
+        }
+    </div>
+    @if (!View.IsNew)
+    {
+        <DeleteControl Url="@View.DeleteUrl" Id="@View.Id" Busy="@Busy" />
+    }
+    <button class="btn btn--primary" type="submit" form="item-form" data-attr:disabled="@Busy" data-attr:aria-busy="$_saving ? 'true' : false">Save</button>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public ItemFormView View { get; set; } = null!;
+
+    // The fields that belong to the kind, after the id and the name.
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    // Every button in the page waits while a save, a row change, or a delete is in flight.
+    public static string Busy => "$_saving || $_rowing || $_deleting";
+
+    private string Post => $"@post('{View.Action}', {{contentType: 'form'}})";
+}

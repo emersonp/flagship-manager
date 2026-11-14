@@ -9,6 +9,8 @@ public sealed record SaveResult(bool Saved, IReadOnlyList<ContentError> Errors);
 public sealed record ContentFolder(string Path);
 
 // Every change to the files goes through here, one at a time: build the candidate, validate it, write it, then swap it in.
+// A save changes one file. The disk is read fresh at the start of a save, so a hand edit to that same file made while the save
+// runs may be overwritten; a hand edit to another file is never touched.
 public sealed class ContentEditor
 {
     private readonly SemaphoreSlim gate = new(1, 1);
@@ -51,6 +53,12 @@ public sealed class ContentEditor
             catch (ContentLossException lost)
             {
                 return Refused(lost.Losses.Select(l => new ContentError(l.File, l.ToString())).ToList());
+            }
+
+            int changed = after.Files.Count(f => !before.Files.TryGetValue(f.Key, out string? old) || old != f.Value) + before.Files.Count(f => !after.Files.ContainsKey(f.Key));
+            if (changed > 1)
+            {
+                return Refused([new ContentError("", $"A save changes one file; this change would alter {changed}.")]);
             }
 
             ContentLoadResult result;

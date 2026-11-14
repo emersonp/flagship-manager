@@ -54,7 +54,7 @@ public sealed class ContentPagesTests : IClassFixture<RepoContentGuard>
         Assert.Equal(HttpStatusCode.OK, status);
         Assert.Contains(app.Live.Pack.Id, body);
         Assert.Contains("Valid", body);
-        Assert.Contains("Edits apply to games in progress.", body);
+        Assert.Contains("Names and gear reach games in progress at once. A legacy's crew keep the levels they started with.", WebUtility.HtmlDecode(body));
         Assert.Contains("href=\"/\"", body);
         foreach (ContentKind kind in Enum.GetValues<ContentKind>())
         {
@@ -225,11 +225,13 @@ public sealed class ContentPagesTests : IClassFixture<RepoContentGuard>
         (Guid id, WebCaptain captain) = await WaitingCall(app, client);
         await app.Editor.Save(files => ContentEdits.Upsert(files, ContentKind.Crew, ContentEdits.Get<CrewModel>(files, ContentKind.Crew, "CREW_01")! with { Name = "NAME_PLACEHOLDER_RENAMED" }));
 
+        int eventsBefore = app.Game.Store.ReadEvents(id).Count;
         string stream = await captain.Post("answer", AnswerForm(await captain.Peek()));
         string page = (await Get(client, $"/legacy/{id}")).Body;
 
         Assert.Contains("event: datastar-patch-elements", stream);
         Assert.Contains("NAME_PLACEHOLDER_RENAMED", page);
+        Assert.True(app.Game.Store.ReadEvents(id).Count > eventsBefore, "The answer was accepted: the stored legacy moved on.");
     }
 
     [Fact]
@@ -312,6 +314,68 @@ public sealed class ContentPagesTests : IClassFixture<RepoContentGuard>
         Assert.Contains("Reloaded", await fixedResponse.Content.ReadAsStringAsync());
         Assert.Equal(HttpStatusCode.OK, (await Get(client, "/")).Status);
         Assert.NotNull(app.Host.Current);
+    }
+
+    [Fact]
+    public async Task A_reload_that_finds_the_disk_invalid_while_a_pack_is_live_says_the_game_keeps_the_pack_it_had()
+    {
+        using var app = new TestApp(developerMode: true, scratch: true);
+        _ = app.Host;
+        File.WriteAllText(Path.Combine(app.ContentPath, "pack.yaml"), "not: [valid");
+
+        HttpResponseMessage response = await app.NewClient().PostAsync("/dev/content/reload", new FormUrlEncodedContent([]));
+
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
+        Assert.Contains("The pack on disk is invalid, so the game keeps the pack it had.", await response.Content.ReadAsStringAsync());
+        Assert.NotNull(app.Host.Current);
+    }
+
+    // The launch is a paced route: its commands, stored events, and stream all come from the pack the request started on.
+    [Fact]
+    public async Task A_launch_that_is_swapped_over_mid_request_uses_the_pack_it_started_with_in_the_stream_and_in_the_store()
+    {
+        using var app = new TestApp(developerMode: true, scratch: true);
+        HttpClient client = app.NewClient();
+        Guid control = await app.Sessions.CreateLegacy(app.Live, "CONTROL", 7);
+        Guid swapped = await app.Sessions.CreateLegacy(app.Live, "SWAPPED", 7);
+        var controlCaptain = new WebCaptain(app, client, control);
+        var swappedCaptain = new WebCaptain(app, client, swapped);
+        await ToLaunch(controlCaptain);
+        await ToLaunch(swappedCaptain);
+        (string route, _) = await controlCaptain.Step();
+        Assert.Equal("launch", route);
+        ContentPack changed = ContentLoader.Load(app.Editor.Read().Files.ToDictionary(f => f.Key, f => f.Key == "tuning/missions.yaml" ? f.Value.Replace("dice: { count: 2, sides: 6 }   # every check", "dice: { count: 1, sides: 20 }   # every check", StringComparison.Ordinal) : f.Value)).Pack!;
+        // The first load is the captain's own read; the second is the launch request, after it took its snapshot.
+        int loads = 0;
+        app.Sessions.AfterLoad = _ =>
+        {
+            if (++loads == 2)
+            {
+                app.Sessions.AfterLoad = null;
+                app.Host.Swap(NamedPack.Of(changed));
+            }
+        };
+
+        (route, string stream) = await swappedCaptain.Step();
+
+        Assert.Equal("launch", route);
+        Assert.Equal(2, app.Live.Generation);
+        Assert.DoesNotContain(NamedPack.Prefix, stream);
+        Assert.Equal(Stored(app, control), Stored(app, swapped));
+    }
+
+    private static async Task ToLaunch(WebCaptain captain)
+    {
+        while (await captain.Peek() is not AssignTeam)
+        {
+            await captain.Step();
+        }
+    }
+
+    // What the commits stored, without the ids that differ between two legacies.
+    private static List<string> Stored(TestApp app, Guid id)
+    {
+        return app.Game.Store.ReadEvents(id).Select(e => $"{e.Cycle} {e.Type} {e.Payload.Replace(id.ToString(), "LEGACY", StringComparison.OrdinalIgnoreCase)}").ToList();
     }
 
     [Fact]

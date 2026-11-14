@@ -31,12 +31,12 @@
                         }
                     </dd>
                     <dt>Legacies</dt>
-                    <dd><span class="m">@View.LegacyCount</span> @(View.LegacyCount == 1 ? "legacy" : "legacies") saved. Edits apply to games in progress. <a href="/">Back to the legacies</a></dd>
+                    <dd><span class="m">@View.LegacyCount</span> @(View.LegacyCount == 1 ? "legacy" : "legacies") saved. Names and gear reach games in progress at once. A legacy's crew keep the levels they started with. <a href="/">Back to the legacies</a></dd>
                 </dl>
             </div>
             <form class="actions" method="post" action="/dev/content/reload" @attributes="Indicator" data-on:submit="@Post">
                 <p class="note">Reload reads the files again and swaps the pack in without changing any file.</p>
-                <button class="btn" type="submit" data-attr:disabled="@Busy" data-attr:aria-busy="@Busy">Reload from disk</button>
+                <button class="btn" type="submit" data-attr:disabled="@Busy" data-attr:aria-busy="@BusyAttr">Reload from disk</button>
             </form>
         </section>
 
@@ -64,7 +64,7 @@
                                 @foreach (ContentItemRef item in items)
                                 {
                                     <tr>
-                                        <td class="who">@(item.Name is { Length: > 0 } ? item.Name : "")@if (item.Name is not { Length: > 0 }){<span class="quiet">Not named</span>}@if (item.Lossy){<span class="caution"><span class="tag tag--caution">Caution</span> <span class="note">Has content the editor cannot keep</span></span>}</td>
+                                        <td class="who"><ItemLabel Segment="@segment" Item="item" /></td>
                                         <td class="oid">@item.Id</td>
                                         <td class="nw">@item.File</td>
                                     </tr>
@@ -110,6 +110,9 @@
     private Dictionary<string, object> Indicator => new() { ["data-indicator:_reloading"] = true };
 
     private string Busy => "$_reloading";
+
+    // Datastar writes a true value as an empty attribute, so the string is spelled out.
+    private string BusyAttr => "$_reloading ? 'true' : false";
 
     private string Post => "@post('/dev/content/reload', {contentType: 'form'})";
 }

@@ -1,0 +1,22 @@
+@using Web.Forms
+<FormShell View="View">
+    <div class="field-grid">
+        <Field Name="seniority" Label="Seniority" Value="@View.Values.Get("seniority")" Hint="1 or more." Error="@View.Error("seniority")" Numeric="true" Narrow="true" Required="true" />
+        <Field Name="caution" Label="Caution" Value="@View.Values.Get("caution")" Hint="-2 to 2." Error="@View.Error("caution")" Numeric="true" Narrow="true" Required="true" />
+        <Field Name="discipline" Label="Discipline" Value="@View.Values.Get("discipline")" Hint="-2 to 2." Error="@View.Error("discipline")" Numeric="true" Narrow="true" Required="true" />
+    </div>
+    <fieldset class="levels">
+        <legend class="sub">Skill levels</legend>
+        <p class="hint">@(View.Choices.MaxLevel is { } max ? $"Each level is 0 to {max}." : "Each level is 0 or more.")</p>
+        <div class="field-grid">
+            @foreach (SkillChoice skill in View.Choices.Skills)
+            {
+                <Field Name="@($"skills.{skill.Id}")" Label="@(skill.Name is { Length: > 0 } ? $"{skill.Name} ({skill.Id})" : skill.Id)" Value="@View.Values.Get($"skills.{skill.Id}")" Error="@View.Error($"skills.{skill.Id}")" Numeric="true" Narrow="true" Required="true" />
+            }
+        </div>
+    </fieldset>
+</FormShell>
+
+@code {
+    [Parameter, EditorRequired] public ItemFormView View { get; set; } = null!;
+}

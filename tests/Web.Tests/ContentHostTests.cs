@@ -93,6 +93,23 @@ public sealed class ContentHostTests : IClassFixture<RepoContentGuard>, IDisposa
         Assert.Equal("CREW_01", old.Names.Crew("CREW_01"));
     }
 
+    // A save is one file: a change that would alter two is refused whole.
+    [Fact]
+    public async Task A_change_that_alters_more_than_one_file_is_refused_and_writes_nothing()
+    {
+        ContentHost host = scratch.NewHost();
+        var editor = new ContentEditor(host, scratch.Folder);
+        ContentFileSet before = editor.Read();
+        LivePack old = host.Current!;
+
+        SaveResult result = await editor.Save(files => ContentEdits.Upsert(Rename(files, "CREW_01", "NAME_PLACEHOLDER"), ContentKind.Gear, ContentEdits.Get<GearModel>(files, ContentKind.Gear, "GEAR_01")! with { Name = "NAME_PLACEHOLDER" }));
+
+        Assert.False(result.Saved);
+        Assert.Contains(result.Errors, e => e.Message.Contains("A save changes one file", StringComparison.Ordinal) && e.Message.Contains('2'));
+        Assert.Empty(Changed(before, editor.Read()));
+        Assert.Same(old, host.Current);
+    }
+
     [Fact]
     public async Task An_invalid_save_writes_nothing_returns_the_loaders_errors_and_leaves_the_live_pack()
     {

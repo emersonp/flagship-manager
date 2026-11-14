@@ -1,0 +1,71 @@
+@using Web.Forms
+<div class="rowset">
+    <h3 class="sub" id="@($"h-{Set.Prefix}")">@Title</h3>
+    @if (Hint is not null)
+    {
+        <p class="hint">@Hint</p>
+    }
+    @if (Rows.Count == 0)
+    {
+        <p class="empty">No rows. Add one.</p>
+    }
+    else
+    {
+        <div class="tw">
+            <table aria-labelledby="@($"h-{Set.Prefix}")">
+                <thead>
+                    <tr>
+                        @foreach (string header in Headers)
+                        {
+                            <th scope="col">@header</th>
+                        }
+                        <th scope="col" class="c"><span class="visually-hidden">Remove</span></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @for (int i = 0; i < Rows.Count; i++)
+                    {
+                        int row = i;
+                        <tr>
+                            @for (int f = 0; f < Set.Fields.Count; f++)
+                            {
+                                string name = Set.Name(row, Set.Fields[f]);
+                                string? error = View.Error(name);
+                                string id = FormValues.Slug(name);
+                                <td class="cell">
+                                    <input id="@id" name="@name" type="text" inputmode="numeric" value="@Rows[row][Set.Fields[f]]" autocomplete="off" aria-label="@($"{Headers[f]}, row {row + 1}")" aria-invalid="@(error is null ? null : "true")" aria-describedby="@(error is null ? null : id + "-error")">
+                                    @if (error is not null)
+                                    {
+                                        <p class="error" id="@id-error">@error</p>
+                                    }
+                                </td>
+                            }
+                            <td class="c"><button class="btn" type="button" id="@($"row-remove-{row}")" name="@RowSet.ActionField" value="@($"remove:{row}")" aria-label="@($"Remove row {row + 1}")" data-indicator:_rowing data-attr:disabled="@FormShell.Busy" data-attr:aria-busy="$_rowing ? 'true' : false" data-on:click="@Post">Remove</button></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+    <div class="rowset__add">
+        <button class="btn" type="button" id="row-add" name="@RowSet.ActionField" value="add" data-indicator:_rowing data-attr:disabled="@FormShell.Busy" data-attr:aria-busy="$_rowing ? 'true' : false" data-on:click="@Post">Add a row</button>
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public ItemFormView View { get; set; } = null!;
+
+    [Parameter, EditorRequired] public RowSet Set { get; set; } = null!;
+
+    // One header per field of the set, in order.
+    [Parameter, EditorRequired] public IReadOnlyList<string> Headers { get; set; } = [];
+
+    [Parameter, EditorRequired] public string Title { get; set; } = "";
+
+    [Parameter] public string? Hint { get; set; }
+
+    private List<Dictionary<string, string>> Rows => FormRows.Read(View.Values, Set);
+
+    // The click posts the whole form to the rows route; the button's own name and value say which action and which row.
+    private string Post => $"@post('{View.RowsUrl}', {{contentType: 'form'}})";
+}

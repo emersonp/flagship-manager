@@ -1,0 +1,67 @@
+@using Sim.Content
+<ContentShell Title="@ContentKinds.Title(Kind)" Subtitle="@Count">
+    <Alert>
+        @if (Notice is not null)
+        {
+            <p class="alert-ok">@Notice</p>
+        }
+    </Alert>
+    <ChildContent>
+        <section class="well" aria-labelledby="h-items">
+            <div class="well__head">
+                <h2 id="h-items">Items</h2>
+                <a class="btn btn--primary" href="/dev/content/@Segment/new">New</a>
+            </div>
+            @if (Items.Count == 0)
+            {
+                <div class="well__body"><p class="empty">No items yet.</p></div>
+            }
+            else
+            {
+                <div class="tw">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th scope="col">Name</th>
+                                <th scope="col" class="oid">Id</th>
+                                @foreach (KindColumn column in ContentKinds.Columns(Kind))
+                                {
+                                    <th scope="col" class="@(column.Numeric ? "n wide" : null)">@column.Header</th>
+                                }
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (ContentItemRef item in Items)
+                            {
+                                IReadOnlyList<string> cells = ContentKinds.Cells(Files, item);
+                                <tr>
+                                    <td class="who"><ItemLabel Segment="@Segment" Item="item" /></td>
+                                    <td class="oid">@item.Id</td>
+                                    @for (int i = 0; i < cells.Count; i++)
+                                    {
+                                        <td class="@(ContentKinds.Columns(Kind)[i].Numeric ? "n wide" : null)">@cells[i]</td>
+                                    }
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </section>
+    </ChildContent>
+</ContentShell>
+
+@code {
+    [Parameter, EditorRequired] public ContentKind Kind { get; set; }
+
+    [Parameter, EditorRequired] public ContentFileSet Files { get; set; } = null!;
+
+    [Parameter, EditorRequired] public IReadOnlyList<ContentItemRef> Items { get; set; } = [];
+
+    // What happened on the way here, for example a delete.
+    [Parameter] public string? Notice { get; set; }
+
+    private string Segment => ContentKinds.Segment(Kind);
+
+    private string Count => Items.Count == 1 ? "1 item" : $"{Items.Count} items";
+}

@@ -1,10 +1,10 @@
+using Microsoft.Extensions.Options;
 using GameHost;
 using Persistence;
 using Sim.Content;
 using Sim.Core.Content;
 using Web;
 using Web.Components;
-using Microsoft.Extensions.Options;
 using Web.Endpoints;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);

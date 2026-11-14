@@ -9,9 +9,12 @@ public static class ContentEndpoints
 {
     public static void Map(IEndpointRouteBuilder app)
     {
-        app.MapGet("/dev/content", Index);
-        app.MapPost("/dev/content/reload", Reload);
-        app.MapGet("/dev/content/{kind}", Kind);
+        // Every post under /dev is checked once, here.
+        RouteGroupBuilder dev = app.MapGroup("/dev").AddEndpointFilter(SameOrigin.Filter);
+        dev.MapGet("/content", Index);
+        dev.MapPost("/content/reload", Reload);
+        dev.MapGet("/content/{kind}", Kind);
+        ContentFormEndpoints.Map(dev);
     }
 
     private static async Task<IResult> Index(ContentHost host, ContentEditor editor, GameServices game, Render render)
@@ -27,7 +30,7 @@ public static class ContentEndpoints
             ? "Reloaded from disk. The game now uses the pack on disk."
             : host.Current is null
                 ? "The pack on disk is still invalid, so the game has no pack until the files load."
-                : "The pack on disk is still invalid, so the game keeps the pack it had.";
+                : "The pack on disk is invalid, so the game keeps the pack it had.";
         Dictionary<string, object?> parameters = IndexParameters(host, editor, game, new IndexAlert(message, result.Saved));
         if (Sse.IsDatastar(http.Request))
         {

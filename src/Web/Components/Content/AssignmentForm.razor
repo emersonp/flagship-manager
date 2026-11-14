@@ -1,0 +1,31 @@
+@using Web.Forms
+<FormShell View="View">
+    <fieldset class="field tags">
+        <legend>Objective tags</legend>
+        <p class="hint" id="f-tags-hint">An objective is offered only when it has every ticked tag. Tick none and every objective can be offered.</p>
+        <div class="tag-list">
+            @for (int i = 0; i < View.Choices.ObjectiveTags.Count; i++)
+            {
+                string tag = View.Choices.ObjectiveTags[i];
+                <label class="check" for="@($"f-tags-{i}")"><span class="hit"><input type="checkbox" id="@($"f-tags-{i}")" name="tags" value="@tag" checked="@Ticked.Contains(tag)" aria-describedby="@TagsDescribed" aria-invalid="@(View.Error("tags") is null ? null : "true")"></span>@tag</label>
+            }
+        </div>
+        @if (View.Error("tags") is { } error)
+        {
+            <p class="error" id="f-tags-error">@error</p>
+        }
+    </fieldset>
+    <Field Name="loadoutLimit" Label="Loadout limit" Value="@View.Values.Get("loadoutLimit")" Hint="How many gear items a team can carry. 0 or more." Error="@View.Error("loadoutLimit")" Numeric="true" Narrow="true" Required="true" />
+    <RowTable View="View" Set="AssignmentOffer" Headers="@(["Number of objectives", "Weight"])" Title="Offer" Hint="How many objectives a site offers, and how often. Each number is 1 or more; the weight is its share." />
+</FormShell>
+
+@code {
+    [Parameter, EditorRequired] public ItemFormView View { get; set; } = null!;
+
+    private static RowSet AssignmentOffer => Web.Forms.AssignmentKind.Offer;
+
+    // The hint, and the error when there is one, are read out with each box.
+    private string TagsDescribed => View.Error("tags") is null ? "f-tags-hint" : "f-tags-hint f-tags-error";
+
+    private IReadOnlyList<string> Ticked => View.Values.All("tags");
+}

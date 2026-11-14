@@ -1,0 +1,66 @@
+@using Web.Forms
+<div class="@(Narrow ? "field field--narrow" : "field")">
+    <label for="@Id">@Label</label>
+    @if (Options is not null)
+    {
+        <select id="@Id" name="@Name" aria-describedby="@Described" aria-invalid="@Invalid" aria-required="@(Required ? "true" : null)">
+            <option value="" selected="@(Value.Length == 0)">@Placeholder</option>
+            @foreach (string option in Options)
+            {
+                <option value="@option" selected="@(option == Value)">@option</option>
+            }
+        </select>
+    }
+    else
+    {
+        <input id="@Id" name="@Name" type="text" inputmode="@(Numeric ? "numeric" : null)" value="@Value" autocomplete="off" spellcheck="false" aria-describedby="@Described" aria-invalid="@Invalid" aria-required="@(Required ? "true" : null)">
+    }
+    @if (Hint is not null)
+    {
+        <p class="hint" id="@Id-hint">@Hint</p>
+    }
+    @if (Error is not null)
+    {
+        <p class="error" id="@Id-error">@Error</p>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public string Name { get; set; } = "";
+
+    [Parameter, EditorRequired] public string Label { get; set; } = "";
+
+    [Parameter] public string Value { get; set; } = "";
+
+    // The rule in words, shown under the field.
+    [Parameter] public string? Hint { get; set; }
+
+    // Why the last check failed; shown in the harm colour with its words.
+    [Parameter] public string? Error { get; set; }
+
+    [Parameter] public bool Required { get; set; }
+
+    // A whole number: a text box with the numeric keyboard, so the form's own words (not the browser's) explain a bad one.
+    [Parameter] public bool Numeric { get; set; }
+
+    [Parameter] public bool Narrow { get; set; }
+
+    // A list to choose from instead of typing.
+    [Parameter] public IReadOnlyList<string>? Options { get; set; }
+
+    [Parameter] public string Placeholder { get; set; } = "Choose";
+
+    private string Id => FormValues.Slug(Name);
+
+    private string? Invalid => Error is null ? null : "true";
+
+    // The hint and the error are both read out with the field.
+    private string? Described
+    {
+        get
+        {
+            string text = $"{(Hint is null ? "" : Id + "-hint")} {(Error is null ? "" : Id + "-error")}".Trim();
+            return text.Length == 0 ? null : text;
+        }
+    }
+}

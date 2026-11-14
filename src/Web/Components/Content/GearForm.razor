@@ -1,0 +1,8 @@
+@using Web.Forms
+<FormShell View="View">
+    <Field Name="tag" Label="Tag" Value="@View.Values.Get("tag")" Options="View.Choices.GearTags" Placeholder="Choose a tag" Hint="Chosen from the tags the game knows: the two it looks for by name and the ones encounters ask for." Error="@View.Error("tag")" Required="true" />
+</FormShell>
+
+@code {
+    [Parameter, EditorRequired] public ItemFormView View { get; set; } = null!;
+}

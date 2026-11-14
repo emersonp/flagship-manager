@@ -4,6 +4,10 @@
             <nav class="crumbs" aria-label="Content editor">
                 <a class="home" href="/">Legacies</a>
                 <a class="home" href="/dev/content">Content</a>
+                @if (ParentTitle is not null && ParentHref is not null)
+                {
+                    <a class="home" href="@ParentHref">@ParentTitle</a>
+                }
             </nav>
             <h1>@Title</h1>
             @if (Subtitle is not null)
@@ -20,6 +24,11 @@
     [Parameter, EditorRequired] public string Title { get; set; } = "";
 
     [Parameter] public string? Subtitle { get; set; }
+
+    // A third crumb for a page below a list: the list's name and address.
+    [Parameter] public string? ParentTitle { get; set; }
+
+    [Parameter] public string? ParentHref { get; set; }
 
     // The slot for a refusal or a result; empty when there is none.
     [Parameter] public RenderFragment? Alert { get; set; }
