@@ -10,6 +10,7 @@ public static partial class ContentLoader
 {
     private const string ManifestFile = "pack.yaml";
     private const string TuningFile = "tuning/missions.yaml";
+    private const string CrewTuningFile = "tuning/crew.yaml";
 
     // Keys are paths relative to the pack root, with forward slashes.
     public static ContentLoadResult Load(IReadOnlyDictionary<string, string> files)
@@ -38,10 +39,13 @@ public static partial class ContentLoader
         var skills = new List<SkillDef>();
         var encounters = new List<(string File, EncounterDto Dto)>();
         var objectives = new List<(string File, ObjectiveDto Dto)>();
+        var crew = new List<(string File, CrewDto Dto)>();
+        var gear = new List<(string File, GearDto Dto)>();
+        var assignments = new List<(string File, AssignmentDto Dto)>();
         var seenIn = new Dictionary<string, string>();
         foreach ((string path, string text) in files.OrderBy(f => f.Key, StringComparer.Ordinal))
         {
-            if (path == ManifestFile || path == TuningFile)
+            if (path == ManifestFile || path == TuningFile || path == CrewTuningFile)
             {
                 continue;
             }
@@ -62,8 +66,17 @@ public static partial class ContentLoader
                 case "objectives":
                     objectives.AddRange(Items<ObjectiveDto>(yaml, path, text, d => d.Id, seenIn, errors).Select(d => (path, d)));
                     break;
+                case "crew":
+                    crew.AddRange(Items<CrewDto>(yaml, path, text, d => d.Id, seenIn, errors).Select(d => (path, d)));
+                    break;
+                case "gear":
+                    gear.AddRange(Items<GearDto>(yaml, path, text, d => d.Id, seenIn, errors).Select(d => (path, d)));
+                    break;
+                case "assignments":
+                    assignments.AddRange(Items<AssignmentDto>(yaml, path, text, d => d.Id, seenIn, errors).Select(d => (path, d)));
+                    break;
                 case "tuning":
-                    errors.Add(new ContentError(path, $"Unknown tuning file. The only tuning file is {TuningFile}."));
+                    errors.Add(new ContentError(path, $"Unknown tuning file. The only tuning files are {TuningFile} and {CrewTuningFile}."));
                     break;
                 default:
                     errors.Add(new ContentError(path, $"Unknown content folder '{folder}'."));
@@ -74,9 +87,13 @@ public static partial class ContentLoader
         List<EncounterDef> encounterDefs = BuildEncounters(encounters, skills, errors);
         List<ObjectiveDef> objectiveDefs = BuildObjectives(objectives, encounterDefs, errors);
         (MissionTuning? tuning, BenchTuning? bench) = LoadTuning(yaml, files, errors);
+        CrewTuning? crewTuning = LoadCrewTuning(yaml, files, errors);
+        List<CrewDef> crewDefs = BuildCrew(crew, skills, crewTuning, errors);
+        List<GearDef> gearDefs = BuildGear(gear, errors);
+        List<AssignmentDef> assignmentDefs = BuildAssignments(assignments, objectives.Select(o => o.Dto).ToList(), errors);
 
         ContentPack? pack = errors.Count == 0
-            ? new ContentPack(manifest!.Id!, manifest.Version, skills, encounterDefs, objectiveDefs, tuning!, bench!)
+            ? new ContentPack(manifest!.Id!, manifest.Version, skills, encounterDefs, objectiveDefs, tuning!, bench!, crewDefs, gearDefs, assignmentDefs, crewTuning!)
             : null;
         return new ContentLoadResult(pack, errors);
     }

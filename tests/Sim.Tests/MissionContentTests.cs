@@ -207,7 +207,7 @@ public class MissionContentTests
     [Fact]
     public void A_pack_without_a_tuning_file_is_an_error()
     {
-        ContentLoadResult result = ContentLoader.Load(new Dictionary<string, string> { ["pack.yaml"] = "id: CORE\nversion: 1\n" });
+        ContentLoadResult result = ContentLoader.Load(TestContent.WithCrewFiles(new Dictionary<string, string> { ["pack.yaml"] = "id: CORE\nversion: 1\n" }));
 
         Assert.Equal("The pack has no tuning/missions.yaml.", Assert.Single(result.Errors).Message);
     }
@@ -223,14 +223,14 @@ public class MissionContentTests
 
     private static ContentLoadResult Load(string encounters, string objectives, string? tuning = null)
     {
-        return ContentLoader.Load(new Dictionary<string, string>
+        return ContentLoader.Load(TestContent.WithCrewFiles(new Dictionary<string, string>
         {
             ["pack.yaml"] = "id: CORE\nversion: 1\n",
             ["skills/a.yaml"] = "- id: SKILL_A\n",
             ["encounters/a.yaml"] = encounters,
             ["objectives/a.yaml"] = objectives,
             ["tuning/missions.yaml"] = tuning ?? TestContent.TuningText,
-        });
+        }));
     }
 
     // Records compare lists by reference, so stages are compared field by field.

@@ -31,7 +31,7 @@ public static partial class ContentLoader
 
         var values = new Dictionary<string, string>();
         Flatten("", root, values);
-        var read = new TuningReader(values, errors);
+        var read = new TuningReader(TuningFile, values, errors);
         int errorsBefore = errors.Count;
 
         var tuning = new MissionTuning
@@ -170,7 +170,7 @@ public static partial class ContentLoader
 
     // Reads each value once by its dotted path. A missing, malformed, or unread value is an error:
     // a tuning number never falls back to a default.
-    private sealed class TuningReader(Dictionary<string, string> values, List<ContentError> errors)
+    private sealed class TuningReader(string file, Dictionary<string, string> values, List<ContentError> errors)
     {
         private readonly HashSet<string> _read = [];
 
@@ -233,7 +233,7 @@ public static partial class ContentLoader
         private void Fail(string path, string message)
         {
             Complete = false;
-            errors.Add(new ContentError(TuningFile, $"{path} {message}"));
+            errors.Add(new ContentError(file, $"{path} {message}"));
         }
     }
 }

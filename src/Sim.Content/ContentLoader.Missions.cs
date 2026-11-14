@@ -122,6 +122,11 @@ public static partial class ContentLoader
                 Error("need must be 1 or more.");
             }
 
+            if (dto.IfUnattended is { Difficulty: < 1 })
+            {
+                Error("ifUnattended.difficulty must be 1 or more.");
+            }
+
             var stages = new List<StageDef>();
             foreach (StageDto? stage in dto.Stages ?? [])
             {
@@ -153,7 +158,7 @@ public static partial class ContentLoader
 
             if (errors.Count == before)
             {
-                defs.Add(new ObjectiveDef(dto.Id!, dto.Tags ?? [], min, max, dto.Need, stages));
+                defs.Add(new ObjectiveDef(dto.Id!, dto.Tags ?? [], min, max, dto.Need, stages, dto.IfUnattended?.Difficulty));
             }
         }
 
@@ -252,6 +257,13 @@ public static partial class ContentLoader
         public int Need { get; set; }
 
         public List<StageDto?>? Stages { get; set; }
+
+        public UnattendedDto? IfUnattended { get; set; }
+    }
+
+    private sealed class UnattendedDto
+    {
+        public int Difficulty { get; set; }
     }
 
     private sealed class StageDto

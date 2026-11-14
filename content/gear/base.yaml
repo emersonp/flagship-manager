@@ -1,0 +1,5 @@
+# Placeholders. The author replaces these.
+- { id: GEAR_01, tag: scanner }
+- { id: GEAR_02, tag: tools }
+- { id: GEAR_03, tag: comms }
+- { id: GEAR_04, tag: medical }

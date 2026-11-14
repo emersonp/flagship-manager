@@ -3,6 +3,7 @@
   tags: [science]
   teamSize: [2, 4]
   need: 4
+  ifUnattended: { difficulty: 6 }
   stages:
     - { slot: approach, draw: { tags: [field] }, count: 1 }
     - { slot: complication, draw: { tags: [field] }, count: 2 }
@@ -12,6 +13,7 @@
   tags: [repair]
   teamSize: [2, 3]
   need: 3
+  ifUnattended: { difficulty: 5 }
   stages:
     - { slot: approach, draw: { tags: [hazard, field] }, count: 1 }
     - { slot: objective, draw: { tags: [technical] }, count: [1, 2] }

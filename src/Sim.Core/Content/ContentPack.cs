@@ -9,7 +9,11 @@ public sealed record ContentPack(
     IReadOnlyList<EncounterDef> Encounters,
     IReadOnlyList<ObjectiveDef> Objectives,
     MissionTuning Tuning,
-    BenchTuning Bench);
+    BenchTuning Bench,
+    IReadOnlyList<CrewDef> Crew,
+    IReadOnlyList<GearDef> Gear,
+    IReadOnlyList<AssignmentDef> Assignments,
+    CrewTuning CrewTuning);
 
 public sealed record ContentError(string File, string Message);
 

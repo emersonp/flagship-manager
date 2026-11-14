@@ -30,4 +30,5 @@ public sealed record ObjectiveDef(
     int TeamSizeMin,
     int TeamSizeMax,
     int Need,
-    IReadOnlyList<StageDef> Stages);
+    IReadOnlyList<StageDef> Stages,
+    int? UnattendedDifficulty = null);

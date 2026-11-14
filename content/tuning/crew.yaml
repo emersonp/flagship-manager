@@ -1,0 +1,12 @@
+# Every number the crew module uses. All are required. See docs/plans/2026-11-14-phase-1c-headless-design.md section 6.
+growth:
+  xpBase: 10                 # experience to the next level is xpBase * (level + 1)
+  maxLevel: 10
+injury:
+  lightWeeks: 2              # a light injury is -1 to every skill until it heals
+  incapacitatedWeeks: 6
+loyalty:
+  starting: 50
+  perPoint: 2                # a mission's loyalty change is multiplied by this
+  min: 0
+  max: 100
