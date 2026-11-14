@@ -37,6 +37,7 @@ public static partial class ContentLoader
         var tuning = new MissionTuning
         {
             CheckTarget = read.Int("check.target"),
+            CheckDice = Dice(read, "check.dice"),
             TierCritical = read.Int("check.tiers.critical"),
             TierSuccess = read.Int("check.tiers.success"),
             TierPartial = read.Int("check.tiers.partial"),
@@ -56,6 +57,7 @@ public static partial class ContentLoader
             CollapseAt = read.Int("compounding.collapseAt"),
             ReachMargin = read.Int("develop.reachMargin"),
             SupervisorPenalty = read.Int("develop.supervisorPenalty"),
+            SupervisorGapDivisor = read.Int("develop.supervisorGapDivisor", min: 1),
             CallBase = read.Number("calls.base"),
             CautionWeight = read.Number("calls.cautionWeight"),
             DisciplineWeight = read.Number("calls.disciplineWeight"),
@@ -75,6 +77,7 @@ public static partial class ContentLoader
             AssistShare = read.Number("experience.assistShare"),
             MentorGap = read.Int("experience.mentorGap"),
             MentorBonus = read.Number("experience.mentorBonus"),
+            InjuryDice = Dice(read, "injury.dice"),
             LightBelow = read.Int("injury.lightBelow"),
             DeadBelow = read.Int("injury.deadBelow"),
             IncapacitatedBelow = read.Int("injury.incapacitatedBelow"),
@@ -122,6 +125,11 @@ public static partial class ContentLoader
             Above($"{at}.seniorSkill.0", team.SeniorSkillMin, $"{at}.seniorSkill.1", team.SeniorSkillMax);
             Above($"{at}.seniors", team.Seniors, $"{at}.size", team.Size);
         }
+    }
+
+    private static DiceDef Dice(TuningReader read, string at)
+    {
+        return new DiceDef(read.Int($"{at}.count", min: 1), read.Int($"{at}.sides", min: 2));
     }
 
     private static BenchTeamDef BenchTeam(TuningReader read, string name)

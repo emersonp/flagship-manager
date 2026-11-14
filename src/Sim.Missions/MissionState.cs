@@ -1,5 +1,4 @@
 using System.Text.Json;
-using System.Text.Json.Serialization;
 using Sim.Core;
 using Sim.Core.Content;
 
@@ -21,7 +20,7 @@ public sealed class MemberState
 
     public MemberStatus Status { get; set; }
 
-    public double Experience { get; set; }
+    public Dictionary<string, double> Experience { get; set; } = [];
 
     public int Loyalty { get; set; }
 }
@@ -30,6 +29,8 @@ public sealed class MemberState
 // so it replays the same whatever the content pack says later.
 public sealed class MissionState
 {
+    public required int Version { get; set; }
+
     public ulong Seed { get; set; }
 
     public string ObjectiveId { get; set; } = "";
@@ -75,10 +76,9 @@ public sealed class MissionState
 
 public static class MissionJson
 {
-    public static readonly JsonSerializerOptions Options = new()
-    {
-        Converters = { new JsonStringEnumConverter(namingPolicy: null, allowIntegerValues: false) },
-    };
+    public const int CurrentVersion = 1;
+
+    public static readonly JsonSerializerOptions Options = SimJson.Options;
 
     public static string Serialize(MissionState state)
     {
@@ -87,6 +87,7 @@ public static class MissionJson
 
     public static MissionState Deserialize(string json)
     {
-        return JsonSerializer.Deserialize<MissionState>(json, Options) ?? throw new InvalidOperationException("The mission state is empty.");
+        MissionState state = JsonSerializer.Deserialize<MissionState>(json, Options) ?? throw new InvalidOperationException("The mission state is empty.");
+        return state.Version == CurrentVersion ? state : throw new InvalidOperationException($"The mission state is version {state.Version}, and this build reads version {CurrentVersion}.");
     }
 }

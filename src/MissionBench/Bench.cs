@@ -26,7 +26,7 @@ public static class Bench
             int harm = 0;
             foreach (CrewResult crew in trace.Result.Crew)
             {
-                experience[crew.Id] = experience.GetValueOrDefault(crew.Id) + crew.Experience;
+                experience[crew.Id] = experience.GetValueOrDefault(crew.Id) + crew.Experience.Values.Sum();
                 deaths += crew.Status == MemberStatus.Dead ? 1 : 0;
                 incapacitated += crew.Status == MemberStatus.Incapacitated ? 1 : 0;
                 harm += crew.Status == MemberStatus.Dead ? 10 : crew.Status == MemberStatus.Incapacitated ? 1 : 0;
@@ -96,7 +96,7 @@ public static class Bench
         beats.AddRange(step.Beats);
         while (step.Pending is { } call)
         {
-            step = MissionResolver.Advance(step.State, Answer(options.Policy, call));
+            step = MissionResolver.Advance(step.State, new CallReply(call.CallId, Answer(options.Policy, call)));
             beats.AddRange(step.Beats);
         }
 

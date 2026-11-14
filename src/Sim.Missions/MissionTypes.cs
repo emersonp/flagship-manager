@@ -43,7 +43,17 @@ public sealed record PendingCall(
     string LeadId,
     CallAnswer LeadPrefers,
     IReadOnlyList<CallAnswer> Options,
-    string Key);
+    string CallId);
+
+public sealed record CallReply(string CallId, CallAnswer Answer);
+
+// How an answer stands with the lead: backing their preference, overruling it, or withdrawing when the lead had no stake in it.
+public enum CallStanding
+{
+    Backed,
+    Overruled,
+    Neutral,
+}
 
 public sealed record MissionStep(MissionState State, IReadOnlyList<Beat> Beats, PendingCall? Pending, MissionResult? Result);
 

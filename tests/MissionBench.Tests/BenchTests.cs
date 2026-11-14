@@ -81,6 +81,21 @@ public class BenchTests
         Assert.True(FullSuccesses(TeamStrength.Mixed) < FullSuccesses(TeamStrength.Veteran));
     }
 
+    [Theory]
+    [InlineData(TeamStrength.Rookie)]
+    [InlineData(TeamStrength.Mixed)]
+    [InlineData(TeamStrength.Veteran)]
+    public void Develop_juniors_never_beats_best_qualified_on_generated_teams(TeamStrength strength)
+    {
+        int FullSuccesses(bool develop)
+        {
+            var options = new BenchOptions("OBJECTIVE_TEMPLATE_1") { Runs = 2000, Strength = strength, Parameters = new Parameters(DevelopJuniors: develop) };
+            return Bench.Run(Pack, Pack.Tuning, options).Outcomes[MissionOutcome.FullSuccess];
+        }
+
+        Assert.True(FullSuccesses(develop: true) <= FullSuccesses(develop: false));
+    }
+
     [Fact]
     public void A_fixed_draw_meets_the_same_encounters_every_run()
     {

@@ -131,6 +131,18 @@ public class MissionContentTests
         Assert.Contains(result.Errors, e => e.Message.Contains("injury.deadBelow", StringComparison.Ordinal));
     }
 
+    [Theory]
+    [InlineData("check:\n  dice: { count: 2, sides: 6 }", "check:\n  dice: { count: 2, sides: 1 }", "check.dice.sides must be a whole number of 2 or more, not '1'.")]
+    [InlineData("injury:\n  dice: { count: 2, sides: 6 }", "injury:\n  dice: { count: 0, sides: 6 }", "injury.dice.count must be a whole number of 1 or more, not '0'.")]
+    [InlineData("supervisorGapDivisor: 4", "supervisorGapDivisor: 0", "develop.supervisorGapDivisor must be a whole number of 1 or more, not '0'.")]
+    public void Dice_and_divisors_that_cannot_work_are_errors_naming_the_value(string from, string to, string message)
+    {
+        ContentLoadResult result = Load(Encounter, Objective, TestContent.TuningText.Replace(from, to, StringComparison.Ordinal));
+
+        Assert.Null(result.Pack);
+        Assert.Equal(message, Assert.Single(result.Errors).Message);
+    }
+
     [Fact]
     public void The_close_margin_must_not_pass_the_near_margin()
     {

@@ -16,6 +16,7 @@ public static class BenchReport
             ("Full success %", f => Share(f, MissionOutcome.FullSuccess), "0.0"),
             ("Partial success %", f => Share(f, MissionOutcome.PartialSuccess), "0.0"),
             ("Withdrawal %", f => Share(f, MissionOutcome.Withdrawal), "0.0"),
+            ("Incomplete %", f => Share(f, MissionOutcome.Incomplete), "0.0"),
             ("Loss %", f => Share(f, MissionOutcome.Loss), "0.0"),
             ("Deaths per 100 crew-missions", f => 100.0 * f.Deaths / f.CrewMissions, "0.0"),
             ("Incapacitated per 100 crew-missions", f => 100.0 * f.Incapacitated / f.CrewMissions, "0.0"),
@@ -99,17 +100,27 @@ public static class BenchReport
         {
             StageBeat b => Inv($"Stage {b.Cursor + 1} ({b.Slot}): {b.EncounterId}{(b.CommsBlocked ? ", comms blocked" : "")}. Momentum {b.Momentum}, strain {b.Strain}."),
             SkipBeat b => Inv($"  Skipped {b.EncounterId} on momentum."),
-            CheckBeat b => Inv($"  {b.Approach} {b.Skill}: {b.ActorId} {b.ActorSkill}{(b.HelperId is null ? "" : Inv($" + {b.HelperId} {b.Assist}{(b.Supervised ? " supervising" : "")}"))} + gear {b.Gear} + momentum {b.Momentum} - strain {b.Strain} = {b.Score}; rolled {b.Roll} against {b.Target}: margin {b.Margin}, {b.Tier}. Experience {b.Experience:0.0}{(b.Mentoring ? " (mentored)" : "")}."),
+            CheckBeat b => Inv($"  {b.Approach} {b.Skill}: {b.ActorId} {b.ActorSkill}{(b.HelperId is null ? "" : Inv($" + {b.HelperId} {b.Assist}{(b.Supervised ? " supervising" : "")}"))} + gear {b.Gear} + momentum {b.Momentum} - strain {b.Strain} = {b.Score}; rolled {b.Roll} against {b.Target}: margin {b.Margin}, {b.Tier}. Experience {b.Experience:0.0}{(b.Mentoring ? " (mentored)" : "")}{(b.HelperId is null ? "" : Inv($", helper {b.HelperExperience:0.0}"))}."),
             EffectsBeat b => Inv($"  Effects: momentum {b.Effects.Momentum:+0;-0;0}, strain {b.Effects.Strain:+0;-0;0}, progress {b.Effects.Progress:+0;-0;0}{(b.Effects.InjuryRoll is { } r ? $", {r} injury roll" : "")}{(b.Effects.Withdraw ? ", withdraw" : "")}."),
             InjuryBeat b => Inv($"  {b.Severity} injury roll for {b.CrewId}: {b.Roll}, {b.Outcome}."),
             LeadChangeBeat b => Inv($"  {b.CrewId} takes the lead."),
             ChainBeat b => Inv($"  The disaster adds {b.EncounterId}."),
             CallBeat b => Inv($"  CALL {b.Call.DecisionId} (stakes {b.Call.Stakes}, threshold {b.Call.Threshold:0.00}): {b.Call.LeadId} prefers {b.Call.LeadPrefers}."),
             NoticeBeat b => Inv($"  Notice {b.DecisionId} (stakes {b.Stakes}, threshold {b.Threshold:0.00}): {b.LeadId} chose {b.Chose}{(b.Blocked ? ", comms blocked" : "")}."),
-            AnswerBeat b => Inv($"  The captain answers {b.Answer}{(b.Backed ? ", backing the lead" : ", overruling the lead")}."),
+            AnswerBeat b => Inv($"  The captain answers {b.Answer}{Standing(b.Standing)}."),
             CollapseBeat => "  The mission collapses under strain.",
             ResultBeat b => Inv($"Result: {b.Outcome}."),
             _ => beat.ToString() ?? "",
+        };
+    }
+
+    private static string Standing(CallStanding standing)
+    {
+        return standing switch
+        {
+            CallStanding.Backed => ", backing the lead",
+            CallStanding.Overruled => ", overruling the lead",
+            _ => ", withdrawing, which the lead had no stake in",
         };
     }
 

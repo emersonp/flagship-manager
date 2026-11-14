@@ -44,11 +44,11 @@ public class MissionRulesTests
     [Fact]
     public void Develop_juniors_puts_the_junior_forward_when_the_check_is_within_reach()
     {
-        MissionStep step = MissionResolver.Advance(Start(TestContent.Team(3, 3, 5, 6), new Parameters(DevelopJuniors: true), Encounter(5)));
+        MissionStep step = MissionResolver.Advance(Start(TestContent.Team(3, 3, 5, 6), new Parameters(DevelopJuniors: true), Encounter(3)));
 
         CheckBeat check = step.Beats.OfType<CheckBeat>().Single();
         Assert.True(check.Supervised);
-        Assert.Equal(("CREW_05", "CREW_03", 2, 4), (check.ActorId, check.HelperId, check.ActorSkill, check.Assist));
+        Assert.Equal(("CREW_05", "CREW_03", 2, 3), (check.ActorId, check.HelperId, check.ActorSkill, check.Assist));
     }
 
     [Fact]
@@ -81,8 +81,9 @@ public class MissionRulesTests
         Assert.True(check.Mentoring);
         Assert.Equal(("CREW_07", "CREW_01"), (check.ActorId, check.HelperId));
         double baseExperience = check.Experience - t.MentorBonus;
-        Assert.Equal(check.Experience, step.Result!.Crew.Single(c => c.Id == "CREW_07").Experience);
-        Assert.Equal(baseExperience * t.AssistShare, step.Result.Crew.Single(c => c.Id == "CREW_01").Experience);
+        Assert.Equal(check.Experience, step.Result!.Crew.Single(c => c.Id == "CREW_07").Experience["SKILL_A"]);
+        Assert.Equal(baseExperience * t.AssistShare, check.HelperExperience);
+        Assert.Equal(check.HelperExperience, step.Result.Crew.Single(c => c.Id == "CREW_01").Experience["SKILL_A"]);
     }
 
     [Fact]
@@ -116,7 +117,7 @@ public class MissionRulesTests
                 var beats = new List<Beat>(step.Beats);
                 while (step.Pending is not null)
                 {
-                    step = MissionResolver.Advance(step.State, CallAnswer.Bold);
+                    step = MissionResolver.Advance(step.State, Reply(step, CallAnswer.Bold));
                     beats.AddRange(step.Beats);
                 }
 
@@ -189,8 +190,8 @@ public class MissionRulesTests
     {
         MissionStep call = MissionResolver.Advance(Start(TestContent.Team(1, 1, 3), new Parameters(), Encounter(1, Stakes2)));
 
-        MissionStep backed = MissionResolver.Advance(call.State, CallAnswer.Safe);
-        MissionStep overruled = MissionResolver.Advance(call.State, CallAnswer.Bold);
+        MissionStep backed = MissionResolver.Advance(call.State, Reply(call, CallAnswer.Safe));
+        MissionStep overruled = MissionResolver.Advance(call.State, Reply(call, CallAnswer.Bold));
 
         Assert.Equal(1, backed.Result!.Crew.Single(c => c.Id == "CREW_01").Loyalty);
         Assert.Equal(-1, overruled.Result!.Crew.Single(c => c.Id == "CREW_01").Loyalty);
@@ -203,8 +204,8 @@ public class MissionRulesTests
         MissionStep low = MissionResolver.Advance(Start(TestContent.Team(1, 1, 3), new Parameters(), Encounter(1, Stakes2)));
         MissionStep high = MissionResolver.Advance(Start(TestContent.Team(1, 1, 3), new Parameters(), Encounter(1, Stakes3)));
 
-        Assert.Throws<ArgumentException>(() => MissionResolver.Advance(low.State, CallAnswer.Withdraw));
-        Assert.Equal(MissionOutcome.Withdrawal, MissionResolver.Advance(high.State, CallAnswer.Withdraw).Result!.Outcome);
+        Assert.Throws<ArgumentException>(() => MissionResolver.Advance(low.State, Reply(low, CallAnswer.Withdraw)));
+        Assert.Equal(MissionOutcome.Withdrawal, MissionResolver.Advance(high.State, Reply(high, CallAnswer.Withdraw)).Result!.Outcome);
     }
 
     // A reckless lead's threshold (4.25) is above the abort's stakes (4), so only the rule makes this a call.
@@ -219,8 +220,8 @@ public class MissionRulesTests
 
         Assert.Equal(MissionResolver.AbortDecisionId, step.Pending!.DecisionId);
         Assert.Equal(new[] { CallAnswer.Bold, CallAnswer.Safe }, step.Pending.Options);
-        Assert.Equal(MissionOutcome.Withdrawal, MissionResolver.Advance(step.State, CallAnswer.Safe).Result!.Outcome);
-        Assert.Null(MissionResolver.Advance(step.State, CallAnswer.Bold).Pending);
+        Assert.Equal(MissionOutcome.Withdrawal, MissionResolver.Advance(step.State, Reply(step, CallAnswer.Safe)).Result!.Outcome);
+        Assert.Null(MissionResolver.Advance(step.State, Reply(step, CallAnswer.Bold)).Pending);
     }
 
     [Fact]
@@ -287,6 +288,156 @@ public class MissionRulesTests
         var team = new Team([TestContent.Member(1)], "CREW_02");
 
         Assert.Throws<ArgumentException>(() => Start(team, new Parameters(), Encounter(5)));
+    }
+
+    [Fact]
+    public void A_check_gives_its_experience_to_the_actor_and_helper_under_the_approachs_skill()
+    {
+        EncounterDef encounter = new("ENCOUNTER_01", ["field"], false, null, new ApproachDef("SKILL_A", 7, null), new ApproachDef("SKILL_B", 8, null), null);
+
+        MissionStep step = MissionResolver.Advance(Start(TestContent.Team(2, 2, 3), new Parameters(), encounter));
+
+        CheckBeat check = step.Beats.OfType<CheckBeat>().Single();
+        Assert.Equal(("SKILL_B", "CREW_02", "CREW_03"), (check.Skill, check.ActorId, check.HelperId));
+        Assert.True(check.Experience > 0 && check.HelperExperience > 0);
+        Assert.Equal(new Dictionary<string, double> { ["SKILL_B"] = check.Experience }, step.Result!.Crew.Single(c => c.Id == "CREW_02").Experience);
+        Assert.Equal(new Dictionary<string, double> { ["SKILL_B"] = check.HelperExperience }, step.Result.Crew.Single(c => c.Id == "CREW_03").Experience);
+    }
+
+    [Fact]
+    public void A_reply_to_the_wrong_call_or_with_nothing_pending_is_refused_and_changes_nothing()
+    {
+        MissionState fresh = Start(TestContent.Team(1, 1, 3), new Parameters(), Encounter(1, Stakes2));
+        MissionStep call = MissionResolver.Advance(fresh);
+        MissionState done = MissionResolver.Advance(call.State, Reply(call, CallAnswer.Safe)).State;
+        string freshJson = MissionJson.Serialize(fresh);
+        string callJson = MissionJson.Serialize(call.State);
+        string doneJson = MissionJson.Serialize(done);
+
+        Assert.Throws<ArgumentException>(() => MissionResolver.Advance(call.State, new CallReply("dec:wrong", CallAnswer.Safe)));
+        Assert.Throws<ArgumentException>(() => MissionResolver.Advance(fresh, new CallReply(call.Pending!.CallId, CallAnswer.Safe)));
+        Assert.Throws<ArgumentException>(() => MissionResolver.Advance(done, new CallReply(call.Pending!.CallId, CallAnswer.Safe)));
+        Assert.Equal((freshJson, callJson, doneJson), (MissionJson.Serialize(fresh), MissionJson.Serialize(call.State), MissionJson.Serialize(done)));
+        Assert.NotNull(MissionResolver.Advance(call.State).Pending);
+    }
+
+    // One unmeetable check leaves the team at no progress, with nobody choosing to leave.
+    [Fact]
+    public void A_mission_that_plays_every_stage_with_too_little_progress_is_incomplete()
+    {
+        MissionStep step = MissionResolver.Advance(Start(TestContent.Team(1, 1, 3), new Parameters(), Encounter(40)));
+
+        Assert.Equal(MissionOutcome.Incomplete, step.Result!.Outcome);
+        Assert.True(step.Result.Progress < TestContent.Tuning.PartialAtProgress);
+    }
+
+    [Fact]
+    public void Withdrawing_when_the_lead_preferred_safe_leaves_loyalty_alone_but_overruling_a_bold_lead_costs_it()
+    {
+        MissionStep safeLead = MissionResolver.Advance(Start(TestContent.Team(1, 1, 3), new Parameters(), Encounter(1, Stakes3)));
+        MissionStep boldLead = MissionResolver.Advance(Start(TestContent.Team(3, 3, 5), new Parameters(Priority: 1, Autonomy: -1), Encounter(1, Stakes3)));
+
+        MissionStep neutral = MissionResolver.Advance(safeLead.State, Reply(safeLead, CallAnswer.Withdraw));
+        MissionStep overruled = MissionResolver.Advance(boldLead.State, Reply(boldLead, CallAnswer.Withdraw));
+
+        Assert.Equal(CallAnswer.Safe, safeLead.Pending!.LeadPrefers);
+        Assert.Equal(CallAnswer.Bold, boldLead.Pending!.LeadPrefers);
+        Assert.Equal(0, neutral.Result!.Crew.Single(c => c.Id == "CREW_01").Loyalty);
+        Assert.Equal(CallStanding.Neutral, neutral.Beats.OfType<AnswerBeat>().Single().Standing);
+        Assert.Equal(-1, overruled.Result!.Crew.Single(c => c.Id == "CREW_03").Loyalty);
+        Assert.Equal(CallStanding.Overruled, overruled.Beats.OfType<AnswerBeat>().Single().Standing);
+        Assert.Equal(MissionOutcome.Withdrawal, neutral.Result.Outcome);
+    }
+
+    [Fact]
+    public void Dice_of_other_counts_and_sizes_resolve_and_roll_within_their_range()
+    {
+        MissionTuning tuning = TestContent.Tuning with { CheckDice = new DiceDef(3, 4), InjuryDice = new DiceDef(1, 8) };
+        var objective = new ObjectiveDef("OBJECTIVE_TEMPLATE_1", [], 1, 4, 1, [new StageDef("stage", ["field"], 1, 1, false)]);
+        int checks = 0;
+
+        for (ulong seed = 1; seed <= 60; seed++)
+        {
+            MissionState start = MissionResolver.Start(objective, [Encounter(9, Stakes2)], TestContent.Team(1, 1, 3, 5), TestContent.Gear, new Parameters(), tuning, seed);
+            MissionStep step = MissionResolver.Advance(start);
+            var beats = new List<Beat>(step.Beats);
+            while (step.Pending is not null)
+            {
+                step = MissionResolver.Advance(step.State, Reply(step, CallAnswer.Bold));
+                beats.AddRange(step.Beats);
+            }
+
+            Assert.NotNull(step.Result);
+            Assert.All(beats.OfType<CheckBeat>(), c => Assert.InRange(c.Roll, 3, 12));
+            Assert.All(beats.OfType<InjuryBeat>(), i => Assert.InRange(i.Roll, 1, 8 + tuning.MedicalBonus));
+            checks += beats.OfType<CheckBeat>().Count();
+        }
+
+        Assert.True(checks > 0);
+        Assert.Equal(7.5, tuning.CheckDice.Average);
+        Assert.Equal(7.0, TestContent.Tuning.CheckDice.Average);
+    }
+
+    [Fact]
+    public void The_reach_rule_follows_the_dice_average()
+    {
+        EncounterDef within = Encounter(3);
+        var parameters = new Parameters(DevelopJuniors: true);
+        MissionTuning small = TestContent.Tuning with { CheckDice = new DiceDef(1, 2) };
+        var objective = new ObjectiveDef("OBJECTIVE_TEMPLATE_1", [], 1, 4, 1, [new StageDef("stage", ["field"], 1, 1, false)]);
+
+        MissionStep normal = MissionResolver.Advance(Start(TestContent.Team(3, 3, 5, 6), parameters, within));
+        MissionStep fewer = MissionResolver.Advance(MissionResolver.Start(objective, [within], TestContent.Team(3, 3, 5, 6), TestContent.Gear, parameters, small, seed: 1));
+
+        Assert.True(normal.Beats.OfType<CheckBeat>().Single().Supervised);
+        Assert.False(fewer.Beats.OfType<CheckBeat>().Single().Supervised);
+    }
+
+    // Senior 8, second 4, junior 2 on skill A: 8 + 4 / 2 - 1 - (8 - 2) / 4 - 2 = 6.
+    [Fact]
+    public void A_supervised_check_is_carried_by_the_senior_by_the_documented_formula()
+    {
+        var team = new Team([Flat("CREW_01", 3, 8), Flat("CREW_02", 2, 4), Flat("CREW_03", 1, 2)], "CREW_01");
+
+        MissionStep step = MissionResolver.Advance(Start(team, new Parameters(DevelopJuniors: true), Encounter(5)));
+
+        CheckBeat check = step.Beats.OfType<CheckBeat>().Single();
+        Assert.True(check.Supervised);
+        Assert.Equal(("CREW_03", "CREW_01", 2, 6), (check.ActorId, check.HelperId, check.ActorSkill, check.Assist));
+    }
+
+    [Fact]
+    public void On_a_flat_team_the_supervised_score_is_lower_than_the_best_qualified_score()
+    {
+        var team = new Team([Flat("CREW_01", 3, 4), Flat("CREW_02", 2, 4), Flat("CREW_03", 1, 4)], "CREW_01");
+
+        CheckBeat best = MissionResolver.Advance(Start(team, new Parameters(), Encounter(3))).Beats.OfType<CheckBeat>().Single();
+        CheckBeat supervised = MissionResolver.Advance(Start(team, new Parameters(DevelopJuniors: true), Encounter(3))).Beats.OfType<CheckBeat>().Single();
+
+        Assert.True(supervised.Supervised);
+        Assert.False(best.Supervised);
+        Assert.True(supervised.Score < best.Score, $"supervised {supervised.Score}, best qualified {best.Score}");
+    }
+
+    [Fact]
+    public void A_stored_state_is_read_strictly()
+    {
+        string json = MissionJson.Serialize(Start(TestContent.Team(1, 1, 3), new Parameters(), Encounter(5)));
+
+        Assert.Equal(1, MissionJson.Deserialize(json).Version);
+        Assert.Throws<System.Text.Json.JsonException>(() => MissionJson.Deserialize(json.Insert(1, "\"Bogus\":1,")));
+        Assert.Throws<System.Text.Json.JsonException>(() => MissionJson.Deserialize(json.Replace("\"Seniority\":5,", "\"Seniority\":5,\"Rank\":1,", StringComparison.Ordinal)));
+        Assert.Throws<InvalidOperationException>(() => MissionJson.Deserialize(json.Replace("\"Version\":1", "\"Version\":2", StringComparison.Ordinal)));
+    }
+
+    private static TeamMember Flat(string id, int seniority, int skill)
+    {
+        return new TeamMember(id, seniority, new Dictionary<string, int> { ["SKILL_A"] = skill }, 0, 0);
+    }
+
+    private static CallReply Reply(MissionStep step, CallAnswer answer)
+    {
+        return new CallReply(step.Pending!.CallId, answer);
     }
 
     private static Approach ApproachFor(Team team, int risk)

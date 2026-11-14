@@ -41,7 +41,8 @@ public sealed record CheckBeat(
     int Margin,
     Tier Tier,
     double Experience,
-    bool Mentoring) : Beat;
+    bool Mentoring,
+    double HelperExperience) : Beat;
 
 public sealed record EffectsBeat(EffectDef Effects) : Beat;
 
@@ -55,7 +56,7 @@ public sealed record CallBeat(PendingCall Call) : Beat;
 
 public sealed record NoticeBeat(string DecisionId, int Stakes, double Threshold, string LeadId, CallAnswer Chose, bool Blocked) : Beat;
 
-public sealed record AnswerBeat(CallAnswer Answer, bool Backed, string LeadId) : Beat;
+public sealed record AnswerBeat(CallAnswer Answer, CallStanding Standing, string LeadId) : Beat;
 
 public sealed record CollapseBeat : Beat;
 

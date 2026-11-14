@@ -1,5 +1,6 @@
 # Every number the mission resolver uses. All are required. See docs/gdd.md section 4.
 check:
+  dice: { count: 2, sides: 6 }   # every check rolls the sum of count dice of this many sides
   target: 7                  # added to an approach's difficulty
   tiers:                     # the lowest margin for each tier; below failure is a disaster
     critical: 5
@@ -23,8 +24,9 @@ compounding:
   abortCallAt: 4
   collapseAt: 5
 develop:
-  reachMargin: -2            # a junior acts only at this expected margin or better
-  supervisorPenalty: 1       # the supervising senior assists at skill minus this
+  reachMargin: 2             # a junior acts only at this expected margin or better
+  supervisorPenalty: 1       # the senior carries the junior's check at the best-qualified score minus this
+  supervisorGapDivisor: 4    #   and minus one more for every this many levels between senior and junior
 calls:
   base: 3
   cautionWeight: 0.5
@@ -47,9 +49,10 @@ experience:
   mentorGap: 4
   mentorBonus: 1
 injury:
-  lightBelow: 7              # light roll: 2d6 below this is a light injury
-  deadBelow: 5               # severe roll: 2d6 below this is death
-  incapacitatedBelow: 8      # severe roll: 2d6 below this is incapacitation
+  dice: { count: 2, sides: 6 }   # every injury roll uses these dice
+  lightBelow: 7              # light roll: the dice below this is a light injury
+  deadBelow: 5               # severe roll: the dice below this is death
+  incapacitatedBelow: 8      # severe roll: the dice below this is incapacitation
   medicalBonus: 2
   maxLight: 2                # each light injury is -1 to every skill
 result:

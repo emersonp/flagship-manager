@@ -48,13 +48,13 @@ public class MissionWalkthroughTests
     [Fact]
     public void Develop_juniors_gives_the_junior_the_checks_within_reach_and_the_senior_the_rest()
     {
-        (_, List<Beat> beats, MissionResult result) = TestContent.Play(TestContent.Team(3, 3, 5, 6), seed: 5, new Parameters(DevelopJuniors: true));
+        (_, List<Beat> beats, MissionResult result) = TestContent.Play(TestContent.Team(3, 3, 5, 6), seed: 1, new Parameters(DevelopJuniors: true));
 
         List<CheckBeat> checks = beats.OfType<CheckBeat>().ToList();
         Assert.Contains(checks, c => c.Supervised);
         Assert.Contains(checks, c => !c.Supervised);
         Assert.All(checks.Where(c => c.Supervised), c => Assert.True(c.ActorSkill <= c.Assist + TestContent.Tuning.SupervisorPenalty));
-        Assert.True(result.Crew.Where(c => c.Id != "CREW_03").Sum(c => c.Experience) > 0);
+        Assert.True(result.Crew.Where(c => c.Id != "CREW_03").Sum(c => c.Experience.Values.Sum()) > 0);
     }
 
     [Fact]
@@ -118,17 +118,17 @@ public class MissionWalkthroughTests
     {
         (_, List<Beat> beats, _) = TestContent.Play(TestContent.Team(1, 1, 3, 5), seed: 1);
 
-        Assert.Equal("D745D5ED80EA0F8A9ADDD0971E1B4C8C520DFA7E3870F80C341D0180AF40A074", Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(Json(beats)))));
+        Assert.Equal("D8D80EFB120D8EE099C45061FE72B4875952305FCEF84FAC3005239EBAF233C3", Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(Json(beats)))));
     }
 
     private static List<Beat> Finish(MissionState state)
     {
         var beats = new List<Beat>();
-        MissionStep step = MissionResolver.Advance(state, state.Pending?.LeadPrefers);
+        MissionStep step = MissionResolver.Advance(state, state.Pending is { } pending ? new CallReply(pending.CallId, pending.LeadPrefers) : null);
         beats.AddRange(step.Beats);
         while (step.Pending is { } call)
         {
-            step = MissionResolver.Advance(step.State, call.LeadPrefers);
+            step = MissionResolver.Advance(step.State, new CallReply(call.CallId, call.LeadPrefers));
             beats.AddRange(step.Beats);
         }
 

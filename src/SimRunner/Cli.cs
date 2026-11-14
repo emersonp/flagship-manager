@@ -1,9 +1,8 @@
 using System.Text.Json;
-using System.Text.Json.Serialization;
 using MissionBench;
 using Sim.Content;
-using Sim.Core.Content;
 using Sim.Core;
+using Sim.Core.Content;
 using Sim.Missions;
 
 namespace SimRunner;
@@ -22,11 +21,7 @@ public static class Cli
                           [--content DIR] [--out FILE]
         """;
 
-    private static readonly JsonSerializerOptions Json = new()
-    {
-        WriteIndented = true,
-        Converters = { new JsonStringEnumConverter(namingPolicy: null, allowIntegerValues: false) },
-    };
+    private static readonly JsonSerializerOptions Json = new(SimJson.Options) { WriteIndented = true };
 
     public static int Run(string[] args, TextWriter output, TextWriter error)
     {

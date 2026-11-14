@@ -7,7 +7,6 @@ namespace Sim.Missions;
 public static class MissionResolver
 {
     public const string AbortDecisionId = "DECISION_ABORT";
-    private const int AverageRoll = 7;
 
     // drawSeed lets the bench hold the encounters fixed while the dice vary.
     public static MissionState Start(
@@ -27,6 +26,7 @@ public static class MissionResolver
 
         var state = new MissionState
         {
+            Version = MissionJson.CurrentVersion,
             Seed = seed,
             ObjectiveId = objective.Id,
             Need = objective.Need,
@@ -69,10 +69,10 @@ public static class MissionResolver
     }
 
     // Runs until the mission needs the captain's answer or ends. Never changes the state it is given.
-    public static MissionStep Advance(MissionState state, CallAnswer? answer = null)
+    public static MissionStep Advance(MissionState state, CallReply? reply = null)
     {
         var run = new Run(MissionJson.Deserialize(MissionJson.Serialize(state)));
-        run.Go(answer);
+        run.Go(reply);
         return new MissionStep(run.State, run.Beats, run.State.Pending, run.State.Result);
     }
 
@@ -100,16 +100,25 @@ public static class MissionResolver
 
         private DrawnEncounter Current => State.Encounters[State.Cursor];
 
-        public void Go(CallAnswer? answer)
+        public void Go(CallReply? reply)
         {
             if (State.Pending is { } pending)
             {
-                if (answer is not { } given)
+                if (reply is null)
                 {
                     return;
                 }
 
-                Answer(pending, given);
+                if (reply.CallId != pending.CallId)
+                {
+                    throw new ArgumentException($"The reply is to '{reply.CallId}', but the pending call is '{pending.CallId}'.", nameof(reply));
+                }
+
+                Answer(pending, reply.Answer);
+            }
+            else if (reply is not null)
+            {
+                throw new ArgumentException($"There is no call pending, so '{reply.CallId}' cannot be answered.", nameof(reply));
             }
 
             while (State.Result is null && State.Pending is null)
@@ -127,7 +136,7 @@ public static class MissionResolver
                         {
                             Finish(State.Progress >= State.Need ? MissionOutcome.FullSuccess
                                 : State.Progress >= T.PartialAtProgress ? MissionOutcome.PartialSuccess
-                                : MissionOutcome.Withdrawal);
+                                : MissionOutcome.Incomplete);
                             break;
                         }
 
@@ -189,24 +198,28 @@ public static class MissionResolver
             int gear = def.GearTag is not null && State.GearTags.Contains(def.GearTag) ? T.GearBonus : 0;
             int target = def.Difficulty + T.CheckTarget;
 
-            // "Develop juniors" only when the junior is within reach under supervision (GDD 4.2).
+            // "Develop juniors": the senior carries the junior's check, at a cost, when the junior is within reach (GDD 4.2).
+            MemberState senior = best[0];
+            MemberState junior = best[^1];
+            int carried = 0;
             bool supervised = p.DevelopJuniors && best.Count > 1;
             if (supervised)
             {
-                int expected = Skill(best[^1]) + Math.Max(0, Skill(best[0]) - T.SupervisorPenalty) + gear + State.Momentum - State.Strain + AverageRoll - target;
+                carried = Math.Max(0, Skill(senior) + (Skill(best[1]) / T.AssistDivisor) - T.SupervisorPenalty - ((Skill(senior) - Skill(junior)) / T.SupervisorGapDivisor) - Skill(junior));
+                double expected = Skill(junior) + carried + gear + State.Momentum - State.Strain + T.CheckDice.Average - target;
                 supervised = expected >= T.ReachMargin;
             }
 
-            MemberState actor = supervised ? best[^1] : best[0];
-            MemberState? helper = supervised ? best[0] : best.Count > 1 ? best[1] : null;
+            MemberState actor = supervised ? junior : senior;
+            MemberState? helper = supervised ? senior : best.Count > 1 ? best[1] : null;
             int assist = helper is null ? 0
-                : supervised ? Math.Max(0, Skill(helper) - T.SupervisorPenalty)
+                : supervised ? carried
                 : Skill(helper) / T.AssistDivisor;
             int actorSkill = Skill(actor);
             int momentum = State.Momentum;
             int strain = State.Strain;
             int score = actorSkill + assist + gear + momentum - strain;
-            int roll = Dice($"check:{encounter.Id}").TwoD6();
+            int roll = T.CheckDice.Roll(Dice($"check:{encounter.Id}"));
             int margin = score + roll - target;
             Tier tier = margin >= T.TierCritical ? Tier.Critical
                 : margin >= T.TierSuccess ? Tier.Success
@@ -238,15 +251,16 @@ public static class MissionResolver
                 : Math.Abs(margin) <= T.NearMargin ? T.ExperienceNear
                 : T.ExperienceFar;
             double experience = baseExperience + (mentoring ? T.MentorBonus : 0);
-            actor.Experience += experience;
+            double helperExperience = helper is null ? 0 : baseExperience * T.AssistShare;
+            actor.Experience[def.Skill] = actor.Experience.GetValueOrDefault(def.Skill) + experience;
             if (helper is not null)
             {
-                helper.Experience += baseExperience * T.AssistShare;
+                helper.Experience[def.Skill] = helper.Experience.GetValueOrDefault(def.Skill) + helperExperience;
             }
 
             Beats.Add(new CheckBeat(
                 encounter.Id, approach, def.Skill, actor.Member.Id, helper?.Member.Id, supervised,
-                actorSkill, assist, gear, momentum, strain, score, roll, target, margin, tier, experience, mentoring));
+                actorSkill, assist, gear, momentum, strain, score, roll, target, margin, tier, experience, mentoring, helperExperience));
 
             if (tier == Tier.Failure)
             {
@@ -265,7 +279,7 @@ public static class MissionResolver
         }
 
         // A decision becomes a call or a notice (GDD 4.4).
-        private void Raise(string decisionId, int stakes, EffectDef bold, EffectDef safe, string key, bool alwaysCall)
+        private void Raise(string decisionId, int stakes, EffectDef bold, EffectDef safe, string callId, bool alwaysCall)
         {
             TeamMember lead = Lead.Member;
             double threshold = AskThreshold(T, lead, State.Parameters);
@@ -280,14 +294,14 @@ public static class MissionResolver
                 }
 
                 State.Calls++;
-                State.Pending = new PendingCall(decisionId, stakes, threshold, lead.Id, prefers, options, key);
+                State.Pending = new PendingCall(decisionId, stakes, threshold, lead.Id, prefers, options, callId);
                 Beats.Add(new CallBeat(State.Pending));
             }
             else
             {
                 State.Notices++;
                 Beats.Add(new NoticeBeat(decisionId, stakes, threshold, lead.Id, prefers, blocked));
-                Apply(prefers == CallAnswer.Bold ? bold : safe, key);
+                Apply(prefers == CallAnswer.Bold ? bold : safe, callId);
             }
         }
 
@@ -298,10 +312,17 @@ public static class MissionResolver
                 throw new ArgumentException($"'{answer}' is not an option for {pending.DecisionId}.", nameof(answer));
             }
 
-            bool backed = answer == pending.LeadPrefers;
-            State.Team.First(m => m.Member.Id == pending.LeadId).Loyalty += backed ? T.BackedLoyalty : T.OverruledLoyalty;
+            CallStanding standing = answer == CallAnswer.Withdraw && pending.LeadPrefers == CallAnswer.Safe ? CallStanding.Neutral
+                : answer == pending.LeadPrefers ? CallStanding.Backed
+                : CallStanding.Overruled;
+            State.Team.First(m => m.Member.Id == pending.LeadId).Loyalty += standing switch
+            {
+                CallStanding.Backed => T.BackedLoyalty,
+                CallStanding.Overruled => T.OverruledLoyalty,
+                _ => 0,
+            };
             State.Pending = null;
-            Beats.Add(new AnswerBeat(answer, backed, pending.LeadId));
+            Beats.Add(new AnswerBeat(answer, standing, pending.LeadId));
 
             DecisionDef? decision = Current.Encounter.Decision;
             bool abort = pending.DecisionId == AbortDecisionId;
@@ -311,7 +332,7 @@ public static class MissionResolver
                 CallAnswer.Bold => abort ? new EffectDef() : decision!.Bold,
                 _ => abort ? new EffectDef(Withdraw: true) : decision!.Safe,
             };
-            Apply(effect, pending.Key);
+            Apply(effect, pending.CallId);
         }
 
         private void Apply(EffectDef effect, string key)
@@ -348,7 +369,7 @@ public static class MissionResolver
 
         private void InjuryRoll(MemberState member, InjurySeverity severity, string key)
         {
-            int roll = Dice(key).TwoD6() + (State.GearTags.Contains("medical") ? T.MedicalBonus : 0);
+            int roll = T.InjuryDice.Roll(Dice(key)) + (State.GearTags.Contains("medical") ? T.MedicalBonus : 0);
             InjuryOutcome outcome = InjuryOutcome.Unharmed;
             if (severity == InjurySeverity.Light)
             {
@@ -381,7 +402,7 @@ public static class MissionResolver
         {
             State.Result = new MissionResult(
                 outcome, State.Progress, State.Need, State.Calls, State.Notices,
-                State.Team.Select(m => new CrewResult(m.Member.Id, m.Status, m.Injury, m.Experience, m.Loyalty)).ToList());
+                State.Team.Select(m => new CrewResult(m.Member.Id, m.Status, m.Injury, new Dictionary<string, double>(m.Experience), m.Loyalty)).ToList());
             Beats.Add(new ResultBeat(outcome));
         }
 

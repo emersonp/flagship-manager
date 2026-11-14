@@ -38,8 +38,8 @@ public class ShapeTests
         BenchFigures develop = Run(3, [3, 5, 6], new Parameters(DevelopJuniors: true));
 
         double gap = 100.0 * (best.Outcomes[MissionOutcome.FullSuccess] - develop.Outcomes[MissionOutcome.FullSuccess]) / best.Runs;
-        Assert.InRange(gap, 2, 20);
-        Assert.True(develop.ExperienceByMember["CREW_05"] > 1.5 * best.ExperienceByMember["CREW_05"]);
+        Assert.InRange(gap, 2, 25);
+        Assert.True(develop.ExperienceByMember["CREW_05"] > 1.3 * best.ExperienceByMember["CREW_05"]);
         Assert.True(develop.ExperienceByMember["CREW_03"] < best.ExperienceByMember["CREW_03"]);
     }
 

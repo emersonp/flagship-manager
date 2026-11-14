@@ -41,7 +41,7 @@ internal static partial class TestContent
         beats.AddRange(step.Beats);
         while (step.Pending is { } call)
         {
-            step = MissionResolver.Advance(step.State, answer ?? call.LeadPrefers);
+            step = MissionResolver.Advance(step.State, new CallReply(call.CallId, answer ?? call.LeadPrefers));
             beats.AddRange(step.Beats);
         }
 

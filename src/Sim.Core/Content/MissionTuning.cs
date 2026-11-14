@@ -5,6 +5,8 @@ public sealed record MissionTuning
 {
     public required int CheckTarget { get; init; }
 
+    public required DiceDef CheckDice { get; init; }
+
     public required int TierCritical { get; init; }
 
     public required int TierSuccess { get; init; }
@@ -43,6 +45,8 @@ public sealed record MissionTuning
 
     public required int SupervisorPenalty { get; init; }
 
+    public required int SupervisorGapDivisor { get; init; }
+
     public required double CallBase { get; init; }
 
     public required double CautionWeight { get; init; }
@@ -80,6 +84,8 @@ public sealed record MissionTuning
     public required int MentorGap { get; init; }
 
     public required double MentorBonus { get; init; }
+
+    public required DiceDef InjuryDice { get; init; }
 
     public required int LightBelow { get; init; }
 

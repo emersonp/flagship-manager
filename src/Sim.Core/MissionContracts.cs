@@ -13,9 +13,10 @@ public enum MissionOutcome
     PartialSuccess,
     Withdrawal,
     Loss,
+    Incomplete,
 }
 
-public sealed record CrewResult(string Id, MemberStatus Status, int Injury, double Experience, int Loyalty);
+public sealed record CrewResult(string Id, MemberStatus Status, int Injury, IReadOnlyDictionary<string, double> Experience, int Loyalty);
 
 public sealed record MissionResult(MissionOutcome Outcome, int Progress, int Need, int Calls, int Notices, IReadOnlyList<CrewResult> Crew);
 
