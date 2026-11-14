@@ -139,7 +139,9 @@ public sealed class BriefingTests : IDisposable
 
         string stream = await Post(id, "launch", form);
 
-        Assert.Equal(3, Regex.Matches(stream, "event: datastar-patch-elements").Count);
+        // The launch now streams its beats after the three opening patches.
+        Assert.True(Regex.Matches(stream, "event: datastar-patch-elements").Count > 3);
+        Assert.StartsWith("event: datastar-patch-elements\ndata: elements <header id=\"topbar\"", stream);
         Assert.Equal(CyclePhase.Resolution, Snapshot(id).Phase);
         Assert.Contains(app.Game.Store.ReadEvents(id), e => e.Type == "TeamAssigned");
     }

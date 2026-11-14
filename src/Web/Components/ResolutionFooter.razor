@@ -1,0 +1,14 @@
+<p id="resolution-footer">
+    @if (Show)
+    {
+        <button type="button" data-on:click="@Advance">To aftermath</button>
+    }
+</p>
+
+@code {
+    [Parameter, EditorRequired] public Guid LegacyId { get; set; }
+
+    [Parameter] public bool Show { get; set; }
+
+    private string Advance => $"@post('/legacy/{LegacyId}/advance')";
+}

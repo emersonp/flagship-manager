@@ -8,7 +8,7 @@ using Web;
 namespace Web.Tests;
 
 // The real app on a throwaway database file, with the repository's content and no beat delay.
-public sealed class TestApp : WebApplicationFactory<Program>
+public sealed class TestApp(int beatDelayMs = 0) : WebApplicationFactory<Program>
 {
     private readonly string path = Path.Combine(Path.GetTempPath(), $"starship-sim-web-{Guid.NewGuid():N}.db");
 
@@ -27,7 +27,7 @@ public sealed class TestApp : WebApplicationFactory<Program>
         {
             ["Web:DatabasePath"] = path,
             ["Web:ContentDirectory"] = Path.Combine(RepositoryRoot(), "content"),
-            ["Web:BeatDelayMs"] = "0",
+            ["Web:BeatDelayMs"] = beatDelayMs.ToString(),
         }));
     }
 

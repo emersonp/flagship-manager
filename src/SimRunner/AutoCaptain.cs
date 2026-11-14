@@ -28,7 +28,8 @@ public static class AutoCaptain
         return events;
     }
 
-    private static ICommand NextCommand(Game game, LegacyState state, ContentPack pack)
+    // What the captain would send next; the web parity test posts the equivalent request.
+    public static ICommand NextCommand(Game game, LegacyState state, ContentPack pack)
     {
         // The state of a legacy that is not founded has no modules yet, and a read must not create one.
         if (!state.TryModule(CycleModule.Name, out CycleState? cycle) || !cycle.Founded)

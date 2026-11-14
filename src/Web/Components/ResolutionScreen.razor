@@ -1,0 +1,27 @@
+<main id="main">
+    <h2>Resolution</h2>
+    @if (Mission is null)
+    {
+        <p>No team was sent.</p>
+    }
+    else
+    {
+        <p>Team @string.Join(", ", Mission.Team). Lead @Mission.LeadId.</p>
+    }
+    <Meter Mission="@(HideMeter ? null : Mission)" />
+    <MissionLog Lines="@(Mission?.Log ?? [])" />
+    <CallPanel LegacyId="LegacyId" MissionId="@(Mission?.MissionId ?? "")" Call="Mission?.Call" />
+    <ResolutionFooter LegacyId="LegacyId" Show="@(Mission is null || Mission.Outcome is not null)" />
+    <Refusal Reason="@Reason" />
+</main>
+
+@code {
+    [Parameter, EditorRequired] public Guid LegacyId { get; set; }
+
+    [Parameter] public MissionView? Mission { get; set; }
+
+    // True while a launch is still playing its beats.
+    [Parameter] public bool HideMeter { get; set; }
+
+    [Parameter] public string? Reason { get; set; }
+}

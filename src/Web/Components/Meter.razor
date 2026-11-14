@@ -1,0 +1,12 @@
+<p id="meter">
+    @if (Mission is not null)
+    {
+        <span>Momentum @Mission.Momentum</span>
+        <span>Strain @Mission.Strain</span>
+    }
+</p>
+
+@code {
+    // Null while the beats are still being shown, so the numbers do not give the result away.
+    [Parameter] public MissionView? Mission { get; set; }
+}

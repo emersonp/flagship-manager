@@ -1,0 +1,30 @@
+<main id="main">
+    <h2>Aftermath</h2>
+    <p>Outcome @(Aftermath?.Outcome ?? "none, no team was sent")</p>
+    <h3>Crew changes</h3>
+    <ul id="changes">
+        @foreach (CrewChange change in Aftermath?.Changes ?? [])
+        {
+            <li>@change.Text</li>
+        }
+    </ul>
+    <h3>Unattended objectives</h3>
+    <ul id="unattended">
+        @foreach (UnattendedView roll in Aftermath?.Unattended ?? [])
+        {
+            <li>@roll.ObjectiveId (@roll.TemplateId): rolled @roll.Roll against @roll.Target, @(roll.Succeeded ? "succeeded" : "failed")</li>
+        }
+    </ul>
+    <button type="button" data-on:click="@Advance">Next cycle</button>
+    <Refusal Reason="@Reason" />
+</main>
+
+@code {
+    [Parameter, EditorRequired] public Guid LegacyId { get; set; }
+
+    [Parameter] public AftermathView? Aftermath { get; set; }
+
+    [Parameter] public string? Reason { get; set; }
+
+    private string Advance => $"@post('/legacy/{LegacyId}/advance')";
+}

@@ -6,6 +6,14 @@ else if (Phase == CyclePhase.Orders)
 {
     <OrdersScreen LegacyId="LegacyId" Site="View.Site" Reason="@Reason" />
 }
+else if (Phase == CyclePhase.Resolution)
+{
+    <ResolutionScreen LegacyId="LegacyId" Mission="View.Mission" HideMeter="HideMeter" Reason="@Reason" />
+}
+else if (Phase == CyclePhase.Aftermath)
+{
+    <AftermathScreen LegacyId="LegacyId" Aftermath="View.Aftermath" Reason="@Reason" />
+}
 else
 {
     <PhaseScreen LegacyId="LegacyId" Phase="Phase" Reason="@Reason" />
@@ -17,6 +25,8 @@ else
     [Parameter, EditorRequired] public BridgeView View { get; set; } = null!;
 
     [Parameter] public string? Reason { get; set; }
+
+    [Parameter] public bool HideMeter { get; set; }
 
     private CyclePhase Phase => View.TopBar.Phase;
 }

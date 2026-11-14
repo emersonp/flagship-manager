@@ -1,0 +1,32 @@
+<div id="call">
+    @if (Call is not null)
+    {
+        <section class="call">
+            <h3>@Call.DecisionId</h3>
+            <p>Stakes @Call.Stakes</p>
+            <p>The lead prefers @Call.LeadPrefers</p>
+            @foreach (string option in Call.Options)
+            {
+                <form data-on:submit="@Answer">
+                    <input type="hidden" name="mission" value="@MissionId">
+                    <input type="hidden" name="call" value="@Call.CallId">
+                    <input type="hidden" name="answer" value="@option">
+                    <button type="submit">@option</button>
+                </form>
+            }
+            <CallRefusal Reason="@Reason" />
+        </section>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public Guid LegacyId { get; set; }
+
+    [Parameter, EditorRequired] public string MissionId { get; set; } = "";
+
+    [Parameter] public CallView? Call { get; set; }
+
+    [Parameter] public string? Reason { get; set; }
+
+    private string Answer => $"@post('/legacy/{LegacyId}/answer', {{contentType: 'form'}})";
+}

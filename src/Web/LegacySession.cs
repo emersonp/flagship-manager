@@ -34,11 +34,17 @@ public sealed class LegacySession(GameServices services)
         return Load(legacyId);
     }
 
-    public async Task<Guid> CreateLegacy(string name, CancellationToken cancellation = default)
+    public Task<Guid> CreateLegacy(string name, CancellationToken cancellation = default)
+    {
+        return CreateLegacy(name, RandomSeed(), cancellation);
+    }
+
+    // The seed is a test hook: the public overload always draws one.
+    internal async Task<Guid> CreateLegacy(string name, ulong seed, CancellationToken cancellation = default)
     {
         Guid id = Guid.NewGuid();
         using IDisposable held = await Hold(id, cancellation);
-        var state = new LegacyState { LegacyId = id, Seed = RandomSeed() };
+        var state = new LegacyState { LegacyId = id, Seed = seed };
         var record = new LegacyRecord(state, services.Pack.Id, services.Pack.Version, name, services.Clock.GetUtcNow());
         var legacy = new LoadedLegacy(record, services);
         // Founded in memory, then stored with its events in one transaction: a failure leaves nothing behind.

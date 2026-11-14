@@ -1,0 +1,10 @@
+<ol id="log">
+    @foreach (LogLine line in Lines)
+    {
+        <li id="beat-@line.Index" data-kind="@line.Kind">@line.Text</li>
+    }
+</ol>
+
+@code {
+    [Parameter, EditorRequired] public IReadOnlyList<LogLine> Lines { get; set; } = null!;
+}
