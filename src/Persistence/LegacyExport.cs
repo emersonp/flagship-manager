@@ -48,7 +48,17 @@ public static class LegacyExport
             throw new InvalidOperationException($"Unsupported snapshot format version {snapshot.FormatVersion}; expected {CurrentFormatVersion}.");
         }
 
-        SnapshotLegacy legacy = snapshot.Legacy;
+        SnapshotLegacy legacy = snapshot.Legacy ?? throw new InvalidOperationException("The snapshot has no Legacy.");
+        if (legacy.Modules is null)
+        {
+            throw new InvalidOperationException("The snapshot Legacy has no Modules.");
+        }
+
+        if (legacy.RngStates is null)
+        {
+            throw new InvalidOperationException("The snapshot Legacy has no RngStates.");
+        }
+
         var state = new LegacyState
         {
             LegacyId = legacy.LegacyId,
@@ -82,16 +92,16 @@ public static class LegacyExport
     }
 
     private sealed record Snapshot(int FormatVersion, SnapshotLegacy Legacy, IReadOnlyList<EventEnvelope> Events);
-
-    private sealed record SnapshotLegacy(
-        Guid LegacyId,
-        ulong Seed,
-        int Cycle,
-        CyclePhase Phase,
-        int Week,
-        long NextSequence,
-        Dictionary<string, ulong> RngStates,
-        SortedDictionary<string, JsonElement> Modules,
-        string ContentPackId,
-        int ContentPackVersion);
 }
+
+internal sealed record SnapshotLegacy(
+    Guid LegacyId,
+    ulong Seed,
+    int Cycle,
+    CyclePhase Phase,
+    int Week,
+    long NextSequence,
+    Dictionary<string, ulong> RngStates,
+    SortedDictionary<string, JsonElement> Modules,
+    string ContentPackId,
+    int ContentPackVersion);

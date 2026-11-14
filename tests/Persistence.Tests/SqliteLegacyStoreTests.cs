@@ -59,6 +59,7 @@ public sealed class SqliteLegacyStoreTests : IDisposable
         store.Commit(record.State, events);
 
         LegacyRecord loaded = NewStore().Load(id, ModuleTypes)!;
+        Assert.Equal(id, loaded.State.LegacyId);
         Assert.Equal(ulong.MaxValue - 5, loaded.State.Seed);
         Assert.Equal(4, loaded.State.Cycle);
         Assert.Equal(CyclePhase.Aftermath, loaded.State.Phase);
@@ -121,6 +122,10 @@ public sealed class SqliteLegacyStoreTests : IDisposable
         LegacyRecord record = NewRecord(id);
         store.Create(record);
         record.State.Cycle = 2;
+        record.State.Phase = CyclePhase.Briefing;
+        record.State.Week = 9;
+        record.State.NextSequence = 2;
+        record.State.RngStates["2:missions"] = 77;
         record.State.Module<FuelState>("fuel").Units = 5;
         store.Commit(record.State, [new EventEnvelope(1, 1, "A", 1, "{}")]);
         string json = LegacyExport.Export(store, id, ModuleTypes);
@@ -131,8 +136,14 @@ public sealed class SqliteLegacyStoreTests : IDisposable
         Guid imported = LegacyExport.Import(empty, json, ModuleTypes);
 
         Assert.Equal(id, imported);
-        Assert.Equal(2, empty.Load(id, ModuleTypes)!.State.Cycle);
-        Assert.Equal(5, empty.Load(id, ModuleTypes)!.State.Module<FuelState>("fuel").Units);
+        LegacyState state = empty.Load(id, ModuleTypes)!.State;
+        Assert.Equal(ulong.MaxValue - 5, state.Seed);
+        Assert.Equal(2, state.Cycle);
+        Assert.Equal(CyclePhase.Briefing, state.Phase);
+        Assert.Equal(9, state.Week);
+        Assert.Equal(2, state.NextSequence);
+        Assert.Equal(77UL, state.RngStates["2:missions"]);
+        Assert.Equal(5, state.Module<FuelState>("fuel").Units);
         Assert.Equal(json, LegacyExport.Export(empty, id, ModuleTypes));
     }
 
@@ -149,6 +160,7 @@ public sealed class SqliteLegacyStoreTests : IDisposable
         Assert.Throws<InvalidOperationException>(() => LegacyExport.Import(store, json.Replace("\"FormatVersion\": 2,", ""), ModuleTypes));
     }
 
+    // Load must not skip rows it cannot type.
     [Fact]
     public void A_stored_module_that_is_not_declared_fails_with_its_name()
     {
@@ -164,6 +176,7 @@ public sealed class SqliteLegacyStoreTests : IDisposable
         Assert.Contains("fuel", ex.Message);
     }
 
+    // An unknown member in stored JSON is a refusal, not a silent drop.
     [Fact]
     public void A_stored_module_that_does_not_read_strictly_fails_with_its_name()
     {
@@ -183,22 +196,26 @@ public sealed class SqliteLegacyStoreTests : IDisposable
         Assert.Contains("fuel", ex.Message);
     }
 
-    [Fact]
-    public void A_database_from_an_older_schema_is_refused()
+    // Version 0 is the phase 0 database, which had a legacy table and never set a version.
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    public void A_database_from_an_older_schema_is_refused(int version)
     {
         using (var connection = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={path}"))
         {
             connection.Open();
             using Microsoft.Data.Sqlite.SqliteCommand command = connection.CreateCommand();
-            command.CommandText = "CREATE TABLE legacy (legacy_id TEXT PRIMARY KEY); PRAGMA user_version = 1;";
+            command.CommandText = $"CREATE TABLE legacy (legacy_id TEXT PRIMARY KEY); PRAGMA user_version = {version};";
             command.ExecuteNonQuery();
         }
 
         var ex = Assert.Throws<InvalidOperationException>(() => NewStore());
 
-        Assert.Equal("This database is from an older build (schema 1). Delete it or export its legacies with that build.", ex.Message);
+        Assert.Equal($"This database is from an older build (schema {version}). Delete it or export its legacies with that build.", ex.Message);
     }
 
+    // A fresh database must carry the version later builds check.
     [Fact]
     public void A_new_database_is_created_at_schema_version_2()
     {
@@ -209,5 +226,78 @@ public sealed class SqliteLegacyStoreTests : IDisposable
         using Microsoft.Data.Sqlite.SqliteCommand command = connection.CreateCommand();
         command.CommandText = "PRAGMA user_version";
         Assert.Equal(2L, command.ExecuteScalar());
+    }
+
+    // Every module the state no longer holds is dropped from storage with the commit.
+    [Fact]
+    public void A_module_removed_from_the_state_is_deleted_on_commit()
+    {
+        Guid id = Guid.NewGuid();
+        SqliteLegacyStore store = NewStore();
+        LegacyRecord record = NewRecord(id);
+        store.Create(record);
+        record.State.Module<FuelState>("fuel").Units = 1;
+        record.State.Module<LogState>("log");
+        store.Commit(record.State, []);
+        record.State.Modules.Remove("log");
+
+        store.Commit(record.State, []);
+
+        Assert.Equal(["fuel"], store.Load(id, ModuleTypes)!.State.Modules.Keys);
+    }
+
+    // A snapshot module no build declares must not be silently dropped.
+    [Fact]
+    public void An_import_with_an_undeclared_module_is_refused_by_name()
+    {
+        Guid id = Guid.NewGuid();
+        SqliteLegacyStore store = NewStore();
+        LegacyRecord record = NewRecord(id);
+        store.Create(record);
+        record.State.Module<FuelState>("fuel").Units = 1;
+        store.Commit(record.State, []);
+        string json = LegacyExport.Export(store, id, ModuleTypes);
+        Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+        File.Delete(path);
+
+        var ex = Assert.Throws<InvalidOperationException>(() => LegacyExport.Import(NewStore(), json, new Dictionary<string, Type>()));
+
+        Assert.Contains("fuel", ex.Message);
+    }
+
+    // The snapshot type allows nulls, so a missing collection needs its own refusal.
+    [Theory]
+    [InlineData("Modules")]
+    [InlineData("RngStates")]
+    public void An_import_missing_a_required_collection_is_refused_by_name(string member)
+    {
+        Guid id = Guid.NewGuid();
+        SqliteLegacyStore store = NewStore();
+        store.Create(NewRecord(id));
+        var node = System.Text.Json.Nodes.JsonNode.Parse(LegacyExport.Export(store, id, ModuleTypes))!;
+        node["Legacy"]!.AsObject().Remove(member);
+        Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+        File.Delete(path);
+
+        var ex = Assert.Throws<InvalidOperationException>(() => LegacyExport.Import(NewStore(), node.ToJsonString(), ModuleTypes));
+
+        Assert.Contains(member, ex.Message);
+    }
+
+    // A field added to LegacyState must be carried by the export before this passes.
+    [Fact]
+    public void The_export_snapshot_carries_every_legacy_state_property()
+    {
+        string[] carried = typeof(LegacyExport).Assembly.GetType("Persistence.SnapshotLegacy")!
+            .GetProperties()
+            .Select(p => p.Name)
+            .ToArray();
+        string[] stateProperties = typeof(LegacyState)
+            .GetProperties()
+            .Where(p => p.SetMethod is { IsPublic: true })
+            .Select(p => p.Name)
+            .ToArray();
+
+        Assert.All(stateProperties, name => Assert.Contains(name, carried));
     }
 }

@@ -112,6 +112,7 @@ public sealed class SqliteLegacyStore : ILegacyStore
             throw new InvalidOperationException($"Legacy {state.LegacyId} does not exist.");
         }
 
+        Execute(connection, transaction, "DELETE FROM module_state WHERE legacy_id = $id", ("$id", state.LegacyId.ToString()));
         WriteModules(connection, transaction, state);
 
         foreach (EventEnvelope e in newEvents)
@@ -154,7 +155,7 @@ public sealed class SqliteLegacyStore : ILegacyStore
             Execute(
                 connection,
                 transaction,
-                "INSERT INTO module_state (legacy_id, module, json) VALUES ($id, $module, $json) ON CONFLICT (legacy_id, module) DO UPDATE SET json = excluded.json",
+                "INSERT INTO module_state (legacy_id, module, json) VALUES ($id, $module, $json)",
                 ("$id", state.LegacyId.ToString()),
                 ("$module", module),
                 ("$json", JsonSerializer.Serialize(value, value.GetType(), SimJson.Options)));
