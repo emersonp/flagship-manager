@@ -1,0 +1,200 @@
+<title>Starship Sim GDD</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: a service-record binder. Fixed section index on the left, one reading column on the right. */
+:root {
+  --bg: #eceff3; --panel: #f7f8fa; --fg: #17212c; --muted: #566575; --line: #cfd6de;
+  --accent: #0d6e7a; --accent-soft: #d6eaec; --code-bg: #e2e7ed;
+  --t-crit: #1f7a4d; --t-succ: #5aa37c; --t-part: #c79a2b; --t-fail: #c8683a; --t-dis: #a23232;
+  --display: "Barlow Condensed", "Arial Narrow", sans-serif;
+  --body: "IBM Plex Sans", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #111922; --panel: #18222d; --fg: #dde4ea; --muted: #93a2b1; --line: #2b3947;
+  --accent: #5cc3cf; --accent-soft: #17343a; --code-bg: #1e2a36;
+  --t-crit: #3fae77; --t-succ: #2f7d57; --t-part: #b98f2a; --t-fail: #b85f37; --t-dis: #9c3a3a;
+  color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #111922; --panel: #18222d; --fg: #dde4ea; --muted: #93a2b1; --line: #2b3947;
+  --accent: #5cc3cf; --accent-soft: #17343a; --code-bg: #1e2a36;
+  --t-crit: #3fae77; --t-succ: #2f7d57; --t-part: #b98f2a; --t-fail: #b85f37; --t-dis: #9c3a3a;
+  color-scheme: dark }
+body { background: var(--bg); color: var(--fg); font: 16px/1.6 var(--body); }
+.wrap { display: grid; grid-template-columns: 15rem minmax(0, 1fr); gap: 3rem; max-width: 74rem; margin: 0 auto;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 2.5rem 5rem; }
+nav { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 1.5rem); align-self: start; display: flex; flex-direction: column; gap: 1px; font-size: .875rem; }
+nav a { display: flex; gap: .75rem; padding: .3rem .5rem; color: var(--muted); text-decoration: none; border-left: 2px solid var(--line); }
+nav a span { font-family: var(--mono); font-size: .75rem; padding-top: .1rem; }
+nav a:hover, nav a.on { color: var(--fg); border-left-color: var(--accent); }
+nav a:focus-visible, button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+main { min-width: 0; display: flex; flex-direction: column; gap: 3.5rem; }
+header .eyebrow { font: 500 .75rem var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 0 0 .5rem; }
+h1 { font: 600 3.25rem/1 var(--display); letter-spacing: .01em; margin: 0 0 1rem; text-wrap: balance; }
+header p { max-width: 62ch; margin: 0 0 .75rem; }
+header .lede { font-size: 1.2rem; line-height: 1.5; }
+header .status { color: var(--muted); font-size: .9rem; }
+section { display: flex; flex-direction: column; gap: 1rem; scroll-margin-top: 1rem; }
+section > * { margin: 0; }
+h2 { font: 600 2rem/1.1 var(--display); display: flex; align-items: baseline; gap: .75rem; padding-bottom: .5rem; border-bottom: 1px solid var(--line); text-wrap: balance; }
+h2 .num { font: 500 .85rem var(--mono); color: var(--accent); }
+h3 { font: 600 1.05rem var(--body); margin-top: 1rem; }
+p, li { max-width: 68ch; }
+ul, ol { padding-left: 1.3rem; display: flex; flex-direction: column; gap: .35rem; }
+li > ul, li > ol { margin-top: .35rem; }
+code { font: .86em var(--mono); background: var(--code-bg); padding: .08em .3em; border-radius: 3px; overflow-wrap: anywhere; }
+.scroll { overflow-x: auto; max-width: 100%; }
+pre { margin: 0; background: var(--panel); border: 1px solid var(--line); border-radius: 4px; padding: .9rem 1rem; width: max-content; min-width: 100%; box-sizing: border-box; }
+pre code { background: none; padding: 0; font-size: .8rem; line-height: 1.55; overflow-wrap: normal; }
+table { border-collapse: collapse; width: 100%; font-size: .9rem; }
+th { text-align: left; font: 500 .72rem var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+th, td { padding: .5rem .75rem .5rem 0; border-bottom: 1px solid var(--line); vertical-align: top; min-width: 7rem; }
+.st { display: inline-block; padding: 0 .5rem; border: 1px solid var(--line); border-radius: 4px; font-size: .8rem; line-height: 1.7; white-space: nowrap; color: var(--muted); }
+.st-done { border-color: var(--accent); background: var(--accent-soft); color: var(--fg); }
+.st-now { border-color: var(--accent); color: var(--accent); font-weight: 600; }
+.st-next { color: var(--fg); border-color: var(--muted); }
+tr.row-later td, tr.row-later td code { color: var(--muted); }
+td:first-child { font-weight: 500; }
+.widget { background: var(--panel); border: 1px solid var(--line); border-radius: 4px; padding: 1rem 1.1rem; display: flex; flex-direction: column; gap: .8rem; }
+.widget > * { margin: 0; }
+.wlabel { font: 500 .72rem var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
+.wgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr)); gap: .75rem 1rem; }
+.wgrid label { display: flex; flex-direction: column; gap: .25rem; font-size: .82rem; color: var(--muted); min-width: 0; }
+.wgrid input[type=number] { font: 1rem var(--mono); padding: .3rem .4rem; background: var(--bg); color: var(--fg); border: 1px solid var(--line); border-radius: 3px; width: 100%; box-sizing: border-box; }
+.wgrid input[type=range] { accent-color: var(--accent); width: 100%; }
+.wgrid output { font: .9rem var(--mono); color: var(--fg); }
+.wout { font: .9rem var(--mono); font-variant-numeric: tabular-nums; }
+.bar { display: flex; height: 1.6rem; border-radius: 3px; overflow: hidden; background: var(--line); }
+.bar i { display: block; height: 100%; }
+.legend { list-style: none; padding: 0; flex-direction: row; flex-wrap: wrap; gap: .3rem 1.2rem; font: .82rem var(--mono); font-variant-numeric: tabular-nums; }
+.legend li { display: flex; align-items: center; gap: .4rem; }
+.legend b { width: .7rem; height: .7rem; border-radius: 2px; display: inline-block; }
+.stakes { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: .4rem; }
+.stakes div { border: 1px solid var(--line); border-radius: 3px; padding: .45rem .3rem; text-align: center; font: .78rem var(--mono); color: var(--muted); }
+.stakes div b { display: block; font-size: 1rem; color: var(--fg); }
+.stakes div.call { background: var(--accent-soft); border-color: var(--accent); color: var(--fg); }
+.qtools { display: flex; flex-wrap: wrap; gap: .6rem; align-items: center; }
+button { font: 500 .9rem var(--body); padding: .5rem .9rem; border-radius: 3px; border: 1px solid var(--accent); background: var(--accent); color: var(--bg); cursor: pointer; }
+button#q-rec { background: transparent; color: var(--accent); }
+#q-status { font-size: .85rem; color: var(--muted); }
+#q-out { width: 100%; box-sizing: border-box; font: .85rem var(--mono); background: var(--panel); color: var(--fg); border: 1px solid var(--line); border-radius: 3px; padding: .5rem; }
+fieldset.q { border: 0; border-top: 1px solid var(--line); padding: 1rem 0 0; margin: 0; display: flex; flex-direction: column; gap: .6rem; min-width: 0; }
+fieldset.q legend { font-weight: 600; padding: 0; display: flex; gap: .6rem; align-items: baseline; float: left; width: 100%; }
+.qn { font: 500 .8rem var(--mono); color: var(--accent); min-width: 1.4rem; }
+.opts { display: flex; flex-direction: column; gap: .3rem; clear: both; }
+.opt { display: flex; gap: .6rem; align-items: baseline; padding: .4rem .6rem; border: 1px solid var(--line); border-radius: 3px; cursor: pointer; }
+.opt input { accent-color: var(--accent); }
+.opt:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
+.opt b { font-family: var(--mono); font-weight: 500; }
+.opt em { font: normal .7rem var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--accent); margin-left: .3rem; }
+.why { color: var(--muted); font-size: .92rem; clear: both; margin: 0; }
+.note { font: .9rem var(--body); padding: .4rem .6rem; background: var(--panel); color: var(--fg); border: 1px solid var(--line); border-radius: 3px; max-width: 68ch; }
+@media (max-width: 56rem) {
+  .wrap { grid-template-columns: minmax(0, 1fr); gap: 1.5rem; padding-block: 1.25rem 4rem; }
+  nav { position: static; flex-direction: row; overflow-x: auto; gap: .25rem; padding-bottom: .4rem; }
+  nav a { border-left: 0; border-bottom: 2px solid var(--line); white-space: nowrap; gap: .4rem; }
+  nav a:hover, nav a.on { border-bottom-color: var(--accent); }
+  h1 { font-size: 2.4rem; } h2 { font-size: 1.6rem; }
+}
+</style>
+<div class="wrap">
+<nav aria-label="Sections">{{NAV}}</nav>
+<main>
+<header>
+<p class="eyebrow">Game design document · v1.6 · progress by phase and slice in section 11.1 · 2026-11-14</p>
+<h1>Starship Sim</h1>
+<p class="lede">Send the people most likely to succeed, or the people who most need the experience. The game is that one decision, made every cycle, with consequences that stay. One player's whole game is a legacy.</p>
+<p class="status">Creative content is placeholder throughout (<code>SPECIES_A</code>, <code>MISSION_TEMPLATE_1</code>). Numbers are starting points for the balance simulator, not commitments. Source: <code>docs/gdd.md</code>.</p>
+</header>
+{{BODY}}
+</main>
+</div>
+<script>
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+  function num(id) { var v = parseFloat($(id).value); return isNaN(v) ? 0 : v; }
+
+  // Check calculator: score + 2d6 against difficulty + 7
+  var tiers = [['Critical', '--t-crit'], ['Success', '--t-succ'], ['Partial', '--t-part'], ['Failure', '--t-fail'], ['Disaster', '--t-dis']];
+  function check() {
+    var skill = num('c-skill'), second = num('c-assist');
+    var score = skill + Math.floor(second / 2) + num('c-gear') + num('c-mom') - num('c-strain');
+    var target = num('c-diff') + 7, p = [0, 0, 0, 0, 0];
+    for (var a = 1; a <= 6; a++) for (var b = 1; b <= 6; b++) {
+      var m = score + a + b - target;
+      p[m >= 5 ? 0 : m >= 0 ? 1 : m >= -3 ? 2 : m >= -7 ? 3 : 4] += 1 / 36;
+    }
+    $('c-score').textContent = 'Score ' + score + ' + 2d6 against ' + target + '. Passes (success or better) ' + Math.round((p[0] + p[1]) * 100) + '% of the time.';
+    $('c-bar').innerHTML = p.map(function (v, i) { return '<i style="width:' + (v * 100) + '%;background:var(' + tiers[i][1] + ')"></i>'; }).join('');
+    $('c-legend').innerHTML = p.map(function (v, i) { return '<li><b style="background:var(' + tiers[i][1] + ')"></b>' + tiers[i][0] + ' ' + Math.round(v * 100) + '%</li>'; }).join('');
+  }
+  ['c-skill', 'c-assist', 'c-gear', 'c-mom', 'c-strain', 'c-diff'].forEach(function (id) { $(id).addEventListener('input', check); });
+  check();
+
+  // Call rule: threshold = 3 - caution - discipline/2 + autonomy
+  function sign(v) { return (v > 0 ? '+' : '') + v; }
+  function call() {
+    var c = num('k-caution'), d = num('k-disc'), a = num('k-auto');
+    $('k-caution-o').textContent = sign(c); $('k-disc-o').textContent = sign(d); $('k-auto-o').textContent = sign(a);
+    var thr = 3 - c - d / 2 + a, calls = 0, h = '';
+    for (var s = 1; s <= 5; s++) {
+      var isCall = s >= thr; if (isCall) calls++;
+      h += '<div class="' + (isCall ? 'call' : '') + '">Stakes<b>' + s + '</b>' + (isCall ? 'Call' : 'Notice') + '</div>';
+    }
+    $('k-thr').textContent = 'Ask threshold ' + thr + '. This lead calls on ' + calls + ' of 5 stakes levels.';
+    $('k-stakes').innerHTML = h;
+  }
+  ['k-caution', 'k-disc', 'k-auto'].forEach(function (id) { $(id).addEventListener('input', call); });
+  call();
+
+  // Open questions: remembered per browser, copied out as text
+  var KEY = 'gdd-open-questions-v3', saved = {};
+  try { saved = JSON.parse(localStorage.getItem(KEY) || '{}') || {}; } catch (e) { saved = {}; }
+  var sets = Array.prototype.slice.call(document.querySelectorAll('fieldset.q'));
+  function store() {
+    sets.forEach(function (f) {
+      var r = f.querySelector('input[type=radio]:checked');
+      saved[f.dataset.q] = { pick: r ? r.value : '', note: f.querySelector('.note').value };
+    });
+    try { localStorage.setItem(KEY, JSON.stringify(saved)); } catch (e) {}
+  }
+  sets.forEach(function (f) {
+    var s = saved[f.dataset.q];
+    if (s) {
+      if (s.pick) { var r = f.querySelector('input[value="' + s.pick + '"]'); if (r) r.checked = true; }
+      if (s.note) f.querySelector('.note').value = s.note;
+    }
+    f.addEventListener('input', store);
+  });
+  $('q-rec').addEventListener('click', function () {
+    sets.forEach(function (f) { if (f.dataset.rec) { var r = f.querySelector('input[value="' + f.dataset.rec + '"]'); if (r) r.checked = true; } });
+    store(); $('q-status').textContent = 'Recommendations selected.';
+  });
+  $('q-copy').addEventListener('click', function () {
+    store();
+    var lines = sets.map(function (f) {
+      var s = saved[f.dataset.q] || {}, bits = [];
+      if (s.pick) bits.push(s.pick); if (s.note) bits.push(s.note);
+      return 'Q' + f.dataset.q + ': ' + (bits.length ? bits.join(' - ') : '(unanswered)');
+    });
+    var text = 'GDD open questions\n' + lines.join('\n'), out = $('q-out');
+    out.value = text; out.hidden = false;
+    function fallback() { out.focus(); out.select(); $('q-status').textContent = 'Select the text below and copy it.'; }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(function () { $('q-status').textContent = 'Copied.'; }, fallback);
+    } else { fallback(); }
+  });
+
+  // Section index highlight
+  var links = Array.prototype.slice.call(document.querySelectorAll('nav a'));
+  if ('IntersectionObserver' in window) {
+    var io = new IntersectionObserver(function (es) {
+      es.forEach(function (e) {
+        if (e.isIntersecting) links.forEach(function (a) { a.classList.toggle('on', a.getAttribute('href') === '#' + e.target.id); });
+      });
+    }, { rootMargin: '-10% 0px -80% 0px' });
+    document.querySelectorAll('main section').forEach(function (s) { io.observe(s); });
+  }
+})();
+</script>
