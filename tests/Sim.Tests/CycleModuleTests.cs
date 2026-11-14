@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Sim.Core;
 using Sim.Cycle;
 
@@ -50,7 +51,12 @@ public class CycleModuleTests
     {
         EventBus bus = NewBus();
 
-        Assert.Throws<CommandRejectedException>(() => bus.Send(NewState(), new AdvancePhase()));
+        LegacyState state = NewState();
+        string before = JsonSerializer.Serialize(state, SimJson.Options);
+
+        Assert.Throws<CommandRejectedException>(() => bus.Send(state, new AdvancePhase()));
+
+        Assert.Equal(before, JsonSerializer.Serialize(state, SimJson.Options));
     }
 
     [Fact]

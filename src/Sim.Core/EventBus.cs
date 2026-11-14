@@ -8,8 +8,9 @@ public sealed class EventBus
     private readonly Dictionary<string, Type> moduleTypes = new();
     private readonly Dictionary<Type, Func<LegacyState, object>> views = new();
 
-    public IReadOnlyDictionary<string, Type> ModuleTypes => moduleTypes;
+    public IReadOnlyDictionary<string, Type> ModuleTypes => moduleTypes.AsReadOnly();
 
+    // A guard only reads: it may not publish or send, and reading module state never creates it.
     public void Guard<TCommand>(int order, string name, Func<TCommand, IBusContext, string?> check)
         where TCommand : ICommand
     {
@@ -50,7 +51,16 @@ public sealed class EventBus
             throw new InvalidOperationException($"View {typeof(TView).Name} is not provided.");
         }
 
-        return (TView)factory(state);
+        bool previous = state.ReadOnlyModules;
+        state.ReadOnlyModules = true;
+        try
+        {
+            return (TView)factory(state);
+        }
+        finally
+        {
+            state.ReadOnlyModules = previous;
+        }
     }
 
     public void Handle<TCommand>(Action<TCommand, IBusContext> handler)
@@ -106,12 +116,15 @@ public sealed class EventBus
 
         public LegacyState State { get; } = state;
 
+        private bool guarding;
+
         public Queue<PublishedEvent> Pending { get; } = new();
 
         public List<PublishedEvent> Published { get; } = new();
 
         public void Publish(IEvent @event)
         {
+            ThrowIfGuarding();
             var published = new PublishedEvent(State.NextSequence++, State.Cycle, @event);
             Published.Add(published);
             Pending.Enqueue(published);
@@ -119,24 +132,50 @@ public sealed class EventBus
 
         public void Send(ICommand command)
         {
+            ThrowIfGuarding();
             if (!bus.handlers.TryGetValue(command.GetType(), out Action<ICommand, IBusContext>? handler))
             {
                 throw new InvalidOperationException($"Command {command.GetType().Name} has no handler.");
             }
 
-            foreach (GuardEntry guard in bus.guards)
+            RunGuards(command);
+
+            handler(command, this);
+        }
+
+        private void ThrowIfGuarding()
+        {
+            if (guarding)
             {
-                if (guard.CommandType == command.GetType())
+                throw new InvalidOperationException("A guard may not publish or send.");
+            }
+        }
+
+        private void RunGuards(ICommand command)
+        {
+            bool previousGuarding = guarding;
+            bool previousReadOnly = State.ReadOnlyModules;
+            guarding = true;
+            State.ReadOnlyModules = true;
+            try
+            {
+                foreach (GuardEntry guard in bus.guards)
                 {
-                    string? reason = guard.Check(command, this);
-                    if (reason is not null)
+                    if (guard.CommandType == command.GetType())
                     {
-                        throw new CommandRejectedException(reason);
+                        string? reason = guard.Check(command, this);
+                        if (reason is not null)
+                        {
+                            throw new CommandRejectedException(reason);
+                        }
                     }
                 }
             }
-
-            handler(command, this);
+            finally
+            {
+                guarding = previousGuarding;
+                State.ReadOnlyModules = previousReadOnly;
+            }
         }
 
         public TState Module<TState>()

@@ -29,16 +29,24 @@ public sealed class LegacyState
     // Keyed by module name. Each value is the module's declared state type.
     public Dictionary<string, object> Modules { get; init; } = new();
 
+    // Set while guards and view factories run: reads then return a detached empty state instead of inserting one.
+    internal bool ReadOnlyModules;
+
     public TState Module<TState>(string name)
         where TState : class, new()
     {
         if (Modules.TryGetValue(name, out object? existing))
         {
-            return (TState)existing;
+            return existing as TState
+                ?? throw new InvalidOperationException($"Module '{name}' holds {existing.GetType().Name}, not {typeof(TState).Name}.");
         }
 
         var created = new TState();
-        Modules[name] = created;
+        if (!ReadOnlyModules)
+        {
+            Modules[name] = created;
+        }
+
         return created;
     }
 }

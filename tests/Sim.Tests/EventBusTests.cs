@@ -162,6 +162,68 @@ public class EventBusTests
         Assert.Throws<CommandRejectedException>(() => bus.Send(state, new Ping("x")));
 
         Assert.Equal(before, JsonSerializer.Serialize(state, SimJson.Options));
+        Assert.Empty(state.Modules);
+    }
+
+    [Fact]
+    public void A_guard_that_reads_module_state_and_refuses_leaves_the_modules_empty()
+    {
+        var bus = new EventBus();
+        bus.Module<Counter>("counter");
+        bus.Handle<Bump>((_, _) => { });
+        bus.Guard<Bump>(10, "read", (_, context) => context.Module<Counter>().Count == 0 ? "empty" : null);
+        LegacyState state = NewState();
+
+        Assert.Throws<CommandRejectedException>(() => bus.Send(state, new Bump()));
+
+        Assert.Empty(state.Modules);
+    }
+
+    [Fact]
+    public void A_guard_that_publishes_or_sends_throws()
+    {
+        var bus = new EventBus();
+        bus.Handle<Bump>((_, _) => { });
+        bus.Handle<Ping>((_, _) => { });
+        bus.Guard<Bump>(10, "publish", (_, context) =>
+        {
+            context.Publish(new Pinged("x"));
+            return null;
+        });
+        bus.Guard<Ping>(10, "send", (_, context) =>
+        {
+            context.Send(new Bump());
+            return null;
+        });
+
+        Assert.Throws<InvalidOperationException>(() => bus.Send(NewState(), new Bump()));
+        Assert.Throws<InvalidOperationException>(() => bus.Send(NewState(), new Ping("x")));
+    }
+
+    [Fact]
+    public void Reading_a_view_on_a_fresh_legacy_does_not_add_module_state()
+    {
+        var bus = new EventBus();
+        bus.Module<Counter>("counter");
+        bus.Provide<ICountView>(s => new CountView(s.Module<Counter>("counter")));
+        LegacyState state = NewState();
+
+        Assert.Equal(0, bus.View<ICountView>(state).Count);
+
+        Assert.Empty(state.Modules);
+    }
+
+    [Fact]
+    public void A_module_holding_another_type_throws_naming_both()
+    {
+        LegacyState state = NewState();
+        state.Modules["counter"] = new Other();
+
+        var thrown = Assert.Throws<InvalidOperationException>(() => state.Module<Counter>("counter"));
+
+        Assert.Contains("counter", thrown.Message);
+        Assert.Contains(nameof(Other), thrown.Message);
+        Assert.Contains(nameof(Counter), thrown.Message);
     }
 
     [Fact]
