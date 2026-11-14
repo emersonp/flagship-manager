@@ -7,11 +7,11 @@
     </div>
     <fieldset class="levels">
         <legend class="sub">Skill levels</legend>
-        <p class="hint">@(View.Choices.MaxLevel is { } max ? $"Each level is 0 to {max}. A level of 0 means untrained." : "Each level is 0 or more. A level of 0 means untrained.")</p>
+        <p class="hint">@(View.Choices.MaxLevel is { } max ? $"Each level is 0 to {max}." : "Each level is 0 or more.") Blank means the crew member does not have the skill and cannot train it. 0 is untrained.</p>
         <div class="field-grid">
             @foreach (SkillChoice skill in View.Choices.Skills)
             {
-                <Field Name="@($"skills.{skill.Id}")" Label="@(skill.Name is { Length: > 0 } ? $"{skill.Name} ({skill.Id})" : skill.Id)" Value="@View.Values.Get($"skills.{skill.Id}")" Error="@View.Error($"skills.{skill.Id}")" Numeric="true" Narrow="true" Required="true" />
+                <Field Name="@($"skills.{skill.Id}")" Label="@(skill.Name is { Length: > 0 } ? $"{skill.Name} ({skill.Id})" : skill.Id)" Value="@View.Values.Get($"skills.{skill.Id}")" Error="@View.Error($"skills.{skill.Id}")" Numeric="true" Narrow="true" />
             }
         </div>
     </fieldset>

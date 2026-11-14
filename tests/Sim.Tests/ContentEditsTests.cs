@@ -53,6 +53,42 @@ public class ContentEditsTests : IClassFixture<RepoContentGuard>
         return path;
     }
 
+    // A skill some crew have: a pack with SKILL_E, held at 0 by CREW_01 and at 2 by CREW_03.
+    private static ContentFileSet WithSkillE()
+    {
+        ContentFileSet files = ContentEdits.Upsert(Repo(), ContentKind.Skill, new SkillModel("SKILL_E", null, []));
+        foreach ((string id, int level) in new[] { ("CREW_01", 0), ("CREW_03", 2) })
+        {
+            CrewModel crew = ContentEdits.Get<CrewModel>(files, ContentKind.Crew, id)!;
+            files = ContentEdits.Upsert(files, ContentKind.Crew, crew with { Skills = new Dictionary<string, int>(crew.Skills) { ["SKILL_E"] = level } });
+        }
+
+        return files;
+    }
+
+    // Deleting a skill takes it from every starting crew member too, and touches only those two files.
+    [Fact]
+    public void Deleting_a_skill_removes_it_from_the_crew_who_have_it_and_from_the_skills_file()
+    {
+        ContentFileSet before = WithSkillE();
+
+        ContentFileSet after = ContentEdits.DeleteSkill(before, "SKILL_E");
+
+        ContentPack pack = Valid(after);
+        Assert.DoesNotContain(pack.Skills, s => s.Id == "SKILL_E");
+        Assert.All(pack.Crew, c => Assert.False(c.Skills.ContainsKey("SKILL_E")));
+        Assert.Equal(6, pack.Crew.Single(c => c.Id == "CREW_01").Skills["SKILL_A"]);
+        Assert.Equal(["crew/starting.yaml", "skills/base.yaml"], after.Files.Where(f => before.Files[f.Key] != f.Value).Select(f => f.Key).Order(StringComparer.Ordinal));
+    }
+
+    [Fact]
+    public void Deleting_a_skill_no_file_holds_changes_nothing()
+    {
+        ContentFileSet before = Repo();
+
+        Assert.Same(before, ContentEdits.DeleteSkill(before, "SKILL_NOT_THERE"));
+    }
+
     // Rule 1: reading and upserting every item of the repository's own pack, unchanged, loses nothing.
     [Fact]
     public void Upserting_every_item_unchanged_gives_the_same_pack()

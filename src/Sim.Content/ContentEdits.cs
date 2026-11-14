@@ -89,6 +89,28 @@ public static class ContentEdits
         return files;
     }
 
+    // Deleting a skill also takes its key from every starting crew member who has it: the one edit that changes more than one file.
+    // Each member is replaced in turn, so each rewrite is checked for losses like any other. The set itself comes back when nothing holds the skill.
+    public static ContentFileSet DeleteSkill(ContentFileSet files, string id)
+    {
+        if (Get<SkillModel>(files, ContentKind.Skill, id) is null)
+        {
+            return files;
+        }
+
+        ContentFileSet result = files;
+        foreach (string path in ContentFolders.FilesOf(files, ContentKind.Crew))
+        {
+            foreach (CrewModel crew in ContentReader.ReadItems(ContentKind.Crew, files.Files[path])?.OfType<CrewModel>().Where(c => c.Skills.ContainsKey(id)) ?? [])
+            {
+                CrewModel current = Get<CrewModel>(result, ContentKind.Crew, crew.Id)!;
+                result = Upsert(result, ContentKind.Crew, current with { Skills = current.Skills.Where(s => s.Key != id).ToDictionary(s => s.Key, s => s.Value) });
+            }
+        }
+
+        return Delete(result, ContentKind.Skill, id);
+    }
+
     // For the manifest and the tuning files, which are edited as text.
     public static ContentFileSet ReplaceText(ContentFileSet files, string path, string text)
     {

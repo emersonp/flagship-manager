@@ -131,14 +131,15 @@ internal sealed class CrewKind : KindForm
             new("caution", Checks.Text(crew.Caution)),
             new("discipline", Checks.Text(crew.Discipline)),
         };
-        fields.AddRange(choices.Skills.Select(s => new KeyValuePair<string, string>("skills." + s.Id, Checks.Text(crew.Skills.GetValueOrDefault(s.Id)))));
+        // Blank for a skill the member has no key for: they do not have it and cannot train it.
+        fields.AddRange(choices.Skills.Select(s => new KeyValuePair<string, string>("skills." + s.Id, crew.Skills.TryGetValue(s.Id, out int level) ? Checks.Text(level) : "")));
         return new FormValues(fields);
     }
 
     public override FormValues Blank(FormChoices choices)
     {
         var fields = new List<KeyValuePair<string, string>> { new("name", ""), new("seniority", "1"), new("caution", "0"), new("discipline", "0") };
-        fields.AddRange(choices.Skills.Select(s => new KeyValuePair<string, string>("skills." + s.Id, "0")));
+        fields.AddRange(choices.Skills.Select(s => new KeyValuePair<string, string>("skills." + s.Id, "")));
         return new FormValues(fields);
     }
 
@@ -149,10 +150,14 @@ internal sealed class CrewKind : KindForm
         int seniority = Checks.Whole(values, "seniority", 1, null, errors);
         int caution = Checks.Whole(values, "caution", -2, 2, errors);
         int discipline = Checks.Whole(values, "discipline", -2, 2, errors);
+        // Blank writes no key (the member does not have the skill); 0 is untrained but trainable.
         var levels = new Dictionary<string, int>();
         foreach (SkillChoice skill in choices.Skills)
         {
-            levels[skill.Id] = Checks.Whole(values, "skills." + skill.Id, 0, choices.MaxLevel, errors);
+            if (Checks.OptionalWhole(values, "skills." + skill.Id, 0, choices.MaxLevel, errors) is { } level)
+            {
+                levels[skill.Id] = level;
+            }
         }
 
         if (errors.Count > 0)
@@ -163,7 +168,6 @@ internal sealed class CrewKind : KindForm
         return new Bound(files =>
         {
             CrewModel? stored = ContentEdits.Get<CrewModel>(files, Kind, id);
-            // Every skill in the pack gets a key, 0 included: a member can only train a skill they have a key for.
             // Skills the member already has keep their place; the rest follow in the pack's order.
             var skills = new Dictionary<string, int>();
             foreach (string key in stored?.Skills.Keys ?? [])

@@ -147,8 +147,23 @@ public sealed class ContentFormsTests(RepoContentGuard guard) : IClassFixture<Re
         Assert.Equal("2", Value(body, "discipline"));
         Assert.Equal("6", Value(body, "skills.SKILL_A"));
         Assert.Equal("3", Value(body, "skills.SKILL_D"));
-        Assert.Equal("0", Value(body, "skills.SKILL_E"));
+        Assert.Equal("", Value(body, "skills.SKILL_E"));
         Assert.Contains("Crew will be generated from sources later, so this form only names the starting eight and sets their numbers.", body);
+        Assert.Contains("Blank means the crew member does not have the skill and cannot train it. 0 is untrained.", body);
+    }
+
+    // A skill new to the pack is one no starting crew member has yet: blank on every crew form, not 0.
+    [Fact]
+    public async Task A_skill_added_to_the_pack_shows_blank_on_every_crew_form()
+    {
+        using TestApp app = NewApp();
+        await app.Editor.Save(files => ContentEdits.Upsert(files, ContentKind.Skill, new SkillModel("SKILL_E", null, [])));
+        HttpClient client = app.NewClient();
+
+        foreach (string id in app.Live.Pack.Crew.Select(c => c.Id).Append("new"))
+        {
+            Assert.Equal("", Value((await Get(client, $"/dev/content/crew/{id}")).Body, "skills.SKILL_E"));
+        }
     }
 
     [Fact]
@@ -242,23 +257,98 @@ public sealed class ContentFormsTests(RepoContentGuard guard) : IClassFixture<Re
         Assert.Contains("seniority: 7", Disk(app, "crew/starting.yaml"));
     }
 
-    // The starters have every skill: a member can only train a skill they have a key for, so 0 is written, not dropped.
+    // 0 is untrained but trainable, so the key is written; a member can only train a skill they have a key for.
     [Fact]
-    public async Task Saving_a_crew_member_writes_a_level_for_every_skill_including_a_new_one_at_zero()
+    public async Task A_skill_at_zero_is_written_and_a_new_legacy_starts_with_it()
     {
         using TestApp app = NewApp();
         await app.Editor.Save(files => ContentEdits.Upsert(files, ContentKind.Skill, new SkillModel("SKILL_E", null, [])));
 
-        (HttpStatusCode status, string body) = await Post(app.NewClient(), "/dev/content/crew/CREW_02", Crew("skills.SKILL_E=0"));
+        (HttpStatusCode status, _) = await Post(app.NewClient(), "/dev/content/crew/CREW_02", Crew("skills.SKILL_E=0"));
 
         Assert.Equal(HttpStatusCode.OK, status);
-        Assert.Contains("A level of 0 means untrained.", body);
         Assert.Contains("SKILL_E: 0", Disk(app, "crew/starting.yaml"));
         Assert.Equal(0, app.Live.Pack.Crew.Single(c => c.Id == "CREW_02").Skills["SKILL_E"]);
+        Assert.Equal("0", Value((await Get(app.NewClient(), "/dev/content/crew/CREW_02")).Body, "skills.SKILL_E"));
         Guid id = await app.Sessions.CreateLegacy(app.Live, "LEGACY", 1);
         LoadedLegacy legacy = (await app.Sessions.Read(app.Live, id))!;
         Sim.Crew.CrewMember member = legacy.State.Module<Sim.Crew.CrewState>(Sim.Crew.CrewModule.Name).Members.Single(m => m.Id == "CREW_02");
         Assert.Equal(0, member.Skills["SKILL_E"].Level);
+    }
+
+    // Blank means the member does not have the skill: no key is written, and the form reads back blank.
+    [Fact]
+    public async Task A_blank_skill_writes_no_key_and_reads_back_blank()
+    {
+        using TestApp app = NewApp();
+
+        (HttpStatusCode status, _) = await Post(app.NewClient(), "/dev/content/crew/CREW_01", Crew("skills.SKILL_D=%20"));
+
+        Assert.Equal(HttpStatusCode.OK, status);
+        Assert.False(app.Live.Pack.Crew.Single(c => c.Id == "CREW_01").Skills.ContainsKey("SKILL_D"));
+        Assert.Contains("skills: { SKILL_A: 6, SKILL_B: 5, SKILL_C: 4 }", Disk(app, "crew/starting.yaml"));
+        Assert.Equal("", Value((await Get(app.NewClient(), "/dev/content/crew/CREW_01")).Body, "skills.SKILL_D"));
+    }
+
+    // A skill some starting crew have, added to the scratch copy before the app starts.
+    private static void AddSkillE(string root)
+    {
+        File.AppendAllText(Path.Combine(root, "skills", "base.yaml"), "- id: SKILL_E\n");
+        string crew = Path.Combine(root, "crew", "starting.yaml");
+        string text = File.ReadAllText(crew);
+        int at = 0;
+        foreach (string id in new[] { "CREW_01", "CREW_02", "CREW_03" })
+        {
+            at = text.IndexOf($"- id: {id}\n", at, StringComparison.Ordinal);
+            int end = text.IndexOf(" }", at, StringComparison.Ordinal);
+            text = text[..end] + ", SKILL_E: 1" + text[end..];
+        }
+
+        File.WriteAllText(crew, text);
+    }
+
+    // The one save that changes two files: the skill goes from the crew who have it and from the skills file, and the pack loads.
+    [Fact]
+    public async Task Deleting_a_skill_crew_have_removes_it_from_them_and_from_the_skills_file()
+    {
+        using TestApp app = NewApp(AddSkillE);
+        HttpClient client = app.NewClient();
+
+        string form = (await Get(client, "/dev/content/skills/SKILL_E")).Body;
+        (HttpStatusCode status, string list) = await Post(client, "/dev/content/skills/SKILL_E/delete", "");
+
+        Assert.Contains("This also removes it from 3 starting crew.", form);
+        Assert.Equal(HttpStatusCode.OK, status);
+        Assert.Contains("Deleted SKILL_E.", list);
+        Assert.DoesNotContain("SKILL_E", Disk(app, "skills/base.yaml"));
+        Assert.DoesNotContain("SKILL_E", Disk(app, "crew/starting.yaml"));
+        Assert.NotNull(app.Editor.Read().Validate().Pack);
+        Assert.All(app.Live.Pack.Crew, c => Assert.False(c.Skills.ContainsKey("SKILL_E")));
+    }
+
+    // Encounters still hold the delete back through the loader, and neither file is written.
+    [Fact]
+    public async Task Deleting_a_skill_an_encounter_uses_is_refused_and_writes_neither_file()
+    {
+        using TestApp app = NewApp();
+        string before = Everything(app);
+
+        (HttpStatusCode status, string body) = await Post(app.NewClient(), "/dev/content/skills/SKILL_A/delete", "");
+
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, status);
+        Assert.Contains("unknown skill &#x27;SKILL_A&#x27;", body);
+        Assert.Equal(before, Everything(app));
+    }
+
+    // A skill no starting crew member has says nothing more in its confirmation.
+    [Fact]
+    public async Task A_skill_no_crew_have_has_no_extra_words_in_its_delete_confirmation()
+    {
+        using TestApp app = NewApp(root => File.AppendAllText(Path.Combine(root, "skills", "base.yaml"), "- id: SKILL_E\n"));
+
+        string form = (await Get(app.NewClient(), "/dev/content/skills/SKILL_E")).Body;
+
+        Assert.DoesNotContain("This also removes it", form);
     }
 
     [Fact]
@@ -513,7 +603,7 @@ public sealed class ContentFormsTests(RepoContentGuard guard) : IClassFixture<Re
         { "/dev/content/crew/CREW_01", "discipline=-3", "Must be -2 to 2." },
         { "/dev/content/crew/CREW_01", "skills.SKILL_A=11", "Must be 0 to 10." },
         { "/dev/content/crew/CREW_01", "skills.SKILL_B=-1", "Must be 0 to 10." },
-        { "/dev/content/crew/CREW_01", "skills.SKILL_C=", "Enter a whole number." },
+        { "/dev/content/crew/CREW_01", "skills.SKILL_C=x", "Must be a whole number." },
         { "/dev/content/assignments/ASSIGNMENT_TEMPLATE_1", "loadoutLimit=-1", "Must be 0 or more." },
         { "/dev/content/assignments/ASSIGNMENT_TEMPLATE_1", "loadoutLimit=x", "Must be a whole number." },
         { "/dev/content/assignments/ASSIGNMENT_TEMPLATE_1", "offer[0].count=0", "Must be 1 or more." },

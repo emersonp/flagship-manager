@@ -110,6 +110,77 @@ public sealed class ContentHostTests : IClassFixture<RepoContentGuard>, IDisposa
         Assert.Same(old, host.Current);
     }
 
+    // A skill some crew have, written into the scratch copy before the host starts.
+    private void AddSkillE()
+    {
+        File.AppendAllText(System.IO.Path.Combine(scratch.Path, "skills", "base.yaml"), "- id: SKILL_E\n");
+        string crew = System.IO.Path.Combine(scratch.Path, "crew", "starting.yaml");
+        File.WriteAllText(crew, File.ReadAllText(crew).Replace("SKILL_D: 3 }", "SKILL_D: 3, SKILL_E: 1 }", StringComparison.Ordinal));
+    }
+
+    // The one declared change across files writes crew first, then the skill file, each step a pack that loads.
+    [Fact]
+    public async Task A_declared_change_across_files_writes_the_crew_file_before_the_skill_file()
+    {
+        AddSkillE();
+        ContentHost host = scratch.NewHost();
+        var written = new List<string>();
+        var editor = new ContentEditor(host, scratch.Folder, (root, before, after) =>
+        {
+            written.AddRange(Changed(before, after));
+            ContentEdits.Write(root, before, after);
+        });
+
+        SaveResult result = await editor.SaveAcrossFiles(files => ContentEdits.DeleteSkill(files, "SKILL_E"), ContentEditor.CrewFirst);
+
+        Assert.True(result.Saved);
+        Assert.Equal(["crew/starting.yaml", "skills/base.yaml"], written);
+        Assert.DoesNotContain(host.Current!.Pack.Skills, s => s.Id == "SKILL_E");
+    }
+
+    // A write that stops after the crew file leaves a pack on disk that still loads.
+    [Fact]
+    public async Task A_declared_change_that_stops_after_the_first_file_leaves_a_valid_pack_and_swaps_nothing()
+    {
+        AddSkillE();
+        ContentHost host = scratch.NewHost();
+        LivePack old = host.Current!;
+        var editor = new ContentEditor(host, scratch.Folder, (root, before, after) =>
+        {
+            IReadOnlyList<string> changed = Changed(before, after);
+            if (changed.Contains("skills/base.yaml"))
+            {
+                throw new IOException("STOPPED_PLACEHOLDER");
+            }
+
+            ContentEdits.Write(root, before, after);
+        });
+
+        SaveResult result = await editor.SaveAcrossFiles(files => ContentEdits.DeleteSkill(files, "SKILL_E"), ContentEditor.CrewFirst);
+
+        Assert.False(result.Saved);
+        Assert.Same(old, host.Current);
+        ContentLoadResult disk = editor.Read().Validate();
+        Assert.NotNull(disk.Pack);
+        Assert.Contains(disk.Pack.Skills, s => s.Id == "SKILL_E");
+        Assert.All(disk.Pack.Crew, c => Assert.False(c.Skills.ContainsKey("SKILL_E")));
+    }
+
+    // The declared save still validates the whole candidate first: a skill an encounter uses is refused, and neither file is written.
+    [Fact]
+    public async Task A_declared_change_the_loader_refuses_writes_neither_file()
+    {
+        ContentHost host = scratch.NewHost();
+        var editor = new ContentEditor(host, scratch.Folder);
+        ContentFileSet before = editor.Read();
+
+        SaveResult result = await editor.SaveAcrossFiles(files => ContentEdits.DeleteSkill(files, "SKILL_A"), ContentEditor.CrewFirst);
+
+        Assert.False(result.Saved);
+        Assert.Contains(result.Errors, e => e.Message.Contains("SKILL_A", StringComparison.Ordinal));
+        Assert.Empty(Changed(before, editor.Read()));
+    }
+
     [Fact]
     public async Task An_invalid_save_writes_nothing_returns_the_loaders_errors_and_leaves_the_live_pack()
     {

@@ -12,7 +12,7 @@ public sealed class ChangeRefusedException(string message) : Exception(message);
 public sealed record ContentFolder(string Path);
 
 // Every change to the files goes through here, one at a time: build the candidate, validate it, write it, then swap it in.
-// A save changes one file. The disk is read fresh at the start of a save, so a hand edit to that same file made while the save
+// A save changes one file; the only exception is declared with SaveAcrossFiles. The disk is read fresh at the start of a save, so a hand edit to that same file made while the save
 // runs may be overwritten; a hand edit to another file is never touched.
 public sealed class ContentEditor
 {
@@ -45,7 +45,25 @@ public sealed class ContentEditor
         return ContentFileSet.ReadDirectory(directory);
     }
 
-    public async Task<SaveResult> Save(Func<ContentFileSet, ContentFileSet> change, CancellationToken cancellation = default)
+    public Task<SaveResult> Save(Func<ContentFileSet, ContentFileSet> change, CancellationToken cancellation = default)
+    {
+        return Commit(change, null, cancellation);
+    }
+
+    // The one change declared to alter several files: deleting a skill also takes it from the starting crew. The files are written
+    // one at a time in writeOrder, and every step on the way must load, so a write that stops part-way leaves a valid pack on disk.
+    public Task<SaveResult> SaveAcrossFiles(Func<ContentFileSet, ContentFileSet> change, Func<string, int> writeOrder, CancellationToken cancellation = default)
+    {
+        return Commit(change, writeOrder, cancellation);
+    }
+
+    // Crew files before the rest: a crew member without a skill loads, but crew naming a skill that is gone do not.
+    public static int CrewFirst(string path)
+    {
+        return path.StartsWith("crew/", StringComparison.Ordinal) ? 0 : 1;
+    }
+
+    private async Task<SaveResult> Commit(Func<ContentFileSet, ContentFileSet> change, Func<string, int>? writeOrder, CancellationToken cancellation)
     {
         await gate.WaitAsync(cancellation);
         try
@@ -66,12 +84,17 @@ public sealed class ContentEditor
                 return Refused([new ContentError("", refused.Message)]);
             }
 
-            int changed = after.Files.Count(f => !before.Files.TryGetValue(f.Key, out string? old) || old != f.Value) + before.Files.Count(f => !after.Files.ContainsKey(f.Key));
-            if (changed > 1)
+            List<string> changed = after.Files.Keys.Where(k => !before.Files.TryGetValue(k, out string? old) || old != after.Files[k])
+                .Concat(before.Files.Keys.Where(k => !after.Files.ContainsKey(k)))
+                .OrderBy(k => writeOrder?.Invoke(k) ?? 0).ThenBy(k => k, StringComparer.Ordinal)
+                .ToList();
+            if (writeOrder is null && changed.Count > 1)
             {
-                return Refused([new ContentError("", $"A save changes one file; this change would alter {changed}.")]);
+                return Refused([new ContentError("", $"A save changes one file; this change would alter {changed.Count}.")]);
             }
 
+            // One set per file written: each holds the files written so far, so each write changes one file.
+            List<ContentFileSet> steps = Steps(before, after, changed);
             ContentLoadResult result;
             LivePack? prepared = null;
             try
@@ -80,6 +103,11 @@ public sealed class ContentEditor
                 if (result.Pack is { } pack)
                 {
                     prepared = host.Prepare(pack);
+                }
+
+                if (prepared is not null && steps.SkipLast(1).Any(step => step.Validate().Pack is null))
+                {
+                    return Refused([new ContentError("", "This change cannot be written one file at a time with the pack loading after each.")]);
                 }
             }
             catch (Exception e) when (e is not OperationCanceledException)
@@ -95,7 +123,12 @@ public sealed class ContentEditor
 
             try
             {
-                write(directory, before, after);
+                ContentFileSet written = before;
+                foreach (ContentFileSet step in steps)
+                {
+                    write(directory, written, step);
+                    written = step;
+                }
             }
             catch (Exception e) when (e is IOException or UnauthorizedAccessException or ArgumentException)
             {
@@ -109,6 +142,27 @@ public sealed class ContentEditor
         {
             gate.Release();
         }
+    }
+
+    private static List<ContentFileSet> Steps(ContentFileSet before, ContentFileSet after, IReadOnlyList<string> changed)
+    {
+        var steps = new List<ContentFileSet>();
+        var files = new Dictionary<string, string>(before.Files);
+        foreach (string path in changed)
+        {
+            if (after.Files.TryGetValue(path, out string? text))
+            {
+                files[path] = text;
+            }
+            else
+            {
+                files.Remove(path);
+            }
+
+            steps.Add(new ContentFileSet(new Dictionary<string, string>(files)));
+        }
+
+        return steps;
     }
 
     // Reads, validates, and swaps without changing any file: for a fix made by hand or with git.

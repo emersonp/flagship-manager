@@ -129,7 +129,10 @@ internal static class FormFlow
             return new DeleteOutcome(false, false, null);
         }
 
-        SaveResult result = await editor.Save(f => ContentEdits.Delete(f, form.Kind, id), cancellation);
+        // A skill's delete also takes it from the starting crew: the one save declared to change more than one file.
+        SaveResult result = form.Kind == ContentKind.Skill
+            ? await editor.SaveAcrossFiles(f => ContentEdits.DeleteSkill(f, id), ContentEditor.CrewFirst, cancellation)
+            : await editor.Save(f => ContentEdits.Delete(f, form.Kind, id), cancellation);
         return result.Saved
             ? new DeleteOutcome(true, true, null)
             : new DeleteOutcome(true, false, view with { Reasons = Reasons(result.Errors) });
@@ -143,11 +146,22 @@ internal static class FormFlow
         IReadOnlyList<string> shown = reasons.Count > 0 ? [] : warnings;
         // Focus goes to the first field that failed its check, or to the alert for what the loader or the save said.
         string? focus = errors.Count > 0 ? FieldId(form.Kind, errors.Keys.First()) : reasons.Count > 0 ? "form-alert" : null;
-        return new ItemFormView(form.Kind, isNew, id, name, values, errors, reasons, notice, lead, shown, choices, focus) { DeleteNote = isNew ? null : DeleteNote(form.Kind) };
+        return new ItemFormView(form.Kind, isNew, id, name, values, errors, reasons, notice, lead, shown, choices, focus) { DeleteNote = isNew ? null : DeleteNote(files, form.Kind, id) };
     }
 
-    private static string? DeleteNote(ContentKind kind)
+    private static string? DeleteNote(ContentFileSet files, ContentKind kind, string id)
     {
+        if (kind == ContentKind.Skill)
+        {
+            int holders = files.Index().Where(i => i.Kind == ContentKind.Crew).Count(i => ContentEdits.Get<CrewModel>(files, i.Kind, i.Id)?.Skills.ContainsKey(id) == true);
+            return holders switch
+            {
+                0 => null,
+                1 => "This also removes it from 1 starting crew member.",
+                _ => $"This also removes it from {holders} starting crew.",
+            };
+        }
+
         // The missions module skips an objective whose template is gone, so a legacy keeps playing.
         return kind == ContentKind.Objective ? "Legacies whose current site offers it will skip it." : null;
     }
