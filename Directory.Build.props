@@ -7,4 +7,10 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
   </PropertyGroup>
+
+  <!-- The pure core: no clock, no database, and no ambient randomness (GDD 7.1). -->
+  <ItemGroup Condition="$(MSBuildProjectName.StartsWith('Sim.')) And !$(MSBuildProjectName.EndsWith('.Tests'))">
+    <PackageReference Include="Microsoft.CodeAnalysis.BannedApiAnalyzers" Version="3.3.4" PrivateAssets="all" />
+    <AdditionalFiles Include="$(MSBuildThisFileDirectory)BannedSymbols.txt" />
+  </ItemGroup>
 </Project>

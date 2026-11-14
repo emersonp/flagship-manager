@@ -7,20 +7,6 @@ public class ArchitectureTests
 {
     private static readonly string Root = FindRoot();
 
-    private static readonly string[] Banned =
-    [
-        "DateTime.Now",
-        "DateTime.UtcNow",
-        "DateTimeOffset.Now",
-        "DateTimeOffset.UtcNow",
-        "Stopwatch",
-        "new Random(",
-        "Random.Shared",
-        "Guid.NewGuid",
-        "Microsoft.Data",
-        "Npgsql",
-    ];
-
     public static TheoryData<string> SimProjects()
     {
         var data = new TheoryData<string>();
@@ -36,26 +22,40 @@ public class ArchitectureTests
     [MemberData(nameof(SimProjects))]
     public void Sim_projects_reference_only_Sim_Core(string project)
     {
-        XDocument csproj = XDocument.Load(Path.Combine(Root, "src", project, project + ".csproj"));
-        IEnumerable<string> references = csproj.Descendants("ProjectReference")
-            .Select(r => Path.GetFileNameWithoutExtension(r.Attribute("Include")!.Value.Replace('\\', '/')));
-
-        Assert.All(references, reference => Assert.Equal("Sim.Core", reference));
+        Assert.All(References(project), reference => Assert.Equal("Sim.Core", reference));
     }
 
-    [Theory]
-    [MemberData(nameof(SimProjects))]
-    public void Sim_projects_have_no_clock_database_or_ambient_randomness(string project)
+    [Fact]
+    public void Persistence_references_only_Sim_Core()
     {
-        IEnumerable<string> sources = Directory
-            .EnumerateFiles(Path.Combine(Root, "src", project), "*.cs", SearchOption.AllDirectories)
-            .Where(f => !f.Contains("/obj/") && !f.Contains("/bin/"));
+        Assert.Equal(new[] { "Sim.Core" }, References("Persistence"));
+    }
 
-        foreach (string file in sources)
-        {
-            string text = File.ReadAllText(file);
-            Assert.All(Banned, banned => Assert.False(text.Contains(banned), $"{Path.GetRelativePath(Root, file)} uses {banned}."));
-        }
+    [Fact]
+    public void The_bench_references_only_the_pure_core()
+    {
+        Assert.All(References("MissionBench"), reference => Assert.StartsWith("Sim.", reference, StringComparison.Ordinal));
+    }
+
+    // The analyser fails the build on a clock, a database, or ambient randomness under src/Sim.*. This guards its wiring.
+    [Fact]
+    public void The_pure_core_is_built_with_the_banned_api_list()
+    {
+        string props = File.ReadAllText(Path.Combine(Root, "Directory.Build.props"));
+        string[] banned = File.ReadAllLines(Path.Combine(Root, "BannedSymbols.txt"));
+
+        Assert.Contains("Microsoft.CodeAnalysis.BannedApiAnalyzers", props, StringComparison.Ordinal);
+        Assert.Contains("StartsWith('Sim.')", props, StringComparison.Ordinal);
+        Assert.Contains(banned, line => line.StartsWith("T:System.Random;", StringComparison.Ordinal));
+        Assert.Contains(banned, line => line.StartsWith("P:System.DateTime.UtcNow;", StringComparison.Ordinal));
+        Assert.Contains(banned, line => line.StartsWith("N:Microsoft.Data.Sqlite;", StringComparison.Ordinal));
+    }
+
+    private static IEnumerable<string> References(string project)
+    {
+        XDocument csproj = XDocument.Load(Path.Combine(Root, "src", project, project + ".csproj"));
+        return csproj.Descendants("ProjectReference")
+            .Select(r => Path.GetFileNameWithoutExtension(r.Attribute("Include")!.Value.Replace('\\', '/')));
     }
 
     private static string FindRoot()

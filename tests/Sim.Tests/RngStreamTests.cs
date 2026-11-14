@@ -47,6 +47,17 @@ public class RngStreamTests
         Assert.Equal(new ulong[] { 5517430893459967052UL, 16803158252055916467UL, 1249752661054523924UL }, Draw(stream, 3));
     }
 
+    // The mapping from raw draws to dice is part of every golden seed.
+    [Fact]
+    public void Dice_mapping_is_pinned()
+    {
+        RngStream dice = RngStream.For(1, 1, "golden");
+        RngStream picks = RngStream.For(1, 1, "golden");
+
+        Assert.Equal(new[] { 2, 6, 1, 1, 1, 4, 6, 6 }, Enumerable.Range(0, 8).Select(_ => dice.D6()));
+        Assert.Equal(new[] { 29, 91, 6, 16, 3 }, Enumerable.Range(0, 5).Select(_ => picks.Next(100)));
+    }
+
     [Fact]
     public void Dice_stay_in_range()
     {

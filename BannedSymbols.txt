@@ -1,0 +1,15 @@
+T:System.Random;Use RngStream, so a seed replays.
+T:System.Security.Cryptography.RandomNumberGenerator;Use RngStream, so a seed replays.
+M:System.Guid.NewGuid;Derive ids from the seed.
+P:System.DateTime.Now;The simulation has no clock. Time is the cycle.
+P:System.DateTime.UtcNow;The simulation has no clock. Time is the cycle.
+P:System.DateTime.Today;The simulation has no clock. Time is the cycle.
+P:System.DateTimeOffset.Now;The simulation has no clock. Time is the cycle.
+P:System.DateTimeOffset.UtcNow;The simulation has no clock. Time is the cycle.
+T:System.TimeProvider;The simulation has no clock. Time is the cycle.
+T:System.Diagnostics.Stopwatch;The simulation has no clock. Time is the cycle.
+P:System.Environment.TickCount;The simulation has no clock. Time is the cycle.
+P:System.Environment.TickCount64;The simulation has no clock. Time is the cycle.
+M:System.Threading.Thread.Sleep(System.Int32);The simulation never waits.
+N:System.Data;Storage belongs to Persistence.
+N:Microsoft.Data.Sqlite;Storage belongs to Persistence.

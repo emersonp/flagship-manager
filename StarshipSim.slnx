@@ -1,12 +1,15 @@
 <Solution>
   <Folder Name="/src/">
+    <Project Path="src/MissionBench/MissionBench.csproj" />
     <Project Path="src/Persistence/Persistence.csproj" />
     <Project Path="src/Sim.Content/Sim.Content.csproj" />
     <Project Path="src/Sim.Core/Sim.Core.csproj" />
     <Project Path="src/Sim.Cycle/Sim.Cycle.csproj" />
+    <Project Path="src/Sim.Missions/Sim.Missions.csproj" />
     <Project Path="src/SimRunner/SimRunner.csproj" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/MissionBench.Tests/MissionBench.Tests.csproj" />
     <Project Path="tests/Persistence.Tests/Persistence.Tests.csproj" />
     <Project Path="tests/Sim.Tests/Sim.Tests.csproj" />
     <Project Path="tests/SimRunner.Tests/SimRunner.Tests.csproj" />
