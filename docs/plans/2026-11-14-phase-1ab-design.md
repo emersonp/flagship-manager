@@ -19,7 +19,7 @@ Made here, and cheap to reverse:
 
 5. **Content definitions move to `Sim.Core`.** GDD 7.1 gives `Sim.Core` the domain types, and feature modules may reference only the core. `Sim.Content` keeps the loader and validator. Phase 0's `SkillDef` and `ContentPack` move with them.
 6. **Module state is built in 1c, not here.** The resolver is a pure function and holds no legacy state, so nothing in 1a or 1b needs it. The decision is recorded now so 1c does not reopen it. The SQLite schema version lands with it.
-7. **Dice are keyed, not sequential.** Every roll is `RngStream.For(missionSeed, 0, key)` with a key such as `check:3`. One seed gives the same encounters and the same dice whatever team is sent, which is what makes a before-and-after comparison fair. Mission state stores the seed and no stream positions.
+7. **Dice are keyed, not sequential.** Every roll is `RngStream.For(missionSeed, 0, key)` with a key such as `check:ENCOUNTER_03`, named for the encounter and not its position, so a chained encounter does not shift later rolls. One seed gives the same encounters and the same dice whatever team is sent, which is what makes a before-and-after comparison fair. Mission state stores the seed and no stream positions.
 8. **The bench lives in its own library, `MissionBench`,** outside `Sim.*`, so `SimRunner` uses it now and `Web` uses it in slice 1f.
 
 ## 2. What 1a leaves out

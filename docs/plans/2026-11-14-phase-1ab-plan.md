@@ -10,7 +10,7 @@
 
 **Spec:** `docs/plans/2026-11-14-phase-1ab-design.md`, which argues from `docs/gdd.md` sections 3.4, 3.5, 4.1 to 4.7, and 10.1. Vocabulary from `GLOSSARY.md`.
 
-**Verified:** every file in this plan was compiled and every test run on 2026-11-14 (.NET SDK 10.0.402). The five build tasks were replayed in order on a fresh copy of `main`; the build was clean and the tests passed after each: 41, 47, 74, 87, and 104 tests. The pinned values (the dice sequence in Task 1, the walkthrough seeds and golden hash in Task 3) come from that run. If a pinned value does not match, the code has drifted from this plan; fix the code, not the constant.
+**Verified:** every file in this plan was compiled and every test run on 2026-11-14 (.NET SDK 10.0.402). The five build tasks were replayed in order on a fresh copy of `main`; the build was clean and the tests passed after each: 41, 47, 78, 91, and 108 tests. The pinned values (the dice sequence in Task 1, the walkthrough seeds and golden hash in Task 3) come from that run. Task 3 was amended after its review (risk direction, dice keyed by encounter, chain targets never drawn, and the mentoring share), and the replay was run again on the amended code. If a pinned value does not match, the code has drifted from this plan; fix the code, not the constant.
 
 ## Global Constraints
 
@@ -19,7 +19,7 @@
 - Comments are terse and explain why, never what. Each test has a one-line intent comment only where the name does not say it.
 - Everything under `src/Sim.*` is pure: no database, no clock, and no ambient randomness. The banned-API analyser added in Task 1 fails the build otherwise.
 - `Sim.*` projects reference only `Sim.Core`. Feature modules never reference each other. `MissionBench` references only `Sim.*` projects.
-- Mission dice are keyed: every roll is `RngStream.For(missionSeed, 0, key)`. Never draw two rolls from one stream where a different team could change how many are drawn.
+- Mission dice are keyed by encounter id, not by position: every roll is `RngStream.For(missionSeed, 0, key)`, with keys such as `check:ENCOUNTER_03`. Never draw two rolls from one stream where a different team could change how many are drawn.
 - Every number the resolver uses comes from `MissionTuning`. No rule constant is written in resolver code, except the average of two dice (7).
 - Enums are stored by name in JSON; an enum member that is stored is never renamed or removed.
 - Use the terms in `GLOSSARY.md` (legacy, cycle, mission, away team, team lead, call, notice, check, momentum, strain, beat). Never "save", "turn", or "campaign".
@@ -1956,6 +1956,77 @@ public class MissionRulesTests
     }
 
     [Fact]
+    public void Risk_is_tolerance_so_a_higher_risk_pushes_the_lead_toward_the_fast_approach()
+    {
+        Assert.Equal(
+            new[] { Approach.Careful, Approach.Careful, Approach.Fast },
+            new[] { -1, 0, 1 }.Select(r => ApproachFor(TestContent.Team(3, 3, 5), r)));
+        Assert.Equal(Approach.Careful, ApproachFor(TestContent.Team(1, 1, 3), 1));
+        Assert.Equal(Approach.Fast, ApproachFor(TestContent.Team(2, 2, 3), 0));
+    }
+
+    [Fact]
+    public void The_mentoring_bonus_goes_to_the_junior_alone_and_the_helper_gets_a_share_of_the_base()
+    {
+        MissionStep step = MissionResolver.Advance(Start(TestContent.Team(1, 1, 7), new Parameters(DevelopJuniors: true), Encounter(1)));
+
+        CheckBeat check = step.Beats.OfType<CheckBeat>().Single();
+        MissionTuning t = TestContent.Tuning;
+        Assert.True(check.Mentoring);
+        Assert.Equal(("CREW_07", "CREW_01"), (check.ActorId, check.HelperId));
+        double baseExperience = check.Experience - t.MentorBonus;
+        Assert.Equal(check.Experience, step.Result!.Crew.Single(c => c.Id == "CREW_07").Experience);
+        Assert.Equal(baseExperience * t.AssistShare, step.Result.Crew.Single(c => c.Id == "CREW_01").Experience);
+    }
+
+    [Fact]
+    public void A_chain_target_that_carries_the_drawn_tag_is_never_drawn()
+    {
+        EncounterDef chain = Encounter(5, id: "ENCOUNTER_CHAIN");
+        EncounterDef source = Encounter(5, chain: "ENCOUNTER_CHAIN");
+        for (ulong seed = 1; seed <= 50; seed++)
+        {
+            var objective = new ObjectiveDef("OBJECTIVE_TEMPLATE_1", [], 1, 4, 1, [new StageDef("stage", ["field"], 1, 1, false)]);
+            MissionState state = MissionResolver.Start(objective, [chain, source], TestContent.Team(1, 1, 3), TestContent.Gear, new Parameters(), TestContent.Tuning, seed);
+
+            Assert.Equal("ENCOUNTER_01", state.Encounters.Single().Encounter.Id);
+        }
+    }
+
+    // The pool's other encounter keeps its dice whether or not a disaster chained an extra one in before it.
+    [Fact]
+    public void A_chain_does_not_move_the_dice_of_later_encounters()
+    {
+        EncounterDef later = Encounter(5, id: "ENCOUNTER_02");
+        EncounterDef chain = Encounter(5, id: "ENCOUNTER_CHAIN", tags: ["chained"]);
+        var objective = new ObjectiveDef("OBJECTIVE_TEMPLATE_1", [], 1, 4, 1, [new StageDef("stage", ["field"], 2, 2, false)]);
+        int compared = 0;
+        for (ulong seed = 1; seed <= 20; seed++)
+        {
+            int? Roll(params EncounterDef[] pool)
+            {
+                MissionState state = MissionResolver.Start(objective, pool, TestContent.Team(1, 1, 3, 5, 7), TestContent.Gear, new Parameters(), TestContent.Tuning, seed);
+                MissionStep step = MissionResolver.Advance(state);
+                var beats = new List<Beat>(step.Beats);
+                while (step.Pending is not null)
+                {
+                    step = MissionResolver.Advance(step.State, CallAnswer.Bold);
+                    beats.AddRange(step.Beats);
+                }
+
+                return beats.OfType<CheckBeat>().FirstOrDefault(c => c.EncounterId == "ENCOUNTER_02")?.Roll;
+            }
+
+            int? chained = Roll(Encounter(40, chain: "ENCOUNTER_CHAIN"), later, chain);
+            int? plain = Roll(Encounter(40), later, chain);
+            Assert.Equal(plain, chained);
+            compared += chained is null ? 0 : 1;
+        }
+
+        Assert.True(compared > 0);
+    }
+
+    [Fact]
     public void A_success_removes_one_strain()
     {
         MissionState state = Start(TestContent.Team(1, 1, 3), new Parameters(), Encounter(1));
@@ -2112,6 +2183,11 @@ public class MissionRulesTests
         Assert.Throws<ArgumentException>(() => Start(team, new Parameters(), Encounter(5)));
     }
 
+    private static Approach ApproachFor(Team team, int risk)
+    {
+        return MissionResolver.Advance(Start(team, new Parameters(Risk: risk), Encounter(5))).Beats.OfType<CheckBeat>().Single().Approach;
+    }
+
     private static EncounterDef Encounter(int difficulty, DecisionDef? decision = null, bool commsBlocked = false, string? gearTag = null, string id = "ENCOUNTER_01", string[]? tags = null, string? chain = null)
     {
         return new EncounterDef(id, tags ?? ["field"], commsBlocked, chain, new ApproachDef("SKILL_A", difficulty, gearTag), new ApproachDef("SKILL_A", difficulty + 1, null), decision);
@@ -2180,7 +2256,7 @@ public class MissionWalkthroughTests
     [Fact]
     public void The_same_weak_team_is_offered_the_abort_first_when_strain_builds_slowly()
     {
-        (_, List<Beat> beats, _) = TestContent.Play(TestContent.Team(2, 2, 7, 8), seed: 5);
+        (_, List<Beat> beats, _) = TestContent.Play(TestContent.Team(2, 2, 7, 8), seed: 1);
 
         Assert.Contains(beats.OfType<CallBeat>(), c => c.Call.DecisionId == MissionResolver.AbortDecisionId);
     }
@@ -2200,7 +2276,7 @@ public class MissionWalkthroughTests
     [Fact]
     public void When_the_lead_falls_the_next_most_senior_takes_over()
     {
-        (_, List<Beat> beats, _) = TestContent.Play(TestContent.Team(8, 7, 8), seed: 2);
+        (_, List<Beat> beats, _) = TestContent.Play(TestContent.Team(8, 7, 8), seed: 5);
 
         Assert.Equal("CREW_07", beats.OfType<LeadChangeBeat>().First().CrewId);
     }
@@ -2258,7 +2334,7 @@ public class MissionWalkthroughTests
     {
         (_, List<Beat> beats, _) = TestContent.Play(TestContent.Team(1, 1, 3, 5), seed: 1);
 
-        Assert.Equal("9116B4D40A82A3B4922D56AA92C4C2DDFA10EC3FA3A76E8998ED94A500CCEA87", Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(Json(beats)))));
+        Assert.Equal("D745D5ED80EA0F8A9ADDD0971E1B4C8C520DFA7E3870F80C341D0180AF40A074", Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(Json(beats)))));
     }
 
     private static List<Beat> Finish(MissionState state)
@@ -2347,7 +2423,7 @@ public sealed record TeamMember(string Id, int Seniority, IReadOnlyDictionary<st
 
 public sealed record Team(IReadOnlyList<TeamMember> Members, string LeadId);
 
-// Operational parameters. Priority, risk, and autonomy run from -1 to +1.
+// Operational parameters, each from -1 to +1. Risk is risk tolerance: +1 favours the fast approach.
 public sealed record Parameters(int Priority = 0, int Risk = 0, int Autonomy = 0, bool DevelopJuniors = false);
 
 public sealed record PendingCall(
@@ -2579,6 +2655,7 @@ public static class MissionResolver
 
         ulong draw = drawSeed ?? seed;
         var drawn = new HashSet<string>();
+        var chainTargets = pool.Where(e => e.Chain is not null).Select(e => e.Chain!).ToHashSet();
         for (int i = 0; i < objective.Stages.Count; i++)
         {
             StageDef stage = objective.Stages[i];
@@ -2586,7 +2663,7 @@ public static class MissionResolver
             for (int j = 0; j < count; j++)
             {
                 List<EncounterDef> candidates = pool
-                    .Where(e => !drawn.Contains(e.Id) && stage.DrawTags.All(e.Tags.Contains))
+                    .Where(e => !drawn.Contains(e.Id) && !chainTargets.Contains(e.Id) && stage.DrawTags.All(e.Tags.Contains))
                     .OrderBy(e => e.Id, StringComparer.Ordinal)
                     .ToList();
                 if (candidates.Count == 0)
@@ -2689,7 +2766,7 @@ public static class MissionResolver
                         State.Phase = MissionPhase.Strain;
                         if (Current.Encounter.Decision is { } decision && Active.Count > 0)
                         {
-                            Raise(decision.Id, decision.Stakes, decision.Bold, decision.Safe, $"dec:{State.Cursor}", alwaysCall: false);
+                            Raise(decision.Id, decision.Stakes, decision.Bold, decision.Safe, $"dec:{Current.Encounter.Id}", alwaysCall: false);
                         }
 
                         break;
@@ -2702,7 +2779,7 @@ public static class MissionResolver
                         else if (State.Strain >= T.AbortCallAt && !State.AbortAsked)
                         {
                             State.AbortAsked = true;
-                            Raise(AbortDecisionId, T.AbortStakes, new EffectDef(), new EffectDef(Withdraw: true), $"abort:{State.Cursor}", alwaysCall: true);
+                            Raise(AbortDecisionId, T.AbortStakes, new EffectDef(), new EffectDef(Withdraw: true), $"abort:{Current.Encounter.Id}", alwaysCall: true);
                         }
 
                         break;
@@ -2717,7 +2794,7 @@ public static class MissionResolver
         private void Check(EncounterDef encounter)
         {
             Parameters p = State.Parameters;
-            Approach approach = Lead.Member.Caution + p.Risk >= 0 ? Approach.Careful : Approach.Fast;
+            Approach approach = Lead.Member.Caution - p.Risk >= 0 ? Approach.Careful : Approach.Fast;
             ApproachDef def = approach == Approach.Careful ? encounter.Careful : encounter.Fast;
             int Skill(MemberState m)
             {
@@ -2745,7 +2822,7 @@ public static class MissionResolver
             int momentum = State.Momentum;
             int strain = State.Strain;
             int score = actorSkill + assist + gear + momentum - strain;
-            int roll = Dice($"check:{State.Cursor}").TwoD6();
+            int roll = Dice($"check:{encounter.Id}").TwoD6();
             int margin = score + roll - target;
             Tier tier = margin >= T.TierCritical ? Tier.Critical
                 : margin >= T.TierSuccess ? Tier.Success
@@ -2772,14 +2849,15 @@ public static class MissionResolver
             }
 
             bool mentoring = helper is not null && Skill(helper) - actorSkill >= T.MentorGap;
-            double experience = (margin >= T.TrivialAtMargin ? 0
+            double baseExperience = margin >= T.TrivialAtMargin ? 0
                 : Math.Abs(margin) <= T.CloseMargin ? T.ExperienceClose
                 : Math.Abs(margin) <= T.NearMargin ? T.ExperienceNear
-                : T.ExperienceFar) + (mentoring ? T.MentorBonus : 0);
+                : T.ExperienceFar;
+            double experience = baseExperience + (mentoring ? T.MentorBonus : 0);
             actor.Experience += experience;
             if (helper is not null)
             {
-                helper.Experience += experience * T.AssistShare;
+                helper.Experience += baseExperience * T.AssistShare;
             }
 
             Beats.Add(new CheckBeat(
@@ -2788,11 +2866,11 @@ public static class MissionResolver
 
             if (tier == Tier.Failure)
             {
-                InjuryRoll(actor, InjurySeverity.Light, $"checkinj:{State.Cursor}");
+                InjuryRoll(actor, InjurySeverity.Light, $"checkinj:{encounter.Id}");
             }
             else if (tier == Tier.Disaster)
             {
-                InjuryRoll(actor, InjurySeverity.Severe, $"checkinj:{State.Cursor}");
+                InjuryRoll(actor, InjurySeverity.Severe, $"checkinj:{encounter.Id}");
                 if (!State.Chained && encounter.Chain is not null && State.Chains.TryGetValue(encounter.Chain, out EncounterDef? chain))
                 {
                     State.Chained = true;
@@ -2941,7 +3019,7 @@ public static class MissionResolver
 - [ ] **Step 5: Run the tests to verify they pass**
 
 Run: `dotnet build --nologo -v quiet && dotnet test --nologo --no-build -v quiet`
-Expected: build clean; 74 tests pass (Sim.Tests 66). The walkthrough seeds and the golden hash match without edits.
+Expected: build clean; 78 tests pass (Sim.Tests 70). The walkthrough seeds and the golden hash match without edits.
 
 - [ ] **Step 6: Commit**
 
@@ -3634,7 +3712,7 @@ public static class BenchReport
 - [ ] **Step 5: Run the tests to verify they pass**
 
 Run: `dotnet build --nologo -v quiet && dotnet test --nologo --no-build -v quiet`
-Expected: build clean; 87 tests pass (MissionBench.Tests 13). The shape tests take about two seconds.
+Expected: build clean; 91 tests pass (MissionBench.Tests 13). The shape tests take about two seconds.
 
 - [ ] **Step 6: Commit**
 
@@ -4160,7 +4238,7 @@ echo "Mission bench: 3 x 2000 missions. OK."
 - [ ] **Step 5: Run the gate**
 
 Run: `./check.sh`
-Expected: exit 0; 104 tests pass (Sim.Tests 66, MissionBench.Tests 13, SimRunner.Tests 19, and Persistence.Tests 6); the last two lines are `Content CORE v1: 20 legacies x 50 cycles, 6000 events. OK.` and `Mission bench: 3 x 2000 missions. OK.`
+Expected: exit 0; 108 tests pass (Sim.Tests 70, MissionBench.Tests 13, SimRunner.Tests 19, and Persistence.Tests 6); the last two lines are `Content CORE v1: 20 legacies x 50 cycles, 6000 events. OK.` and `Mission bench: 3 x 2000 missions. OK.`
 
 - [ ] **Step 6: Try the tuning loop by hand, and paste the output into your report**
 
@@ -4221,8 +4299,10 @@ _Avoid_: Simulator (that plays whole cycles), test harness
 In `docs/gdd.md` section 4.7, add as the last bullet of the first list:
 
 ```markdown
-- Built in Phase 1 (slices 1a and 1b): the tuning file is `content/tuning/missions.yaml`, and `SimRunner bench --objective ID --compare FILE` runs the same seeds under the pack's tuning and under `FILE`. On the benchmark crew the C# resolver gives calls per mission of 3.1, 2.5, and 1.3 for a cautious lead across the three autonomy settings, 2.5, 1.3, and 0.7 for an average one, and 0.7, 0.2, and 0.2 for a reckless one; a reckless lead loses about 17% of missions at about 3.9 deaths per 100 crew-missions (the prototype gave 13% and 3.7; skips now belong to a stage, not an encounter, and the dice differ).
+- Built in Phase 1 (slices 1a and 1b): the tuning file is `content/tuning/missions.yaml`, and `SimRunner bench --objective ID --compare FILE` runs the same seeds under the pack's tuning and under `FILE`. On the benchmark crew (10,000 missions per briefing) the C# resolver gives calls per mission of 3.1, 2.5, and 1.3 for a cautious lead across the three autonomy settings, 2.5, 1.3, and 0.6 for an average one, and 0.7, 0.2, and 0.2 for a reckless one. "Develop juniors" gives 50% full success against 58% for best qualified. A reckless lead loses about 17% of missions at about 3.6 deaths per 100 crew-missions (the prototype gave 13% and 3.7: skips now belong to a stage, not an encounter, and the dice differ).
 ```
+
+Also in `docs/gdd.md`: in section 4.2 step 1, add the sentence "In the resolver the lead goes careful when caution minus risk tolerance is zero or more."; in section 4.3, replace "Loss with a severe injury roll is where death comes from." with "Death comes only from a failed severe injury roll: on a disaster, on a bold option that risks one, or in a collapse."; and after the strain 4 bullet add: "- The collapse is checked after the encounter's decision, so a call at the strain cap can still pull the team out by withdrawing. This is the order the prototype played in. Checking first would cost weak teams under a lead who calls (an average lead with a rookie team: 21% lost becomes 28%); it is one condition in the resolver."
 
 - [ ] **Step 3: Mark the slices built**
 
@@ -4249,7 +4329,7 @@ git commit -m "Record the mission resolver and bench in the glossary, GDD, outli
 
 ## Done when
 
-- `./check.sh` exits 0 on a clean clone, with 104 tests passing.
+- `./check.sh` exits 0 on a clean clone, with 108 tests passing.
 - `SimRunner bench --objective OBJECTIVE_TEMPLATE_1 --compare FILE` prints before, after, and change for the same seeds.
 - `SimRunner bench --objective OBJECTIVE_TEMPLATE_1 --replay SEED` prints one mission beat by beat.
 - A banned API under `src/Sim.*` fails the build.
