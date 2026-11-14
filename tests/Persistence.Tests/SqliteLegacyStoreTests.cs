@@ -107,4 +107,17 @@ public sealed class SqliteLegacyStoreTests : IDisposable
         Assert.Equal(2, empty.Load(id)!.State.Cycle);
         Assert.Equal(json, LegacyExport.Export(empty, id));
     }
+
+    [Fact]
+    public void An_import_with_an_unknown_or_missing_format_version_is_rejected()
+    {
+        Guid id = Guid.NewGuid();
+        SqliteLegacyStore store = NewStore();
+        store.Create(NewRecord(id));
+        string json = LegacyExport.Export(store, id);
+
+        Assert.Contains("\"FormatVersion\": 1", json);
+        Assert.Throws<InvalidOperationException>(() => LegacyExport.Import(store, json.Replace("\"FormatVersion\": 1", "\"FormatVersion\": 2")));
+        Assert.Throws<InvalidOperationException>(() => LegacyExport.Import(store, json.Replace("\"FormatVersion\": 1,", "")));
+    }
 }

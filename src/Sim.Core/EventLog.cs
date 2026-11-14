@@ -1,5 +1,6 @@
 using System.Reflection;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace Sim.Core;
 
@@ -7,6 +8,12 @@ public sealed record EventEnvelope(long Sequence, int Cycle, string Type, int Ve
 
 public sealed class EventTypeRegistry
 {
+    // Enums are stored by name so inserting a member never repurposes stored events.
+    private static readonly JsonSerializerOptions PayloadOptions = new()
+    {
+        Converters = { new JsonStringEnumConverter(namingPolicy: null, allowIntegerValues: false) },
+    };
+
     private readonly Dictionary<(string Name, int Version), Type> byName = new();
     private readonly Dictionary<Type, (string Name, int Version)> byType = new();
 
@@ -36,7 +43,7 @@ public sealed class EventTypeRegistry
             throw new InvalidOperationException($"Event {type.Name} is not registered.");
         }
 
-        return new EventEnvelope(published.Sequence, published.Cycle, key.Name, key.Version, JsonSerializer.Serialize(published.Event, type));
+        return new EventEnvelope(published.Sequence, published.Cycle, key.Name, key.Version, JsonSerializer.Serialize(published.Event, type, PayloadOptions));
     }
 
     public IEvent FromEnvelope(EventEnvelope envelope)
@@ -46,6 +53,6 @@ public sealed class EventTypeRegistry
             throw new InvalidOperationException($"Unknown event type {envelope.Type} v{envelope.Version}.");
         }
 
-        return (IEvent)JsonSerializer.Deserialize(envelope.Payload, type)!;
+        return (IEvent)JsonSerializer.Deserialize(envelope.Payload, type, PayloadOptions)!;
     }
 }

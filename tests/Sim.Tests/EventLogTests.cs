@@ -14,7 +14,7 @@ public class EventLogTests
 
         EventEnvelope envelope = registry.ToEnvelope(published);
 
-        Assert.Equal(new EventEnvelope(7, 3, "PhaseEntered", 1, """{"Cycle":3,"Phase":2}"""), envelope);
+        Assert.Equal(new EventEnvelope(7, 3, "PhaseEntered", 1, """{"Cycle":3,"Phase":"Resolution"}"""), envelope);
         Assert.Equal(published.Event, registry.FromEnvelope(envelope));
     }
 

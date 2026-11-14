@@ -19,7 +19,7 @@
 - Comments are terse and explain why, never what. Each test has a one-line intent comment only where the name does not say it.
 - Everything under `src/Sim.*` is pure: no database, no clock, and no ambient randomness. Randomness comes only from `IBusContext.Rng(streamName)`.
 - `Sim.*` projects reference only `Sim.Core`. Feature modules never reference each other.
-- Events are versioned and additive: a field is never removed or repurposed; a changed meaning is a new event type or version.
+- Events are versioned and additive: a field is never removed or repurposed; a changed meaning is a new event type or version. Enums in events are stored by name; an enum member that appears in an event is never renamed or removed.
 - Use the terms in `GLOSSARY.md` (legacy, cycle, chair, captain, and so on). Never "save", "turn", or "campaign".
 - Creative content is the author's. Use obvious placeholders (`SKILL_A`, `CREW_01`); never invent names, species, or story text.
 - Commit messages are plain: no co-author trailer and no tool attribution of any kind.
@@ -807,7 +807,7 @@ public class EventLogTests
 
         EventEnvelope envelope = registry.ToEnvelope(published);
 
-        Assert.Equal(new EventEnvelope(7, 3, "PhaseEntered", 1, """{"Cycle":3,"Phase":2}"""), envelope);
+        Assert.Equal(new EventEnvelope(7, 3, "PhaseEntered", 1, """{"Cycle":3,"Phase":"Resolution"}"""), envelope);
         Assert.Equal(published.Event, registry.FromEnvelope(envelope));
     }
 
@@ -843,6 +843,7 @@ Expected: build error, `EventTypeRegistry` does not exist.
 ```csharp
 using System.Reflection;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace Sim.Core;
 
@@ -850,6 +851,12 @@ public sealed record EventEnvelope(long Sequence, int Cycle, string Type, int Ve
 
 public sealed class EventTypeRegistry
 {
+    // Enums are stored by name so inserting a member never repurposes stored events.
+    private static readonly JsonSerializerOptions PayloadOptions = new()
+    {
+        Converters = { new JsonStringEnumConverter(namingPolicy: null, allowIntegerValues: false) },
+    };
+
     private readonly Dictionary<(string Name, int Version), Type> byName = new();
     private readonly Dictionary<Type, (string Name, int Version)> byType = new();
 
@@ -879,7 +886,7 @@ public sealed class EventTypeRegistry
             throw new InvalidOperationException($"Event {type.Name} is not registered.");
         }
 
-        return new EventEnvelope(published.Sequence, published.Cycle, key.Name, key.Version, JsonSerializer.Serialize(published.Event, type));
+        return new EventEnvelope(published.Sequence, published.Cycle, key.Name, key.Version, JsonSerializer.Serialize(published.Event, type, PayloadOptions));
     }
 
     public IEvent FromEnvelope(EventEnvelope envelope)
@@ -889,7 +896,7 @@ public sealed class EventTypeRegistry
             throw new InvalidOperationException($"Unknown event type {envelope.Type} v{envelope.Version}.");
         }
 
-        return (IEvent)JsonSerializer.Deserialize(envelope.Payload, type)!;
+        return (IEvent)JsonSerializer.Deserialize(envelope.Payload, type, PayloadOptions)!;
     }
 }
 ```
@@ -1510,6 +1517,7 @@ public sealed class SqliteLegacyStore : ILegacyStore
 
 ```csharp
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using Sim.Core;
 
 namespace Persistence;
@@ -1517,24 +1525,35 @@ namespace Persistence;
 // Developer mode only: the way to keep a legacy safe from bugs while the game is under construction.
 public static class LegacyExport
 {
-    private static readonly JsonSerializerOptions Options = new() { WriteIndented = true };
+    private const int CurrentFormatVersion = 1;
+
+    private static readonly JsonSerializerOptions Options = new()
+    {
+        WriteIndented = true,
+        Converters = { new JsonStringEnumConverter(namingPolicy: null, allowIntegerValues: false) },
+    };
 
     public static string Export(ILegacyStore store, Guid legacyId)
     {
         LegacyRecord record = store.Load(legacyId) ?? throw new InvalidOperationException($"Legacy {legacyId} does not exist.");
-        return JsonSerializer.Serialize(new Snapshot(record, store.ReadEvents(legacyId)), Options);
+        return JsonSerializer.Serialize(new Snapshot(CurrentFormatVersion, record, store.ReadEvents(legacyId)), Options);
     }
 
     // Fails if the legacy already exists; restore into an empty database or delete the legacy first.
     public static Guid Import(ILegacyStore store, string json)
     {
-        Snapshot snapshot = JsonSerializer.Deserialize<Snapshot>(json) ?? throw new InvalidOperationException("The snapshot is empty.");
+        Snapshot snapshot = JsonSerializer.Deserialize<Snapshot>(json, Options) ?? throw new InvalidOperationException("The snapshot is empty.");
+        if (snapshot.FormatVersion != CurrentFormatVersion)
+        {
+            throw new InvalidOperationException($"Unsupported snapshot format version {snapshot.FormatVersion}; expected {CurrentFormatVersion}.");
+        }
+
         store.Create(snapshot.Legacy);
         store.Commit(snapshot.Legacy.State, snapshot.Events);
         return snapshot.Legacy.State.LegacyId;
     }
 
-    private sealed record Snapshot(LegacyRecord Legacy, IReadOnlyList<EventEnvelope> Events);
+    private sealed record Snapshot(int FormatVersion, LegacyRecord Legacy, IReadOnlyList<EventEnvelope> Events);
 }
 ```
 
@@ -1590,7 +1609,7 @@ public class SimulationTests
     {
         SimSummary summary = Simulation.Run(new SimOptions(Legacies: 1, Cycles: 10, Seed: 1));
 
-        Assert.Equal("13EF18B7B8B101CD31DDCAC9366780EA947CAAB8268EC493FADC2E3766F3DD49", summary.Legacies[0].LogHash);
+        Assert.Equal("0407DFACDF8847EB7B1571D8DA27C0A3705A5A45F7DF82BE06A23D22FBCEF520", summary.Legacies[0].LogHash);
     }
 }
 ```

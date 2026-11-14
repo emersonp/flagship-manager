@@ -19,6 +19,6 @@ public class SimulationTests
     {
         SimSummary summary = Simulation.Run(new SimOptions(Legacies: 1, Cycles: 10, Seed: 1));
 
-        Assert.Equal("13EF18B7B8B101CD31DDCAC9366780EA947CAAB8268EC493FADC2E3766F3DD49", summary.Legacies[0].LogHash);
+        Assert.Equal("0407DFACDF8847EB7B1571D8DA27C0A3705A5A45F7DF82BE06A23D22FBCEF520", summary.Legacies[0].LogHash);
     }
 }
