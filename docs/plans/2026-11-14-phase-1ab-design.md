@@ -86,58 +86,74 @@ Effects in 1a: `momentum`, `strain`, `progress`, `injuryRoll: light | severe`, a
 
 The loader rejects, all together: an unknown skill, an unknown chain target, a slot that no encounter can fill, a decision with stakes outside 1 to 5, and a missing tuning value. A fast approach that is not exactly one harder than careful is allowed, since the author may mean it; the bench lists such encounters.
 
-The starter pack ports the prototype's nine encounters and seven decisions, with fast re-authored at careful + 1.
+The starter pack ports the prototype's nine encounters and six decisions, with fast re-authored at careful + 1. The abort decision is built into the resolver, with its stakes in the tuning file.
 
 ## 5. Tuning file
 
 `content/tuning/missions.yaml`. Every value is required; there are no defaults in code, so a missing number is a load error, never a silent zero.
 
 ```yaml
+# Every number the mission resolver uses. All are required. See docs/gdd.md section 4.
 check:
-  target: 7                    # added to difficulty
-  tiers: { critical: 5, success: 0, partial: -3, failure: -7 }   # lowest margin for each; below failure is disaster
+  target: 7                  # added to an approach's difficulty
+  tiers:                     # the lowest margin for each tier; below failure is a disaster
+    critical: 5
+    success: 0
+    partial: -3
+    failure: -7
   gearBonus: 2
-  assistDivisor: 2             # assist = second-best skill / this, rounded down
+  assistDivisor: 2           # assist = the helper's skill divided by this, rounded down
 compounding:
   cap: 5
-  momentum: { critical: 1, fastSuccess: 1 }     # fast critical earns both
-  strain:   { partial: 1, failure: 2, disaster: 3, reliefOnSuccess: 1 }
+  momentum:
+    critical: 1
+    fastSuccess: 1           # a fast critical earns both
+  strain:
+    partial: 1
+    failure: 2
+    disaster: 3
+    reliefOnSuccess: 1
   skipAtMomentum: 4
   skipCost: 2
   abortCallAt: 4
   collapseAt: 5
 develop:
-  reachMargin: -2
-  supervisorPenalty: 1         # supervising senior assists at skill minus this
+  reachMargin: -2            # a junior acts only at this expected margin or better
+  supervisorPenalty: 1       # the supervising senior assists at skill minus this
 calls:
   base: 3
   cautionWeight: 0.5
   disciplineWeight: 0.25
   autonomyWeight: 1
+  boldCautionWeight: 2       # the lead prefers bold when priority * boldPriorityWeight
+  boldPriorityWeight: 1      #   exceeds caution * boldCautionWeight
   withdrawOfferedAtStakes: 3
+  abortStakes: 4
   backedLoyalty: 1
   overruledLoyalty: -1
 experience:
-  close: 3                     # |margin| <= 3
-  near: 2                      # |margin| <= 6
+  close: 3                   # margin within closeMargin of zero
+  near: 2                    # margin within nearMargin of zero
   far: 1
-  trivialAtMargin: 7           # at or above: none
+  closeMargin: 3
+  nearMargin: 6
+  trivialAtMargin: 7         # at this margin or above, nothing is learned
   assistShare: 0.5
   mentorGap: 4
   mentorBonus: 1
 injury:
-  lightBelow: 7                # 2d6 below this: light injury
-  deadBelow: 5
-  incapacitatedBelow: 8
+  lightBelow: 7              # light roll: 2d6 below this is a light injury
+  deadBelow: 5               # severe roll: 2d6 below this is death
+  incapacitatedBelow: 8      # severe roll: 2d6 below this is incapacitation
   medicalBonus: 2
-  maxLight: 2                  # light injuries stack to this; each is -1 to skill
+  maxLight: 2                # each light injury is -1 to every skill
 result:
   partialAtProgress: 2
 bench:
   teams:
-    rookie:  { size: 3, skill: [1, 3] }
-    mixed:   { size: 3, skill: [2, 5], seniors: 1, seniorSkill: [5, 6] }
-    veteran: { size: 3, skill: [4, 7] }
+    rookie:  { size: 3, skill: [1, 3], seniors: 0, seniorSkill: [1, 3] }
+    mixed:   { size: 3, skill: [2, 4], seniors: 1, seniorSkill: [5, 6] }
+    veteran: { size: 3, skill: [4, 7], seniors: 0, seniorSkill: [4, 7] }
 ```
 
 The values are the prototype's, with the six accepted fixes applied. `MissionTuning` is copied into the mission state at `Start`. The `bench` block is not copied; it only shapes generated teams.
@@ -171,6 +187,7 @@ SimRunner bench --objective ID [--runs 10000] [--seed N]
                 [--content DIR] [--out FILE]
 ```
 
+- The default policy, `back-lead`, backs the lead's preference on every call except the abort call, where it takes the withdrawal. The accepted numbers were benched that way.
 - Run *n* uses seed `base + n`, so a run is named by its seed. `--replay SEED` prints that one mission beat by beat.
 - Generated teams are drawn from a separate keyed stream, so the same seed gives the same team under either tuning file.
 - `--fixed-draw` draws the encounters once and reuses them; without it, each run redraws from the template.
