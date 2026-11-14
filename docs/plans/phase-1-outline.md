@@ -17,6 +17,8 @@ Order matters: the mission comes first because it is proven fun (the prototype),
 
 ## Decisions each slice plan must make first
 
+Slices 1a and 1b are designed in `2026-11-14-phase-1ab-design.md`, which settles their two entries below and where module state lives (one JSON row per module per legacy, built in 1c).
+
 - **1a:** the tuning file's schema, and how a mission in flight pins the tuning it started with.
 - **1b:** what "rookie, mixed, and veteran" generated teams are, in numbers.
 - **1c:** the crew and mission-in-flight tables; how Datastar streams beats and delivers a call.
