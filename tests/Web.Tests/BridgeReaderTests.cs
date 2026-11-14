@@ -127,6 +127,68 @@ public class BridgeReaderTests
     }
 
     [Fact]
+    public void A_waiting_call_names_its_lead()
+    {
+        Played played = Until(Pack, p => p.State.Phase == CyclePhase.Resolution && p.Mission?.State.Pending is not null);
+
+        MissionView mission = Assert.IsType<MissionView>(Read(played).Mission);
+
+        Assert.Equal(played.Mission!.State.Pending!.LeadId, mission.Call!.LeadId);
+        Assert.Contains(mission.Call.LeadId, mission.Team);
+    }
+
+    [Fact]
+    public void The_mission_carries_the_gear_the_team_was_sent_with()
+    {
+        Played played = Until(Pack, p => p.State.Phase == CyclePhase.Resolution && p.Mission is not null);
+        string[] sent = played.CycleEvents().OfType<TeamAssigned>().Single().GearIds.ToArray();
+
+        MissionView mission = Assert.IsType<MissionView>(Read(played).Mission);
+
+        Assert.NotEmpty(sent);
+        Assert.Equal(sent, mission.GearIds);
+    }
+
+    [Fact]
+    public void A_mission_sent_with_no_gear_has_an_empty_gear_list()
+    {
+        ContentPack none = Pack with { Assignments = Pack.Assignments.Select(a => a with { LoadoutLimit = 0 }).ToList() };
+        Played played = Until(none, p => p.State.Phase == CyclePhase.Resolution && p.Mission is not null);
+
+        MissionView mission = Assert.IsType<MissionView>(Read(played).Mission);
+
+        Assert.Empty(mission.GearIds);
+    }
+
+    [Fact]
+    public void The_meter_caps_are_the_missions_stored_tuning_cap()
+    {
+        ContentPack capped = Pack with { Tuning = Pack.Tuning with { Cap = 7 } };
+        Played played = Until(capped, p => p.State.Phase == CyclePhase.Resolution && p.Mission is not null);
+
+        MissionView mission = Assert.IsType<MissionView>(Read(played).Mission);
+
+        Assert.Equal(7, played.Mission!.State.Tuning.Cap);
+        Assert.Equal(7, mission.MomentumCap);
+        Assert.Equal(7, mission.StrainCap);
+    }
+
+    [Fact]
+    public void Stage_lines_number_the_stages_from_one_in_log_order()
+    {
+        Played played = Until(Pack, p => p.State.Phase == CyclePhase.Resolution && p.Mission?.State.Result is not null);
+
+        MissionView mission = Assert.IsType<MissionView>(Read(played).Mission);
+
+        List<string> stages = mission.Log.Where(l => l.Kind == "stage").Select(l => l.Text).ToList();
+        Assert.NotEmpty(stages);
+        for (int i = 0; i < stages.Count; i++)
+        {
+            Assert.StartsWith($"Stage {i + 1}: ", stages[i]);
+        }
+    }
+
+    [Fact]
     public void Resolution_that_has_ended_shows_the_outcome_and_no_call()
     {
         Played played = Until(Pack, p => p.State.Phase == CyclePhase.Resolution && p.Mission?.State.Result is not null);

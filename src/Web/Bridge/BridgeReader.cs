@@ -28,7 +28,7 @@ public static class BridgeReader
             roster,
             showSite ? new SiteView(site!.AssignmentId, objectives) : null,
             showBriefing ? Briefing(pack, site!, objectives, roster) : null,
-            showMission ? Mission(site!.Mission!, cycleEvents) : null,
+            showMission ? Mission(site!.Mission!, site.Briefing, cycleEvents) : null,
             showAftermath ? Aftermath(site!, state, cycleEvents) : null);
     }
 
@@ -101,12 +101,12 @@ public static class BridgeReader
             assignment?.LoadoutLimit ?? 0);
     }
 
-    private static MissionView Mission(MissionInFlight mission, IReadOnlyList<IEvent> cycleEvents)
+    private static MissionView Mission(MissionInFlight mission, Briefing? briefing, IReadOnlyList<IEvent> cycleEvents)
     {
         MissionState state = mission.State;
         List<MissionBeat> beats = cycleEvents.OfType<MissionBeat>().Where(b => b.MissionId == mission.Id).OrderBy(b => b.Index).ToList();
         CallView? call = state.Pending is { } pending
-            ? new CallView(pending.CallId, pending.DecisionId, pending.Stakes, pending.Options.Select(o => o.ToString()).ToList(), pending.LeadPrefers.ToString())
+            ? new CallView(pending.CallId, pending.DecisionId, pending.Stakes, pending.Options.Select(o => o.ToString()).ToList(), pending.LeadPrefers.ToString(), pending.LeadId)
             : null;
         return new MissionView(
             mission.Id,
@@ -115,9 +115,38 @@ public static class BridgeReader
             state.LeadId,
             state.Momentum,
             state.Strain,
-            beats.Select(b => BeatLines.Line(b.Index, b.Beat)).ToList(),
+            Lines(beats),
             call,
-            state.Result?.Outcome.ToString());
+            state.Result?.Outcome.ToString(),
+            Gear(mission, briefing, cycleEvents),
+            state.Tuning.Cap,
+            state.Tuning.Cap);
+    }
+
+    // The log's stage beats are numbered from 1 in order; the beat's own cursor also counts skipped slots.
+    private static List<LogLine> Lines(IReadOnlyList<MissionBeat> beats)
+    {
+        int stage = 0;
+        var lines = new List<LogLine>();
+        foreach (MissionBeat b in beats)
+        {
+            stage += b.Beat is StageBeat ? 1 : 0;
+            lines.Add(BeatLines.Line(b.Index, b.Beat, stage));
+        }
+
+        return lines;
+    }
+
+    // The stored briefing while it still names this mission's objective, else the cycle's TeamAssigned event.
+    private static IReadOnlyList<string> Gear(MissionInFlight mission, Briefing? briefing, IReadOnlyList<IEvent> cycleEvents)
+    {
+        if (briefing is not null && briefing.ObjectiveId == mission.ObjectiveId)
+        {
+            return briefing.GearIds.ToList();
+        }
+
+        TeamAssigned? assigned = cycleEvents.OfType<TeamAssigned>().LastOrDefault(a => a.ObjectiveId == mission.ObjectiveId);
+        return assigned?.GearIds.ToList() ?? [];
     }
 
     private static string Inv(FormattableString text)

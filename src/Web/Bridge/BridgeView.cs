@@ -19,12 +19,12 @@ public sealed record BriefingView(IReadOnlyList<ObjectiveView> Objectives, IRead
 
 public sealed record GearChoice(string Id, string Tag);
 
-public sealed record MissionView(string MissionId, string ObjectiveId, IReadOnlyList<string> Team, string LeadId, int Momentum, int Strain, IReadOnlyList<LogLine> Log, CallView? Call, string? Outcome);
+public sealed record MissionView(string MissionId, string ObjectiveId, IReadOnlyList<string> Team, string LeadId, int Momentum, int Strain, IReadOnlyList<LogLine> Log, CallView? Call, string? Outcome, IReadOnlyList<string> GearIds, int MomentumCap, int StrainCap);
 
 public sealed record LogLine(int Index, string Kind, string Text);
 
 // CallId is the resolver's string id; Options and LeadPrefers are CallAnswer names.
-public sealed record CallView(string CallId, string DecisionId, int Stakes, IReadOnlyList<string> Options, string LeadPrefers);
+public sealed record CallView(string CallId, string DecisionId, int Stakes, IReadOnlyList<string> Options, string LeadPrefers, string LeadId);
 
 public sealed record AftermathView(string? Outcome, IReadOnlyList<CrewChange> Changes, IReadOnlyList<UnattendedView> Unattended);
 

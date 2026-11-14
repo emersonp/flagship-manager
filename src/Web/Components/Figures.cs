@@ -8,8 +8,9 @@ namespace Web.Components;
 // Presentation helpers: the text stays as the read model wrote it; only figures and a few words gain a span.
 public static partial class Figures
 {
-    // A standalone number, never the digits inside an id such as CREW_01.
-    [GeneratedRegex(@"(?<![\w.])([+\-]?\d+(?:\.\d+)?)(?![\w])")]
+    // A standalone figure, never the digits inside an id such as CREW_01: a signed number, a score plus roll ("9 + 8"),
+    // or a parenthesised margin. The sign may be the true minus.
+    [GeneratedRegex(@"(?<![\w.])(\([+\u2212\-]?\d+\)|[+\u2212\-]?\d+(?:\.\d+)?(?: \+ \d+)?)(?![\w])")]
     private static partial Regex Number();
 
     [GeneratedRegex(@"\b(critical|success|partial|failure|disaster)\b")]

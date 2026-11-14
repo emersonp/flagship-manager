@@ -1,0 +1,41 @@
+@using System.Text.RegularExpressions
+<div id="route">
+    @if (Lines is not null)
+    {
+        <p class="note course__cap">Route, stages reached so far</p>
+        @if (Stages.Count == 0)
+        {
+            <p class="empty-state">No stage reached yet.</p>
+        }
+        else
+        {
+            <ol class="route" aria-label="Route, stages reached so far">
+                @for (int i = 0; i < Stages.Count; i++)
+                {
+                    Stop stop = Stages[i];
+                    bool current = i == Stages.Count - 1;
+                    <li class="stop" aria-current="@(current ? "step" : null)"><span class="stop__no">Stage <span class="m">@(i + 1)</span>@(current ? ", current" : "")</span><span class="stop__id">@stop.Encounter</span>@if (stop.Blocked)
+                        {
+                            <span class="stop__note">Comms blocked</span>
+                        }</li>
+                }
+            </ol>
+        }
+    }
+</div>
+
+@code {
+    // The log as it stands when this element is patched; null renders it empty (no mission, or a launch still opening).
+    // The route is built from the log's stage lines alone, so it can never be ahead of the log it is patched with.
+    [Parameter] public IReadOnlyList<LogLine>? Lines { get; set; }
+
+    private sealed record Stop(string Encounter, bool Blocked);
+
+    // "Stage {n}: {encounter}.[ Comms blocked.] Momentum M, strain S."
+    private List<Stop> Stages => (Lines ?? [])
+        .Where(l => l.Kind == "stage")
+        .Select(l => Regex.Match(l.Text, @"^Stage \d+: (\S+?)\.( Comms blocked\.)? Momentum "))
+        .Where(m => m.Success)
+        .Select(m => new Stop(m.Groups[1].Value, m.Groups[2].Success))
+        .ToList();
+}

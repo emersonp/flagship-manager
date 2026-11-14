@@ -52,37 +52,95 @@ public class BeatLinesTests
         Assert.Equal(["stage", "skip", "check", "effects", "injury", "lead", "chain", "call", "notice", "answer", "collapse", "result"], kinds);
     }
 
-    [Fact]
-    public void A_check_reads_as_one_structural_sentence()
+    private static CheckBeat Check(string? helper, bool supervised, Approach approach, int margin, Tier tier)
     {
-        LogLine line = BeatLines.Line(2, Samples[2]);
+        return new CheckBeat("ENCOUNTER_03", approach, "SKILL_A", "CREW_02", helper, supervised, 3, 0, 0, 0, 0, 3, 6, 11, margin, tier, 0, false, 0);
+    }
 
-        Assert.Equal("CREW_02 checks SKILL_A at ENCOUNTER_03: 9 against 11, partial.", line.Text);
+    [Fact]
+    public void A_check_with_no_helper_has_no_helper_clause_and_a_true_minus_margin()
+    {
+        Assert.Equal("CREW_02 checks SKILL_A at ENCOUNTER_03: 3 + 6 against 11, partial (\u22122).", BeatLines.Line(2, Samples[2]).Text);
+    }
+
+    [Fact]
+    public void A_helped_check_names_the_helper_and_a_positive_margin_carries_a_plus()
+    {
+        CheckBeat beat = Check("CREW_01", false, Approach.Careful, 4, Tier.Success);
+
+        Assert.Equal("CREW_02 checks SKILL_A at ENCOUNTER_03, helped by CREW_01: 3 + 6 against 11, success (+4).", BeatLines.Line(0, beat).Text);
+    }
+
+    [Fact]
+    public void A_supervised_fast_check_says_supervised_by_and_ends_with_the_approach()
+    {
+        CheckBeat beat = Check("CREW_01", true, Approach.Fast, -2, Tier.Failure);
+
+        Assert.Equal("CREW_02 checks SKILL_A at ENCOUNTER_03, supervised by CREW_01: 3 + 6 against 11, failure (\u22122). Fast approach.", BeatLines.Line(0, beat).Text);
+    }
+
+    [Fact]
+    public void A_zero_margin_has_no_sign()
+    {
+        Assert.Equal("CREW_02 checks SKILL_A at ENCOUNTER_03: 3 + 6 against 11, critical (0).", BeatLines.Line(0, Check(null, false, Approach.Careful, 0, Tier.Critical)).Text);
     }
 
     [Theory]
-    [InlineData(0, "Stage ENCOUNTER_03 in slot SLOT_1: momentum 1, strain 2, comms blocked.")]
+    [InlineData(StageIndex, "Stage 3: ENCOUNTER_03. Comms blocked. Momentum 1, strain 2.")]
     [InlineData(1, "ENCOUNTER_04 skipped.")]
-    [InlineData(3, "Effects: momentum +1, strain -1, progress +2, light injury roll, withdraw.")]
-    [InlineData(4, "CREW_02 injury roll at ENCOUNTER_03: severe severity, roll 4, light injury.")]
+    [InlineData(3, "Progress +2. Momentum +1. Strain -1. Light injury roll. Withdraw.")]
+    [InlineData(4, "CREW_02 takes a severe injury roll at ENCOUNTER_03: 4, light injury.")]
     [InlineData(5, "CREW_03 becomes lead.")]
     [InlineData(6, "Chain to ENCOUNTER_05.")]
-    [InlineData(7, "Call DECISION_1: stakes 3, threshold 2.5, lead CREW_01 prefers safe, options bold, safe, withdraw.")]
-    [InlineData(8, "Notice DECISION_2: stakes 1, threshold 2.5, lead CREW_01 chose bold. Comms blocked.")]
-    [InlineData(9, "Answer withdraw, neutral, lead CREW_01.")]
+    [InlineData(7, "CREW_01 calls: DECISION_1. Stakes 3.")]
+    [InlineData(8, "CREW_01 decided DECISION_2 without calling: chose Bold. Stakes 1. Comms blocked.")]
+    [InlineData(9, "Captain answers Withdraw: neutral.")]
     [InlineData(10, "Team collapse.")]
     [InlineData(11, "Result: partial success.")]
-    public void The_other_beats_read_as_systems_text(int sample, string expected)
+    public void The_other_beats_read_in_the_designs_voice(int sample, string expected)
     {
-        Assert.Equal(expected, BeatLines.Line(0, Samples[sample]).Text);
+        Assert.Equal(expected, BeatLines.Line(0, Samples[sample], 3).Text);
+    }
+
+    private const int StageIndex = 0;
+
+    [Fact]
+    public void An_unblocked_stage_has_no_blocked_sentence_and_drops_the_slot_name()
+    {
+        string text = BeatLines.Line(0, new StageBeat(5, "ENCOUNTER_02", "SLOT_9", false, 0, 0), 1).Text;
+
+        Assert.Equal("Stage 1: ENCOUNTER_02. Momentum 0, strain 0.", text);
     }
 
     [Fact]
-    public void A_fast_supervised_check_names_the_approach_and_the_supervisor()
+    public void A_notice_that_was_not_blocked_ends_after_the_stakes()
     {
-        var beat = new CheckBeat("ENCOUNTER_03", Approach.Fast, "SKILL_A", "CREW_02", "CREW_01", true, 3, 0, 0, 0, 0, 3, 6, 11, -2, Tier.Failure, 0, false, 0);
+        Assert.Equal("CREW_01 decided DECISION_2 without calling: chose Safe. Stakes 2.", BeatLines.Line(0, new NoticeBeat("DECISION_2", 2, 1.5, "CREW_01", CallAnswer.Safe, false)).Text);
+    }
 
-        Assert.Equal("CREW_02 checks SKILL_A at ENCOUNTER_03: 9 against 11, failure. Fast approach. Supervised by CREW_01.", BeatLines.Line(0, beat).Text);
+    [Fact]
+    public void An_effect_of_nothing_reads_no_effect()
+    {
+        Assert.Equal("No effect.", BeatLines.Line(0, new EffectsBeat(new EffectDef())).Text);
+    }
+
+    [Theory]
+    [InlineData(MissionOutcome.FullSuccess, "Result: full success.")]
+    [InlineData(MissionOutcome.PartialSuccess, "Result: partial success.")]
+    [InlineData(MissionOutcome.Withdrawal, "Result: withdrawal.")]
+    [InlineData(MissionOutcome.Loss, "Result: loss.")]
+    [InlineData(MissionOutcome.Incomplete, "Result: incomplete.")]
+    public void A_result_names_its_outcome_in_words(MissionOutcome outcome, string expected)
+    {
+        Assert.Equal(expected, BeatLines.Line(0, new ResultBeat(outcome)).Text);
+    }
+
+    [Theory]
+    [InlineData(CallStanding.Backed, "Captain answers Safe: backed.")]
+    [InlineData(CallStanding.Overruled, "Captain answers Safe: overruled.")]
+    public void An_answer_names_the_standing(CallStanding standing, string expected)
+    {
+        Assert.Equal(expected, BeatLines.Line(0, new AnswerBeat(CallAnswer.Safe, standing, "CREW_01")).Text);
     }
 
     [Fact]
@@ -106,11 +164,11 @@ public class BeatLinesTests
             var stage = new StageBeat(0, "ENCOUNTER_03", "SLOT_1", false, -1, 2);
             var effects = new EffectsBeat(new EffectDef(Momentum: -1, Strain: -2, Progress: -3));
 
-            string[] lines = [BeatLines.Line(0, check).Text, BeatLines.Line(0, stage).Text, BeatLines.Line(0, effects).Text];
+            string[] lines = [BeatLines.Line(0, check).Text, BeatLines.Line(0, stage, 2).Text, BeatLines.Line(0, effects).Text];
 
-            Assert.Equal("CREW_02 checks SKILL_A at ENCOUNTER_03: -4 against 11, disaster.", lines[0]);
-            Assert.Equal("Stage ENCOUNTER_03 in slot SLOT_1: momentum -1, strain 2.", lines[1]);
-            Assert.Equal("Effects: momentum -1, strain -2, progress -3.", lines[2]);
+            Assert.Equal("CREW_02 checks SKILL_A at ENCOUNTER_03: -5 + 1 against 11, disaster (\u221215).", lines[0]);
+            Assert.Equal("Stage 2: ENCOUNTER_03. Momentum -1, strain 2.", lines[1]);
+            Assert.Equal("Progress -3. Momentum -1. Strain -2.", lines[2]);
         }
         finally
         {

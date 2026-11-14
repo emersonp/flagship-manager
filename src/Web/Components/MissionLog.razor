@@ -3,9 +3,9 @@
     {
         LogLine line = Lines[i];
         bool newest = i == Lines.Count - 1;
-        <li id="beat-@line.Index" data-kind="@line.Kind" class="@Css(line, newest)" aria-current="@(newest ? "true" : null)"><span class="beat__no">@((line.Index + 1).ToString("00", System.Globalization.CultureInfo.InvariantCulture))</span> <span class="beat__kind">@line.Kind</span> <p class="beat__text">@if (line.Kind == "stage" && line.Text.IndexOf(": ", StringComparison.Ordinal) is int split and > 0)
+        <li id="beat-@line.Index" data-kind="@line.Kind" class="@Css(line, newest)" aria-current="@(newest ? "true" : null)"><span class="beat__no">@((line.Index + 1).ToString("00", System.Globalization.CultureInfo.InvariantCulture))</span> <span class="beat__kind">@line.Kind</span> <p class="beat__text">@if (line.Kind == "stage" && line.Text.LastIndexOf(" Momentum ", StringComparison.Ordinal) is int split and > 0)
             {
-                <span class="stage-title">@line.Text[..(split + 1)]</span> <span class="stage-read">@line.Text[(split + 2)..]</span>@if (newest)
+                <span class="stage-title">@line.Text[..split]</span> <span class="stage-read">@line.Text[(split + 1)..]</span>@if (newest)
                 {
                     <span class="tag">Newest</span>
                 }

@@ -132,10 +132,18 @@ public static class BridgeEndpoints
         string topBar = await render.Html<TopBar>(new Dictionary<string, object?> { ["Bar"] = after.TopBar });
         string main = await render.Html<MainScreen>(new Dictionary<string, object?> { ["LegacyId"] = legacyId, ["View"] = first, ["HideMeter"] = launching });
         string roster = await render.Html<Roster>(new Dictionary<string, object?> { ["Rows"] = turn.Before.Roster });
-        var logs = new List<string>();
+        // Each beat's patches: the log, then the route when that beat is a stage, so the route never gets ahead of the log.
+        var beats = new List<string[]>();
         for (int count = known + 1; mission is not null && count <= mission.Log.Count; count++)
         {
-            logs.Add(await render.Html<MissionLog>(new Dictionary<string, object?> { ["Lines"] = mission.Log.Take(count).ToList() }));
+            List<LogLine> shown = mission.Log.Take(count).ToList();
+            var patches = new List<string> { await render.Html<MissionLog>(new Dictionary<string, object?> { ["Lines"] = shown }) };
+            if (shown[^1].Kind == "stage")
+            {
+                patches.Add(await render.Html<StageRoute>(new Dictionary<string, object?> { ["Lines"] = shown }));
+            }
+
+            beats.Add(patches.ToArray());
         }
 
         string meter = await render.Html<Meter>(new Dictionary<string, object?> { ["Mission"] = mission });
@@ -149,7 +157,7 @@ public static class BridgeEndpoints
                 await Sse.PatchElements(response, topBar);
                 await Sse.PatchElements(response, main);
                 await Sse.PatchElements(response, roster);
-                foreach (string log in logs)
+                foreach (string[] beat in beats)
                 {
                     cancellation.ThrowIfCancellationRequested();
                     if (beatDelayMs > 0)
@@ -157,7 +165,10 @@ public static class BridgeEndpoints
                         await Task.Delay(beatDelayMs, cancellation);
                     }
 
-                    await Sse.PatchElements(response, log);
+                    foreach (string patch in beat)
+                    {
+                        await Sse.PatchElements(response, patch);
+                    }
                 }
 
                 cancellation.ThrowIfCancellationRequested();

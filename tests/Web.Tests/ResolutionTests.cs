@@ -139,6 +139,77 @@ public sealed class ResolutionTests : IDisposable
         Assert.Contains("Strain", patches[meter]);
     }
 
+    private static List<int> StageNumbers(string html)
+    {
+        return Regex.Matches(html, @"Stage (\d+):").Select(m => int.Parse(m.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture)).Distinct().ToList();
+    }
+
+    // A route never shows a stage that no log patch (or the opening main) has shown yet in the same stream.
+    private static void AssertRoutePacesTheLog(string stream)
+    {
+        List<string> patches = Patches(stream);
+        var seen = new HashSet<int>(StageNumbers(patches[1]));
+        int routes = 0;
+        foreach (string patch in patches.Skip(3))
+        {
+            if (patch.StartsWith("<ol id=\"log\"", StringComparison.Ordinal))
+            {
+                seen.UnionWith(StageNumbers(patch));
+            }
+            else if (patch.StartsWith("<div id=\"route\"", StringComparison.Ordinal))
+            {
+                routes++;
+                int shown = Regex.Matches(patch, "class=\"stop\"").Count;
+                Assert.Equal(seen.Count, shown);
+                Assert.All(Enumerable.Range(1, shown), n => Assert.Contains(n, seen));
+            }
+        }
+
+        Assert.True(routes > 0 || seen.Count == 0, "A stream with stage beats patches the route.");
+    }
+
+    [Fact]
+    public async Task A_launch_patches_the_route_with_each_stage_beat_never_ahead_of_the_log()
+    {
+        (Guid id, _, string stream) = await LaunchedWithCall();
+
+        AssertRoutePacesTheLog(stream);
+        List<string> patches = Patches(stream);
+        int stageBeats = patches.Where(p => p.StartsWith("<ol id=\"log\"", StringComparison.Ordinal)).Select(StageNumbers).Last().Count;
+        Assert.Equal(stageBeats, patches.Count(p => p.StartsWith("<div id=\"route\"", StringComparison.Ordinal)));
+        Assert.Contains("<div id=\"route\"></div>", patches[1]);
+        string page = await Page(id);
+        Assert.Equal(stageBeats, Regex.Matches(Regex.Match(page, "<div id=\"route\".*?</ol>", RegexOptions.Singleline).Value, "class=\"stop\"").Count);
+    }
+
+    [Fact]
+    public async Task An_answer_opens_with_the_stages_already_reached_and_keeps_the_route_behind_the_log()
+    {
+        (Guid id, WebCaptain captain, _) = await LaunchedWithCall();
+        string before = await Page(id);
+        int reached = Regex.Matches(Regex.Match(before, "<div id=\"route\".*?</ol>", RegexOptions.Singleline).Value, "class=\"stop\"").Count;
+
+        string stream = (await captain.Step()).Stream;
+
+        List<string> patches = Patches(stream);
+        Assert.Equal(reached, Regex.Matches(Regex.Match(patches[1], "<div id=\"route\".*?</ol>", RegexOptions.Singleline).Value, "class=\"stop\"").Count);
+        AssertRoutePacesTheLog(stream);
+    }
+
+    [Fact]
+    public async Task A_call_names_its_lead_and_the_head_shows_the_gear_line()
+    {
+        (Guid id, _, _) = await LaunchedWithCall();
+        LoadedLegacy legacy = (await app.Sessions.Read(id))!;
+        legacy.State.TryModule(MissionsModule.Name, out MissionsState? missions);
+        MissionState state = missions!.Site!.Mission!.State;
+
+        string page = Entity(await Page(id));
+
+        Assert.Contains($"<h2 id=\"call-head\">{state.Pending!.LeadId} is calling</h2>", page);
+        Assert.Matches("<dt>Gear</dt><dd>[^<]+</dd>", page);
+    }
+
     [Fact]
     public async Task A_reload_while_a_call_waits_shows_the_call_and_the_whole_log()
     {

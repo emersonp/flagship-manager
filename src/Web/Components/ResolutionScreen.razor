@@ -9,11 +9,18 @@
         {
             <dl class="facts">
                 <dt>Team</dt><dd>@Figures.List(Mission.Team.Select(t => t == Mission.LeadId ? $"{t} (lead)" : t).ToList())</dd>
+                @if (Mission.GearIds.Count > 0)
+                {
+                    <dt>Gear</dt><dd>@Figures.List(Mission.GearIds)</dd>
+                }
             </dl>
             <AwayStyle Team="Mission.Team" LeadId="@Mission.LeadId" />
         }
     </div>
-    <Meter Mission="@(HideMeter ? null : Mission)" />
+    <div class="course">
+        <StageRoute Lines="@(HideMeter ? null : Mission?.Log)" />
+        <Meter Mission="@(HideMeter ? null : Mission)" />
+    </div>
     <section class="@(Mission is null ? "well log log--none" : "well log")" aria-labelledby="log-head">
         <div class="well__head"><h2 id="log-head">Mission log</h2><p class="note">Newest last</p></div>
         <MissionLog Lines="@(Mission?.Log ?? [])" />

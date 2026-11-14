@@ -27,7 +27,7 @@ h2 { font-size: var(--text-xl); line-height: 1.12; max-width: 30ch; }
 .page { max-width: var(--container); margin-inline: auto; padding-top: var(--space-md); padding-left: max(var(--space-md), env(safe-area-inset-left, 0px)); padding-right: max(var(--space-md), env(safe-area-inset-right, 0px)); padding-bottom: var(--space-2xl); }
 
 /* Wells: hairline-bordered, 8px corners, air between them, never nested. */
-.well, #topbar, #roster, #meter:not(:empty) { background: var(--color-paper-2); border: var(--rule-hair) solid var(--color-rule); border-radius: var(--radius-well); min-width: 0; }
+.well, #topbar, #roster, .course:has(> :not(:empty)) { background: var(--color-paper-2); border: var(--rule-hair) solid var(--color-rule); border-radius: var(--radius-well); min-width: 0; }
 .well__head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: var(--space-2xs) var(--space-md); padding: var(--space-md) var(--space-lg) var(--space-sm); }
 .well__body { padding: 0 var(--space-lg) var(--space-lg); }
 
@@ -74,13 +74,15 @@ h2 { font-size: var(--text-xl); line-height: 1.12; max-width: 30ch; }
 #briefing { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-lg); }
 .page-col { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-lg); max-width: 54rem; }
 
-/* Route and readouts: the course well, rendered whole into #meter. */
-#meter:not(:empty) { display: grid; grid-template-columns: minmax(0, 1fr); }
-#meter > * { padding: var(--space-md) var(--space-lg); }
-#meter > * + * { border-top: var(--rule-hair) solid var(--color-rule); }
+/* Route and readouts: the course well. #route and #meter are patched on their own, and either may be empty. */
+.course:not(:has(> :not(:empty))) { display: none; }
+.course { display: grid; grid-template-columns: minmax(0, 1fr); }
+.course > * { padding: var(--space-md) var(--space-lg); }
+.course > :empty { display: none; }
+.course > :not(:empty) ~ :not(:empty) { border-top: var(--rule-hair) solid var(--color-rule); }
 @container (min-width: 60rem) {
-  #meter:not(:empty) { grid-template-columns: minmax(0, 1fr) auto; }
-  #meter > * + * { border-top: 0; border-left: var(--rule-hair) solid var(--color-rule); }
+  .course:has(> #route:not(:empty)):has(> #meter:not(:empty)) { grid-template-columns: minmax(0, 1fr) auto; }
+  .course > :not(:empty) ~ :not(:empty) { border-top: 0; border-left: var(--rule-hair) solid var(--color-rule); }
 }
 .course__cap { margin-bottom: var(--space-sm); }
 .route { display: grid; grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr)); gap: var(--space-sm) var(--space-md); }
@@ -273,7 +275,7 @@ input:disabled { opacity: 0.55; cursor: not-allowed; }
   .phases ol { grid-template-columns: repeat(5, minmax(5.5rem, 1fr)); }
   .phase { padding: var(--space-xs) var(--space-sm); }
   .clock { gap: var(--space-md); }
-  .well__head, .well__body, #meter > *, .unatt, .actions { padding-left: var(--space-md); padding-right: var(--space-md); }
+  .well__head, .well__body, .course > *, .unatt, .actions { padding-left: var(--space-md); padding-right: var(--space-md); }
   .roster__key { padding-left: var(--space-md); padding-right: var(--space-md); }
   th:first-child, td:first-child { padding-left: var(--space-md); }
   th:last-child, td:last-child, th.n:last-child, td.n:last-child { padding-right: var(--space-md); }

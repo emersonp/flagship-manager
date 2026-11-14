@@ -1,52 +1,14 @@
-@using System.Text.RegularExpressions
 <div id="meter">
     @if (Mission is not null)
     {
-        <div>
-            <p class="note course__cap">Route, stages reached so far</p>
-            @if (Stages.Count == 0)
-            {
-                <p class="empty-state">No stage reached yet.</p>
-            }
-            else
-            {
-                <ol class="route" aria-label="Route, stages reached so far">
-                    @for (int i = 0; i < Stages.Count; i++)
-                    {
-                        Stop stop = Stages[i];
-                        bool current = i == Stages.Count - 1;
-                        <li class="stop" aria-current="@(current ? "step" : null)"><span class="stop__no">Stage <span class="m">@(i + 1)</span>@(current ? ", current" : "")</span><span class="stop__id">@stop.Encounter</span><span class="stop__note">@stop.Note</span></li>
-                    }
-                </ol>
-            }
-        </div>
         <dl class="readouts">
-            <Readout Id="g-mom" Label="Momentum" Value="Mission.Momentum" Max="Cap" />
-            <Readout Id="g-str" Label="Strain" Value="Mission.Strain" Max="Cap" />
+            <Readout Id="g-mom" Label="Momentum" Value="Mission.Momentum" Max="Mission.MomentumCap" />
+            <Readout Id="g-str" Label="Strain" Value="Mission.Strain" Max="Mission.StrainCap" />
         </dl>
     }
 </div>
 
 @code {
-    // Null while the beats are still being shown, so the numbers do not give the result away. The route rides with the
-    // readouts: both are drawn from the mission as it stood when this element was last patched.
+    // Null while the beats are still being shown, so the numbers do not give the result away.
     [Parameter] public MissionView? Mission { get; set; }
-
-    // The content pack's compounding cap (content/tuning/missions.yaml, compounding.cap): momentum and strain stop there.
-    private const int Cap = 5;
-
-    private sealed record Stop(string Encounter, string Note);
-
-    // Built from the log's stage lines: "Stage {encounter} in slot {slot}: momentum M, strain S[, comms blocked]."
-    private List<Stop> Stages => (Mission?.Log ?? [])
-        .Where(l => l.Kind == "stage")
-        .Select(l => Regex.Match(l.Text, @"^Stage (\S+) in slot ([^:]+): .*?(, comms blocked)?\.$"))
-        .Where(m => m.Success)
-        .Select(m => new Stop(m.Groups[1].Value, m.Groups[3].Success ? $"{Cap1(m.Groups[2].Value)}, comms blocked" : Cap1(m.Groups[2].Value)))
-        .ToList();
-
-    private static string Cap1(string word)
-    {
-        return word.Length == 0 ? word : char.ToUpperInvariant(word[0]) + word[1..];
-    }
 }
