@@ -67,6 +67,8 @@ Pages read module state only through the non-creating read (`TryModule`) and the
 
 ## 6. Visual design
 
+**Superseded on 2026-11-14.** The author chose between four mock-ups and asked for a blend; the design of record is `docs/design/bridge-design.md` and `docs/design/bridge-mockup.html`. What follows is the first direction, kept for the record.
+
 Dealt by Hallmark: the **Midnight** theme, as an app screen.
 
 - Ground: midnight blue to every edge. Surfaces step lighter, cut square. No rounded corners, glass, glow, or texture.

@@ -47,6 +47,31 @@ Noted while building the browser part; none matters while the game is local and 
 - **One lock per legacy, held in memory, never released from the table.** Fine for one process; a second server needs the stale-commit check (already in the store) to be the real guard, and the lock table needs trimming.
 - **The beat pause holds a request open.** Many players mean many open streams; measure before hosting.
 - **Content Security Policy.** Datastar's default needs `unsafe-eval`; its nonce mode avoids that.
+- **Request limits.** Form and body sizes are the server's defaults (30 MB); there is no rate limit on creating legacies, and no security headers.
+- **The lock table also grows for ids that do not exist.**
+- **SQLite** opens a connection per call, with no busy timeout and no write-ahead log.
+- **A published build** has no solution file to anchor relative paths, so the content and database paths must be set.
+- **The pack warning** prints the pack's id and version to the player.
+
+## Carried forward to the content editor
+
+From the review of the browser part.
+
+Helps:
+
+- The loader returns errors per file, ready to show beside a field.
+- The web app can already be pointed at any content folder (`Web__ContentDirectory`).
+- A page and a stream fragment are the same component, and the refusal pattern (an alert beside the control) suits field errors. The legacies page shows the plain-form pattern.
+
+Hinders:
+
+- **The content pack is loaded once at start-up** and held for the life of the process. A reload needs a holder that can be swapped, and each request must take one snapshot of it.
+- **A running mission keeps the tuning it started with, but the screens read objectives, gear, and assignments from the live pack,** so a legacy in mid-cycle can show empty rows after an edit.
+- **The pack warning compares only id and version.** The editor must bump the version on save, or the comparison needs a hash of the content.
+- **There is no developer-mode switch,** and pages that write files need protection the game's pages do not have yet.
+- **The tests and the gate read `content/` directly,** so the editor's tests need a scratch copy.
+- **Figures in a log line are found by pattern,** which assumes ids shaped like today's (`CREW_01`). An id such as `ENC-3` would have its digit set as a figure.
+- **Errors that span files** (an objective naming a missing encounter) need a place to be shown.
 
 ## Decisions each slice plan must make first
 
