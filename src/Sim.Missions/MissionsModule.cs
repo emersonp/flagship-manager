@@ -44,6 +44,31 @@ public static class MissionsModule
 
     private static string? CheckAssign(ContentPack pack, AssignTeam command, IBusContext context)
     {
+        if (command.ObjectiveId is null)
+        {
+            return "The command has no ObjectiveId.";
+        }
+
+        if (command.CrewIds is null)
+        {
+            return "The command has no CrewIds.";
+        }
+
+        if (command.LeadId is null)
+        {
+            return "The command has no LeadId.";
+        }
+
+        if (command.GearIds is null)
+        {
+            return "The command has no GearIds.";
+        }
+
+        if (command.Parameters is null)
+        {
+            return "The command has no Parameters.";
+        }
+
         SiteState? site = context.Module<MissionsState>().Site;
         if (site is null)
         {
@@ -64,6 +89,14 @@ public static class MissionsModule
         if (objective is null)
         {
             return $"Objective '{command.ObjectiveId}' is not at this site.";
+        }
+
+        foreach ((string name, int value) in new[] { ("Priority", command.Parameters.Priority), ("Risk", command.Parameters.Risk), ("Autonomy", command.Parameters.Autonomy) })
+        {
+            if (value is < -1 or > 1)
+            {
+                return $"{name} {value} is outside -1 to 1.";
+            }
         }
 
         ObjectiveDef template = pack.Objectives.Single(o => o.Id == objective.TemplateId);

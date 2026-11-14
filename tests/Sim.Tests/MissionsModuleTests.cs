@@ -191,6 +191,48 @@ public class MissionsModuleTests
         Assert.Contains("o_9_9", h.Refused(h.Assign(Pair, objectiveId: "o_9_9")).Message, StringComparison.Ordinal);
     }
 
+    [Theory]
+    [InlineData("Priority", 2)]
+    [InlineData("Priority", -2)]
+    [InlineData("Risk", 2)]
+    [InlineData("Risk", -2)]
+    [InlineData("Autonomy", 2)]
+    [InlineData("Autonomy", -2)]
+    public void Parameters_outside_minus_one_to_one_are_refused_by_name(string name, int value)
+    {
+        Harness h = ToBriefing();
+        Parameters parameters = name switch
+        {
+            "Priority" => new Parameters(Priority: value),
+            "Risk" => new Parameters(Risk: value),
+            _ => new Parameters(Autonomy: value),
+        };
+
+        Assert.Contains(name, h.Refused(h.Assign(Pair) with { Parameters = parameters }).Message, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("ObjectiveId")]
+    [InlineData("CrewIds")]
+    [InlineData("LeadId")]
+    [InlineData("GearIds")]
+    [InlineData("Parameters")]
+    public void A_missing_part_of_the_command_is_refused_by_name(string name)
+    {
+        Harness h = ToBriefing();
+        AssignTeam valid = h.Assign(Pair);
+        AssignTeam command = name switch
+        {
+            "ObjectiveId" => valid with { ObjectiveId = null! },
+            "CrewIds" => valid with { CrewIds = null! },
+            "LeadId" => valid with { LeadId = null! },
+            "GearIds" => valid with { GearIds = null! },
+            _ => valid with { Parameters = null! },
+        };
+
+        Assert.Contains(name, h.Refused(command).Message, StringComparison.Ordinal);
+    }
+
     [Fact]
     public void A_team_too_small_is_refused()
     {
@@ -314,6 +356,7 @@ public class MissionsModuleTests
     {
         Harness h = ToBriefing();
         string attended = h.FirstObjectiveId;
+        Assert.True(h.Site.Objectives.Count > 1);
         h.Send(h.Assign(Pair));
         h.GoTo(CyclePhase.Resolution);
         h.Finish();
@@ -346,7 +389,7 @@ public class MissionsModuleTests
     }
 
     [Fact]
-    public void An_answer_that_is_not_an_option_is_refused_with_the_resolvers_message()
+    public void An_answer_that_is_not_an_option_is_refused_by_the_module()
     {
         Harness h = WaitingOnCall(withoutWithdraw: true);
         PendingCall call = h.Mission!.State.Pending!;
