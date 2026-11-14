@@ -17,7 +17,7 @@ public static class Simulation
     {
         var bus = new EventBus();
         CycleModule.Register(bus);
-        EventTypeRegistry registry = EventTypeRegistry.FromAssemblies(typeof(CycleModule).Assembly);
+        EventTypeRegistry registry = EventTypeRegistry.FromAssemblies(typeof(LegacyState).Assembly);
 
         var legacies = new List<LegacySummary>();
         for (int i = 0; i < options.Legacies; i++)

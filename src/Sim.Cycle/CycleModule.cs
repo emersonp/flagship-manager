@@ -2,14 +2,6 @@ using Sim.Core;
 
 namespace Sim.Cycle;
 
-public sealed record AdvancePhase : ICommand;
-
-[EventType("PhaseEntered", 1)]
-public sealed record PhaseEntered(int Cycle, CyclePhase Phase) : IEvent;
-
-[EventType("CycleAdvanced", 1)]
-public sealed record CycleAdvanced(int Cycle) : IEvent;
-
 public static class CycleModule
 {
     public static void Register(EventBus bus)

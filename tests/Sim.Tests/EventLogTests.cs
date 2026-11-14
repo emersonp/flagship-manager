@@ -1,11 +1,10 @@
 using Sim.Core;
-using Sim.Cycle;
 
 namespace Sim.Tests;
 
 public class EventLogTests
 {
-    private readonly EventTypeRegistry registry = EventTypeRegistry.FromAssemblies(typeof(CycleModule).Assembly);
+    private readonly EventTypeRegistry registry = EventTypeRegistry.FromAssemblies(typeof(LegacyState).Assembly);
 
     [Fact]
     public void An_event_round_trips_through_its_envelope()
