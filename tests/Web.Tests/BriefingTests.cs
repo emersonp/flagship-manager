@@ -98,6 +98,25 @@ public sealed class BriefingTests : IDisposable
     }
 
     [Fact]
+    public async Task Orders_and_briefing_give_the_objectives_own_id_its_own_column()
+    {
+        Guid id = await NewLegacy();
+        string orders = await Page(id);
+        await Post(id, "advance");
+        string briefing = await Page(id);
+
+        foreach (string html in new[] { orders, briefing })
+        {
+            Assert.Contains("<th scope=\"col\" class=\"oid\">Id</th>", html);
+            Assert.Matches("<td class=\"oid\">o_1_1</td>", html);
+            Assert.DoesNotMatch("OBJECTIVE_TEMPLATE_\\d+\\s*<span class=\"note\">o_", html);
+            Assert.Contains("<th scope=\"col\" class=\"n wide\">Team</th>", html);
+            Assert.Contains("<th scope=\"col\" class=\"n wide\">Unattended difficulty</th>", html);
+            Assert.Matches("<td class=\"skills\"><span class=\"nw\">SKILL_", html);
+        }
+    }
+
+    [Fact]
     public async Task To_briefing_moves_the_phase_and_streams_the_top_bar_then_main_then_roster()
     {
         Guid id = await NewLegacy();

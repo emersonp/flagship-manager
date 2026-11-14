@@ -2,6 +2,7 @@ using System.Net;
 using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
 using Sim.Core;
+using Sim.Core.Content;
 using Sim.Missions;
 
 namespace Web.Tests;
@@ -82,6 +83,11 @@ public sealed class ResolutionTests : IDisposable
     private static string RosterOf(string page)
     {
         return Regex.Match(page, "<aside id=\"roster\">.*?</aside>", RegexOptions.Singleline).Value;
+    }
+
+    private static string WithoutAwayMarks(string roster)
+    {
+        return Regex.Replace(Regex.Replace(roster, "<span class=\"away-tag tag\">[^<]*</span>", ""), " class=\"is-away\"", "");
     }
 
     private async Task<string> Page(Guid id)
@@ -208,6 +214,124 @@ public sealed class ResolutionTests : IDisposable
 
         Assert.Contains($"<h2 id=\"call-head\">{state.Pending!.LeadId} is calling</h2>", page);
         Assert.Matches("<dt>Gear</dt><dd>[^<]+</dd>", page);
+    }
+
+    private static string Row(string roster, string crew)
+    {
+        return Regex.Match(roster, $"<tr data-crew=\"{crew}\".*?</tr>", RegexOptions.Singleline).Value;
+    }
+
+    [Fact]
+    public async Task The_page_marks_the_away_team_in_the_roster_as_real_text_and_sends_no_style_element()
+    {
+        (Guid id, _, _) = await LaunchedWithCall();
+        LoadedLegacy legacy = (await app.Sessions.Read(id))!;
+        legacy.State.TryModule(MissionsModule.Name, out MissionsState? missions);
+        MissionState state = missions!.Site!.Mission!.State;
+
+        string page = await Page(id);
+
+        string roster = RosterOf(page);
+        Assert.DoesNotContain("<style", page);
+        foreach (TeamMember member in state.Team.Select(m => m.Member))
+        {
+            string row = Row(roster, member.Id);
+            Assert.Contains(member.Id == state.LeadId ? ">Away team, lead</span>" : ">Away team</span>", row);
+            Assert.Contains("is-away", row);
+            Assert.DoesNotContain("aria-hidden", Regex.Match(row, "<span class=\"away-tag.*?</span>", RegexOptions.Singleline).Value);
+        }
+
+        Assert.Equal(state.Team.Count, Regex.Matches(roster, "away-tag").Count);
+    }
+
+    // Finds a request whose new beats change the lead; the stream before it must not show the new lead early.
+    private static async Task<(string Stream, string OldLead, string NewLead, Guid Id)> RequestWithLeadChange(string wanted)
+    {
+        using var wide = new TestApp(0, wideDice: true, noCalls: wanted == "launch");
+        HttpClient wideClient = wide.NewClient();
+        for (ulong seed = 1; seed < 400; seed++)
+        {
+            Guid id = await wide.Sessions.CreateLegacy($"LEGACY_{seed}", seed);
+            var captain = new WebCaptain(wide, wideClient, id);
+            for (int steps = 0; steps < 300 && (await captain.Read()).State.Cycle == 1; steps++)
+            {
+                ICommand command = await captain.Peek();
+                if ((command is AssignTeam ? "launch" : command is AnswerCall ? "answer" : "") != wanted)
+                {
+                    await captain.Step();
+                    continue;
+                }
+
+                string oldLead = command switch
+                {
+                    AssignTeam team => team.LeadId,
+                    AnswerCall => LeadOf((await captain.Read()).State),
+                    _ => "",
+                };
+                string stream = (await captain.Step()).Stream;
+                string newLead = LeadOf((await captain.Read()).State);
+                if (oldLead.Length > 0 && newLead != "" && newLead != oldLead)
+                {
+                    return (stream, oldLead, newLead, id);
+                }
+            }
+        }
+
+        throw new InvalidOperationException($"No seed to 400 changed the lead inside one {wanted} request.");
+    }
+
+    private static string LeadOf(LegacyState state)
+    {
+        return state.TryModule(MissionsModule.Name, out MissionsState? m) && m.Site?.Mission is { } mission ? mission.State.LeadId : "";
+    }
+
+    [Theory]
+    [InlineData("launch")]
+    [InlineData("answer")]
+    public async Task A_lead_change_in_the_new_beats_shows_the_earlier_lead_until_the_stream_ends(string route)
+    {
+        (string stream, string oldLead, string newLead, _) = await RequestWithLeadChange(route);
+
+        List<string> patches = Patches(stream);
+        Assert.Contains($"{oldLead} (lead)", patches[1]);
+        Assert.DoesNotContain($"{newLead} (lead)", patches[1]);
+        Assert.Contains(">Away team, lead</span>", Row(patches[2], oldLead));
+        Assert.DoesNotContain("Away team, lead", Row(patches[2], newLead));
+        string team = patches.Last(p => p.StartsWith("<dd id=\"team\"", StringComparison.Ordinal));
+        Assert.Contains($"{newLead} (lead)", team);
+        Assert.DoesNotContain($"{oldLead} (lead)", team);
+        string roster = patches[^1];
+        Assert.StartsWith("<aside id=\"roster\"", roster);
+        Assert.Contains(">Away team, lead</span>", Row(roster, newLead));
+        Assert.DoesNotContain("Away team, lead", Row(roster, oldLead));
+        Assert.True(patches.FindLastIndex(p => p.StartsWith("<dd id=\"team\"", StringComparison.Ordinal)) > patches.FindLastIndex(p => p.StartsWith("<ol id=\"log\"", StringComparison.Ordinal)));
+    }
+
+    // The spine runs on into the call well only while a call waits; otherwise it ends at the last beat.
+    [Fact]
+    public async Task The_log_spine_ends_at_the_last_beat_unless_a_call_waits()
+    {
+        (Guid id, WebCaptain captain, string stream) = await LaunchedWithCall();
+        Assert.All(LogPatches(stream).SkipLast(1), p => Assert.Contains("log--end", p.Split('>')[0]));
+        Assert.DoesNotContain("log--end", LogPatches(stream)[^1].Split('>')[0]);
+        Assert.DoesNotContain("log--end", Regex.Match(await Page(id), "<ol id=\"log\"[^>]*>").Value);
+
+        while (Pending(await captain.Read()))
+        {
+            await captain.Step();
+        }
+
+        Assert.Contains("log--end", Regex.Match(await Page(id), "<ol id=\"log\"[^>]*>").Value);
+    }
+
+    [Fact]
+    public async Task The_route_stages_sit_in_one_scrolling_row()
+    {
+        (Guid id, _, _) = await LaunchedWithCall();
+
+        string page = await Page(id);
+
+        Assert.Matches("<div id=\"route\"><p[^>]*>[^<]*</p><div class=\"route-scroll\"><ol class=\"route\"", page);
     }
 
     [Fact]
@@ -366,7 +490,8 @@ public sealed class ResolutionTests : IDisposable
         Assert.Contains("<main id=\"main\"", page);
         Assert.Contains("Outcome", page);
         Assert.Matches("<h1>(Full success|Partial success|Withdrawal|Loss|Incomplete)</h1>", page);
-        Assert.Matches("(?s)<ol id=\"changes\"[^>]*>.*?<li[^>]*>.*?loyalty now", page);
+        // The first listed change is the loyalty one, as before the re-theme.
+        Assert.Matches("(?s)<ol id=\"changes\"[^>]*>\\s*<li[^>]*>(?:(?!</li>).)*loyalty now", page);
         Assert.Contains("Next cycle", page);
         Assert.Contains("@post('/legacy/" + id + "/advance')", page);
     }
@@ -468,7 +593,8 @@ public sealed class ResolutionTests : IDisposable
                     continue;
                 }
 
-                Assert.Equal(before, patches[2]);
+                // Only the away-team marks may differ: a launch opens with the team already marked.
+                Assert.Equal(before, WithoutAwayMarks(patches[2]));
                 Assert.DoesNotContain("Result:", patches[1]);
                 Assert.DoesNotContain("To aftermath", patches[1]);
                 Assert.DoesNotContain("Result:", string.Join("\n", logs.Take(logs.Count - 1)));

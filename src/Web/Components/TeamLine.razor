@@ -1,0 +1,7 @@
+<dd id="team">@Figures.List(Team.Select(t => t == LeadId ? $"{t} (lead)" : t).ToList())</dd>
+
+@code {
+    [Parameter, EditorRequired] public IReadOnlyList<string> Team { get; set; } = null!;
+
+    [Parameter, EditorRequired] public string LeadId { get; set; } = "";
+}

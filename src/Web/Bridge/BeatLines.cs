@@ -16,7 +16,7 @@ public static class BeatLines
             SkipBeat b => ("skip", Inv($"{b.EncounterId} skipped.")),
             CheckBeat b => ("check", Check(b)),
             EffectsBeat b => ("effects", Effects(b.Effects)),
-            InjuryBeat b => ("injury", Inv($"{b.CrewId} takes a {Words(b.Severity)} injury roll at {b.EncounterId}: {b.Roll}, {Words(b.Outcome)}.")),
+            InjuryBeat b => ("injury", Inv($"{b.CrewId} takes a {Words(b.Severity)} injury roll at {b.EncounterId}: {N(b.Roll)}, {Words(b.Outcome)}.")),
             LeadChangeBeat b => ("lead", Inv($"{b.CrewId} becomes lead.")),
             ChainBeat b => ("chain", Inv($"Chain to {b.EncounterId}.")),
             CallBeat b => ("call", Inv($"{b.Call.LeadId} calls: {b.Call.DecisionId}. Stakes {b.Call.Stakes}.")),
@@ -53,29 +53,29 @@ public static class BeatLines
         return text.ToString(CultureInfo.InvariantCulture);
     }
 
-    private static string Signed(int value)
+    private static string N(int value)
     {
-        return value.ToString("+0;-0;0", CultureInfo.InvariantCulture);
+        return value.ToString(CultureInfo.InvariantCulture).Replace('-', '\u2212');
     }
 
-    // The design sets a negative margin with the true minus sign.
-    private static string Margin(int value)
+    // The design sets every negative figure with the true minus sign.
+    private static string Signed(int value)
     {
-        return Signed(value).Replace('-', '\u2212');
+        return value.ToString("+0;-0;0", CultureInfo.InvariantCulture).Replace('-', '\u2212');
     }
 
     // stage is the 1-based position among the log's stage beats; the beat's own cursor also counts skipped and chained slots.
     private static string Stage(StageBeat b, int stage)
     {
         string blocked = b.CommsBlocked ? " Comms blocked." : string.Empty;
-        return Inv($"Stage {stage}: {b.EncounterId}.{blocked} Momentum {b.Momentum}, strain {b.Strain}.");
+        return Inv($"Stage {stage}: {b.EncounterId}.{blocked} Momentum {N(b.Momentum)}, strain {N(b.Strain)}.");
     }
 
     private static string Check(CheckBeat b)
     {
         string helper = b.HelperId is null ? string.Empty : Inv($", {(b.Supervised ? "supervised by" : "helped by")} {b.HelperId}");
         string fast = b.Approach == Approach.Fast ? " Fast approach." : string.Empty;
-        return Inv($"{b.ActorId} checks {b.Skill} at {b.EncounterId}{helper}: {b.Score} + {b.Roll} against {b.Target}, {Words(b.Tier)} ({Margin(b.Margin)}).{fast}");
+        return Inv($"{b.ActorId} checks {b.Skill} at {b.EncounterId}{helper}: {N(b.Score)} + {N(b.Roll)} against {N(b.Target)}, {Words(b.Tier)} ({Signed(b.Margin)}).{fast}");
     }
 
     private static string Effects(EffectDef e)

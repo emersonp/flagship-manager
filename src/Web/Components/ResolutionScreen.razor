@@ -8,13 +8,12 @@
         else
         {
             <dl class="facts">
-                <dt>Team</dt><dd>@Figures.List(Mission.Team.Select(t => t == Mission.LeadId ? $"{t} (lead)" : t).ToList())</dd>
+                <dt>Team</dt><TeamLine Team="Mission.Team" LeadId="@Mission.LeadId" />
                 @if (Mission.GearIds.Count > 0)
                 {
                     <dt>Gear</dt><dd>@Figures.List(Mission.GearIds)</dd>
                 }
             </dl>
-            <AwayStyle Team="Mission.Team" LeadId="@Mission.LeadId" />
         }
     </div>
     <div class="course">

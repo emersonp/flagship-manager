@@ -88,7 +88,7 @@ public class BeatLinesTests
     [Theory]
     [InlineData(StageIndex, "Stage 3: ENCOUNTER_03. Comms blocked. Momentum 1, strain 2.")]
     [InlineData(1, "ENCOUNTER_04 skipped.")]
-    [InlineData(3, "Progress +2. Momentum +1. Strain -1. Light injury roll. Withdraw.")]
+    [InlineData(3, "Progress +2. Momentum +1. Strain \u22121. Light injury roll. Withdraw.")]
     [InlineData(4, "CREW_02 takes a severe injury roll at ENCOUNTER_03: 4, light injury.")]
     [InlineData(5, "CREW_03 becomes lead.")]
     [InlineData(6, "Chain to ENCOUNTER_05.")]
@@ -151,7 +151,7 @@ public class BeatLinesTests
 
     private sealed record UnknownBeat : Beat;
 
-    // sv-SE writes a Unicode minus; lines must still carry an ASCII hyphen-minus.
+    // sv-SE writes its own minus; lines must carry the true minus (U+2212) whatever the culture.
     [Fact]
     public void Numbers_use_the_invariant_culture()
     {
@@ -160,15 +160,16 @@ public class BeatLinesTests
         {
             CultureInfo.CurrentCulture = new CultureInfo("sv-SE");
             Assert.NotEqual("-", (-1).ToString());
+            Assert.DoesNotContain('-', string.Concat(BeatLines.Line(0, new EffectsBeat(new EffectDef(Momentum: -1))).Text));
             var check = new CheckBeat("ENCOUNTER_03", Approach.Careful, "SKILL_A", "CREW_02", null, false, 0, 0, 0, 0, 0, -5, 1, 11, -15, Tier.Disaster, 0, false, 0);
             var stage = new StageBeat(0, "ENCOUNTER_03", "SLOT_1", false, -1, 2);
             var effects = new EffectsBeat(new EffectDef(Momentum: -1, Strain: -2, Progress: -3));
 
             string[] lines = [BeatLines.Line(0, check).Text, BeatLines.Line(0, stage, 2).Text, BeatLines.Line(0, effects).Text];
 
-            Assert.Equal("CREW_02 checks SKILL_A at ENCOUNTER_03: -5 + 1 against 11, disaster (\u221215).", lines[0]);
-            Assert.Equal("Stage 2: ENCOUNTER_03. Momentum -1, strain 2.", lines[1]);
-            Assert.Equal("Progress -3. Momentum -1. Strain -2.", lines[2]);
+            Assert.Equal("CREW_02 checks SKILL_A at ENCOUNTER_03: \u22125 + 1 against 11, disaster (\u221215).", lines[0]);
+            Assert.Equal("Stage 2: ENCOUNTER_03. Momentum \u22121, strain 2.", lines[1]);
+            Assert.Equal("Progress \u22123. Momentum \u22121. Strain \u22122.", lines[2]);
         }
         finally
         {

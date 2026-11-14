@@ -7,7 +7,7 @@ public sealed record BridgeView(TopBarView TopBar, IReadOnlyList<CrewRow> Roster
 
 public sealed record TopBarView(string LegacyName, int Week, int Cycle, CyclePhase Phase, string? PackWarning);
 
-public sealed record CrewRow(string Id, int Seniority, string Status, bool Fit, IReadOnlyList<SkillCell> Skills, IReadOnlyList<int> LightInjuryHealWeeks, int? ReturnsAtWeek, int Loyalty, int AwayMissions);
+public sealed record CrewRow(string Id, int Seniority, string Status, bool Fit, IReadOnlyList<SkillCell> Skills, IReadOnlyList<int> LightInjuryHealWeeks, int? ReturnsAtWeek, int Loyalty, int AwayMissions, bool IsAway = false, bool IsLead = false);
 
 public sealed record SkillCell(string SkillId, int Level, int EffectiveLevel);
 
@@ -19,7 +19,7 @@ public sealed record BriefingView(IReadOnlyList<ObjectiveView> Objectives, IRead
 
 public sealed record GearChoice(string Id, string Tag);
 
-public sealed record MissionView(string MissionId, string ObjectiveId, IReadOnlyList<string> Team, string LeadId, int Momentum, int Strain, IReadOnlyList<LogLine> Log, CallView? Call, string? Outcome, IReadOnlyList<string> GearIds, int MomentumCap, int StrainCap);
+public sealed record MissionView(string MissionId, string ObjectiveId, IReadOnlyList<string> Team, string LeadId, int Momentum, int Strain, IReadOnlyList<LogLine> Log, CallView? Call, string? Outcome, IReadOnlyList<string> GearIds, int Cap, string StartLeadId);
 
 public sealed record LogLine(int Index, string Kind, string Text);
 

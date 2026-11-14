@@ -126,12 +126,14 @@ public static class BridgeEndpoints
         int known = turn.Before.Mission?.Log.Count ?? 0;
         // A launch has no earlier mission: show an empty log, no meter, and no call until the beats have played.
         bool launching = turn.Before.Mission is null;
-        MissionView? opening = launching ? mission is null ? null : mission with { Log = [], Call = null, Outcome = null } : turn.Before.Mission;
-        BridgeView first = after with { Mission = opening, Roster = turn.Before.Roster };
+        // The opening screen shows the lead as it stood before this request's beats; a lead change appears with its log line and the closing patches.
+        MissionView? opening = launching ? mission is null ? null : mission with { Log = [], Call = null, Outcome = null, LeadId = mission.StartLeadId } : turn.Before.Mission;
+        IReadOnlyList<CrewRow> openingRoster = opening is null ? turn.Before.Roster : BridgeReader.MarkAway(turn.Before.Roster, opening.Team, opening.LeadId);
+        BridgeView first = after with { Mission = opening, Roster = openingRoster };
 
         string topBar = await render.Html<TopBar>(new Dictionary<string, object?> { ["Bar"] = after.TopBar });
         string main = await render.Html<MainScreen>(new Dictionary<string, object?> { ["LegacyId"] = legacyId, ["View"] = first, ["HideMeter"] = launching });
-        string roster = await render.Html<Roster>(new Dictionary<string, object?> { ["Rows"] = turn.Before.Roster });
+        string roster = await render.Html<Roster>(new Dictionary<string, object?> { ["Rows"] = openingRoster });
         // Each beat's patches: the log, then the route when that beat is a stage, so the route never gets ahead of the log.
         var beats = new List<string[]>();
         for (int count = known + 1; mission is not null && count <= mission.Log.Count; count++)
@@ -149,6 +151,7 @@ public static class BridgeEndpoints
         string meter = await render.Html<Meter>(new Dictionary<string, object?> { ["Mission"] = mission });
         string call = await render.Html<CallPanel>(new Dictionary<string, object?> { ["LegacyId"] = legacyId, ["MissionId"] = mission?.MissionId ?? "", ["Call"] = mission?.Call });
         string footer = await render.Html<ResolutionFooter>(new Dictionary<string, object?> { ["LegacyId"] = legacyId, ["Show"] = mission is null || mission.Outcome is not null });
+        string? team = mission is null ? null : await render.Html<TeamLine>(new Dictionary<string, object?> { ["Team"] = mission.Team, ["LeadId"] = mission.LeadId });
         string finalRoster = await render.Html<Roster>(new Dictionary<string, object?> { ["Rows"] = after.Roster });
         return new StreamResult(async response =>
         {
@@ -175,6 +178,11 @@ public static class BridgeEndpoints
                 await Sse.PatchElements(response, meter);
                 await Sse.PatchElements(response, call);
                 await Sse.PatchElements(response, footer);
+                if (team is not null)
+                {
+                    await Sse.PatchElements(response, team);
+                }
+
                 await Sse.PatchElements(response, finalRoster);
             }
             catch (Exception e) when (e is OperationCanceledException or IOException)

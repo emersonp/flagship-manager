@@ -18,8 +18,11 @@
             <tbody>
                 @foreach (CrewRow row in Rows)
                 {
-                    <tr data-crew="@row.Id" class="@(row.Status == nameof(Sim.Crew.CrewStatus.Dead) ? "is-dead" : null)">
-                        <td class="who">@row.Id<span class="away-tag tag" aria-hidden="true"></span></td>
+                    <tr data-crew="@row.Id" class="@RowClass(row)">
+                        <td class="who">@row.Id@if (row.IsAway)
+                            {
+                                <span class="away-tag tag">@(row.IsLead ? "Away team, lead" : "Away team")</span>
+                            }</td>
                         <td class="status"><CrewStatusText Row="row" /></td>
                         @foreach (string skill in Skills)
                         {
@@ -36,6 +39,14 @@
 
 @code {
     [Parameter, EditorRequired] public IReadOnlyList<CrewRow> Rows { get; set; } = null!;
+
+    private static string? RowClass(CrewRow row)
+    {
+        string dead = row.Status == nameof(Sim.Crew.CrewStatus.Dead) ? "is-dead" : "";
+        string away = row.IsAway ? "is-away" : "";
+        string classes = $"{dead} {away}".Trim();
+        return classes.Length == 0 ? null : classes;
+    }
 
     private List<string> Skills => Rows.SelectMany(r => r.Skills).Select(s => s.SkillId).Distinct().ToList();
 }

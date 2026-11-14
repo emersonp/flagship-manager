@@ -85,7 +85,11 @@ h2 { font-size: var(--text-xl); line-height: 1.12; max-width: 30ch; }
   .course > :not(:empty) ~ :not(:empty) { border-top: 0; border-left: var(--rule-hair) solid var(--color-rule); }
 }
 .course__cap { margin-bottom: var(--space-sm); }
-.route { display: grid; grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr)); gap: var(--space-sm) var(--space-md); }
+/* One row that scrolls inside its wrapper. Laid out from the end, so the current (last) stage is the one in view. */
+#route { min-width: 0; }
+.route-scroll { display: flex; flex-direction: row-reverse; overflow-x: auto; scrollbar-width: thin; padding-bottom: var(--space-3xs); }
+.route { display: flex; gap: var(--space-md); flex: none; margin-right: auto; padding-left: var(--space-3xs); }
+.route > .stop { flex: 0 0 10rem; }
 .stop { position: relative; display: grid; gap: var(--space-3xs); align-content: start; padding: var(--space-xs) var(--space-sm); border: var(--rule-hair) solid var(--color-rule-2); border-radius: var(--radius-inner); min-width: 0; }
 .stop + .stop::before { content: ""; position: absolute; top: 50%; right: 100%; width: var(--space-md); border-top: var(--rule-hair) solid var(--color-rule-2); }
 .stop__no { font-size: var(--text-sm); color: var(--color-muted); }
@@ -112,6 +116,8 @@ h2 { font-size: var(--text-xl); line-height: 1.12; max-width: 30ch; }
 #log { position: relative; padding: 0 var(--pad) var(--space-md); }
 #log::before { content: ""; position: absolute; top: var(--space-xs); bottom: 0; left: var(--spine-x); width: 1px; background: var(--color-rule-2); }
 #log:empty { min-height: calc(var(--space-2xl) + var(--space-md)); }
+/* Without a waiting call the spine stops with the last beat; the log padding is only there for the call to meet. */
+#log.log--end::before { bottom: var(--space-md); }
 #log:empty::after { content: ""; position: absolute; left: calc(var(--spine-x) - 4.5px); top: var(--space-xs); width: 9px; height: 9px; border-radius: 2px; border: var(--rule-hair) solid var(--color-rule-2); background: var(--color-paper-2); }
 .log--none { display: none; }
 .beat { position: relative; display: grid; grid-template-columns: var(--no) var(--node) 4.5rem minmax(0, 1fr); column-gap: var(--gap); align-items: baseline; padding: var(--space-xs) 0; color: var(--color-ink-2); }
@@ -192,11 +198,18 @@ th.c:last-child, td.c:last-child { padding-right: var(--space-md); }
 td.c { vertical-align: middle; padding-block: 0; }
 .status { min-width: 8rem; }
 td.lg { font-size: var(--text-md); }
+td.oid, th.oid { padding-left: var(--space-xs); padding-right: var(--space-xs); }
+td.oid { font-family: var(--font-outlier); font-size: var(--text-sm); color: var(--color-muted); white-space: nowrap; width: 1%; }
+.nw { white-space: nowrap; }
+th.n.wide, td.n.wide { padding-left: var(--space-sm); padding-right: var(--space-sm); }
+th.n.wide { white-space: normal; }
+th.n.wide:last-child, td.n.wide:last-child { padding-right: var(--space-lg); }
 
 /* Roster. */
 #roster .well__head { padding-bottom: var(--space-xs); }
 .roster__key { padding: 0 var(--space-lg) var(--space-sm); }
-.away-tag { display: none; margin-top: var(--space-2xs); width: fit-content; }
+.away-tag { display: flex; margin-top: var(--space-2xs); width: fit-content; }
+#roster tr.is-away td { background: var(--color-paper-3); }
 #roster tr.is-dead td { color: var(--color-muted); }
 #roster tr.is-dead td.who { font-weight: 400; color: var(--color-muted); }
 #roster tbody tr:last-child td { padding-bottom: var(--space-md); }
@@ -278,13 +291,15 @@ input:disabled { opacity: 0.55; cursor: not-allowed; }
   .well__head, .well__body, .course > *, .unatt, .actions { padding-left: var(--space-md); padding-right: var(--space-md); }
   .roster__key { padding-left: var(--space-md); padding-right: var(--space-md); }
   th:first-child, td:first-child { padding-left: var(--space-md); }
+  th.n.wide:last-child, td.n.wide:last-child { padding-right: var(--space-md); }
   th:last-child, td:last-child, th.n:last-child, td.n:last-child { padding-right: var(--space-md); }
   #roster td.who, #roster th:first-child, .pick td.who, .pick th:first-child { position: sticky; left: 0; background: var(--color-paper-2); z-index: 1; }
   .pick tr:has(input:checked) td.who { background: var(--color-paper-3); }
   h1 { font-size: var(--text-2xl); }
   .verdict h1 { font-size: var(--text-3xl); }
   .call h2 { font-size: var(--text-xl); }
-  .route { grid-template-columns: minmax(0, 1fr); gap: var(--space-xs); }
+  .route-scroll { display: block; overflow: visible; }
+  .route { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-xs); padding-left: 0; }
   .stop { grid-template-columns: 7.5rem minmax(0, 1fr); align-items: baseline; }
   .stop__note { grid-column: 2; }
   .stop + .stop::before { top: auto; bottom: 100%; right: auto; left: var(--space-lg); width: 0; height: var(--space-xs); border-top: 0; border-left: var(--rule-hair) solid var(--color-rule-2); }

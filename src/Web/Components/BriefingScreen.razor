@@ -11,18 +11,19 @@
                 <div class="tw">
                     <table class="pick">
                         <thead>
-                            <tr><th scope="col">Objective</th><th scope="col">Possible skills</th><th scope="col" class="n">Team</th><th scope="col" class="n">Unattended difficulty</th></tr>
+                            <tr><th scope="col">Objective</th><th scope="col" class="oid">Id</th><th scope="col">Possible skills</th><th scope="col" class="n wide">Team</th><th scope="col" class="n wide">Unattended difficulty</th></tr>
                         </thead>
                         <tbody>
                             @foreach (ObjectiveView objective in Briefing.Objectives)
                             {
                                 <tr>
                                     <td class="lg">
-                                        <label class="obj" for="objective-@objective.Id"><span class="hit"><input type="radio" id="objective-@objective.Id" name="objective" value="@objective.Id" required checked="@(Briefing.Objectives.Count == 1)" data-min="@objective.TeamSizeMin" data-max="@objective.TeamSizeMax" data-skills="@string.Join(' ', objective.PossibleSkills)" data-on:change="@Range"></span>@objective.TemplateId<span class="note">@objective.Id</span><span class="visually-hidden">, team @objective.TeamSizeMin to @objective.TeamSizeMax</span></label>
+                                        <label class="obj" for="objective-@objective.Id"><span class="hit"><input type="radio" id="objective-@objective.Id" name="objective" value="@objective.Id" required checked="@(Briefing.Objectives.Count == 1)" data-min="@objective.TeamSizeMin" data-max="@objective.TeamSizeMax" data-skills="@string.Join(' ', objective.PossibleSkills)" data-on:change="@Range"></span>@objective.TemplateId<span class="visually-hidden">, @objective.Id, team @objective.TeamSizeMin to @objective.TeamSizeMax</span></label>
                                     </td>
-                                    <td>@Figures.List(objective.PossibleSkills)</td>
-                                    <td class="n">@objective.TeamSizeMin to @objective.TeamSizeMax</td>
-                                    <td class="n">@objective.UnattendedDifficulty</td>
+                                    <td class="oid">@objective.Id</td>
+                                    <td class="skills">@Figures.Items(objective.PossibleSkills)</td>
+                                    <td class="n wide">@objective.TeamSizeMin to @objective.TeamSizeMax</td>
+                                    <td class="n wide">@objective.UnattendedDifficulty</td>
                                 </tr>
                             }
                         </tbody>

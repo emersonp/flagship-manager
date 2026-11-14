@@ -9,7 +9,7 @@
         }
         else
         {
-            <ol class="route" aria-label="Route, stages reached so far">
+            <div class="route-scroll"><ol class="route" aria-label="Route, stages reached so far">
                 @for (int i = 0; i < Stages.Count; i++)
                 {
                     Stop stop = Stages[i];
@@ -19,7 +19,7 @@
                             <span class="stop__note">Comms blocked</span>
                         }</li>
                 }
-            </ol>
+            </ol></div>
         }
     }
 </div>

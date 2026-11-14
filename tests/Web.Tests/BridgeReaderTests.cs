@@ -161,7 +161,7 @@ public class BridgeReaderTests
     }
 
     [Fact]
-    public void The_meter_caps_are_the_missions_stored_tuning_cap()
+    public void The_meter_cap_is_the_missions_stored_tuning_cap()
     {
         ContentPack capped = Pack with { Tuning = Pack.Tuning with { Cap = 7 } };
         Played played = Until(capped, p => p.State.Phase == CyclePhase.Resolution && p.Mission is not null);
@@ -169,8 +169,7 @@ public class BridgeReaderTests
         MissionView mission = Assert.IsType<MissionView>(Read(played).Mission);
 
         Assert.Equal(7, played.Mission!.State.Tuning.Cap);
-        Assert.Equal(7, mission.MomentumCap);
-        Assert.Equal(7, mission.StrainCap);
+        Assert.Equal(7, mission.Cap);
     }
 
     [Fact]
@@ -186,6 +185,46 @@ public class BridgeReaderTests
         {
             Assert.StartsWith($"Stage {i + 1}: ", stages[i]);
         }
+    }
+
+    [Fact]
+    public void The_roster_marks_exactly_the_team_in_resolution_and_aftermath_with_the_lead_flagged()
+    {
+        foreach (CyclePhase phase in new[] { CyclePhase.Resolution, CyclePhase.Aftermath })
+        {
+            Played played = Until(Pack, p => p.State.Phase == phase && p.Mission is not null);
+
+            BridgeView view = Read(played);
+
+            MissionView mission = view.Mission!;
+            Assert.Equal(mission.Team.Order(), view.Roster.Where(r => r.IsAway).Select(r => r.Id).Order());
+            Assert.Equal([mission.LeadId], view.Roster.Where(r => r.IsLead).Select(r => r.Id));
+            Assert.All(view.Roster.Where(r => r.IsLead), r => Assert.True(r.IsAway));
+        }
+    }
+
+    [Fact]
+    public void The_roster_marks_nobody_in_orders_and_briefing()
+    {
+        foreach (CyclePhase phase in new[] { CyclePhase.Orders, CyclePhase.Briefing })
+        {
+            Played played = Until(Pack, p => Founded(p) && p.State.Phase == phase);
+
+            BridgeView view = Read(played);
+
+            Assert.NotEmpty(view.Roster);
+            Assert.All(view.Roster, r => Assert.False(r.IsAway || r.IsLead));
+        }
+    }
+
+    [Fact]
+    public void A_mission_remembers_the_lead_it_started_with()
+    {
+        Played played = Until(Pack, p => p.State.Phase == CyclePhase.Resolution && p.Mission is not null);
+
+        MissionView mission = Assert.IsType<MissionView>(Read(played).Mission);
+
+        Assert.Equal(played.CycleEvents().OfType<TeamAssigned>().Single().LeadId, mission.StartLeadId);
     }
 
     [Fact]

@@ -3,10 +3,6 @@
         <h1>@(Aftermath?.Outcome is { } outcome ? Figures.Words(outcome) : "No team was sent")</h1>
         <p>@(ObjectiveName is null ? "Outcome: none, so every objective resolved unattended." : $"Outcome of {ObjectiveName}")</p>
     </div>
-    @if (Mission is not null)
-    {
-        <AwayStyle Team="Mission.Team" LeadId="@Mission.LeadId" />
-    }
     <div class="after-pair">
         <section class="well" aria-labelledby="changes-head">
             <div class="well__head"><h2 id="changes-head">Crew changes</h2></div>
@@ -50,7 +46,7 @@
 
     [Parameter] public AftermathView? Aftermath { get; set; }
 
-    // The mission just ended, for the away-team marks and the objective's name.
+    // The mission just ended.
     [Parameter] public MissionView? Mission { get; set; }
 
     [Parameter] public string? ObjectiveName { get; set; }

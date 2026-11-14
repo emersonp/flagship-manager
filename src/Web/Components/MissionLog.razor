@@ -1,4 +1,4 @@
-<ol id="log">
+<ol id="log" class="@(Ends ? "log--end" : null)">
     @for (int i = 0; i < Lines.Count; i++)
     {
         LogLine line = Lines[i];
@@ -23,6 +23,9 @@
 
 @code {
     [Parameter, EditorRequired] public IReadOnlyList<LogLine> Lines { get; set; } = null!;
+
+    // The spine runs on into the call well only while a call waits, so a log whose last beat is no call ends at its node.
+    private bool Ends => Lines.Count > 0 && Lines[^1].Kind != "call";
 
     // Each paced patch replaces the list whole, so its last line is the newest beat.
     private static string Css(LogLine line, bool newest)

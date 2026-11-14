@@ -23,13 +23,20 @@ public static class BridgeReader
         bool showAftermath = site is not null && phase is CyclePhase.Aftermath or CyclePhase.Advance;
 
         List<ObjectiveView> objectives = site is null ? [] : site.Objectives.Select(o => Objective(pack, site, o)).ToList();
+        MissionView? mission = showMission ? Mission(site!.Mission!, site.Briefing, cycleEvents) : null;
         return new BridgeView(
             TopBar(record, pack),
-            roster,
+            mission is null ? roster : MarkAway(roster, mission.Team, mission.LeadId),
             showSite ? new SiteView(site!.AssignmentId, objectives) : null,
             showBriefing ? Briefing(pack, site!, objectives, roster) : null,
-            showMission ? Mission(site!.Mission!, site.Briefing, cycleEvents) : null,
+            mission,
             showAftermath ? Aftermath(site!, state, cycleEvents) : null);
+    }
+
+    // The away team's rows, with the lead flagged; everyone else unmarked. Used for a lead other than the stored one too.
+    public static IReadOnlyList<CrewRow> MarkAway(IReadOnlyList<CrewRow> roster, IReadOnlyList<string> team, string leadId)
+    {
+        return roster.Select(r => r with { IsAway = team.Contains(r.Id), IsLead = team.Contains(r.Id) && r.Id == leadId }).ToList();
     }
 
     private static TopBarView TopBar(LegacyRecord record, ContentPack pack)
@@ -120,7 +127,7 @@ public static class BridgeReader
             state.Result?.Outcome.ToString(),
             Gear(mission, briefing, cycleEvents),
             state.Tuning.Cap,
-            state.Tuning.Cap);
+            StartLead(mission, briefing, cycleEvents) ?? state.LeadId);
     }
 
     // The log's stage beats are numbered from 1 in order; the beat's own cursor also counts skipped slots.
@@ -135,6 +142,14 @@ public static class BridgeReader
         }
 
         return lines;
+    }
+
+    // The lead the team was sent with: a later lead change is in the log, not here.
+    private static string? StartLead(MissionInFlight mission, Briefing? briefing, IReadOnlyList<IEvent> cycleEvents)
+    {
+        return briefing is not null && briefing.ObjectiveId == mission.ObjectiveId
+            ? briefing.LeadId
+            : cycleEvents.OfType<TeamAssigned>().LastOrDefault(a => a.ObjectiveId == mission.ObjectiveId)?.LeadId;
     }
 
     // The stored briefing while it still names this mission's objective, else the cycle's TeamAssigned event.

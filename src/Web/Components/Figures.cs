@@ -65,6 +65,13 @@ public static partial class Figures
         };
     }
 
+    // A list whose items never break across lines, so a long list wraps only between items.
+    public static MarkupString Items(IReadOnlyList<string> items)
+    {
+        string[] spans = items.Select(i => $"<span class=\"nw\">{HtmlEncoder.Default.Encode(i)}</span>").ToArray();
+        return new MarkupString(List(spans));
+    }
+
     // "FullSuccess" as "Full success".
     public static string Words(string pascal)
     {

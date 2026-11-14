@@ -53,8 +53,15 @@ public class FiguresTests
     [Fact]
     public void Signed_effect_figures_are_each_a_mono_run()
     {
-        string html = Decoded(Figures.Mono("Progress +1. Momentum +1. Strain -2."));
+        string html = Decoded(Figures.Mono("Progress +1. Momentum +1. Strain \u22122."));
 
-        Assert.Equal("Progress <span class=\"m\">+1</span>. Momentum <span class=\"m\">+1</span>. Strain <span class=\"m\">-2</span>.", html);
+        Assert.Equal("Progress <span class=\"m\">+1</span>. Momentum <span class=\"m\">+1</span>. Strain <span class=\"m\">\u22122</span>.", html);
+    }
+
+    [Fact]
+    public void A_no_break_list_keeps_each_item_whole_with_the_oxford_comma()
+    {
+        Assert.Equal("<span class=\"nw\">SKILL_A</span>, <span class=\"nw\">SKILL_B</span>, and <span class=\"nw\">SKILL_C</span>", Figures.Items(["SKILL_A", "SKILL_B", "SKILL_C"]).Value);
+        Assert.Equal("<span class=\"nw\">SKILL_A</span> and <span class=\"nw\">SKILL_B</span>", Figures.Items(["SKILL_A", "SKILL_B"]).Value);
     }
 }

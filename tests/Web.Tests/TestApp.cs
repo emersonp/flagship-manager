@@ -9,8 +9,10 @@ using Web;
 namespace Web.Tests;
 
 // The real app on a throwaway database file, with the repository's content and no beat delay.
-public sealed class TestApp(int beatDelayMs = 0) : WebApplicationFactory<Program>
+public sealed class TestApp(int beatDelayMs = 0, bool wideDice = false, bool noCalls = false) : WebApplicationFactory<Program>
 {
+    private string? wideContent;
+
     private readonly string path = Path.Combine(Path.GetTempPath(), $"starship-sim-web-{Guid.NewGuid():N}.db");
 
     public CapturedLogs Logs { get; } = new();
@@ -30,7 +32,7 @@ public sealed class TestApp(int beatDelayMs = 0) : WebApplicationFactory<Program
         builder.ConfigureAppConfiguration((_, config) => config.AddInMemoryCollection(new Dictionary<string, string?>
         {
             ["Web:DatabasePath"] = path,
-            ["Web:ContentDirectory"] = Path.Combine(RepositoryRoot(), "content"),
+            ["Web:ContentDirectory"] = wideDice ? WideContent() : Path.Combine(RepositoryRoot(), "content"),
             ["Web:BeatDelayMs"] = beatDelayMs.ToString(),
         }));
     }
@@ -40,6 +42,43 @@ public sealed class TestApp(int beatDelayMs = 0) : WebApplicationFactory<Program
         base.Dispose(disposing);
         SqliteConnection.ClearAllPools();
         File.Delete(path);
+        if (wideContent is not null && Directory.Exists(wideContent))
+        {
+            Directory.Delete(wideContent, true);
+        }
+    }
+
+    // A copy of the content with 1d20 check dice and deadly severe injuries, so lead changes are common inside a short run.
+    private string WideContent()
+    {
+        if (wideContent is not null)
+        {
+            return wideContent;
+        }
+
+        wideContent = Path.Combine(Path.GetTempPath(), $"starship-sim-content-{Guid.NewGuid():N}");
+        string source = Path.Combine(RepositoryRoot(), "content");
+        foreach (string file in Directory.GetFiles(source, "*", SearchOption.AllDirectories))
+        {
+            string target = Path.Combine(wideContent, Path.GetRelativePath(source, file));
+            Directory.CreateDirectory(Path.GetDirectoryName(target)!);
+            File.Copy(file, target);
+        }
+
+        string tuning = Path.Combine(wideContent, "tuning", "missions.yaml");
+        string text = File.ReadAllText(tuning);
+        string wide = text.Replace("dice: { count: 2, sides: 6 }   # every check", "dice: { count: 1, sides: 20 }   # every check", StringComparison.Ordinal);
+        if (wide == text)
+        {
+            throw new InvalidOperationException("The check dice line was not found.");
+        }
+
+        // Every severe injury roll kills, so a lead is lost as soon as one is hurt.
+        wide = wide.Replace("deadBelow: 5 ", "deadBelow: 13", StringComparison.Ordinal).Replace("incapacitatedBelow: 8 ", "incapacitatedBelow: 13", StringComparison.Ordinal);
+        // The lead decides every call itself, so one launch plays the whole mission.
+        wide = noCalls ? wide.Replace("  base: 3\n", "  base: 50\n", StringComparison.Ordinal) : wide;
+        File.WriteAllText(tuning, wide);
+        return wideContent;
     }
 
     private static string RepositoryRoot()

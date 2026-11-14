@@ -14,16 +14,17 @@
             <div class="tw">
                 <table class="site">
                     <thead>
-                        <tr><th scope="col">Objective</th><th scope="col">Possible skills</th><th scope="col" class="n">Team</th><th scope="col" class="n">Unattended difficulty</th></tr>
+                        <tr><th scope="col">Objective</th><th scope="col" class="oid">Id</th><th scope="col">Possible skills</th><th scope="col" class="n wide">Team</th><th scope="col" class="n wide">Unattended difficulty</th></tr>
                     </thead>
                     <tbody>
                         @foreach (ObjectiveView objective in Site.Objectives)
                         {
                             <tr>
-                                <td class="who">@objective.TemplateId <span class="note">@objective.Id</span></td>
-                                <td>@Figures.List(objective.PossibleSkills)</td>
-                                <td class="n">@objective.TeamSizeMin to @objective.TeamSizeMax</td>
-                                <td class="n">@objective.UnattendedDifficulty</td>
+                                <td class="who">@objective.TemplateId</td>
+                                <td class="oid">@objective.Id</td>
+                                <td class="skills">@Figures.Items(objective.PossibleSkills)</td>
+                                <td class="n wide">@objective.TeamSizeMin to @objective.TeamSizeMax</td>
+                                <td class="n wide">@objective.UnattendedDifficulty</td>
                             </tr>
                         }
                     </tbody>
