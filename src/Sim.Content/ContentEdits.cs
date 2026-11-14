@@ -13,19 +13,11 @@ public static class ContentEdits
         [ContentKind.Encounter] = typeof(EncounterModel),
     };
 
+    // Read from the set's own parse of each file, so asking for every item of a kind parses each file once.
     public static T? Get<T>(ContentFileSet files, ContentKind kind, string id)
         where T : class
     {
-        foreach (string path in ContentFolders.FilesOf(files, kind))
-        {
-            IContentModel? item = ContentReader.ReadItems(kind, files.Files[path])?.FirstOrDefault(i => i.Id == id);
-            if (item is not null)
-            {
-                return item as T;
-            }
-        }
-
-        return null;
+        return ContentFileCache.Of(files).Item(kind, id) as T;
     }
 
     // Replaces the item with the model's id in the file that holds it, or adds it to the kind's first file that parses (the conventional file if the kind has none).
@@ -128,7 +120,7 @@ public static class ContentEdits
             return [];
         }
 
-        List<(int Index, ContentLoss Loss)>? found = ContentFaithfulness.Analyse(kind.Value, path, text);
+        List<(int Index, ContentLoss Loss)>? found = ContentFileCache.Of(files).Analysis(kind.Value, path);
         return found is null ? [new ContentLoss(path, null, "does not parse as a list of items.")] : found.Select(l => l.Loss).ToList();
     }
 
