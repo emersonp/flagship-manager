@@ -31,7 +31,8 @@ internal static class ContentReader
             root = stream.Documents.Count == 0 ? null : stream.Documents[0].RootNode;
             extra = stream.Documents.Count > 1;
         }
-        catch (Exception e) when (e is YamlException or ArgumentException)
+        // The scanner throws InvalidOperationException for some malformed flow collections.
+        catch (Exception e) when (e is YamlException or ArgumentException or InvalidOperationException)
         {
             return null;
         }

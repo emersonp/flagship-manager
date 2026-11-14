@@ -236,6 +236,20 @@ public class ContentEditsTests : IClassFixture<RepoContentGuard>
         Assert.Contains(edited.Index(), i => i is { Id: "GEAR_06", File: "gear/base.yaml" });
     }
 
+    // A comment inside a flow map makes the YAML scanner throw; the file is unparseable, not a crash.
+    [Fact]
+    public void A_file_the_scanner_rejects_is_listed_as_unparseable_and_never_rewritten()
+    {
+        string broken = Repo().Files["crew/starting.yaml"].Replace("SKILL_B: 5,", "SKILL_B: 5 # c,");
+        Assert.Contains("# c,", broken);
+        ContentFileSet files = With(Repo(), "crew/starting.yaml", broken);
+        Assert.DoesNotContain(files.Index(), i => i.File == "crew/starting.yaml");
+        Assert.NotEmpty(files.Validate().Errors);
+        Assert.Null(ContentEdits.Get<CrewModel>(files, ContentKind.Crew, "CREW_01"));
+        ContentFileSet edited = ContentEdits.Upsert(files, ContentKind.Gear, new GearModel("GEAR_06", null, "other"));
+        Assert.Same(files.Files["crew/starting.yaml"], edited.Files["crew/starting.yaml"]);
+    }
+
     [Fact]
     public void Upsert_refuses_a_model_of_the_wrong_kind()
     {
