@@ -1,0 +1,665 @@
+<title>Bridge Mock E</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400&family=Host+Grotesk:wght@400;500&family=Atkinson+Hyperlegible+Mono:wght@400&display=swap">
+<style>
+/* Hallmark · shape: app screen · genre: atmospheric · theme: custom · idea: "the ship's log is the instrument: one numbered trail from the first stage to the captain's answer" · vibe: "blue-slate bridge, procedural, calm, unhurried"
+ * paper: blue-slate ink oklch(15.5% 0.024 260), Midnight's hue at half its chroma · accent: one azure oklch(78% 0.12 235) for the primary action, the current phase, stage, and selection · faces: Source Serif 4 (display: ship, heads, stage lines), Host Grotesk (body), Atkinson Hyperlegible Mono (outlier: every measured figure)
+ * nav: a top bar in cells, the five phases as a stepped row marked Done, Current, and Next · signature: the mission log, a numbered trail on one spine with stage lines as serif chapter heads, running on into the call well · states: full (mock-up), call waiting (caution), injured, recovering, dead, disabled crew row, gear limit reached
+ * axes: dark/roman-serif/cool · posture: restrained · contrast: pass · v2.0.0 */
+/* Hallmark · pre-emit critique: P4 H5 E4 S4 R5 V4 · weakest: P, a blue-slate panel set can read as any ops console; the serif chapter heads and the one spine that carries the trail from stage 1 into the call make the page a ship's log about one decision */
+/* Hallmark · dismissed F4 · the pressed answer takes the soft azure selection fill, not the primary recipe; Send nobody is a transparent outline beside the one filled Launch */
+/* Caution (a pale, low-chroma amber) appears only on the waiting call and always beside the words "call waiting". Harm (a desaturated red) is always beside its word. Neither is an accent. */
+:root {
+  color-scheme: dark;
+  --space-3xs: 2px; --space-2xs: 4px; --space-xs: 8px; --space-sm: 12px; --space-md: 16px; --space-lg: 24px; --space-xl: 40px; --space-2xl: 64px;
+  --text-xs: 0.75rem; --text-sm: 0.875rem; --text-md: 1rem; --text-lg: 1.2rem; --text-xl: 1.44rem; --text-2xl: 1.728rem; --text-3xl: 2.074rem; --text-4xl: 2.488rem;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --dur-micro: 120ms; --dur-short: 220ms;
+  --container: 1440px;
+  --color-paper: oklch(15.5% 0.024 260);
+  --color-paper-2: oklch(19.5% 0.026 260);
+  --color-paper-3: oklch(24% 0.028 260);
+  --color-ink: oklch(95% 0.01 250);
+  --color-ink-2: oklch(85% 0.02 252);
+  --color-muted: oklch(73% 0.025 256);
+  --color-rule: oklch(30% 0.03 260);
+  --color-rule-2: oklch(41% 0.035 258);
+  --color-accent: oklch(78% 0.12 235);
+  --color-accent-ink: oklch(17% 0.03 260);
+  --color-accent-soft: oklch(30% 0.05 240);
+  --color-focus: oklch(82% 0.12 235);
+  --color-harm: oklch(72% 0.12 25);
+  --color-caution: oklch(86% 0.075 88);
+  --font-display: "Source Serif 4", ui-serif, Georgia, serif;
+  --font-body: "Host Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --font-outlier: "Atkinson Hyperlegible Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --radius-well: 8px; --radius-inner: 6px; --radius-control: 5px; --radius-chip: 4px; --rule-hair: 1px;
+  --tracking-display: -0.012em;
+  --z-sticky: 200;
+}
+*, *::before, *::after { box-sizing: border-box; }
+html, body { overflow-x: clip; }
+html { scrollbar-color: var(--color-rule-2) var(--color-paper); }
+body { margin: 0; background: var(--color-paper); color: var(--color-ink); font-family: var(--font-body); font-size: var(--text-md); line-height: 1.55; font-synthesis: none; -webkit-font-smoothing: antialiased; caret-color: var(--color-accent); }
+::selection { background: var(--color-accent-soft); color: var(--color-ink); }
+:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }
+h1, h2, h3, p, ol, ul, dl, dd, fieldset { margin: 0; }
+ol, ul { padding: 0; list-style: none; }
+fieldset { border: 0; padding: 0; min-width: 0; }
+legend { padding: 0; }
+button, input { font: inherit; color: inherit; }
+[hidden] { display: none !important; }
+.visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+/* display: Source Serif 4, optical size follows the size; never on labels, buttons, tables, or figures */
+h1, h2, .ship__name, .stage-title { font-family: var(--font-display); font-weight: 400; font-optical-sizing: auto; font-variant-numeric: lining-nums; letter-spacing: var(--tracking-display); overflow-wrap: break-word; min-width: 0; text-wrap: balance; color: var(--color-ink); }
+h1 { font-size: var(--text-3xl); line-height: 1.08; }
+h2 { font-size: var(--text-xl); line-height: 1.12; max-width: 30ch; }
+.m { font-family: var(--font-outlier); font-variant-numeric: tabular-nums slashed-zero; font-size: var(--text-sm); letter-spacing: 0; color: var(--color-ink); }
+.note { font-size: var(--text-sm); color: var(--color-muted); }
+.harm { color: var(--color-harm); }
+
+/* the one outer wrapper owns the gutters */
+.page { max-width: var(--container); margin-inline: auto; padding-left: max(var(--space-md), env(safe-area-inset-left, 0px)); padding-right: max(var(--space-md), env(safe-area-inset-right, 0px)); padding-bottom: var(--space-2xl); }
+
+/* mock-up strip: outside the game, dashed, never azure */
+.mock { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-xs) var(--space-md); padding-block: var(--space-xs); margin-bottom: var(--space-md); border-bottom: var(--rule-hair) dashed var(--color-rule-2); font-size: var(--text-sm); color: var(--color-muted); }
+.mock b { font-weight: 500; color: var(--color-ink-2); }
+.mock__views { display: flex; gap: var(--space-2xs); }
+.mock__btn { position: relative; min-height: 32px; padding: 0 var(--space-sm); border: var(--rule-hair) dashed var(--color-rule-2); border-radius: var(--radius-control); background: transparent; color: var(--color-muted); font-size: var(--text-sm); font-weight: 500; white-space: nowrap; cursor: pointer; transition: background-color var(--dur-micro) var(--ease-out), color var(--dur-micro) var(--ease-out); }
+.mock__btn::before { content: ""; position: absolute; inset: -6px 0; }
+.mock__btn:active { transform: translateY(1px); }
+.mock__btn:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }
+.mock__btn:disabled { opacity: 0.55; cursor: not-allowed; }
+.mock__btn[aria-pressed="true"] { border-style: solid; border-color: var(--color-ink-2); color: var(--color-ink); background: var(--color-paper-2); }
+@media (hover: hover) { .mock__btn:hover { background: var(--color-paper-2); color: var(--color-ink); } }
+
+/* wells: hairline-bordered, squared, air between them */
+.well { background: var(--color-paper-2); border: var(--rule-hair) solid var(--color-rule); border-radius: var(--radius-well); min-width: 0; }
+.well__head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: var(--space-2xs) var(--space-md); padding: var(--space-md) var(--space-lg) var(--space-sm); }
+.well__body { padding: 0 var(--space-lg) var(--space-lg); }
+
+/* top bar: one well cut into cells */
+.bar { display: grid; grid-template-columns: auto auto minmax(0, 1fr); overflow: hidden; }
+.bar > * { min-width: 0; padding: var(--space-sm) var(--space-lg); border-left: var(--rule-hair) solid var(--color-rule); }
+.bar > :first-child { border-left: 0; }
+.ship { display: grid; align-content: center; gap: var(--space-3xs); }
+.ship__name { font-size: var(--text-2xl); line-height: 1.05; }
+.ship__legacy { font-size: var(--text-md); color: var(--color-muted); }
+.clock { display: flex; gap: var(--space-lg); align-items: center; }
+.clock div { display: grid; }
+.clock dt { font-size: var(--text-sm); color: var(--color-muted); }
+.clock dd { font-family: var(--font-outlier); font-variant-numeric: tabular-nums; font-size: var(--text-lg); line-height: 1.2; color: var(--color-ink); }
+.phases { padding: 0; overflow-x: auto; scrollbar-width: thin; }
+.phases ol { display: grid; grid-template-columns: repeat(5, minmax(6.5rem, 1fr)); min-width: max-content; height: 100%; }
+.phase { display: grid; align-content: center; gap: var(--space-3xs); padding: var(--space-sm) var(--space-md); border-left: var(--rule-hair) solid var(--color-rule); color: var(--color-muted); }
+.phase:first-child { border-left: 0; }
+.phase__no { font-family: var(--font-outlier); font-variant-numeric: tabular-nums; font-size: var(--text-xs); }
+.phase__name { font-weight: 500; color: var(--color-ink-2); line-height: 1.2; }
+.phase__state { font-size: var(--text-xs); }
+.phase[data-state="done"] .phase__state { color: var(--color-ink-2); }
+.phase[aria-current="step"] { background: var(--color-paper-3); box-shadow: inset 0 -2px 0 var(--color-accent); }
+.phase[aria-current="step"] .phase__name { color: var(--color-ink); }
+.phase[aria-current="step"] .phase__state, .phase[aria-current="step"] .phase__no { color: var(--color-accent); font-weight: 500; }
+
+/* deck: main beside roster; the roster never squeezes the log */
+.deck { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-lg); margin-top: var(--space-lg); align-items: start; }
+@media (min-width: 84rem) {
+  .deck { grid-template-columns: minmax(43rem, 1fr) minmax(0, 43rem); }
+  .roster { position: sticky; top: var(--space-md); z-index: var(--z-sticky); }
+}
+.main { container-type: inline-size; min-width: 0; }
+.view { display: grid; gap: var(--space-lg); min-width: 0; }
+.view-head { display: grid; gap: var(--space-sm); padding: var(--space-xs) 0 0; }
+.facts { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: var(--space-2xs) var(--space-lg); }
+.facts dt { font-size: var(--text-sm); color: var(--color-muted); padding-top: var(--space-3xs); }
+.facts dd { color: var(--color-ink-2); }
+
+/* route and readouts */
+.course { display: grid; grid-template-columns: minmax(0, 1fr); }
+.course > * { padding: var(--space-md) var(--space-lg); }
+.course > * + * { border-top: var(--rule-hair) solid var(--color-rule); }
+@container (min-width: 60rem) {
+  .course { grid-template-columns: minmax(0, 1fr) auto; }
+  .course > * + * { border-top: 0; border-left: var(--rule-hair) solid var(--color-rule); }
+}
+.course__cap { margin-bottom: var(--space-sm); }
+.route { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-md); }
+.stop { position: relative; display: grid; gap: var(--space-3xs); align-content: start; padding: var(--space-xs) var(--space-sm); border: var(--rule-hair) solid var(--color-rule-2); border-radius: var(--radius-inner); min-width: 0; }
+.stop + .stop::before { content: ""; position: absolute; top: 50%; right: 100%; width: var(--space-md); border-top: var(--rule-hair) solid var(--color-rule-2); }
+.stop__no { font-size: var(--text-sm); color: var(--color-muted); }
+.stop__id { color: var(--color-ink-2); overflow-wrap: anywhere; }
+.stop__note { font-size: var(--text-sm); color: var(--color-muted); }
+.stop[aria-current="step"] { border-color: var(--color-accent); }
+.stop[aria-current="step"]::before { border-top-color: var(--color-accent); }
+.stop[aria-current="step"] .stop__no { color: var(--color-accent); font-weight: 500; }
+.stop[aria-current="step"] .stop__id { color: var(--color-ink); }
+.readouts { display: flex; gap: var(--space-xl); align-content: start; }
+.readout { display: grid; gap: var(--space-2xs); align-content: start; }
+.readout dt { font-size: var(--text-sm); color: var(--color-muted); }
+.readout__fig { display: flex; align-items: baseline; gap: var(--space-xs); }
+.readout__fig .m { font-size: var(--text-3xl); line-height: 1; }
+.readout__fig .of { font-size: var(--text-sm); color: var(--color-muted); }
+.meter { display: flex; gap: var(--space-3xs); margin-top: var(--space-2xs); }
+.meter i { width: 16px; height: 6px; border: var(--rule-hair) solid var(--color-rule-2); border-radius: 1px; }
+.meter i.on { background: var(--color-ink-2); border-color: var(--color-ink-2); }
+
+/* the mission log: one numbered trail on a spine */
+.log { --pad: var(--space-lg); --no: 2rem; --node: 1.5rem; --gap: var(--space-sm); --spine-x: calc(var(--pad) + var(--no) + var(--gap) + (var(--node) / 2)); }
+.log__trail { position: relative; padding: 0 var(--pad) var(--space-md); }
+.log__trail::before { content: ""; position: absolute; top: var(--space-xs); bottom: 0; left: var(--spine-x); width: 1px; background: var(--color-rule-2); }
+.beat { position: relative; display: grid; grid-template-columns: var(--no) var(--node) 4.5rem minmax(0, 1fr); column-gap: var(--gap); align-items: baseline; padding: var(--space-xs) 0; color: var(--color-ink-2); }
+.beat::before { content: ""; position: absolute; left: calc(var(--no) + var(--gap) + (var(--node) / 2) - 3.5px); top: calc(var(--space-xs) + 0.55em); width: 7px; height: 7px; border-radius: 50%; background: var(--color-paper-2); border: var(--rule-hair) solid var(--color-rule-2); }
+.beat__no { grid-column: 1; font-family: var(--font-outlier); font-variant-numeric: tabular-nums slashed-zero; font-size: var(--text-xs); color: var(--color-muted); text-align: right; }
+.beat__kind { grid-column: 3; font-size: var(--text-sm); color: var(--color-muted); }
+.beat__text { grid-column: 4; min-width: 0; overflow-wrap: break-word; }
+.beat--injury .beat__kind { color: var(--color-harm); }
+.beat--notice .beat__text { color: var(--color-muted); }
+.res { font-weight: 500; color: var(--color-ink); }
+.res--fail { color: var(--color-harm); }
+/* stage lines: serif chapter heads, readout in mono */
+.beat--stage { margin-top: var(--space-sm); padding-top: var(--space-md); border-top: var(--rule-hair) solid var(--color-rule); }
+.beat--stage:first-child { margin-top: 0; border-top: 0; padding-top: var(--space-xs); }
+.beat--stage::before { width: 9px; height: 9px; border-radius: 2px; left: calc(var(--no) + var(--gap) + (var(--node) / 2) - 4.5px); top: calc(var(--space-md) + 0.6em); background: var(--color-ink-2); border-color: var(--color-ink-2); }
+.beat--stage:first-child::before { top: calc(var(--space-xs) + 0.6em); }
+.beat--stage .beat__text { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: var(--space-2xs) var(--space-md); }
+.stage-title { font-size: var(--text-lg); line-height: 1.2; }
+.stage-read { font-family: var(--font-outlier); font-variant-numeric: tabular-nums slashed-zero; font-size: var(--text-sm); color: var(--color-ink-2); white-space: nowrap; }
+/* the newest beat */
+.beat--newest { margin-top: var(--space-2xs); padding: var(--space-sm) 0; background: var(--color-paper-3); border-radius: var(--radius-inner); color: var(--color-ink); box-shadow: 0 0 0 var(--space-xs) var(--color-paper-3); }
+.beat--newest::before { width: 11px; height: 11px; left: calc(var(--no) + var(--gap) + (var(--node) / 2) - 5.5px); top: calc(var(--space-sm) + 0.45em); background: var(--color-accent); border-color: var(--color-accent); }
+.beat--newest .beat__kind { color: var(--color-ink); font-weight: 500; }
+.beat--newest .beat__text { display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--space-2xs) var(--space-md); }
+.tag { display: inline-flex; align-items: center; padding: 0 var(--space-xs); border: var(--rule-hair) solid var(--color-rule-2); border-radius: var(--radius-chip); font-size: var(--text-xs); line-height: 1.7; color: var(--color-ink-2); white-space: nowrap; font-weight: 400; }
+
+/* the call: its own well, the trail runs on into it */
+.call { --pad: var(--space-lg); --no: 2rem; --node: 1.5rem; --gap: var(--space-sm); --spine-x: calc(var(--pad) + var(--no) + var(--gap) + (var(--node) / 2)); position: relative; padding: var(--space-lg) var(--pad); border-color: var(--color-caution); background: var(--color-paper-3); }
+.call::before { content: ""; position: absolute; left: calc(var(--spine-x) - 1px); bottom: 100%; height: calc(var(--space-lg) + 1px); width: 1px; background: var(--color-rule-2); }
+.call::after { content: ""; position: absolute; left: calc(var(--spine-x) - 1px); top: -1px; height: calc(var(--space-lg) + 0.75em); width: 1px; background: var(--color-rule-2); }
+.call__grid { display: grid; grid-template-columns: var(--no) var(--node) minmax(0, 1fr); column-gap: var(--gap); }
+.call__node { grid-column: 2; position: relative; }
+.call__node::before { content: ""; position: absolute; left: calc(50% - 5.5px); top: 0.45em; width: 11px; height: 11px; border-radius: 50%; border: var(--rule-hair) solid var(--color-caution); background: var(--color-paper-3); }
+.call__body { grid-column: 3; display: grid; gap: var(--space-md); }
+.call__status { font-size: var(--text-sm); font-weight: 500; color: var(--color-caution); }
+.call__main { display: grid; gap: var(--space-md); }
+.call h2 { font-size: var(--text-2xl); }
+.call .facts { display: flex; flex-wrap: wrap; gap: var(--space-2xs) var(--space-xl); margin-top: var(--space-sm); }
+.call .facts div { display: flex; gap: var(--space-sm); align-items: baseline; }
+.call .facts dd { color: var(--color-ink); }
+.prefers { font-size: var(--text-sm); color: var(--color-ink-2); }
+.answers { display: flex; flex-wrap: wrap; gap: var(--space-xs); align-items: start; }
+.answer { display: grid; gap: var(--space-2xs); justify-items: center; }
+.answer__note { min-height: 1lh; font-size: var(--text-xs); color: var(--color-muted); }
+
+/* buttons: one azure primary, hairline otherwise */
+.btn { position: relative; display: inline-flex; align-items: center; justify-content: center; min-height: 40px; padding: 0 var(--space-lg); border: var(--rule-hair) solid var(--color-rule-2); border-radius: var(--radius-control); background: transparent; color: var(--color-ink); font-size: var(--text-md); font-weight: 500; white-space: nowrap; cursor: pointer; transition: background-color var(--dur-micro) var(--ease-out), border-color var(--dur-micro) var(--ease-out); }
+.btn::before { content: ""; position: absolute; inset: -2px 0; }
+.btn:active { transform: translateY(1px); }
+.btn:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }
+.btn:disabled, .btn[aria-disabled="true"] { opacity: 0.55; cursor: not-allowed; transform: none; }
+.btn[aria-pressed="true"] { border-color: var(--color-accent); background: var(--color-accent-soft); }
+.btn--primary { background: var(--color-accent); border-color: var(--color-accent); color: var(--color-accent-ink); }
+@media (hover: hover) {
+  .btn:hover { background: var(--color-paper-3); border-color: var(--color-muted); }
+  .call .btn:hover { background: var(--color-paper-2); }
+  .btn--primary:hover { background: var(--color-focus); border-color: var(--color-focus); }
+}
+
+/* tables */
+.tw { overflow-x: auto; min-width: 0; }
+table { width: 100%; border-collapse: collapse; font-size: var(--text-md); }
+th { text-align: left; font-weight: 500; color: var(--color-muted); white-space: nowrap; padding: var(--space-xs) var(--space-sm); border-bottom: var(--rule-hair) solid var(--color-rule-2); vertical-align: bottom; }
+td { padding: var(--space-xs) var(--space-sm); border-bottom: var(--rule-hair) solid var(--color-rule); vertical-align: top; color: var(--color-ink-2); font-size: var(--text-sm); }
+tbody tr:last-child td { border-bottom: 0; }
+th:first-child, td:first-child { padding-left: var(--space-lg); }
+th:last-child, td:last-child { padding-right: var(--space-lg); }
+th.n, td.n { text-align: right; padding-left: var(--space-2xs); padding-right: var(--space-2xs); }
+th.n:last-child, td.n:last-child { padding-right: var(--space-lg); }
+td.n { font-family: var(--font-outlier); font-variant-numeric: tabular-nums slashed-zero; color: var(--color-ink); white-space: nowrap; }
+td.n .eff { color: var(--color-harm); }
+td.who { font-size: var(--text-md); font-weight: 500; color: var(--color-ink); white-space: nowrap; }
+td.c, th.c { text-align: center; padding-left: var(--space-2xs); padding-right: var(--space-2xs); }
+th.c:last-child, td.c:last-child { padding-right: var(--space-md); }
+td.c { vertical-align: middle; padding-block: 0; }
+.status { min-width: 8rem; }
+.quiet { color: var(--color-muted); }
+
+/* roster */
+.roster .well__head { padding-bottom: var(--space-xs); }
+.roster__key { padding: 0 var(--space-lg) var(--space-sm); }
+.away-tag { display: none; margin-top: var(--space-2xs); }
+.roster[data-away] tr.is-away td { background: var(--color-paper-3); }
+.roster[data-away] .away-tag { display: flex; width: fit-content; }
+.roster tr.is-dead td { color: var(--color-muted); }
+.roster tr.is-dead td.who { font-weight: 400; color: var(--color-muted); }
+.roster tbody tr:last-child td { padding-bottom: var(--space-md); }
+
+/* briefing controls */
+.hit { position: relative; display: inline-grid; place-items: center; min-width: 44px; min-height: 44px; cursor: pointer; }
+input[type="checkbox"], input[type="radio"] { width: 18px; height: 18px; margin: 0; accent-color: var(--color-accent); cursor: pointer; }
+input[type="checkbox"]:focus-visible, input[type="radio"]:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }
+input:disabled { opacity: 0.55; cursor: not-allowed; }
+.pick td { vertical-align: middle; }
+td.lg { font-size: var(--text-md); }
+.pick tr.is-sel td { background: var(--color-paper-3); }
+.pick tr.is-off td { color: var(--color-muted); }
+.pick tr.is-off .hit { cursor: not-allowed; }
+.obj { display: flex; align-items: center; gap: var(--space-2xs); margin-left: calc(-1 * var(--space-sm)); font-size: var(--text-md); font-weight: 500; color: var(--color-ink); cursor: pointer; white-space: nowrap; }
+.unatt { padding: var(--space-sm) var(--space-lg) var(--space-md); }
+.brief-pair { display: grid; gap: var(--space-lg); grid-template-columns: minmax(0, 1fr); }
+@container (min-width: 42rem) { .brief-pair { grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); } }
+.gear { display: grid; }
+.gear li + li { border-top: var(--rule-hair) solid var(--color-rule); }
+.gear label { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; align-items: center; min-height: 44px; margin-left: calc(-1 * var(--space-sm)); cursor: pointer; }
+.gear label:has(input:disabled) { cursor: not-allowed; }
+.gear__id { font-weight: 500; color: var(--color-ink); }
+.gear__kind { font-size: var(--text-sm); color: var(--color-muted); }
+.gear label:has(input:disabled) .gear__id { color: var(--color-muted); }
+.params { display: grid; gap: var(--space-md); }
+.seg legend { margin-bottom: var(--space-xs); font-size: var(--text-sm); color: var(--color-muted); }
+.seg__row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border: var(--rule-hair) solid var(--color-rule-2); border-radius: var(--radius-control); overflow: hidden; }
+.seg input { position: absolute; opacity: 0; width: 1px; height: 1px; margin: 0; }
+.seg label { position: relative; display: flex; align-items: center; justify-content: center; min-height: 36px; padding: 0 var(--space-xs); border-left: var(--rule-hair) solid var(--color-rule-2); font-size: var(--text-sm); font-weight: 500; color: var(--color-ink-2); white-space: nowrap; cursor: pointer; transition: background-color var(--dur-micro) var(--ease-out); }
+.seg label:first-of-type { border-left: 0; }
+.seg label::before { content: ""; position: absolute; inset: -4px 0; }
+.seg label:active { transform: translateY(1px); }
+.seg input:checked + label { background: var(--color-accent-soft); color: var(--color-ink); box-shadow: inset 0 -2px 0 var(--color-accent); }
+.seg input:focus-visible + label { outline: 2px solid var(--color-focus); outline-offset: -2px; }
+.seg input:disabled + label { opacity: 0.55; cursor: not-allowed; }
+@media (hover: hover) { .seg input:not(:checked) + label:hover { background: var(--color-paper-3); } }
+label.obj { font-size: var(--text-md); }
+
+/* action bar at the foot of a view */
+.actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: var(--space-sm) var(--space-md); padding: var(--space-sm) var(--space-lg); }
+.count { margin-right: auto; display: flex; align-items: baseline; gap: var(--space-xs); font-size: var(--text-sm); color: var(--color-muted); }
+.count .m { font-size: var(--text-md); }
+
+/* aftermath */
+.verdict h1 { font-size: var(--text-4xl); }
+.verdict p { color: var(--color-ink-2); }
+.changes li { display: grid; grid-template-columns: var(--space-xl) 4.5rem minmax(0, 1fr); gap: var(--space-sm); align-items: baseline; padding: var(--space-sm) var(--space-lg); border-top: var(--rule-hair) solid var(--color-rule); color: var(--color-ink-2); }
+.changes li:first-child { border-top: 0; }
+.changes__no { font-family: var(--font-outlier); font-variant-numeric: tabular-nums slashed-zero; font-size: var(--text-xs); color: var(--color-muted); text-align: right; }
+.changes__kind { font-size: var(--text-sm); color: var(--color-muted); }
+.changes li.is-harm .changes__kind { color: var(--color-harm); }
+.after-pair { display: grid; gap: var(--space-lg); grid-template-columns: minmax(0, 1fr); }
+
+@media (max-width: 60rem) {
+  .bar { grid-template-columns: minmax(0, 1fr) auto; }
+  .phases { grid-column: 1 / -1; border-left: 0; border-top: var(--rule-hair) solid var(--color-rule); }
+}
+@media (max-width: 40rem) {
+  .bar > * { padding: var(--space-sm) var(--space-md); }
+  .phases { padding: 0; }
+  .phases ol { grid-template-columns: repeat(5, minmax(5.5rem, 1fr)); }
+  .phase { padding: var(--space-xs) var(--space-sm); }
+  .clock { gap: var(--space-md); }
+  .well__head, .well__body, .course > *, .unatt, .actions { padding-left: var(--space-md); padding-right: var(--space-md); }
+  .roster__key { padding-left: var(--space-md); padding-right: var(--space-md); }
+  th:first-child, td:first-child { padding-left: var(--space-md); }
+  th:last-child, td:last-child, th.n:last-child, td.n:last-child { padding-right: var(--space-md); }
+  .roster td.who, .roster th:first-child { position: sticky; left: 0; background: var(--color-paper-2); z-index: 1; }
+  .roster[data-away] tr.is-away td.who { background: var(--color-paper-3); }
+  h1 { font-size: var(--text-2xl); }
+  .verdict h1 { font-size: var(--text-3xl); }
+  .call h2 { font-size: var(--text-xl); }
+  .route { grid-template-columns: minmax(0, 1fr); gap: var(--space-xs); }
+  .stop { grid-template-columns: 7.5rem minmax(0, 1fr); align-items: baseline; }
+  .stop__note { grid-column: 2; }
+  .stop + .stop::before { top: auto; bottom: 100%; right: auto; left: var(--space-lg); width: 0; height: var(--space-xs); border-top: 0; border-left: var(--rule-hair) solid var(--color-rule-2); }
+  .stop[aria-current="step"]::before { border-left-color: var(--color-accent); }
+  .log, .call { --pad: var(--space-md); --no: 1.25rem; --node: 1.25rem; --gap: var(--space-xs); }
+  .beat { grid-template-columns: var(--no) var(--node) minmax(0, 1fr); row-gap: 0; }
+  .beat__kind { grid-column: 3; grid-row: 1; font-size: var(--text-xs); }
+  .beat__text { grid-column: 3; }
+  .beat__no { grid-row: 1; }
+  .beat--stage::before { top: calc(var(--space-md) + 0.25em); }
+  .beat--stage:first-child::before { top: calc(var(--space-xs) + 0.25em); }
+  .beat::before { top: calc(var(--space-xs) + 0.35em); }
+  .beat--newest::before { top: calc(var(--space-sm) + 0.2em); }
+  .call { padding-top: var(--space-md); padding-bottom: var(--space-md); }
+  .call::after { height: calc(var(--space-md) + 0.75em); }
+  .changes li { grid-template-columns: var(--space-lg) minmax(0, 1fr); padding-left: var(--space-md); padding-right: var(--space-md); row-gap: 0; }
+  .changes__kind { grid-column: 2; font-size: var(--text-xs); }
+  .changes li > span:last-child { grid-column: 2; }
+  .readouts { gap: var(--space-lg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
+  .btn:active, .seg label:active, .mock__btn:active { transform: none; }
+}
+</style>
+
+<div class="page">
+
+  <div class="mock" role="region" aria-label="Mock-up view switcher, not part of the game">
+    <p><b>Design option E: Bridge</b> (mock-up only)</p>
+    <div class="mock__views" role="group" aria-label="Show view">
+      <button type="button" class="mock__btn" data-view="briefing" aria-pressed="false">Briefing</button>
+      <button type="button" class="mock__btn" data-view="resolution" aria-pressed="true">Resolution</button>
+      <button type="button" class="mock__btn" data-view="aftermath" aria-pressed="false">Aftermath</button>
+    </div>
+  </div>
+
+  <header class="bar well">
+    <div class="ship">
+      <span class="ship__name">SHIP_NAME</span>
+      <span class="ship__legacy">LEGACY_NAME</span>
+    </div>
+    <dl class="clock">
+      <div><dt>Week</dt><dd>7</dd></div>
+      <div><dt>Cycle</dt><dd>7</dd></div>
+    </dl>
+    <nav class="phases" aria-label="Cycle phases">
+      <ol>
+        <li class="phase" data-phase="orders" data-state="done"><span class="phase__no">1</span><span class="phase__name">Orders</span><span class="phase__state">Done</span></li>
+        <li class="phase" data-phase="briefing" data-state="done"><span class="phase__no">2</span><span class="phase__name">Briefing</span><span class="phase__state">Done</span></li>
+        <li class="phase" data-phase="resolution" data-state="current" aria-current="step"><span class="phase__no">3</span><span class="phase__name">Resolution</span><span class="phase__state">Current</span></li>
+        <li class="phase" data-phase="aftermath" data-state="next"><span class="phase__no">4</span><span class="phase__name">Aftermath</span><span class="phase__state">Next</span></li>
+        <li class="phase" data-phase="advance" data-state="next"><span class="phase__no">5</span><span class="phase__name">Advance</span><span class="phase__state">Next</span></li>
+      </ol>
+    </nav>
+  </header>
+
+  <div class="deck">
+    <main class="main" id="main">
+
+      <!-- BRIEFING -->
+      <section class="view" id="view-briefing" aria-labelledby="h-brief" hidden>
+        <div class="view-head">
+          <h1 id="h-brief">ASSIGNMENT_TEMPLATE_1</h1>
+          <p class="note">Choose one objective, an away team, and gear.</p>
+        </div>
+
+        <section class="well" aria-labelledby="h-obj">
+          <div class="well__head"><h2 id="h-obj">Objective</h2></div>
+          <div class="tw">
+            <table class="pick pick--obj" id="objectives">
+              <thead><tr><th scope="col">Objective</th><th scope="col">Possible skills</th><th scope="col" class="n">Team</th><th scope="col" class="n">Unattended difficulty</th></tr></thead>
+              <tbody>
+                <tr class="is-sel">
+                  <td class="lg"><label class="obj"><span class="hit"><input type="radio" name="objective" value="1" checked></span>OBJECTIVE_TEMPLATE_1</label></td>
+                  <td>SKILL_A, SKILL_B, and SKILL_D</td>
+                  <td class="n">2 to 3</td>
+                  <td class="n">6</td>
+                </tr>
+                <tr>
+                  <td class="lg"><label class="obj"><span class="hit"><input type="radio" name="objective" value="2"></span>OBJECTIVE_TEMPLATE_2</label></td>
+                  <td>SKILL_B and SKILL_C</td>
+                  <td class="n">2 to 4</td>
+                  <td class="n">8</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="note unatt">The objective not chosen resolves unattended.</p>
+        </section>
+
+        <section class="well" aria-labelledby="h-crew">
+          <div class="well__head"><h2 id="h-crew">Away team</h2><p class="note">Skills for OBJECTIVE_TEMPLATE_1. A figure in brackets is the level while injured.</p></div>
+          <div class="tw">
+            <table class="pick" id="crew-pick">
+              <thead><tr><th scope="col">Crew</th><th scope="col">Status</th><th scope="col" class="n">SKILL_A</th><th scope="col" class="n">SKILL_B</th><th scope="col" class="n">SKILL_D</th><th scope="col" class="c">Team</th><th scope="col" class="c">Lead</th></tr></thead>
+              <tbody>
+                <tr class="is-sel"><td class="who">CREW_01</td><td class="status">Active</td><td class="n">7</td><td class="n">4</td><td class="n">2</td>
+                  <td class="c"><label class="hit"><input type="checkbox" name="team" value="CREW_01" checked aria-label="CREW_01 on the team"></label></td>
+                  <td class="c"><label class="hit"><input type="radio" name="lead" value="CREW_01" checked aria-label="CREW_01 leads"></label></td></tr>
+                <tr class="is-sel"><td class="who">CREW_02</td><td class="status">Active, <span class="harm">1 light injury</span> (heals week 8)</td><td class="n">5 <span class="eff">(4)</span></td><td class="n">6 <span class="eff">(5)</span></td><td class="n">3 <span class="eff">(2)</span></td>
+                  <td class="c"><label class="hit"><input type="checkbox" name="team" value="CREW_02" checked aria-label="CREW_02 on the team"></label></td>
+                  <td class="c"><label class="hit"><input type="radio" name="lead" value="CREW_02" aria-label="CREW_02 leads"></label></td></tr>
+                <tr><td class="who">CREW_03</td><td class="status">Active</td><td class="n">3</td><td class="n">3</td><td class="n">4</td>
+                  <td class="c"><label class="hit"><input type="checkbox" name="team" value="CREW_03" aria-label="CREW_03 on the team"></label></td>
+                  <td class="c"><label class="hit"><input type="radio" name="lead" value="CREW_03" aria-label="CREW_03 leads"></label></td></tr>
+                <tr class="is-off"><td class="who">CREW_04</td><td class="status">Recovering (returns week 11)</td><td class="n">6</td><td class="n">2</td><td class="n">3</td>
+                  <td class="c"><label class="hit"><input type="checkbox" name="team" value="CREW_04" disabled aria-label="CREW_04 on the team, unavailable while recovering"></label></td>
+                  <td class="c"><label class="hit"><input type="radio" name="lead" value="CREW_04" disabled aria-label="CREW_04 leads, unavailable while recovering"></label></td></tr>
+                <tr class="is-sel"><td class="who">CREW_05</td><td class="status">Active</td><td class="n">2</td><td class="n">5</td><td class="n">6</td>
+                  <td class="c"><label class="hit"><input type="checkbox" name="team" value="CREW_05" checked aria-label="CREW_05 on the team"></label></td>
+                  <td class="c"><label class="hit"><input type="radio" name="lead" value="CREW_05" aria-label="CREW_05 leads"></label></td></tr>
+                <tr><td class="who">CREW_06</td><td class="status">Active</td><td class="n">4</td><td class="n">4</td><td class="n">4</td>
+                  <td class="c"><label class="hit"><input type="checkbox" name="team" value="CREW_06" aria-label="CREW_06 on the team"></label></td>
+                  <td class="c"><label class="hit"><input type="radio" name="lead" value="CREW_06" aria-label="CREW_06 leads"></label></td></tr>
+                <tr><td class="who">CREW_07</td><td class="status">Active</td><td class="n">1</td><td class="n">2</td><td class="n">3</td>
+                  <td class="c"><label class="hit"><input type="checkbox" name="team" value="CREW_07" aria-label="CREW_07 on the team"></label></td>
+                  <td class="c"><label class="hit"><input type="radio" name="lead" value="CREW_07" aria-label="CREW_07 leads"></label></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <div class="brief-pair">
+          <fieldset class="well" id="gear">
+            <legend class="visually-hidden">Gear, loadout limit 2</legend>
+            <div class="well__head"><h2 aria-hidden="true">Gear</h2><p class="note">Loadout limit 2: <span class="m" id="gear-count">2 of 2</span></p></div>
+            <ul class="gear well__body">
+              <li><label><span class="hit"><input type="checkbox" name="gear" value="GEAR_01" checked></span><span class="gear__id">GEAR_01</span><span class="gear__kind">Scanner</span></label></li>
+              <li><label><span class="hit"><input type="checkbox" name="gear" value="GEAR_02" checked></span><span class="gear__id">GEAR_02</span><span class="gear__kind">Tools</span></label></li>
+              <li><label><span class="hit"><input type="checkbox" name="gear" value="GEAR_03"></span><span class="gear__id">GEAR_03</span><span class="gear__kind">Comms</span></label></li>
+              <li><label><span class="hit"><input type="checkbox" name="gear" value="GEAR_04"></span><span class="gear__id">GEAR_04</span><span class="gear__kind">Medical</span></label></li>
+            </ul>
+          </fieldset>
+
+          <section class="well" aria-labelledby="h-params">
+            <div class="well__head"><h2 id="h-params">Operational parameters</h2></div>
+            <div class="params well__body">
+              <fieldset class="seg"><legend>Priority</legend>
+                <div class="seg__row">
+                  <input type="radio" name="priority" id="pr1"><label for="pr1">Thorough</label>
+                  <input type="radio" name="priority" id="pr2" checked><label for="pr2">Balanced</label>
+                  <input type="radio" name="priority" id="pr3"><label for="pr3">Fast</label>
+                </div>
+              </fieldset>
+              <fieldset class="seg"><legend>Risk tolerance</legend>
+                <div class="seg__row">
+                  <input type="radio" name="risk" id="rk1"><label for="rk1">Low</label>
+                  <input type="radio" name="risk" id="rk2" checked><label for="rk2">Medium</label>
+                  <input type="radio" name="risk" id="rk3"><label for="rk3">High</label>
+                </div>
+              </fieldset>
+              <fieldset class="seg"><legend>Autonomy</legend>
+                <div class="seg__row">
+                  <input type="radio" name="autonomy" id="au1"><label for="au1">Ask often</label>
+                  <input type="radio" name="autonomy" id="au2" checked><label for="au2">Balanced</label>
+                  <input type="radio" name="autonomy" id="au3"><label for="au3">Act alone</label>
+                </div>
+              </fieldset>
+            </div>
+          </section>
+        </div>
+
+        <div class="actions well">
+          <p class="count"><span>Team</span><span><output class="m" id="team-count" aria-live="polite">3</output> of 2 to 3</span></p>
+          <button type="button" class="btn">Send nobody</button>
+          <button type="button" class="btn btn--primary">Launch</button>
+        </div>
+      </section>
+
+      <!-- RESOLUTION -->
+      <section class="view" id="view-resolution" aria-labelledby="h-res">
+        <div class="view-head">
+          <h1 id="h-res">OBJECTIVE_TEMPLATE_1</h1>
+          <dl class="facts">
+            <dt>Team</dt><dd>CREW_01 (lead), CREW_02, and CREW_05</dd>
+            <dt>Gear</dt><dd>GEAR_01 and GEAR_02</dd>
+          </dl>
+        </div>
+
+        <div class="well course">
+          <div>
+            <p class="note course__cap">Route, stages reached so far</p>
+            <ol class="route" aria-label="Route, stages reached so far">
+              <li class="stop"><span class="stop__no">Stage <span class="m">1</span></span><span class="stop__id">ENCOUNTER_03</span></li>
+              <li class="stop"><span class="stop__no">Stage <span class="m">2</span></span><span class="stop__id">ENCOUNTER_06</span></li>
+              <li class="stop" aria-current="step"><span class="stop__no">Stage <span class="m">3</span>, current</span><span class="stop__id">ENCOUNTER_01</span><span class="stop__note">Comms blocked</span></li>
+            </ol>
+          </div>
+          <dl class="readouts">
+            <div class="readout">
+              <dt id="g-mom">Momentum</dt>
+              <dd><span class="readout__fig"><span class="m">2</span><span class="of">of 5</span></span>
+                <span class="meter" role="meter" aria-labelledby="g-mom" aria-valuemin="0" aria-valuemax="5" aria-valuenow="2"><i class="on"></i><i class="on"></i><i></i><i></i><i></i></span></dd>
+            </div>
+            <div class="readout">
+              <dt id="g-str">Strain</dt>
+              <dd><span class="readout__fig"><span class="m">3</span><span class="of">of 5</span></span>
+                <span class="meter" role="meter" aria-labelledby="g-str" aria-valuemin="0" aria-valuemax="5" aria-valuenow="3"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></span></dd>
+            </div>
+          </dl>
+        </div>
+
+        <section class="well log" aria-labelledby="h-log">
+          <div class="well__head"><h2 id="h-log">Mission log</h2><p class="note"><span class="m">12</span> entries, newest last</p></div>
+          <ol class="log__trail" aria-label="Mission log, oldest first">
+            <li class="beat beat--stage"><span class="beat__no">01</span><span class="beat__kind">stage</span><p class="beat__text"><span class="stage-title">Stage 1: ENCOUNTER_03.</span> <span class="stage-read">Momentum 0, strain 0.</span></p></li>
+            <li class="beat"><span class="beat__no">02</span><span class="beat__kind">check</span><p class="beat__text">CREW_01 checks SKILL_A at ENCOUNTER_03, helped by CREW_02: <span class="m">9 + 8</span> against <span class="m">13</span>, <span class="res">success</span> <span class="m">(+4)</span>.</p></li>
+            <li class="beat"><span class="beat__no">03</span><span class="beat__kind">effects</span><p class="beat__text">Progress <span class="m">+1</span>. Momentum <span class="m">+1</span>.</p></li>
+            <li class="beat beat--stage"><span class="beat__no">04</span><span class="beat__kind">stage</span><p class="beat__text"><span class="stage-title">Stage 2: ENCOUNTER_06.</span> <span class="stage-read">Momentum 1, strain 0.</span></p></li>
+            <li class="beat"><span class="beat__no">05</span><span class="beat__kind">check</span><p class="beat__text">CREW_05 checks SKILL_D at ENCOUNTER_06, helped by CREW_01: <span class="m">7 + 4</span> against <span class="m">14</span>, <span class="res">partial</span> <span class="m">(&minus;3)</span>.</p></li>
+            <li class="beat"><span class="beat__no">06</span><span class="beat__kind">effects</span><p class="beat__text">Progress <span class="m">+1</span>. Strain <span class="m">+2</span>.</p></li>
+            <li class="beat beat--notice"><span class="beat__no">07</span><span class="beat__kind">notice</span><p class="beat__text">CREW_01 decided DECISION_02 without calling: chose Safe. Stakes <span class="m">2</span>.</p></li>
+            <li class="beat beat--stage"><span class="beat__no">08</span><span class="beat__kind">stage</span><p class="beat__text"><span class="stage-title">Stage 3: ENCOUNTER_01. Comms blocked.</span> <span class="stage-read">Momentum 1, strain 2.</span></p></li>
+            <li class="beat"><span class="beat__no">09</span><span class="beat__kind">check</span><p class="beat__text">CREW_02 checks SKILL_B at ENCOUNTER_01, helped by CREW_05: <span class="m">6 + 3</span> against <span class="m">15</span>, <span class="res res--fail">failure</span> <span class="m">(&minus;6)</span>.</p></li>
+            <li class="beat beat--injury"><span class="beat__no">10</span><span class="beat__kind">injury</span><p class="beat__text">CREW_02 takes a light injury roll at ENCOUNTER_01: <span class="m">5</span>, <span class="res res--fail">injured</span>.</p></li>
+            <li class="beat"><span class="beat__no">11</span><span class="beat__kind">effects</span><p class="beat__text">Strain <span class="m">+1</span>. Momentum <span class="m">+1</span>.</p></li>
+            <li class="beat beat--newest" aria-current="true"><span class="beat__no">12</span><span class="beat__kind">call</span><p class="beat__text"><span>CREW_01 calls: DECISION_05. Stakes <span class="m">4</span>.</span><span class="tag">Newest</span></p></li>
+          </ol>
+        </section>
+
+        <section class="well call" aria-labelledby="h-call">
+          <div class="call__grid">
+            <span class="call__node" aria-hidden="true"></span>
+            <div class="call__body">
+              <p class="call__status" role="status">Call waiting for your answer</p>
+              <div class="call__main">
+                <div>
+                  <h2 id="h-call">CREW_01 is calling</h2>
+                  <dl class="facts">
+                    <div><dt>Decision</dt><dd>DECISION_05</dd></div>
+                    <div><dt>Stakes</dt><dd><span class="m">4</span></dd></div>
+                  </dl>
+                </div>
+                <p class="prefers" id="prefers">The lead prefers: Safe</p>
+              </div>
+              <div class="answers" role="group" aria-labelledby="h-call">
+                <div class="answer"><button type="button" class="btn" aria-pressed="false">Bold</button><span class="answer__note"></span></div>
+                <div class="answer"><button type="button" class="btn" aria-pressed="false" aria-describedby="pref-note">Safe</button><span class="answer__note" id="pref-note">Lead&rsquo;s preference</span></div>
+                <div class="answer"><button type="button" class="btn" aria-pressed="false">Withdraw</button><span class="answer__note"></span></div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </section>
+
+      <!-- AFTERMATH -->
+      <section class="view" id="view-aftermath" aria-labelledby="h-after" hidden>
+        <div class="view-head verdict">
+          <h1 id="h-after">Partial success</h1>
+          <p>Outcome of OBJECTIVE_TEMPLATE_1</p>
+        </div>
+
+        <div class="after-pair">
+          <section class="well" aria-labelledby="h-changes">
+            <div class="well__head"><h2 id="h-changes">Crew changes</h2></div>
+            <ol class="changes">
+              <li><span class="changes__no">01</span><span class="changes__kind">skill</span><span>CREW_01 SKILL_A raised to <span class="m">8</span>.</span></li>
+              <li class="is-harm"><span class="changes__no">02</span><span class="changes__kind">injury</span><span>CREW_02 <span class="harm">lightly injured</span>, heals week <span class="m">9</span>.</span></li>
+              <li><span class="changes__no">03</span><span class="changes__kind">skill</span><span>CREW_05 SKILL_D raised to <span class="m">7</span>.</span></li>
+              <li><span class="changes__no">04</span><span class="changes__kind">loyalty</span><span>CREW_01 loyalty now <span class="m">64</span>.</span></li>
+            </ol>
+          </section>
+
+          <section class="well" aria-labelledby="h-unatt">
+            <div class="well__head"><h2 id="h-unatt">Unattended</h2></div>
+            <p class="well__body">OBJECTIVE_TEMPLATE_2, rolled <span class="m">6</span> against <span class="m">15</span>, <span class="res res--fail">failed</span>.</p>
+          </section>
+        </div>
+
+        <div class="actions well">
+          <button type="button" class="btn btn--primary">Next cycle</button>
+        </div>
+      </section>
+    </main>
+
+    <aside class="roster well" id="roster" data-away aria-labelledby="h-roster">
+      <div class="well__head"><h2 id="h-roster">Roster</h2><p class="note"><span class="m">8</span> crew</p></div>
+      <p class="note roster__key">A figure in brackets is the level while injured.</p>
+      <div class="tw" tabindex="0" role="region" aria-label="Roster table, scrolls sideways">
+        <table>
+          <thead>
+            <tr><th scope="col">Crew</th><th scope="col">Status</th><th scope="col" class="n">SKILL_A</th><th scope="col" class="n">SKILL_B</th><th scope="col" class="n">SKILL_C</th><th scope="col" class="n">SKILL_D</th><th scope="col" class="n">Loyalty</th><th scope="col" class="n">Away</th></tr>
+          </thead>
+          <tbody>
+            <tr class="is-away"><td class="who">CREW_01<span class="away-tag tag">Away team, lead</span></td><td class="status">Active</td><td class="n">7</td><td class="n">4</td><td class="n">3</td><td class="n">2</td><td class="n">62</td><td class="n">6</td></tr>
+            <tr class="is-away"><td class="who">CREW_02<span class="away-tag tag">Away team</span></td><td class="status">Active, <span class="harm">1 light injury</span> (heals week 8)</td><td class="n">5 <span class="eff">(4)</span></td><td class="n">6 <span class="eff">(5)</span></td><td class="n">2 <span class="eff">(1)</span></td><td class="n">3 <span class="eff">(2)</span></td><td class="n">50</td><td class="n">5</td></tr>
+            <tr><td class="who">CREW_03</td><td class="status">Active</td><td class="n">3</td><td class="n">3</td><td class="n">5</td><td class="n">4</td><td class="n">50</td><td class="n">4</td></tr>
+            <tr><td class="who">CREW_04</td><td class="status quiet">Recovering (returns week 11)</td><td class="n">6</td><td class="n">2</td><td class="n">4</td><td class="n">3</td><td class="n">46</td><td class="n">3</td></tr>
+            <tr class="is-away"><td class="who">CREW_05<span class="away-tag tag">Away team</span></td><td class="status">Active</td><td class="n">2</td><td class="n">5</td><td class="n">3</td><td class="n">6</td><td class="n">50</td><td class="n">2</td></tr>
+            <tr><td class="who">CREW_06</td><td class="status">Active</td><td class="n">4</td><td class="n">4</td><td class="n">4</td><td class="n">4</td><td class="n">54</td><td class="n">4</td></tr>
+            <tr><td class="who">CREW_07</td><td class="status">Active</td><td class="n">1</td><td class="n">2</td><td class="n">6</td><td class="n">3</td><td class="n">50</td><td class="n">1</td></tr>
+            <tr class="is-dead"><td class="who">CREW_08</td><td class="status"><span class="harm">Dead</span> (week 5)</td><td class="n">5</td><td class="n">3</td><td class="n">2</td><td class="n">2</td><td class="n">38</td><td class="n">3</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<script>
+(function () {
+  var order = ['orders', 'briefing', 'resolution', 'aftermath', 'advance'];
+  var buttons = document.querySelectorAll('.mock__btn');
+  var roster = document.getElementById('roster');
+  var phasesWrap = document.querySelector('.phases');
+  function show(view) {
+    ['briefing', 'resolution', 'aftermath'].forEach(function (name) {
+      document.getElementById('view-' + name).hidden = name !== view;
+    });
+    buttons.forEach(function (b) { b.setAttribute('aria-pressed', String(b.dataset.view === view)); });
+    var at = order.indexOf(view);
+    document.querySelectorAll('.phase').forEach(function (li, i) {
+      var state = i < at ? 'done' : (i === at ? 'current' : 'next');
+      li.dataset.state = state;
+      if (state === 'current') { li.setAttribute('aria-current', 'step'); } else { li.removeAttribute('aria-current'); }
+      li.querySelector('.phase__state').textContent = state === 'done' ? 'Done' : (state === 'current' ? 'Current' : 'Next');
+    });
+    if (view === 'briefing') { roster.removeAttribute('data-away'); } else { roster.setAttribute('data-away', ''); }
+    var cur = document.querySelector('.phase[aria-current="step"]');
+    if (phasesWrap && cur) { phasesWrap.scrollLeft = Math.max(0, cur.offsetLeft - phasesWrap.clientWidth / 2 + cur.offsetWidth / 2); }
+  }
+  buttons.forEach(function (b) { b.addEventListener('click', function () { show(b.dataset.view); }); });
+  show('resolution');
+
+  document.querySelectorAll('input[name="objective"]').forEach(function (r) {
+    r.addEventListener('change', function () {
+      document.querySelectorAll('input[name="objective"]').forEach(function (o) { o.closest('tr').classList.toggle('is-sel', o.checked); });
+    });
+  });
+
+  var team = document.querySelectorAll('input[name="team"]');
+  var teamCount = document.getElementById('team-count');
+  team.forEach(function (box) {
+    box.addEventListener('change', function () {
+      box.closest('tr').classList.toggle('is-sel', box.checked);
+      var n = 0; team.forEach(function (t) { if (t.checked) { n++; } });
+      teamCount.textContent = String(n);
+    });
+  });
+
+  var gear = document.querySelectorAll('#gear input[type="checkbox"]');
+  var gearCount = document.getElementById('gear-count');
+  function syncGear() {
+    var n = 0; gear.forEach(function (g) { if (g.checked) { n++; } });
+    gear.forEach(function (g) { g.disabled = !g.checked && n >= 2; });
+    gearCount.textContent = n + ' of 2';
+  }
+  gear.forEach(function (g) { g.addEventListener('change', syncGear); });
+  syncGear();
+
+  var answers = document.querySelectorAll('.answers .btn');
+  answers.forEach(function (b) {
+    b.addEventListener('click', function () {
+      answers.forEach(function (x) { x.setAttribute('aria-pressed', String(x === b)); });
+    });
+  });
+})();
+</script>
