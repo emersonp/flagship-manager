@@ -21,6 +21,10 @@
     <ProjectReference Include="..\..\src\Persistence\Persistence.csproj" />
     <ProjectReference Include="..\..\src\GameHost\GameHost.csproj" />
     <ProjectReference Include="..\..\src\Sim.Core\Sim.Core.csproj" />
+    <ProjectReference Include="..\..\src\Sim.Content\Sim.Content.csproj" />
+    <ProjectReference Include="..\..\src\Sim.Crew\Sim.Crew.csproj" />
+    <ProjectReference Include="..\..\src\Sim.Missions\Sim.Missions.csproj" />
+    <ProjectReference Include="..\..\src\SimRunner\SimRunner.csproj" />
   </ItemGroup>
 
 </Project>
