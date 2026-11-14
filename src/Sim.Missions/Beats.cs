@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using Sim.Core;
 using Sim.Core.Content;
 
 namespace Sim.Missions;

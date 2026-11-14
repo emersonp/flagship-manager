@@ -1,21 +1,7 @@
+using Sim.Core;
 using Sim.Core.Content;
 
 namespace Sim.Missions;
-
-public enum MemberStatus
-{
-    Active,
-    Incapacitated,
-    Dead,
-}
-
-public enum MissionOutcome
-{
-    FullSuccess,
-    PartialSuccess,
-    Withdrawal,
-    Loss,
-}
 
 public enum Tier
 {
@@ -47,11 +33,6 @@ public enum InjuryOutcome
     Dead,
 }
 
-// The resolver's whole view of a crew member. Caution and discipline run from -2 to +2.
-public sealed record TeamMember(string Id, int Seniority, IReadOnlyDictionary<string, int> Skills, int Caution, int Discipline);
-
-public sealed record Team(IReadOnlyList<TeamMember> Members, string LeadId);
-
 // Operational parameters, each from -1 to +1. Risk is risk tolerance: +1 favours the fast approach.
 public sealed record Parameters(int Priority = 0, int Risk = 0, int Autonomy = 0, bool DevelopJuniors = false);
 
@@ -63,10 +44,6 @@ public sealed record PendingCall(
     CallAnswer LeadPrefers,
     IReadOnlyList<CallAnswer> Options,
     string Key);
-
-public sealed record CrewResult(string Id, MemberStatus Status, int Injury, double Experience, int Loyalty);
-
-public sealed record MissionResult(MissionOutcome Outcome, int Progress, int Need, int Calls, int Notices, IReadOnlyList<CrewResult> Crew);
 
 public sealed record MissionStep(MissionState State, IReadOnlyList<Beat> Beats, PendingCall? Pending, MissionResult? Result);
 

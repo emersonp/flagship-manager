@@ -3,6 +3,7 @@ using System.Text.Json.Serialization;
 using MissionBench;
 using Sim.Content;
 using Sim.Core.Content;
+using Sim.Core;
 using Sim.Missions;
 
 namespace SimRunner;
