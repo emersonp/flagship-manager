@@ -1,21 +1,51 @@
 <main id="main">
     <h2>Aftermath</h2>
-    <p>Outcome @(Aftermath?.Outcome ?? "none, no team was sent")</p>
-    <h3>Crew changes</h3>
-    <ul id="changes">
-        @foreach (CrewChange change in Aftermath?.Changes ?? [])
+    <dl class="facts readout">
+        <div><dt>Outcome</dt><dd>@(Aftermath?.Outcome ?? "None, no team was sent")</dd></div>
+    </dl>
+    <section aria-labelledby="changes-head">
+        <h3 id="changes-head">Crew changes</h3>
+        <ul id="changes">
+            @foreach (CrewChange change in Aftermath?.Changes ?? [])
+            {
+                <li>@change.Text</li>
+            }
+        </ul>
+        @if ((Aftermath?.Changes ?? []).Count == 0)
         {
-            <li>@change.Text</li>
+            <p class="empty-state">No crew changes this cycle.</p>
         }
-    </ul>
-    <h3>Unattended objectives</h3>
-    <ul id="unattended">
-        @foreach (UnattendedView roll in Aftermath?.Unattended ?? [])
+    </section>
+    <section aria-labelledby="unattended-head">
+        <h3 id="unattended-head">Unattended objectives</h3>
+        @if ((Aftermath?.Unattended ?? []).Count == 0)
         {
-            <li>@roll.ObjectiveId (@roll.TemplateId): rolled @roll.Roll against @roll.Target, @(roll.Succeeded ? "succeeded" : "failed")</li>
+            <p class="empty-state" id="unattended">No objective was left unattended.</p>
         }
-    </ul>
-    <button type="button" data-on:click="@Advance">Next cycle</button>
+        else
+        {
+            <table class="stack" id="unattended">
+                <thead>
+                    <tr><th>Objective</th><th>Template</th><th class="num">Roll</th><th class="num">Target</th><th>Result</th></tr>
+                </thead>
+                <tbody>
+                    @foreach (UnattendedView roll in Aftermath!.Unattended)
+                    {
+                        <tr>
+                            <td class="id">@roll.ObjectiveId</td>
+                            <td data-label="Template">@roll.TemplateId</td>
+                            <td class="num" data-label="Roll">@roll.Roll</td>
+                            <td class="num" data-label="Target">@roll.Target</td>
+                            <td data-label="Result">@(roll.Succeeded ? "Succeeded" : "Failed")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    </section>
+    <p class="actions">
+        <button class="btn btn--primary" type="button" data-indicator:_advancing data-attr:aria-busy="$_advancing" data-on:click="@Advance">Next cycle</button>
+    </p>
     <Refusal Reason="@Reason" />
 </main>
 

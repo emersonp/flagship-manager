@@ -1,0 +1,213 @@
+/* Hallmark · shape: app screen · genre: atmospheric · theme: Midnight (deal 2/3, seed dark-sci-fi-starship-command-19f2·24a39ccf·2026-11-14·r0)
+ * nav: top bar, the legacy name and its week over the five phase steps · signature: the mission log · states: empty, loading, error, in flight, full
+ * axes: dark/grotesk-sans/cool · posture: committed · contrast: pass · v2.0.0 */
+/* Hallmark · pre-emit critique: P4 H4 E4 S4 R5 V4 · weakest: S, a dark table console could be any tool; the log carries beat numbers, kind labels and state colours so it reads as this game's record */
+@import url("./tokens.css");
+@import url("./base.css");
+
+/* Shell: a top bar, then the screen beside the roster from 60rem. */
+.skip { position: absolute; left: var(--space-md); top: calc(-1 * var(--space-3xl)); z-index: var(--z-toast); padding: var(--space-xs) var(--space-md); background: var(--color-ink); color: var(--color-paper); }
+.skip:focus-visible { top: var(--space-md); }
+
+.shell { padding-block-end: var(--space-2xl); }
+.deck { display: grid; gap: var(--space-xl); padding-block-start: var(--space-xl); align-items: start; }
+@media (min-width: 60rem) {
+  .deck { grid-template-columns: minmax(0, 1fr) minmax(0, var(--roster-w)); }
+}
+
+#topbar { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: var(--space-sm) var(--space-lg); padding-block: var(--space-lg) var(--space-md); }
+#topbar h1 { font-stretch: var(--display-stretch); max-width: none; }
+.home { grid-column: 1 / -1; justify-self: start; display: inline-flex; align-items: center; min-height: var(--target); margin-block: calc(-1 * var(--space-sm)); font-size: var(--text-sm); font-weight: 500; color: var(--color-muted); text-decoration: none; }
+.home:hover { color: var(--color-ink); text-decoration: underline; text-decoration-color: var(--color-accent); }
+.when { font-size: var(--text-sm); font-weight: 500; color: var(--color-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.warning { grid-column: 1 / -1; padding: var(--space-xs) var(--space-sm); background: var(--color-paper-3); color: var(--color-ink-2); font-size: var(--text-sm); max-width: none; }
+
+/* The cycle as five steps: a 2px track, the current step in azure and named "now". */
+.phases { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(5, minmax(5.5rem, 1fr)); gap: var(--space-2xs); margin: 0; padding: 0; list-style: none; overflow-x: auto; scrollbar-width: thin; }
+.phases li { display: flex; align-items: baseline; gap: var(--space-xs); padding-block-start: var(--space-xs); border-block-start: 2px solid var(--color-rule-2); font-size: var(--text-sm); font-weight: 500; color: var(--color-ink-2); white-space: nowrap; }
+.phases li[aria-current="step"] { border-block-start-color: var(--color-accent); color: var(--color-ink); }
+.phases li[aria-current="step"] ~ li { border-block-start-color: var(--color-rule); color: var(--color-muted); }
+.now { color: var(--color-accent); font-weight: 400; }
+
+/* The screen. */
+#main { display: grid; gap: var(--space-lg); align-content: start; min-width: 0; }
+#main > h1, #main > header > h1 { font-stretch: var(--display-stretch); }
+#main > h2 { font-size: var(--text-xl); font-stretch: var(--display-stretch); }
+#main section { display: grid; gap: var(--space-sm); align-content: start; min-width: 0; }
+#main h3 { font-size: var(--text-md); font-weight: 500; letter-spacing: 0; }
+.empty, .empty-state { color: var(--color-ink-2); }
+.hint { font-size: var(--text-sm); color: var(--color-muted); }
+
+/* Figures read as instruments: label above, value below. */
+.readout { display: flex; flex-wrap: wrap; gap: var(--space-md) var(--space-xl); align-items: start; padding-block-end: var(--space-md); border-block-end: var(--rule-hair) solid var(--color-rule); }
+.facts { display: flex; flex-wrap: wrap; gap: var(--space-md) var(--space-xl); margin: 0; }
+.facts div { display: grid; gap: var(--space-3xs); }
+.facts dt, .stat-label { font-size: var(--text-sm); font-weight: 500; color: var(--color-muted); }
+.facts dd { margin: 0; font-weight: 500; }
+#meter { display: flex; flex-wrap: wrap; gap: var(--space-md) var(--space-xl); max-width: none; }
+#meter:empty { display: none; }
+.stat { display: grid; grid-template-columns: auto auto; column-gap: var(--space-xs); align-items: baseline; }
+.stat-label { grid-column: 1 / -1; }
+.fig { font-size: var(--text-xl); font-weight: var(--display-weight); font-stretch: var(--display-stretch); line-height: 1; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
+.stat-note { font-size: var(--text-sm); font-weight: 500; }
+[data-state="caution"] .fig, [data-state="caution"] .stat-note, .state[data-state="caution"] { color: var(--color-caution); }
+.state[data-state="harm"] { color: var(--color-harm); }
+.state { font-weight: 500; }
+
+/* Tables: horizontal hairlines only, sentence-case heads, figures right and tabular. */
+table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+th { padding: var(--space-xs) var(--space-sm) var(--space-xs) 0; border-block-end: var(--rule-hair) solid var(--color-rule-2); font-size: var(--text-sm); font-weight: 500; color: var(--color-muted); text-align: left; white-space: nowrap; vertical-align: bottom; }
+td { padding: var(--space-sm) var(--space-sm) var(--space-sm) 0; border-block-end: var(--rule-hair) solid var(--color-rule); vertical-align: top; }
+th:last-child, td:last-child { padding-inline-end: 0; }
+th.num, td.num { text-align: right; }
+td.id { font-weight: 500; white-space: nowrap; }
+td.skills { color: var(--color-ink-2); }
+tr.gone td { color: var(--color-muted); }
+a { text-decoration-color: var(--color-rule-2); }
+a:hover { text-decoration-color: var(--color-accent); }
+
+/* Controls: one size, 40px tall, a 44px target, all eight states. */
+.btn { position: relative; display: inline-flex; align-items: center; justify-content: center; gap: var(--space-xs); min-height: var(--control-h); padding: 0 var(--space-md); border: var(--rule-hair) solid var(--color-rule-2); border-radius: var(--radius-pill); background: transparent; color: var(--color-ink); font: 500 var(--text-md)/1 var(--font-body); white-space: nowrap; cursor: pointer; transition: background-color var(--dur-short) var(--ease-out), border-color var(--dur-short) var(--ease-out), transform var(--dur-micro) var(--ease-out); }
+.btn::before { content: ""; position: absolute; inset: calc((var(--control-h) - var(--target)) / 2) 0; }
+.btn:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; transition: none; }
+.btn:active { transform: translateY(1px); }
+.btn:disabled, .btn[aria-disabled="true"] { opacity: 0.55; cursor: not-allowed; transform: none; }
+.btn--primary { border-color: var(--color-accent); background: var(--color-accent); color: var(--color-accent-ink); }
+@media (hover: hover) {
+  .btn:hover { background: var(--color-paper-3); border-color: var(--color-muted); }
+  .btn--primary:hover { background: var(--color-focus); border-color: var(--color-focus); }
+}
+/* In flight: the label stays, the cursor waits, and a small square turns beside the button after 200ms. */
+.btn[aria-busy="true"] { cursor: progress; }
+.btn[aria-busy="true"]::after { content: ""; position: absolute; left: calc(100% + var(--space-xs)); top: calc(50% - var(--space-2xs) - 1px); width: var(--space-xs); height: var(--space-xs); border: 2px solid var(--color-muted); border-inline-end-color: transparent; opacity: 0; animation: wait-in 1ms linear 200ms forwards, wait-turn 800ms linear 200ms infinite; }
+@keyframes wait-in { to { opacity: 1; } }
+@keyframes wait-turn { to { transform: rotate(1turn); } }
+
+input[type="text"] { min-height: var(--control-h); padding: 0 var(--space-sm); border: var(--rule-hair) solid var(--color-muted); border-radius: 0; background: var(--color-paper); color: var(--color-ink); outline: 2px solid transparent; outline-offset: -3px; transition: background-color var(--dur-short) var(--ease-out); }
+input[type="text"]:hover { background: var(--color-paper-2); }
+input[type="text"]:focus-visible { outline-color: var(--color-focus); border-color: var(--color-ink-2); transition: none; }
+input[type="text"][aria-invalid="true"] { border-color: var(--color-error); }
+input[type="text"]:disabled { opacity: 0.55; cursor: not-allowed; }
+input[type="checkbox"], input[type="radio"] { width: 18px; height: 18px; margin: 0; accent-color: var(--color-accent); cursor: pointer; flex-shrink: 0; }
+input[type="checkbox"]:focus-visible, input[type="radio"]:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }
+input[type="checkbox"]:disabled, input[type="radio"]:disabled { opacity: 0.55; cursor: not-allowed; }
+fieldset { min-width: 0; margin: 0; padding: 0; border: 0; }
+legend { padding: 0; margin-block-end: var(--space-xs); font-size: var(--text-sm); font-weight: 500; color: var(--color-muted); }
+
+/* Refusals and errors: the sentence says what broke; colour only backs it up. */
+#refusal, #call-refusal { color: var(--color-error); font-weight: 500; max-width: 65ch; }
+#refusal:empty, #call-refusal:empty { display: none; }
+.error { min-height: 1lh; font-size: var(--text-sm); color: var(--color-error); }
+
+/* The dock: the screen's next decision, held at the foot of the window while the screen scrolls. */
+.dock { position: sticky; bottom: 0; z-index: var(--z-sticky); display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-sm) var(--space-md); padding: var(--space-md) var(--space-lg); background: var(--color-paper-3); }
+.dock:not(:has(button, p:not(:empty))) { display: none; }
+.dock .picked { margin-inline-end: auto; font-size: var(--text-sm); font-weight: 500; color: var(--color-ink-2); font-variant-numeric: tabular-nums; }
+.actions { display: flex; flex-wrap: wrap; gap: var(--space-sm); align-items: center; }
+
+/* Legacies. */
+.legacies-page { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-xl); max-width: 54rem; }
+.legacies-page > h1 { padding-block-start: var(--space-lg); }
+.start { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-xs); min-width: 0; max-width: 28rem; padding: var(--space-lg); background: var(--color-paper-2); }
+.start label { font-size: var(--text-sm); font-weight: 500; color: var(--color-muted); }
+.start-row { display: flex; gap: var(--space-xs); }
+.start-row input { flex: 1; width: 100%; min-width: 0; }
+
+/* Briefing. */
+#briefing { display: grid; gap: var(--space-xl); }
+#briefing > fieldset p { display: flex; align-items: center; gap: var(--space-sm); min-height: var(--target); padding-inline: var(--space-sm); border-block-end: var(--rule-hair) solid var(--color-rule); max-width: none; }
+#briefing > fieldset p:first-of-type { border-block-start: var(--rule-hair) solid var(--color-rule); }
+#briefing > fieldset p:has(input:checked) { background: var(--color-paper-2); }
+#briefing > fieldset label { flex: 1; align-self: stretch; display: flex; align-items: center; cursor: pointer; color: var(--color-ink-2); }
+#briefing > fieldset label .id { margin-inline-end: var(--space-xs); font-weight: 500; color: var(--color-ink); }
+.crew td.pick { position: relative; width: var(--target); text-align: center; vertical-align: middle; }
+.crew th.pick { text-align: center; }
+.crew td.pick label { position: absolute; inset: 0; cursor: pointer; }
+.pick-word { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.crew td.pick input { position: relative; z-index: var(--z-base); pointer-events: none; }
+.crew td.pick:has(input:disabled) label { cursor: not-allowed; }
+.crew tr:has(input[name="crew"]:checked) { background: var(--color-paper-2); }
+.crew tr:has(input:disabled) td:not(.pick) { color: var(--color-muted); }
+.loadout { display: grid; gap: var(--space-xl); }
+@media (min-width: 48rem) { .loadout { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
+.gear { display: grid; gap: var(--space-2xs); }
+.gear p { display: flex; align-items: center; gap: var(--space-sm); min-height: var(--target); max-width: none; }
+.gear label { cursor: pointer; }
+.params { display: grid; gap: var(--space-md); }
+.params fieldset { display: flex; flex-wrap: wrap; align-items: center; }
+.params legend { flex-basis: 100%; }
+.params input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.params label { display: inline-flex; align-items: center; justify-content: center; min-width: var(--target); min-height: var(--target); padding: 0 var(--space-sm); border: var(--rule-hair) solid var(--color-rule-2); margin-inline-start: calc(-1 * var(--rule-hair)); font-weight: 500; font-variant-numeric: tabular-nums; cursor: pointer; transition: background-color var(--dur-short) var(--ease-out); }
+.params input:first-of-type + label { margin-inline-start: 0; }
+.params input:checked + label { background: var(--color-ink); border-color: var(--color-ink); color: var(--color-paper); }
+.params input:focus-visible + label { outline: 2px solid var(--color-focus); outline-offset: 2px; position: relative; transition: none; }
+@media (hover: hover) { .params input:not(:checked) + label:hover { background: var(--color-paper-2); } }
+
+/* The mission log: the signature. A ruled list; each beat carries its number, its kind and its line. */
+.logbook { gap: var(--space-xs); }
+#log { margin: 0; padding: 0; list-style: none; border-block-start: var(--rule-hair) solid var(--color-rule-2); font-variant-numeric: tabular-nums; }
+#log > li { display: grid; grid-template-columns: 3ch var(--log-kind-w) minmax(0, 1fr); gap: var(--space-md); padding-block: var(--space-xs); border-block-end: var(--rule-hair) solid var(--color-rule); line-height: 1.5; }
+#log > li[data-kind="stage"] { padding-block-start: var(--space-md); }
+#log > li[data-kind="stage"] .beat-text { color: var(--color-ink-2); }
+.beat-n { padding-block-start: var(--space-3xs); font-size: var(--text-sm); color: var(--color-muted); text-align: right; }
+.beat-kind { padding-block-start: var(--space-3xs); font-size: var(--text-sm); font-weight: 500; color: var(--color-muted); }
+#log > li[data-kind="injury"] .beat-kind, #log > li[data-kind="collapse"] .beat-kind, #log > li[data-kind="collapse"] .beat-text { color: var(--color-harm); }
+#log > li[data-kind="call"] .beat-kind { color: var(--color-caution); }
+#log > li[data-kind="result"] .beat-text { font-weight: 500; }
+#log > li:last-child { animation: beat-settle var(--dur-short) var(--ease-out) both; }
+@keyframes beat-settle { from { opacity: 0.3; } }
+/* Waiting for the first beat: two empty ruled rows in the shape of what is coming. */
+.logbook--live #log:empty::before, .logbook--live #log:empty::after { content: ""; display: block; height: calc(1.5em + 2 * var(--space-xs)); border-block-end: var(--rule-hair) solid var(--color-rule); }
+
+/* A call waiting: a raised panel in the dock. */
+.call { display: grid; gap: var(--space-sm); flex: 1; }
+.call-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: var(--space-xs) var(--space-md); }
+.call-facts { display: flex; flex-wrap: wrap; gap: var(--space-xs) var(--space-lg); color: var(--color-ink-2); }
+.call-facts p { max-width: none; }
+.call-options { display: flex; flex-wrap: wrap; gap: var(--space-sm); }
+.call-options form { display: contents; }
+#call:empty, #resolution-footer:empty { display: none; }
+#call { flex: 1 1 100%; }
+.dock--call { flex-direction: column; align-items: stretch; box-shadow: var(--shadow-card); }
+
+/* Aftermath. */
+#changes { margin: 0; padding: 0; list-style: none; border-block-start: var(--rule-hair) solid var(--color-rule); }
+#changes li { padding-block: var(--space-xs); border-block-end: var(--rule-hair) solid var(--color-rule); }
+#changes:empty { display: none; }
+
+/* The roster: a second neutral beside the screen. */
+#roster { display: grid; gap: var(--space-md); align-content: start; min-width: 0; padding: var(--space-lg); background: var(--color-paper-2); }
+#roster h2 { font-stretch: var(--display-stretch); }
+#roster th, #roster td { font-size: var(--text-sm); }
+#roster td.id { font-size: var(--text-md); }
+
+/* Under 40rem a table row restacks as a labelled block; the column that names the row leads. */
+@media (max-width: 40rem) {
+  :is(.site, .roster, .stack) thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  :is(.site, .roster, .stack) tr { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2xs) var(--space-md); padding-block: var(--space-sm); border-block-end: var(--rule-hair) solid var(--color-rule); }
+  :is(.site, .roster, .stack) td { display: block; padding: 0; border: 0; text-align: left; }
+  :is(.site, .roster, .stack) td.num { text-align: left; }
+  :is(.site, .roster, .stack) td:first-child { grid-column: 1 / -1; }
+  :is(.site, .roster, .stack) td[data-label]::before { content: attr(data-label); display: block; font-size: var(--text-sm); font-weight: 500; color: var(--color-muted); }
+  .crew thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .crew tr { display: grid; grid-template-columns: minmax(0, 1fr) var(--target) var(--target); grid-template-areas: "id team lead" "status team lead" "skills skills skills"; column-gap: var(--space-xs); padding-block: var(--space-xs); border-block-end: var(--rule-hair) solid var(--color-rule); }
+  .crew td { padding: 0; border: 0; }
+  .crew td.id { grid-area: id; }
+  .crew td.status { grid-area: status; font-size: var(--text-sm); }
+  .crew td.skills { grid-area: skills; font-size: var(--text-sm); }
+  .crew td.team { grid-area: team; }
+  .crew td.lead { grid-area: lead; }
+  .crew td.pick { width: auto; min-height: var(--target); padding-block-end: var(--space-md); }
+  .crew td.pick label { display: flex; align-items: flex-end; justify-content: center; }
+  .pick-word { position: static; width: auto; height: auto; overflow: visible; clip-path: none; font-size: var(--text-xs); color: var(--color-muted); }
+  #log > li { grid-template-columns: 3ch minmax(0, 1fr); gap: 0 var(--space-sm); }
+  #log > li .beat-text { grid-column: 2; }
+  .dock { padding: var(--space-sm) var(--space-md); }
+  #roster { padding: var(--space-md); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #log > li:last-child { animation: none; }
+  .btn, .btn:active { transition: none; transform: none; }
+  .btn[aria-busy="true"]::after { animation: none; opacity: 1; }
+}

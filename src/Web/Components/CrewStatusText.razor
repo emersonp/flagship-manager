@@ -1,0 +1,17 @@
+@if (Row.Status != nameof(Sim.Crew.CrewStatus.Active))
+{
+    <span class="state" data-state="harm">@Row.Status</span>
+}
+else if (Row.LightInjuryHealWeeks.Count > 0)
+{
+    @Row.Status<text>, </text><span class="state" data-state="harm">injured</span>
+}
+else
+{
+    @Row.Status
+}
+
+@code {
+    // Recovering and dead are harm; an active member still healing a light injury is marked injured.
+    [Parameter, EditorRequired] public CrewRow Row { get; set; } = null!;
+}

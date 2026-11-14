@@ -1,64 +1,70 @@
 <main id="main">
     <h2>Briefing</h2>
-    <form id="briefing" data-signals:_picked="0" data-signals:_min="@Initial.Min" data-signals:_max="@Initial.Max" data-on:submit="@Launch">
+    <form id="briefing" data-signals:_picked="0" data-signals:_min="@Initial.Min" data-signals:_max="@Initial.Max" data-indicator:_launching data-on:submit="@Launch">
         <fieldset>
             <legend>Objective</legend>
             @foreach (ObjectiveView objective in Briefing.Objectives)
             {
                 <p>
                     <input type="radio" id="objective-@objective.Id" name="objective" value="@objective.Id" required checked="@(Briefing.Objectives.Count == 1)" data-min="@objective.TeamSizeMin" data-max="@objective.TeamSizeMax" data-on:change="@Range">
-                    <label for="objective-@objective.Id">@objective.Id (@objective.TemplateId), team @objective.TeamSizeMin to @objective.TeamSizeMax</label>
+                    <label for="objective-@objective.Id"><span class="id">@objective.Id</span> (@objective.TemplateId), team @objective.TeamSizeMin to @objective.TeamSizeMax</label>
                 </p>
             }
         </fieldset>
         <table class="crew">
             <thead>
-                <tr><th>Crew</th><th>Status</th><th>Skills</th><th>Team</th><th>Lead</th></tr>
+                <tr><th>Crew</th><th>Status</th><th>Skills</th><th class="pick">Team</th><th class="pick">Lead</th></tr>
             </thead>
             <tbody>
                 @foreach (CrewRow row in Briefing.Crew)
                 {
                     <tr>
-                        <td>@row.Id</td>
-                        <td>@row.Status</td>
-                        <td>@string.Join(", ", row.Skills.Select(s => $"{s.SkillId} {s.EffectiveLevel}"))</td>
-                        <td>
+                        <td class="id">@row.Id</td>
+                        <td class="status"><CrewStatusText Row="row" /></td>
+                        <td class="skills">@string.Join(", ", row.Skills.Select(s => $"{s.SkillId} {s.EffectiveLevel}"))</td>
+                        <td class="pick team">
                             <input type="checkbox" id="crew-@row.Id" name="crew" value="@row.Id" aria-label="Team @row.Id" disabled="@(!row.Fit)" data-on:change="@Count">
-                            <label for="crew-@row.Id">Team</label>
+                            <label for="crew-@row.Id"><span class="pick-word">Team</span></label>
                         </td>
-                        <td>
+                        <td class="pick lead">
                             <input type="radio" id="lead-@row.Id" name="lead" value="@row.Id" aria-label="Lead @row.Id" disabled="@(!row.Fit)">
-                            <label for="lead-@row.Id">Lead</label>
+                            <label for="lead-@row.Id"><span class="pick-word">Lead</span></label>
                         </td>
                     </tr>
                 }
             </tbody>
         </table>
-        <fieldset>
-            <legend>Gear (at most @Briefing.LoadoutLimit)</legend>
-            @foreach (GearChoice gear in Briefing.Gear)
-            {
-                <p>
-                    <input type="checkbox" id="gear-@gear.Id" name="gear" value="@gear.Id">
-                    <label for="gear-@gear.Id">@gear.Id (@gear.Tag)</label>
-                </p>
-            }
-        </fieldset>
-        @foreach (string name in new[] { "priority", "risk", "autonomy" })
-        {
-            <fieldset>
-                <legend>@(char.ToUpperInvariant(name[0]) + name[1..])</legend>
-                @foreach (int value in new[] { -1, 0, 1 })
+        <div class="loadout">
+            <fieldset class="gear">
+                <legend>Gear (at most @Briefing.LoadoutLimit)</legend>
+                @foreach (GearChoice gear in Briefing.Gear)
                 {
-                    <input type="radio" id="@name-@value" name="@name" value="@value" checked="@(value == 0)">
-                    <label for="@name-@value">@value</label>
+                    <p>
+                        <input type="checkbox" id="gear-@gear.Id" name="gear" value="@gear.Id">
+                        <label for="gear-@gear.Id">@gear.Id (@gear.Tag)</label>
+                    </p>
                 }
             </fieldset>
-        }
-        <p class="picked"><span data-text="@Text">0</span></p>
-        <button type="submit">Launch</button>
-        <button type="button" data-on:click="@SendNobody">Send nobody</button>
-        <Refusal Reason="@Reason" />
+            <div class="params">
+                @foreach (string name in new[] { "priority", "risk", "autonomy" })
+                {
+                    <fieldset>
+                        <legend>@(char.ToUpperInvariant(name[0]) + name[1..])</legend>
+                        @foreach (int value in new[] { -1, 0, 1 })
+                        {
+                            <input type="radio" id="@name-@value" name="@name" value="@value" checked="@(value == 0)">
+                            <label for="@name-@value">@value</label>
+                        }
+                    </fieldset>
+                }
+            </div>
+        </div>
+        <div class="dock">
+            <p class="picked">Team <span data-text="@Text">0</span></p>
+            <button class="btn btn--primary" type="submit" data-attr:aria-busy="$_launching">Launch</button>
+            <button class="btn" type="button" data-indicator:_sending data-attr:aria-busy="$_sending" data-on:click="@SendNobody">Send nobody</button>
+            <Refusal Reason="@Reason" />
+        </div>
     </form>
 </main>
 

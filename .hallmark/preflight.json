@@ -1,0 +1,12 @@
+{
+  "scanned": "2026-11-14",
+  "findings": {
+    "fonts": "none: browser default (src/Web/Components/Layout.razor has no font link or stylesheet)",
+    "palette": "none: semantic, unstyled markup",
+    "motion": "none; Datastar 1.0.5 morphs patched regions by id (src/Web/wwwroot/lib/datastar.js)",
+    "spacing": "none",
+    "framework": "ASP.NET Core minimal API, server-rendered Razor components (src/Web/Components), Datastar 1.0.5 SSE patches"
+  },
+  "preserve": ["every patched element id and its opening tag", "form field names", "Datastar attributes and their behaviour", "the shell order: top bar, main, roster"],
+  "introduce": ["Midnight tokens (dealt 2/3)", "Mona Sans self-hosted", "app shell grid", "mission log as signature", "harm and caution state tokens", "gates"]
+}

@@ -1,0 +1,26 @@
+[
+ {
+  "scope": "app",
+  "shape": "app screen",
+  "theme": "midnight",
+  "axes": "dark/grotesk-sans/cool",
+  "hero": "none (app screen)",
+  "nav": "top bar: legacy name, week and cycle, five phase steps",
+  "footer": "none",
+  "imagery": "none",
+  "photos": [],
+  "entry": "the current phase screen beside the roster",
+  "fingerprint": "topbar-steps/main+roster/ruled-log/dock",
+  "sections": [
+   "top bar",
+   "phase screen",
+   "roster",
+   "dock"
+  ],
+  "signature": "the mission log",
+  "waived": [],
+  "prompt": "starship captain management sim, bridge screens: legacies, orders, briefing, resolution, aftermath",
+  "date": "2026-11-14",
+  "mode": "build"
+ }
+]

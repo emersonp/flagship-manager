@@ -2,17 +2,27 @@
     <h2>Resolution</h2>
     @if (Mission is null)
     {
-        <p>No team was sent.</p>
+        <p class="empty-state">No team was sent.</p>
     }
-    else
-    {
-        <p>Team @string.Join(", ", Mission.Team). Lead @Mission.LeadId.</p>
-    }
-    <Meter Mission="@(HideMeter ? null : Mission)" />
-    <MissionLog Lines="@(Mission?.Log ?? [])" />
-    <CallPanel LegacyId="LegacyId" MissionId="@(Mission?.MissionId ?? "")" Call="Mission?.Call" />
-    <ResolutionFooter LegacyId="LegacyId" Show="@(Mission is null || Mission.Outcome is not null)" />
-    <Refusal Reason="@Reason" />
+    <div class="readout">
+        @if (Mission is not null)
+        {
+            <dl class="facts">
+                <div><dt>Team</dt><dd>@string.Join(", ", Mission.Team)</dd></div>
+                <div><dt>Lead</dt><dd>@Mission.LeadId</dd></div>
+            </dl>
+        }
+        <Meter Mission="@(HideMeter ? null : Mission)" />
+    </div>
+    <section class="@(Mission is null ? "logbook" : "logbook logbook--live")" aria-labelledby="log-head">
+        <h3 id="log-head">Mission log</h3>
+        <MissionLog Lines="@(Mission?.Log ?? [])" />
+    </section>
+    <div class="dock dock--call">
+        <CallPanel LegacyId="LegacyId" MissionId="@(Mission?.MissionId ?? "")" Call="Mission?.Call" />
+        <ResolutionFooter LegacyId="LegacyId" Show="@(Mission is null || Mission.Outcome is not null)" />
+        <Refusal Reason="@Reason" />
+    </div>
 </main>
 
 @code {

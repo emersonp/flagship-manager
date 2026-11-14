@@ -1,19 +1,27 @@
 <div id="call">
     @if (Call is not null)
     {
-        <section class="call">
-            <h3>@Call.DecisionId</h3>
-            <p>Stakes @Call.Stakes</p>
-            <p>The lead prefers @Call.LeadPrefers</p>
-            @foreach (string option in Call.Options)
-            {
-                <form data-on:submit="@Answer">
-                    <input type="hidden" name="mission" value="@MissionId">
-                    <input type="hidden" name="call" value="@Call.CallId">
-                    <input type="hidden" name="answer" value="@option">
-                    <button type="submit">@option</button>
-                </form>
-            }
+        <section class="call" aria-labelledby="call-head">
+            <div class="call-head">
+                <h3 id="call-head">@Call.DecisionId</h3>
+                <p class="state" data-state="caution" role="status">Call waiting</p>
+            </div>
+            <div class="call-facts">
+                <p>Stakes @Call.Stakes</p>
+                <p>The lead prefers @Call.LeadPrefers</p>
+            </div>
+            <div class="call-options">
+                @for (int i = 0; i < Call.Options.Count; i++)
+                {
+                    string option = Call.Options[i];
+                    <form data-on:submit="@Answer" @attributes="Indicator(i)">
+                        <input type="hidden" name="mission" value="@MissionId">
+                        <input type="hidden" name="call" value="@Call.CallId">
+                        <input type="hidden" name="answer" value="@option">
+                        <button class="btn" type="submit" data-attr:aria-busy="$_answer@(i)">@option</button>
+                    </form>
+                }
+            </div>
             <CallRefusal Reason="@Reason" />
         </section>
     }
@@ -27,6 +35,12 @@
     [Parameter] public CallView? Call { get; set; }
 
     [Parameter] public string? Reason { get; set; }
+
+    // Each option has its own in-flight signal, so only the pressed answer shows it is waiting.
+    private static Dictionary<string, object> Indicator(int index)
+    {
+        return new Dictionary<string, object> { [$"data-indicator:_answer{index}"] = true };
+    }
 
     private string Answer => $"@post('/legacy/{LegacyId}/answer', {{contentType: 'form'}})";
 }

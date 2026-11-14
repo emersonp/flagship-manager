@@ -311,7 +311,8 @@ public sealed class ResolutionTests : IDisposable
 
         string page = await Page(id);
 
-        Assert.Contains("Week 2, Cycle 2, Orders", page);
+        Assert.Contains("Week 2, Cycle 2", page);
+        Assert.Contains("aria-current=\"step\">Orders", page);
         Assert.Contains("To briefing", Entity(page));
     }
 

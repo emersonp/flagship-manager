@@ -1,12 +1,18 @@
 <p id="meter">
     @if (Mission is not null)
     {
-        <span>Momentum @Mission.Momentum</span>
-        <span>Strain @Mission.Strain</span>
+        <span class="stat"><span class="stat-label">Momentum</span> <span class="fig">@Mission.Momentum</span></span>
+        <span class="stat" data-state="@(StrainHigh ? "caution" : null)"><span class="stat-label">Strain</span> <span class="fig">@Mission.Strain</span>@if (StrainHigh)
+            {
+                <span class="stat-note">high</span>
+            }</span>
     }
 </p>
 
 @code {
     // Null while the beats are still being shown, so the numbers do not give the result away.
     [Parameter] public MissionView? Mission { get; set; }
+
+    // Strain from 4 is marked as caution, with the word beside the figure.
+    private bool StrainHigh => Mission is { Strain: >= 4 };
 }

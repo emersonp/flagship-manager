@@ -1,7 +1,9 @@
 <main id="main">
     <h2>@Phase</h2>
-    <p>The @Phase.ToString().ToLowerInvariant() phase has no screen yet.</p>
-    <button type="button" data-on:click="@Advance">Advance</button>
+    <p class="empty">The @Phase.ToString().ToLowerInvariant() phase has no screen yet.</p>
+    <p class="actions">
+        <button class="btn btn--primary" type="button" data-indicator:_advancing data-attr:aria-busy="$_advancing" data-on:click="@Advance">Advance</button>
+    </p>
     <Refusal Reason="@Reason" />
 </main>
 

@@ -1,7 +1,11 @@
 <Layout Title="@View.TopBar.LegacyName">
-    <TopBar Bar="View.TopBar" />
-    <MainScreen LegacyId="LegacyId" View="View" />
-    <Roster Rows="View.Roster" />
+    <div class="shell container">
+        <TopBar Bar="View.TopBar" />
+        <div class="deck">
+            <MainScreen LegacyId="LegacyId" View="View" />
+            <Roster Rows="View.Roster" />
+        </div>
+    </div>
 </Layout>
 
 @code {

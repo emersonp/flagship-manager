@@ -8,23 +8,25 @@
     {
         <table class="site">
             <thead>
-                <tr><th>Objective</th><th>Template</th><th>Skills</th><th>Team</th><th>Unattended difficulty</th></tr>
+                <tr><th>Objective</th><th>Template</th><th>Skills</th><th class="num">Team</th><th class="num">Unattended difficulty</th></tr>
             </thead>
             <tbody>
                 @foreach (ObjectiveView objective in Site.Objectives)
                 {
                     <tr>
-                        <td>@objective.Id</td>
-                        <td>@objective.TemplateId</td>
-                        <td>@string.Join(", ", objective.PossibleSkills)</td>
-                        <td>@objective.TeamSizeMin to @objective.TeamSizeMax</td>
-                        <td>@objective.UnattendedDifficulty</td>
+                        <td class="id">@objective.Id</td>
+                        <td data-label="Template">@objective.TemplateId</td>
+                        <td class="skills" data-label="Skills">@string.Join(", ", objective.PossibleSkills)</td>
+                        <td class="num" data-label="Team">@objective.TeamSizeMin to @objective.TeamSizeMax</td>
+                        <td class="num" data-label="Unattended difficulty">@objective.UnattendedDifficulty</td>
                     </tr>
                 }
             </tbody>
         </table>
     }
-    <button type="button" data-on:click="@Advance">To briefing</button>
+    <p class="actions">
+        <button class="btn btn--primary" type="button" data-indicator:_advancing data-attr:aria-busy="$_advancing" data-on:click="@Advance">To briefing</button>
+    </p>
     <Refusal Reason="@Reason" />
 </main>
 

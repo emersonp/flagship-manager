@@ -1,7 +1,7 @@
 <ol id="log">
     @foreach (LogLine line in Lines)
     {
-        <li id="beat-@line.Index" data-kind="@line.Kind">@line.Text</li>
+        <li id="beat-@line.Index" data-kind="@line.Kind"><span class="beat-n">@line.Index</span> <span class="beat-kind">@line.Kind</span> <span class="beat-text">@line.Text</span></li>
     }
 </ol>
 

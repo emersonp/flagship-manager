@@ -251,7 +251,8 @@ public sealed class BriefingTests : IDisposable
 
         var after = Snapshot(id);
         Assert.Equal((CyclePhase.Orders, 2, 2), (after.Phase, after.Cycle, after.Week));
-        Assert.Contains("Week 2, Cycle 2, Orders", stream);
+        Assert.Contains("Week 2, Cycle 2", stream);
+        Assert.Contains("aria-current=\"step\">Orders", stream);
         Assert.Contains("To briefing", stream);
     }
 
