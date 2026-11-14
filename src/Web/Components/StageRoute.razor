@@ -1,4 +1,3 @@
-@using System.Text.RegularExpressions
 <div id="route">
     @if (Lines is not null)
     {
@@ -12,9 +11,9 @@
             <div class="route-scroll"><ol class="route" aria-label="Route, stages reached so far">
                 @for (int i = 0; i < Stages.Count; i++)
                 {
-                    Stop stop = Stages[i];
-                    bool current = i == Stages.Count - 1;
-                    <li class="stop" aria-current="@(current ? "step" : null)"><span class="stop__no">Stage <span class="m">@(i + 1)</span>@(current ? ", current" : "")</span><span class="stop__id">@stop.Encounter</span>@if (stop.Blocked)
+                    LogLine stop = Stages[i];
+                    bool current = !Ended && i == Stages.Count - 1;
+                    <li class="stop" aria-current="@(current ? "step" : null)"><span class="stop__no">Stage <span class="m">@(i + 1)</span>@(current ? ", current" : "")</span><span class="stop__id">@stop.EncounterId</span>@if (stop.CommsBlocked == true)
                         {
                             <span class="stop__note">Comms blocked</span>
                         }</li>
@@ -29,13 +28,8 @@
     // The route is built from the log's stage lines alone, so it can never be ahead of the log it is patched with.
     [Parameter] public IReadOnlyList<LogLine>? Lines { get; set; }
 
-    private sealed record Stop(string Encounter, bool Blocked);
+    // The mission has ended and the log has shown it: no stage is the current one.
+    [Parameter] public bool Ended { get; set; }
 
-    // "Stage {n}: {encounter}.[ Comms blocked.] Momentum M, strain S."
-    private List<Stop> Stages => (Lines ?? [])
-        .Where(l => l.Kind == "stage")
-        .Select(l => Regex.Match(l.Text, @"^Stage \d+: (\S+?)\.( Comms blocked\.)? Momentum "))
-        .Where(m => m.Success)
-        .Select(m => new Stop(m.Groups[1].Value, m.Groups[2].Success))
-        .ToList();
+    private List<LogLine> Stages => (Lines ?? []).Where(l => l.Kind == "stage" && l.EncounterId is not null).ToList();
 }

@@ -26,17 +26,22 @@ public static class BridgeReader
         MissionView? mission = showMission ? Mission(site!.Mission!, site.Briefing, cycleEvents) : null;
         return new BridgeView(
             TopBar(record, pack),
-            mission is null ? roster : MarkAway(roster, mission.Team, mission.LeadId),
+            // Only while the mission plays: the aftermath names the team in its head instead.
+            mission is null || phase != CyclePhase.Resolution ? roster : MarkAway(roster, mission.Team, mission.LeadId),
             showSite ? new SiteView(site!.AssignmentId, objectives) : null,
             showBriefing ? Briefing(pack, site!, objectives, roster) : null,
             mission,
             showAftermath ? Aftermath(site!, state, cycleEvents) : null);
     }
 
-    // The away team's rows, with the lead flagged; everyone else unmarked. Used for a lead other than the stored one too.
+    // The away team's living rows, with the lead flagged; everyone else unmarked. Used for a lead other than the stored one too.
     public static IReadOnlyList<CrewRow> MarkAway(IReadOnlyList<CrewRow> roster, IReadOnlyList<string> team, string leadId)
     {
-        return roster.Select(r => r with { IsAway = team.Contains(r.Id), IsLead = team.Contains(r.Id) && r.Id == leadId }).ToList();
+        return roster.Select(r =>
+        {
+            bool away = team.Contains(r.Id) && r.Status != nameof(CrewStatus.Dead);
+            return r with { IsAway = away, IsLead = away && r.Id == leadId };
+        }).ToList();
     }
 
     private static TopBarView TopBar(LegacyRecord record, ContentPack pack)
@@ -180,30 +185,38 @@ public static class BridgeReader
             switch (e)
             {
                 case MissionEnded ended:
-                    outcome = ended.Result.Outcome.ToString();
                     // The result holds mission points, not the applied change: show the stored loyalty, never a delta.
                     foreach (CrewResult result in ended.Result.Crew.Where(c => c.Loyalty != 0))
                     {
                         if (crew?.Members.FirstOrDefault(m => m.Id == result.Id) is { } member)
                         {
-                            changes.Add(new CrewChange(member.Id, Inv($"{member.Id} loyalty now {member.Loyalty}.")));
+                            changes.Add(new CrewChange(member.Id, "loyalty", Inv($"{member.Id} loyalty now {member.Loyalty}.")));
                         }
                     }
 
-
                     break;
                 case SkillRaised raised:
-                    changes.Add(new CrewChange(raised.CrewId, Inv($"{raised.CrewId} raises {raised.SkillId} to level {raised.Level}.")));
+                    changes.Add(new CrewChange(raised.CrewId, "skill", Inv($"{raised.CrewId} raises {raised.SkillId} to level {raised.Level}.")));
                     break;
                 case CrewInjured injured:
-                    string returns = injured.ReturnsAtWeek is { } week ? Inv($", returns at week {week}") : string.Empty;
-                    changes.Add(new CrewChange(injured.CrewId, Inv($"{injured.CrewId} injured: {BeatLines.Words(injured.Outcome)}, light injuries {injured.LightInjuries}{returns}.")));
+                    // One line per light injury with its heal week: this mission's are the last ones the crew state added.
+                    IEnumerable<int> heals = crew?.Members.FirstOrDefault(m => m.Id == injured.CrewId)?.LightInjuriesHealAtWeek.TakeLast(injured.LightInjuries) ?? [];
+                    foreach (int week in heals)
+                    {
+                        changes.Add(new CrewChange(injured.CrewId, "injury", Inv($"{injured.CrewId} lightly injured, heals week {week}.")));
+                    }
+
+                    if (injured.Outcome == MemberStatus.Incapacitated)
+                    {
+                        changes.Add(new CrewChange(injured.CrewId, "injury", Inv($"{injured.CrewId} incapacitated, returns week {injured.ReturnsAtWeek}.")));
+                    }
+
                     break;
                 case CrewDied died:
-                    changes.Add(new CrewChange(died.CrewId, Inv($"{died.CrewId} died on {died.MissionId}.")));
+                    changes.Add(new CrewChange(died.CrewId, "death", $"{died.CrewId} died."));
                     break;
                 case CrewRecovered recovered:
-                    changes.Add(new CrewChange(recovered.CrewId, $"{recovered.CrewId} recovered."));
+                    changes.Add(new CrewChange(recovered.CrewId, "recovery", $"{recovered.CrewId} recovered."));
                     break;
                 case ObjectiveUnattended u:
                     unattended.Add(new UnattendedView(u.ObjectiveId, u.TemplateId, u.Roll, u.Target, u.Succeeded));

@@ -1,7 +1,7 @@
 <main id="main">
     <div class="view-head verdict">
         <h1>@(Aftermath?.Outcome is { } outcome ? Figures.Words(outcome) : "No team was sent")</h1>
-        <p>@(ObjectiveName is null ? "Outcome: none, so every objective resolved unattended." : $"Outcome of {ObjectiveName}")</p>
+        <p>@(ObjectiveName is null ? "Outcome: none, so every objective resolved unattended." : $"Outcome of {ObjectiveName}{Team}")</p>
     </div>
     <div class="after-pair">
         <section class="well" aria-labelledby="changes-head">
@@ -9,8 +9,8 @@
             <ol id="changes" class="changes">
                 @for (int i = 0; i < Changes.Count; i++)
                 {
-                    (string kind, bool harm) = Kind(Changes[i].Text);
-                    <li class="@(harm ? "is-harm" : null)"><span class="changes__no">@((i + 1).ToString("00", System.Globalization.CultureInfo.InvariantCulture))</span><span class="changes__kind">@kind</span><span>@Figures.Mono(Changes[i].Text)</span></li>
+                    CrewChange change = Changes[i];
+                    <li class="@(change.Kind is "injury" or "death" ? "is-harm" : null)"><span class="changes__no">@((i + 1).ToString("00", System.Globalization.CultureInfo.InvariantCulture))</span><span class="changes__kind">@change.Kind</span><span>@Figures.Mono(Changes[i].Text)</span></li>
                 }
             </ol>
             @if (Changes.Count == 0)
@@ -29,7 +29,7 @@
                 {
                     @foreach (UnattendedView roll in Aftermath!.Unattended)
                     {
-                        <p>@roll.TemplateId (@roll.ObjectiveId), rolled <span class="m">@roll.Roll</span> against <span class="m">@roll.Target</span>, <span class="@(roll.Succeeded ? "res" : "res res--fail")">@(roll.Succeeded ? "succeeded" : "failed")</span>.</p>
+                        <p>@roll.TemplateId, rolled <span class="m">@roll.Roll</span> against <span class="m">@roll.Target</span>, <span class="@(roll.Succeeded ? "res" : "res res--fail")">@(roll.Succeeded ? "succeeded" : "failed")</span>.</p>
                     }
                 }
             </div>
@@ -57,34 +57,6 @@
 
     private IReadOnlyList<CrewChange> Changes => Aftermath?.Changes ?? [];
 
-    // The kind label read from the change's own sentence, as the reader writes it.
-    private static (string Kind, bool Harm) Kind(string text)
-    {
-        if (text.Contains(" died ", StringComparison.Ordinal))
-        {
-            return ("death", true);
-        }
-
-        if (text.Contains(" injured", StringComparison.Ordinal))
-        {
-            return ("injury", true);
-        }
-
-        if (text.Contains(" loyalty ", StringComparison.Ordinal))
-        {
-            return ("loyalty", false);
-        }
-
-        if (text.Contains(" raises ", StringComparison.Ordinal))
-        {
-            return ("skill", false);
-        }
-
-        if (text.Contains(" recovered", StringComparison.Ordinal))
-        {
-            return ("recovery", false);
-        }
-
-        return ("change", false);
-    }
+    // The team as sent, lead marked, named in the head now that the roster no longer tags it.
+    private string Team => Mission is null ? "" : ", team " + Figures.List(Mission.Team.Select(t => t == Mission.LeadId ? $"{t} (lead)" : t).ToList());
 }

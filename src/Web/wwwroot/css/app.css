@@ -85,15 +85,17 @@ h2 { font-size: var(--text-xl); line-height: 1.12; max-width: 30ch; }
   .course > :not(:empty) ~ :not(:empty) { border-top: 0; border-left: var(--rule-hair) solid var(--color-rule); }
 }
 .course__cap { margin-bottom: var(--space-sm); }
-/* One row that scrolls inside its wrapper. Laid out from the end, so the current (last) stage is the one in view. */
+/* One row that scrolls inside its wrapper. Laid out from the end, so the current (last) stage is the one in view.
+ * The leading edge fades out, so a row that runs past it reads as one that scrolls, and a card cut there is never a hard cut;
+ * the route starts past the fade, so a row that fits is untouched. */
 #route { min-width: 0; }
-.route-scroll { display: flex; flex-direction: row-reverse; overflow-x: auto; scrollbar-width: thin; padding-bottom: var(--space-3xs); }
-.route { display: flex; gap: var(--space-md); flex: none; margin-right: auto; padding-left: var(--space-3xs); }
-.route > .stop { flex: 0 0 10rem; }
+.route-scroll { display: flex; flex-direction: row-reverse; overflow-x: auto; scrollbar-width: thin; scrollbar-color: var(--color-rule-2) transparent; padding-bottom: var(--space-xs); mask-image: linear-gradient(to right, transparent, var(--color-ink) var(--space-xl)); }
+.route { display: flex; gap: var(--space-md); flex: none; margin-right: auto; padding-left: var(--space-xl); }
+.route > .stop { flex: 0 0 auto; min-width: 10rem; }
 .stop { position: relative; display: grid; gap: var(--space-3xs); align-content: start; padding: var(--space-xs) var(--space-sm); border: var(--rule-hair) solid var(--color-rule-2); border-radius: var(--radius-inner); min-width: 0; }
 .stop + .stop::before { content: ""; position: absolute; top: 50%; right: 100%; width: var(--space-md); border-top: var(--rule-hair) solid var(--color-rule-2); }
 .stop__no { font-size: var(--text-sm); color: var(--color-muted); }
-.stop__id { color: var(--color-ink-2); overflow-wrap: break-word; min-width: 0; }
+.stop__id { color: var(--color-ink-2); white-space: nowrap; }
 .stop__note { font-size: var(--text-sm); color: var(--color-muted); }
 .stop[aria-current="step"] { border-color: var(--color-accent); }
 .stop[aria-current="step"]::before { border-top-color: var(--color-accent); }
@@ -297,10 +299,16 @@ input:disabled { opacity: 0.55; cursor: not-allowed; }
   th:last-child, td:last-child, th.n:last-child, td.n:last-child { padding-right: var(--space-md); }
   #roster td.who, #roster th:first-child, .pick td.who, .pick th:first-child { position: sticky; left: 0; background: var(--color-paper-2); z-index: 1; }
   .pick tr:has(input:checked) td.who { background: var(--color-paper-3); }
+  /* The Team and Lead boxes are pinned at the right, so a team can be chosen and launched without scrolling the table. */
+  .pick { --pin-lead: calc(var(--space-2xs) + 44px + var(--space-md)); }
+  .pick th.c, .pick td.c { position: sticky; background: var(--color-paper-2); z-index: 1; }
+  .pick th.c:last-child, .pick td.c:last-child { right: 0; width: var(--pin-lead); min-width: var(--pin-lead); }
+  .pick th.c:nth-last-child(2), .pick td.c:nth-last-child(2) { right: var(--pin-lead); }
+  .pick tr:has(input:checked) td.c { background: var(--color-paper-3); }
   h1 { font-size: var(--text-2xl); }
   .verdict h1 { font-size: var(--text-3xl); }
   .call h2 { font-size: var(--text-xl); }
-  .route-scroll { display: block; overflow: visible; }
+  .route-scroll { display: block; overflow: visible; mask-image: none; }
   .route { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-xs); padding-left: 0; }
   .stop { grid-template-columns: 7.5rem minmax(0, 1fr); align-items: baseline; }
   .stop__note { grid-column: 2; }

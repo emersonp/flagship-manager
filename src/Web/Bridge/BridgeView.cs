@@ -29,6 +29,7 @@ public sealed record CallView(string CallId, string DecisionId, int Stakes, IRea
 
 public sealed record AftermathView(string? Outcome, IReadOnlyList<CrewChange> Changes, IReadOnlyList<UnattendedView> Unattended);
 
-public sealed record CrewChange(string CrewId, string Text);
+// Kind is skill, injury, death, recovery, or loyalty.
+public sealed record CrewChange(string CrewId, string Kind, string Text);
 
 public sealed record UnattendedView(string ObjectiveId, string TemplateId, int Roll, int Target, bool Succeeded);

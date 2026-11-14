@@ -37,7 +37,7 @@ public sealed class ResolutionTests : IDisposable
 
     private static List<string> LogPatches(string stream)
     {
-        return Patches(stream).Where(p => p.StartsWith("<ol id=\"log\"", StringComparison.Ordinal)).ToList();
+        return Patches(stream).Where(p => p.StartsWith("<section id=\"mission-log\"", StringComparison.Ordinal)).ToList();
     }
 
     private static string Entity(string html)
@@ -137,7 +137,7 @@ public sealed class ResolutionTests : IDisposable
 
         List<string> patches = Patches(stream);
         Assert.Contains("<div id=\"meter\"></div>", patches[1]);
-        int lastLog = patches.FindLastIndex(p => p.StartsWith("<ol id=\"log\"", StringComparison.Ordinal));
+        int lastLog = patches.FindLastIndex(p => p.StartsWith("<section id=\"mission-log\"", StringComparison.Ordinal));
         int meter = patches.FindIndex(p => p.StartsWith("<div id=\"meter\">", StringComparison.Ordinal));
         int call = patches.FindIndex(p => p.StartsWith("<div id=\"call\"", StringComparison.Ordinal));
         Assert.True(meter > lastLog && call > lastLog, "The meter and call come after the last beat.");
@@ -158,7 +158,7 @@ public sealed class ResolutionTests : IDisposable
         int routes = 0;
         foreach (string patch in patches.Skip(3))
         {
-            if (patch.StartsWith("<ol id=\"log\"", StringComparison.Ordinal))
+            if (patch.StartsWith("<section id=\"mission-log\"", StringComparison.Ordinal))
             {
                 seen.UnionWith(StageNumbers(patch));
             }
@@ -181,7 +181,7 @@ public sealed class ResolutionTests : IDisposable
 
         AssertRoutePacesTheLog(stream);
         List<string> patches = Patches(stream);
-        int stageBeats = patches.Where(p => p.StartsWith("<ol id=\"log\"", StringComparison.Ordinal)).Select(StageNumbers).Last().Count;
+        int stageBeats = patches.Where(p => p.StartsWith("<section id=\"mission-log\"", StringComparison.Ordinal)).Select(StageNumbers).Last().Count;
         Assert.Equal(stageBeats, patches.Count(p => p.StartsWith("<div id=\"route\"", StringComparison.Ordinal)));
         Assert.Contains("<div id=\"route\"></div>", patches[1]);
         string page = await Page(id);
@@ -261,7 +261,7 @@ public sealed class ResolutionTests : IDisposable
                 var during = new List<(int, int)>();
                 foreach (string patch in patches.Skip(3))
                 {
-                    if (patch.StartsWith("<ol id=\"log\"", StringComparison.Ordinal))
+                    if (patch.StartsWith("<section id=\"mission-log\"", StringComparison.Ordinal))
                     {
                         stated = LastStageFigures(patch) ?? stated;
                     }
@@ -277,7 +277,7 @@ public sealed class ResolutionTests : IDisposable
                 legacy.State.TryModule(MissionsModule.Name, out MissionsState? missions);
                 MissionState state = missions!.Site!.Mission!.State;
                 Assert.Equal((state.Momentum, state.Strain), MeterValues(meters[^1]));
-                Assert.True(patches.FindLastIndex(p => p.StartsWith("<div id=\"meter\"", StringComparison.Ordinal)) > patches.FindLastIndex(p => p.StartsWith("<ol id=\"log\"", StringComparison.Ordinal)));
+                Assert.True(patches.FindLastIndex(p => p.StartsWith("<div id=\"meter\"", StringComparison.Ordinal)) > patches.FindLastIndex(p => p.StartsWith("<section id=\"mission-log\"", StringComparison.Ordinal)));
                 return;
             }
         }
@@ -387,7 +387,7 @@ public sealed class ResolutionTests : IDisposable
         Assert.StartsWith("<aside id=\"roster\"", roster);
         Assert.Contains(">Away team, lead</span>", Row(roster, newLead));
         Assert.DoesNotContain("Away team, lead", Row(roster, oldLead));
-        Assert.True(patches.FindLastIndex(p => p.StartsWith("<dd id=\"team\"", StringComparison.Ordinal)) > patches.FindLastIndex(p => p.StartsWith("<ol id=\"log\"", StringComparison.Ordinal)));
+        Assert.True(patches.FindLastIndex(p => p.StartsWith("<dd id=\"team\"", StringComparison.Ordinal)) > patches.FindLastIndex(p => p.StartsWith("<section id=\"mission-log\"", StringComparison.Ordinal)));
     }
 
     // The spine runs on into the call well only while a call waits; otherwise it ends at the last beat.
@@ -395,8 +395,8 @@ public sealed class ResolutionTests : IDisposable
     public async Task The_log_spine_ends_at_the_last_beat_unless_a_call_waits()
     {
         (Guid id, WebCaptain captain, string stream) = await LaunchedWithCall();
-        Assert.All(LogPatches(stream).SkipLast(1), p => Assert.Contains("log--end", p.Split('>')[0]));
-        Assert.DoesNotContain("log--end", LogPatches(stream)[^1].Split('>')[0]);
+        Assert.All(LogPatches(stream).SkipLast(1), p => Assert.Contains("log--end", Regex.Match(p, "<ol id=\"log\"[^>]*>").Value));
+        Assert.DoesNotContain("log--end", Regex.Match(LogPatches(stream)[^1], "<ol id=\"log\"[^>]*>").Value);
         Assert.DoesNotContain("log--end", Regex.Match(await Page(id), "<ol id=\"log\"[^>]*>").Value);
 
         while (Pending(await captain.Read()))
@@ -542,6 +542,10 @@ public sealed class ResolutionTests : IDisposable
         Assert.Contains("Result:", page);
         Assert.DoesNotContain("name=\"answer\"", page);
         Assert.Contains("<div id=\"call\"></div>", page);
+        string route = Regex.Match(page, "<div id=\"route\">.*?</ol></div>\\s*</div>", RegexOptions.Singleline).Value;
+        Assert.Contains("class=\"stop\"", route);
+        Assert.DoesNotContain("aria-current", route);
+        Assert.DoesNotContain("current", route);
     }
 
     [Fact]
@@ -558,6 +562,11 @@ public sealed class ResolutionTests : IDisposable
         Assert.DoesNotContain("To aftermath", patches[1]);
         Assert.Contains(patches, p => p.StartsWith("<div id=\"call\"></div>", StringComparison.Ordinal));
         Assert.Contains(patches, p => p.Contains("To aftermath"));
+        // The route stops reading "current" once the result line has been shown, never before.
+        int lastRoute = patches.FindLastIndex(p => p.StartsWith("<div id=\"route\"", StringComparison.Ordinal));
+        Assert.True(lastRoute > patches.FindLastIndex(p => p.StartsWith("<section id=\"mission-log\"", StringComparison.Ordinal)));
+        Assert.DoesNotContain("current", patches[lastRoute]);
+        Assert.All(patches.Take(lastRoute).Where(p => p.StartsWith("<div id=\"route\"", StringComparison.Ordinal) && p.Contains("class=\"stop\"")), p => Assert.Contains(", current", p));
     }
 
     [Fact]

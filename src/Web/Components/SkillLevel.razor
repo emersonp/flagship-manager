@@ -1,14 +1,13 @@
 @if (Row.Skills.FirstOrDefault(s => s.SkillId == Skill) is { } cell)
 {
-    @(cell.Level)
-    @if (cell.EffectiveLevel != cell.Level)
+    @cell.Level@if (cell.EffectiveLevel != cell.Level && Row.Status != nameof(Sim.Crew.CrewStatus.Dead))
     {
-        <text> </text><span class="eff">(@(cell.EffectiveLevel))</span>
+        @(" ")<span class="eff">(@cell.EffectiveLevel)</span>
     }
 }
 
 @code {
-    // The level, and in brackets the level while injured when it differs.
+    // The level, and in brackets the level while injured when it differs; the dead show the plain level.
     [Parameter, EditorRequired] public CrewRow Row { get; set; } = null!;
 
     [Parameter, EditorRequired] public string Skill { get; set; } = "";

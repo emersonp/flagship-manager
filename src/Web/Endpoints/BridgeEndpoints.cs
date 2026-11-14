@@ -168,6 +168,8 @@ public static class BridgeEndpoints
             beats.Add(patches.ToArray());
         }
 
+        // Once the result line has been shown, the route no longer has a current stage.
+        string? endedRoute = mission?.Outcome is null ? null : await render.Html<StageRoute>(new Dictionary<string, object?> { ["Lines"] = mission.Log, ["Ended"] = true });
         string meter = await render.Html<Meter>(new Dictionary<string, object?> { ["Mission"] = mission });
         string call = await render.Html<CallPanel>(new Dictionary<string, object?> { ["LegacyId"] = legacyId, ["Bar"] = after.TopBar, ["MissionId"] = mission?.MissionId ?? "", ["Call"] = mission?.Call });
         string footer = await render.Html<ResolutionFooter>(new Dictionary<string, object?> { ["LegacyId"] = legacyId, ["Bar"] = after.TopBar, ["Show"] = mission is null || mission.Outcome is not null });
@@ -195,6 +197,11 @@ public static class BridgeEndpoints
                 }
 
                 cancellation.ThrowIfCancellationRequested();
+                if (endedRoute is not null)
+                {
+                    await Sse.PatchElements(response, endedRoute);
+                }
+
                 await Sse.PatchElements(response, meter);
                 await Sse.PatchElements(response, call);
                 await Sse.PatchElements(response, footer);

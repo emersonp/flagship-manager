@@ -1,3 +1,5 @@
+<section id="mission-log" class="@(None ? "well log log--none" : "well log")" aria-labelledby="log-head">
+<div class="well__head"><h2 id="log-head">Mission log</h2><p class="note"><span class="m">@Lines.Count</span> @(Lines.Count == 1 ? "entry" : "entries"), newest last</p></div>
 <ol id="log" class="@(Ends ? "log--end" : null)">
     @for (int i = 0; i < Lines.Count; i++)
     {
@@ -20,9 +22,13 @@
             }</p></li>
     }
 </ol>
+</section>
 
 @code {
     [Parameter, EditorRequired] public IReadOnlyList<LogLine> Lines { get; set; } = null!;
+
+    // No mission: the well is in the page, hidden, so a later patch has somewhere to land.
+    [Parameter] public bool None { get; set; }
 
     // The spine runs on into the call well only while a call waits, so a log whose last beat is no call ends at its node.
     private bool Ends => Lines.Count > 0 && Lines[^1].Kind != "call";

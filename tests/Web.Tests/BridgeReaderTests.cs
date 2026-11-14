@@ -12,6 +12,8 @@ public class BridgeReaderTests
 {
     private static readonly ContentPack Pack = BridgePack.Load();
 
+    private static readonly ContentPack Wide = BridgePack.Wide(Pack);
+
     private static BridgeView Read(Played played)
     {
         return BridgeReader.Read(played.Record(), played.Pack, played.CycleEvents());
@@ -188,19 +190,40 @@ public class BridgeReaderTests
     }
 
     [Fact]
-    public void The_roster_marks_exactly_the_team_in_resolution_and_aftermath_with_the_lead_flagged()
+    public void The_roster_marks_exactly_the_living_team_in_resolution_with_the_lead_flagged()
     {
-        foreach (CyclePhase phase in new[] { CyclePhase.Resolution, CyclePhase.Aftermath })
-        {
-            Played played = Until(Pack, p => p.State.Phase == phase && p.Mission is not null);
+        Played played = Until(Pack, p => p.State.Phase == CyclePhase.Resolution && p.Mission is not null);
 
-            BridgeView view = Read(played);
+        BridgeView view = Read(played);
 
-            MissionView mission = view.Mission!;
-            Assert.Equal(mission.Team.Order(), view.Roster.Where(r => r.IsAway).Select(r => r.Id).Order());
-            Assert.Equal([mission.LeadId], view.Roster.Where(r => r.IsLead).Select(r => r.Id));
-            Assert.All(view.Roster.Where(r => r.IsLead), r => Assert.True(r.IsAway));
-        }
+        MissionView mission = view.Mission!;
+        Assert.Equal(mission.Team.Order(), view.Roster.Where(r => r.IsAway).Select(r => r.Id).Order());
+        Assert.Equal([mission.LeadId], view.Roster.Where(r => r.IsLead).Select(r => r.Id));
+        Assert.All(view.Roster.Where(r => r.IsLead), r => Assert.True(r.IsAway));
+    }
+
+    // The aftermath names the team in its head; the roster no longer tags it.
+    [Fact]
+    public void The_roster_marks_nobody_in_aftermath()
+    {
+        Played played = Until(Pack, p => p.State.Phase == CyclePhase.Aftermath && p.Mission is not null);
+
+        BridgeView view = Read(played);
+
+        Assert.NotNull(view.Mission);
+        Assert.All(view.Roster, r => Assert.False(r.IsAway || r.IsLead));
+    }
+
+    [Fact]
+    public void A_member_who_died_on_the_mission_is_never_tagged_away()
+    {
+        Played played = Until(Wide, p => p.State.Phase == CyclePhase.Resolution && p.CycleEvents().OfType<CrewDied>().Any(), 200);
+        string dead = played.CycleEvents().OfType<CrewDied>().First().CrewId;
+
+        CrewRow row = Read(played).Roster.Single(r => r.Id == dead);
+
+        Assert.Equal("Dead", row.Status);
+        Assert.False(row.IsAway || row.IsLead);
     }
 
     [Fact]
@@ -298,7 +321,7 @@ public class BridgeReaderTests
         Assert.Equal(played.Mission!.State.Result!.Outcome.ToString(), aftermath.Outcome);
         Assert.Equal(view.Mission.Outcome, aftermath.Outcome);
         int raised = played.CycleEvents().OfType<SkillRaised>().Count();
-        Assert.Equal(raised, aftermath.Changes.Count(c => c.Text.Contains(" raises ")));
+        Assert.Equal(raised, aftermath.Changes.Count(c => c.Kind == "skill"));
     }
 
     [Fact]
@@ -312,20 +335,43 @@ public class BridgeReaderTests
 
         int stored = played.State.Module<CrewState>(CrewModule.Name).Members.Single(m => m.Id == changed.Id).Loyalty;
         Assert.Equal(stored, Read(played).Roster.Single(r => r.Id == changed.Id).Loyalty);
-        Assert.Contains(changes, c => c.CrewId == changed.Id && c.Text == $"{changed.Id} loyalty now {stored}.");
-        string[] expected = played.CycleEvents()
+        Assert.Contains(changes, c => c.CrewId == changed.Id && c.Kind == "loyalty" && c.Text == $"{changed.Id} loyalty now {stored}.");
+        (string, string)[] expected = played.CycleEvents()
             .Where(e => e is MissionEnded or SkillRaised or CrewInjured or CrewDied or CrewRecovered)
             .SelectMany(e => e switch
             {
-                MissionEnded m => m.Result.Crew.Where(c => c.Loyalty != 0).Select(c => c.Id),
-                SkillRaised s => [s.CrewId],
-                CrewInjured i => [i.CrewId],
-                CrewDied d => [d.CrewId],
-                CrewRecovered r => [r.CrewId],
+                MissionEnded m => m.Result.Crew.Where(c => c.Loyalty != 0).Select(c => (c.Id, "loyalty")),
+                SkillRaised s => [(s.CrewId, "skill")],
+                CrewInjured i => Enumerable.Repeat((i.CrewId, "injury"), i.LightInjuries + (i.Outcome == MemberStatus.Incapacitated ? 1 : 0)),
+                CrewDied d => [(d.CrewId, "death")],
+                CrewRecovered r => [(r.CrewId, "recovery")],
                 _ => [],
             })
             .ToArray();
-        Assert.Equal(expected, changes.Select(c => c.CrewId));
+        Assert.Equal(expected, changes.Select(c => (c.CrewId, c.Kind)));
+    }
+
+    // Injury and death lines in the design's voice, built from the events and the stored heal weeks.
+    [Fact]
+    public void Injury_death_and_recovery_lines_read_in_the_designs_voice()
+    {
+        Played light = Until(Wide, p => p.State.Phase == CyclePhase.Aftermath && p.CycleEvents().OfType<CrewInjured>().Any(i => i.Outcome == MemberStatus.Active), 200);
+        CrewInjured hurt = light.CycleEvents().OfType<CrewInjured>().First(i => i.Outcome == MemberStatus.Active);
+        List<int> heals = light.State.Module<CrewState>(CrewModule.Name).Members.Single(m => m.Id == hurt.CrewId).LightInjuriesHealAtWeek.TakeLast(hurt.LightInjuries).ToList();
+        List<CrewChange> lines = Read(light).Aftermath!.Changes.Where(c => c.CrewId == hurt.CrewId && c.Kind == "injury").ToList();
+        Assert.Equal(heals.Select(w => $"{hurt.CrewId} lightly injured, heals week {w}."), lines.Select(c => c.Text));
+
+        Played incapacitated = Until(Wide, p => p.State.Phase == CyclePhase.Aftermath && p.CycleEvents().OfType<CrewInjured>().Any(i => i.Outcome == MemberStatus.Incapacitated), 400);
+        CrewInjured down = incapacitated.CycleEvents().OfType<CrewInjured>().First(i => i.Outcome == MemberStatus.Incapacitated);
+        Assert.Contains(Read(incapacitated).Aftermath!.Changes, c => c.Kind == "injury" && c.Text == $"{down.CrewId} incapacitated, returns week {down.ReturnsAtWeek}.");
+
+        Played died = Until(Wide, p => p.State.Phase == CyclePhase.Aftermath && p.CycleEvents().OfType<CrewDied>().Any(), 200);
+        string gone = died.CycleEvents().OfType<CrewDied>().First().CrewId;
+        Assert.Contains(Read(died).Aftermath!.Changes, c => c.Kind == "death" && c.Text == $"{gone} died.");
+
+        Played healed = Until(Wide, p => p.State.Phase == CyclePhase.Aftermath && p.CycleEvents().OfType<CrewRecovered>().Any(), 200);
+        string back = healed.CycleEvents().OfType<CrewRecovered>().First().CrewId;
+        Assert.Contains(Read(healed).Aftermath!.Changes, c => c.Kind == "recovery" && c.Text == $"{back} recovered.");
     }
 
     [Fact]

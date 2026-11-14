@@ -17,13 +17,10 @@
         }
     </div>
     <div class="course">
-        <StageRoute Lines="@(HideMeter ? null : Mission?.Log)" />
+        <StageRoute Lines="@(HideMeter ? null : Mission?.Log)" Ended="@(Mission?.Outcome is not null)" />
         <Meter Mission="@(HideMeter ? null : Mission)" />
     </div>
-    <section class="@(Mission is null ? "well log log--none" : "well log")" aria-labelledby="log-head">
-        <div class="well__head"><h2 id="log-head">Mission log</h2><p class="note">Newest last</p></div>
-        <MissionLog Lines="@(Mission?.Log ?? [])" />
-    </section>
+    <MissionLog Lines="@(Mission?.Log ?? [])" None="@(Mission is null)" />
     <CallPanel LegacyId="LegacyId" Bar="Bar" MissionId="@(Mission?.MissionId ?? "")" Call="Mission?.Call" Reason="@CallReason" />
     <div class="actions well">
         <ResolutionFooter LegacyId="LegacyId" Bar="Bar" Show="@(Mission is null || Mission.Outcome is not null)" />
