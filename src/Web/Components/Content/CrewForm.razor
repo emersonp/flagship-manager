@@ -7,7 +7,7 @@
     </div>
     <fieldset class="levels">
         <legend class="sub">Skill levels</legend>
-        <p class="hint">@(View.Choices.MaxLevel is { } max ? $"Each level is 0 to {max}." : "Each level is 0 or more.")</p>
+        <p class="hint">@(View.Choices.MaxLevel is { } max ? $"Each level is 0 to {max}. A level of 0 means untrained." : "Each level is 0 or more. A level of 0 means untrained.")</p>
         <div class="field-grid">
             @foreach (SkillChoice skill in View.Choices.Skills)
             {

@@ -1,4 +1,5 @@
 @using Web.Forms
+<CascadingValue Value="View">
 <ContentFormWarning View="View" />
 <form id="item-form" class="well" method="post" action="@View.Action" novalidate aria-labelledby="h-fields" data-signals:_rowing="false" data-signals:_deleting="false" data-indicator:_saving data-on:submit="@Post">
     <div class="well__head"><h2 id="h-fields">@(View.IsNew ? "Details" : "Fields")</h2></div>
@@ -19,8 +20,9 @@
         @ChildContent
     </div>
 </form>
+</CascadingValue>
 <div class="actions well">
-    <div id="form-alert" class="alert" role="alert">
+    <div id="form-alert" class="alert" role="alert" tabindex="-1" @attributes="AlertFocus">
         @if (View.Notice is not null)
         {
             <p class="alert-ok">@View.Notice</p>
@@ -50,6 +52,8 @@
 
     // Every button in the page waits while a save, a row change, or a delete is in flight.
     public static string Busy => "$_saving || $_rowing || $_deleting";
+
+    private IReadOnlyDictionary<string, object> AlertFocus => View.FocusFor("form-alert");
 
     private string Post => $"@post('{View.Action}', {{contentType: 'form'}})";
 }

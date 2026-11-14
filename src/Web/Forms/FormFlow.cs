@@ -21,6 +21,7 @@ internal static class FormFlow
 
     public static async Task<(ItemFormView View, bool Saved)> Create(KindForm form, ContentEditor editor, FormValues values, CancellationToken cancellation)
     {
+        values = Renumbered(form, values);
         ContentFileSet files = editor.Read();
         FormChoices choices = FormChoicesReader.Read(files);
         string id = values.Get("id");
@@ -37,7 +38,16 @@ internal static class FormFlow
             return (Build(form, files, choices, id, true, values, errors, [], null), false);
         }
 
-        SaveResult result = await editor.Save(f => ContentEdits.Upsert(f, form.Kind, bound.Make(f)), cancellation);
+        // The check above is a quick answer; this one, under the save's lock, decides.
+        SaveResult result = await editor.Save(f =>
+        {
+            if (f.Index().FirstOrDefault(i => i.Id == id) is { } used)
+            {
+                throw new ChangeRefusedException($"That id is already used by a {ContentKinds.Noun(used.Kind)}.");
+            }
+
+            return ContentEdits.Upsert(f, form.Kind, bound.Make(f));
+        }, cancellation);
         if (!result.Saved)
         {
             return (Build(form, files, choices, id, true, values, new Dictionary<string, string>(), Reasons(result.Errors), null), false);
@@ -49,6 +59,7 @@ internal static class FormFlow
     // Null when the id holds no item of this kind.
     public static async Task<(ItemFormView View, bool Saved)?> Save(KindForm form, ContentEditor editor, string id, FormValues values, CancellationToken cancellation)
     {
+        values = Renumbered(form, values);
         ContentFileSet files = editor.Read();
         FormChoices choices = form.Widen(FormChoicesReader.Read(files), files, id);
         if (form.Load(files, id, choices) is null)
@@ -62,7 +73,15 @@ internal static class FormFlow
             return (Build(form, files, choices, id, false, values, bound.Errors, [], null), false);
         }
 
-        SaveResult result = await editor.Save(f => ContentEdits.Upsert(f, form.Kind, bound.Make(f)), cancellation);
+        SaveResult result = await editor.Save(f =>
+        {
+            if (!f.Index().Any(i => i.Kind == form.Kind && i.Id == id))
+            {
+                throw new ChangeRefusedException("This item no longer exists.");
+            }
+
+            return ContentEdits.Upsert(f, form.Kind, bound.Make(f));
+        }, cancellation);
         if (!result.Saved)
         {
             return (Build(form, files, choices, id, false, values, new Dictionary<string, string>(), Reasons(result.Errors), null), false);
@@ -87,7 +106,15 @@ internal static class FormFlow
             return null;
         }
 
-        return Build(form, files, choices, isNew ? posted.Get("id") : id!, isNew, FormRows.Apply(posted, rows), new Dictionary<string, string>(), [], null);
+        FormValues applied = FormRows.Apply(posted, rows);
+        // Add: the first field of the new row. Remove: the Add button, which is always there.
+        string? focus = posted.Get(RowSet.ActionField) switch
+        {
+            "add" => FormValues.Slug(rows.Name(FormRows.Read(applied, rows).Count - 1, rows.Fields[0])),
+            string action when action.StartsWith("remove:", StringComparison.Ordinal) => "row-add",
+            _ => null,
+        };
+        return Build(form, files, choices, isNew ? posted.Get("id") : id!, isNew, applied, new Dictionary<string, string>(), [], null) with { FocusId = focus };
     }
 
     public static async Task<DeleteOutcome> Delete(KindForm form, ContentEditor editor, string id, CancellationToken cancellation)
@@ -108,7 +135,23 @@ internal static class FormFlow
     {
         string? name = isNew ? null : form.NameOf(files, id);
         (string? lead, IReadOnlyList<string> warnings) = isNew ? (null, []) : Warning(files, form.Kind, id);
-        return new ItemFormView(form.Kind, isNew, id, name, values, errors, reasons, notice, lead, warnings, choices);
+        // A refusal shows the loss messages in the alert, so the warning above does not repeat them.
+        IReadOnlyList<string> shown = reasons.Count > 0 ? [] : warnings;
+        // Focus goes to the first field that failed its check, or to the alert for what the loader or the save said.
+        string? focus = errors.Count > 0 ? FieldId(errors.Keys.First()) : reasons.Count > 0 ? "form-alert" : null;
+        return new ItemFormView(form.Kind, isNew, id, name, values, errors, reasons, notice, lead, shown, choices, focus);
+    }
+
+    // The tags are boxes numbered in the page; every other field's id comes from its name.
+    private static string FieldId(string name)
+    {
+        return name == "tags" ? "f-tags-0" : FormValues.Slug(name);
+    }
+
+    // Rows posted with gaps in their indexes (offer[0], offer[5]) are numbered from 0 before they are bound, so an error names a field on the page.
+    private static FormValues Renumbered(KindForm form, FormValues values)
+    {
+        return form.Rows is { } rows ? FormRows.Write(values, rows, FormRows.Read(values, rows)) : values;
     }
 
     // A loss in the item's own file: its own (saving replaces it) or another item's (saving is refused until that is fixed).

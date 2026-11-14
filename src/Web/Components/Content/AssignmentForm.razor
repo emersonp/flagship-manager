@@ -7,7 +7,7 @@
             @for (int i = 0; i < View.Choices.ObjectiveTags.Count; i++)
             {
                 string tag = View.Choices.ObjectiveTags[i];
-                <label class="check" for="@($"f-tags-{i}")"><span class="hit"><input type="checkbox" id="@($"f-tags-{i}")" name="tags" value="@tag" checked="@Ticked.Contains(tag)" aria-describedby="@TagsDescribed" aria-invalid="@(View.Error("tags") is null ? null : "true")"></span>@tag</label>
+                <label class="check" for="@($"f-tags-{i}")"><span class="hit"><input type="checkbox" id="@($"f-tags-{i}")" name="tags" value="@tag" checked="@Ticked.Contains(tag)" aria-describedby="@TagsDescribed" aria-invalid="@(View.Error("tags") is null ? null : "true")" @attributes="TagFocus(i)"></span>@tag</label>
             }
         </div>
         @if (View.Error("tags") is { } error)
@@ -26,6 +26,8 @@
 
     // The hint, and the error when there is one, are read out with each box.
     private string TagsDescribed => View.Error("tags") is null ? "f-tags-hint" : "f-tags-hint f-tags-error";
+
+    private IReadOnlyDictionary<string, object> TagFocus(int index) => View.FocusFor($"f-tags-{index}");
 
     private IReadOnlyList<string> Ticked => View.Values.All("tags");
 }

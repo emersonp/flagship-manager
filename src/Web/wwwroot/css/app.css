@@ -295,7 +295,10 @@ a.btn { text-decoration: none; }
 .hint { font-size: var(--text-sm); color: var(--color-muted); }
 .field .error, .cell .error { min-height: 0; }
 .field-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr)); gap: var(--space-md); }
-.field-grid .field { align-content: end; }
+/* Rows are label, control, hint, and a reserved line for the error, so an error never moves its neighbours. */
+.field-grid .field { align-content: end; grid-template-rows: auto auto auto minmax(1lh, auto); }
+.field-grid .field .hint { grid-row: 3; }
+.field-grid .field .error { grid-row: 4; }
 .levels { display: grid; gap: var(--space-xs); }
 .levels legend { margin-bottom: var(--space-2xs); }
 .tag-list { display: flex; flex-wrap: wrap; gap: 0 var(--space-md); }
@@ -312,6 +315,7 @@ a.btn { text-decoration: none; }
 .btn--harm { border-color: var(--color-harm); color: var(--color-harm); }
 .alert { min-width: 0; flex-basis: 100%; }
 .alert:empty { display: none; }
+.alert:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; border-radius: var(--radius-inner); }
 .alert p { font-size: var(--text-sm); font-weight: 500; }
 .alert .error { min-height: 0; }
 .alert .problems { font-weight: 400; }

@@ -33,7 +33,7 @@
                                 string? error = View.Error(name);
                                 string id = FormValues.Slug(name);
                                 <td class="cell">
-                                    <input id="@id" name="@name" type="text" inputmode="numeric" value="@Rows[row][Set.Fields[f]]" autocomplete="off" aria-label="@($"{Headers[f]}, row {row + 1}")" aria-invalid="@(error is null ? null : "true")" aria-describedby="@(error is null ? null : id + "-error")">
+                                    <input id="@id" name="@name" type="text" inputmode="numeric" value="@Rows[row][Set.Fields[f]]" autocomplete="off" aria-label="@($"{Headers[f]}, row {row + 1}")" aria-invalid="@(error is null ? null : "true")" aria-describedby="@(error is null ? null : id + "-error")" @attributes="View.FocusFor(id)">
                                     @if (error is not null)
                                     {
                                         <p class="error" id="@id-error">@error</p>
@@ -48,7 +48,7 @@
         </div>
     }
     <div class="rowset__add">
-        <button class="btn" type="button" id="row-add" name="@RowSet.ActionField" value="add" data-indicator:_rowing data-attr:disabled="@FormShell.Busy" data-attr:aria-busy="$_rowing ? 'true' : false" data-on:click="@Post">Add a row</button>
+        <button class="btn" type="button" id="row-add" name="@RowSet.ActionField" value="add" @attributes="AddFocus" data-indicator:_rowing data-attr:disabled="@FormShell.Busy" data-attr:aria-busy="$_rowing ? 'true' : false" data-on:click="@Post">Add a row</button>
     </div>
 </div>
 
@@ -63,6 +63,8 @@
     [Parameter, EditorRequired] public string Title { get; set; } = "";
 
     [Parameter] public string? Hint { get; set; }
+
+    private IReadOnlyDictionary<string, object> AddFocus => View.FocusFor("row-add");
 
     private List<Dictionary<string, string>> Rows => FormRows.Read(View.Values, Set);
 

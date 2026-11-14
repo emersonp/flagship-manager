@@ -106,17 +106,32 @@ public sealed class ContentFormsTests(RepoContentGuard guard) : IClassFixture<Re
     }
 
     [Fact]
-    public async Task The_gear_form_shows_the_tag_chosen_from_the_tags_the_game_knows()
+    public async Task The_gear_form_shows_the_tag_as_text_with_the_tags_in_use_to_pick_from()
     {
         using TestApp app = NewApp();
+        await Post(app.NewClient(), "/dev/content/gear", "id=GEAR_05&tag=extra_tag");
 
         string body = (await Get(app.NewClient(), "/dev/content/gear/GEAR_03")).Body;
 
-        Assert.Equal("comms", Selected(body, "tag"));
-        foreach (string tag in new[] { "comms", "medical", "scanner", "tools" })
+        Assert.Equal("comms", Value(body, "tag"));
+        Assert.Matches("<input\\b[^>]*list=\"f-tag-list\"", body);
+        foreach (string tag in new[] { "comms", "medical", "scanner", "tools", "extra_tag" })
         {
             Assert.Contains($"<option value=\"{tag}\"", body);
         }
+
+        Assert.Contains("A tag matters once an encounter asks for it.", body);
+    }
+
+    [Fact]
+    public async Task A_gear_item_can_take_a_tag_no_one_uses_yet()
+    {
+        using TestApp app = NewApp();
+
+        (HttpStatusCode status, _) = await Post(app.NewClient(), "/dev/content/gear/GEAR_01", "name=NAME_PLACEHOLDER&tag=%20brand_new%20");
+
+        Assert.Equal(HttpStatusCode.OK, status);
+        Assert.Equal("brand_new", app.Live.Pack.Gear.Single(g => g.Id == "GEAR_01").Tag);
     }
 
     [Fact]
@@ -227,20 +242,23 @@ public sealed class ContentFormsTests(RepoContentGuard guard) : IClassFixture<Re
         Assert.Contains("seniority: 7", Disk(app, "crew/starting.yaml"));
     }
 
-    // A level left at zero for a skill the crew member never had adds no key; one that was there stays.
+    // The starters have every skill: a member can only train a skill they have a key for, so 0 is written, not dropped.
     [Fact]
-    public async Task A_new_skill_left_at_level_zero_adds_nothing_to_the_crew_member()
+    public async Task Saving_a_crew_member_writes_a_level_for_every_skill_including_a_new_one_at_zero()
     {
         using TestApp app = NewApp();
         await app.Editor.Save(files => ContentEdits.Upsert(files, ContentKind.Skill, new SkillModel("SKILL_E", null, [])));
 
-        (HttpStatusCode status, _) = await Post(app.NewClient(), "/dev/content/crew/CREW_02", Crew("skills.SKILL_E=0"));
-        Assert.Equal(HttpStatusCode.OK, status);
-        Assert.DoesNotContain("SKILL_E", Disk(app, "crew/starting.yaml"));
+        (HttpStatusCode status, string body) = await Post(app.NewClient(), "/dev/content/crew/CREW_02", Crew("skills.SKILL_E=0"));
 
-        (status, _) = await Post(app.NewClient(), "/dev/content/crew/CREW_02", Crew("skills.SKILL_E=2"));
         Assert.Equal(HttpStatusCode.OK, status);
-        Assert.Equal(2, app.Live.Pack.Crew.Single(c => c.Id == "CREW_02").Skills["SKILL_E"]);
+        Assert.Contains("A level of 0 means untrained.", body);
+        Assert.Contains("SKILL_E: 0", Disk(app, "crew/starting.yaml"));
+        Assert.Equal(0, app.Live.Pack.Crew.Single(c => c.Id == "CREW_02").Skills["SKILL_E"]);
+        Guid id = await app.Sessions.CreateLegacy(app.Live, "LEGACY", 1);
+        LoadedLegacy legacy = (await app.Sessions.Read(app.Live, id))!;
+        Sim.Crew.CrewMember member = legacy.State.Module<Sim.Crew.CrewState>(Sim.Crew.CrewModule.Name).Members.Single(m => m.Id == "CREW_02");
+        Assert.Equal(0, member.Skills["SKILL_E"].Level);
     }
 
     [Fact]
@@ -312,7 +330,7 @@ public sealed class ContentFormsTests(RepoContentGuard guard) : IClassFixture<Re
     }
 
     [Fact]
-    public async Task A_datastar_create_patches_the_main_region_with_the_new_items_form_and_does_not_navigate()
+    public async Task A_datastar_create_sends_the_browser_to_the_new_items_page()
     {
         using TestApp app = NewApp();
 
@@ -320,9 +338,26 @@ public sealed class ContentFormsTests(RepoContentGuard guard) : IClassFixture<Re
 
         Assert.Equal(HttpStatusCode.OK, status);
         Assert.Contains("event: datastar-patch-elements", stream);
+        Assert.Contains("data: selector body", stream);
+        Assert.Contains("data: mode append", stream);
+        Assert.Contains("window.location = \"/dev/content/skills/SKILL_E?saved=1\"", stream);
+        Assert.DoesNotContain("<main", stream);
+    }
+
+    [Fact]
+    public async Task The_new_items_page_shows_saved_only_when_asked_and_a_save_in_place_still_patches_the_form()
+    {
+        using TestApp app = NewApp();
+        HttpClient client = app.NewClient();
+
+        string plain = (await Get(client, "/dev/content/skills/SKILL_A")).Body;
+        string saved = (await Get(client, "/dev/content/skills/SKILL_A?saved=1")).Body;
+        (_, string stream) = await Post(client, "/dev/content/skills/SKILL_A", "name=NAME_PLACEHOLDER", datastar: true);
+
+        Assert.DoesNotContain("Saved.", plain);
+        Assert.Contains("Saved.", saved);
         Assert.Contains("data: elements <main id=\"main\"", stream);
         Assert.Contains("Saved.", stream);
-        Assert.Contains("action=\"/dev/content/skills/SKILL_E\"", stream);
         Assert.DoesNotContain("<script", stream);
     }
 
@@ -351,15 +386,71 @@ public sealed class ContentFormsTests(RepoContentGuard guard) : IClassFixture<Re
     }
 
     [Fact]
-    public async Task A_datastar_delete_patches_the_main_region_with_the_list_and_a_notice()
+    public async Task A_datastar_delete_sends_the_browser_to_the_list_and_the_list_shows_the_notice_encoded()
     {
         using TestApp app = NewApp();
+        HttpClient client = app.NewClient();
 
-        (_, string stream) = await Post(app.NewClient(), "/dev/content/gear/GEAR_04/delete", "", datastar: true);
+        (_, string stream) = await Post(client, "/dev/content/gear/GEAR_04/delete", "", datastar: true);
+        string list = (await Get(client, "/dev/content/gear?deleted=" + Uri.EscapeDataString("<b>X</b>"))).Body;
 
-        Assert.Contains("data: elements <main id=\"main\"", stream);
-        Assert.Contains("Deleted GEAR_04.", stream);
-        Assert.Contains("href=\"/dev/content/gear/new\"", stream);
+        Assert.Contains("window.location = \"/dev/content/gear?deleted=GEAR_04\"", stream);
+        Assert.DoesNotContain("<main", stream);
+        Assert.Contains("Deleted &lt;b&gt;X&lt;/b&gt;.", list);
+        Assert.DoesNotContain("<b>X", list);
+    }
+
+    [Fact]
+    public async Task Deleting_what_is_already_gone_answers_the_list_with_a_notice_and_no_error()
+    {
+        using TestApp app = NewApp();
+        string before = Everything(app);
+
+        (HttpStatusCode status, string body) = await Post(app.NewClient(), "/dev/content/gear/NOT_THERE/delete", "");
+
+        Assert.Equal(HttpStatusCode.OK, status);
+        Assert.Contains("NOT_THERE is not there, so nothing was deleted.", body);
+        Assert.Contains("href=\"/dev/content/gear/new\"", body);
+        Assert.Equal(before, Everything(app));
+    }
+
+    // --- Races under the lock ---
+
+    [Fact]
+    public async Task A_create_whose_id_appears_between_the_check_and_the_save_is_refused_and_the_first_item_is_untouched()
+    {
+        using TestApp app = NewApp();
+        app.Editor.AfterGate = () =>
+        {
+            app.Editor.AfterGate = null;
+            ContentFileSet files = app.Editor.Read();
+            ContentEdits.Write(app.ContentPath, files, ContentEdits.Upsert(files, ContentKind.Skill, new SkillModel("SKILL_E", "NAME_PLACEHOLDER_FIRST", [])));
+        };
+
+        (HttpStatusCode status, string body) = await Post(app.NewClient(), "/dev/content/skills", "id=SKILL_E&name=NAME_PLACEHOLDER_SECOND");
+
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, status);
+        Assert.Contains("That id is already used by a skill.", body);
+        Assert.Contains("NAME_PLACEHOLDER_FIRST", Disk(app, "skills/base.yaml"));
+        Assert.DoesNotContain("NAME_PLACEHOLDER_SECOND", Disk(app, "skills/base.yaml"));
+    }
+
+    [Fact]
+    public async Task A_save_of_an_item_deleted_meanwhile_is_refused()
+    {
+        using TestApp app = NewApp();
+        app.Editor.AfterGate = () =>
+        {
+            app.Editor.AfterGate = null;
+            ContentFileSet files = app.Editor.Read();
+            ContentEdits.Write(app.ContentPath, files, ContentEdits.Delete(files, ContentKind.Gear, "GEAR_04"));
+        };
+
+        (HttpStatusCode status, string body) = await Post(app.NewClient(), "/dev/content/gear/GEAR_04", "name=NAME_PLACEHOLDER&tag=medical");
+
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, status);
+        Assert.Contains("This item no longer exists.", body);
+        Assert.DoesNotContain("GEAR_04", Disk(app, "gear/base.yaml"));
     }
 
     [Fact]
@@ -407,8 +498,9 @@ public sealed class ContentFormsTests(RepoContentGuard guard) : IClassFixture<Re
         { "/dev/content/skills", "id=CREW_01", "That id is already used by a crew member." },
         { "/dev/content/skills", "id=SKILL_E&name=" + "x82", "A name is 1 to 80 characters with no line break." },
         { "/dev/content/skills/SKILL_A", "name=" + "x82", "A name is 1 to 80 characters with no line break." },
-        { "/dev/content/gear", "id=GEAR_05&tag=", "Choose a tag." },
-        { "/dev/content/gear", "id=GEAR_05&tag=nonsense", "Choose a tag from the list." },
+        { "/dev/content/gear", "id=GEAR_05&tag=", "Enter a tag." },
+        { "/dev/content/gear", "id=GEAR_05&tag=%20%20", "Enter a tag." },
+        { "/dev/content/gear", "id=GEAR_05&tag=a%0Ab", "A tag is one line." },
         { "/dev/content/crew/CREW_01", "seniority=", "Enter a whole number." },
         { "/dev/content/crew/CREW_01", "seniority=abc", "Must be a whole number." },
         { "/dev/content/crew/CREW_01", "seniority=1.5", "Must be a whole number." },
@@ -559,7 +651,7 @@ public sealed class ContentFormsTests(RepoContentGuard guard) : IClassFixture<Re
     [InlineData("gear")]
     [InlineData("crew")]
     [InlineData("assignments")]
-    public async Task An_unknown_id_is_404_to_open_save_and_delete(string kind)
+    public async Task An_unknown_id_is_404_to_open_and_save(string kind)
     {
         using TestApp app = NewApp();
         HttpClient client = app.NewClient();
@@ -567,7 +659,6 @@ public sealed class ContentFormsTests(RepoContentGuard guard) : IClassFixture<Re
 
         Assert.Equal(HttpStatusCode.NotFound, (await Get(client, $"/dev/content/{kind}/NOT_THERE")).Status);
         Assert.Equal(HttpStatusCode.NotFound, (await Post(client, $"/dev/content/{kind}/NOT_THERE", "name=NAME_PLACEHOLDER")).Status);
-        Assert.Equal(HttpStatusCode.NotFound, (await Post(client, $"/dev/content/{kind}/NOT_THERE/delete", "")).Status);
         Assert.Equal(before, Everything(app));
     }
 
@@ -774,6 +865,126 @@ public sealed class ContentFormsTests(RepoContentGuard guard) : IClassFixture<Re
         HttpResponseMessage response = await app.NewClient().SendAsync(request);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    // --- Focus after a response ---
+
+    // The element that takes focus carries a data-init that calls focus(); one element per response.
+    private static List<string> Focused(string body)
+    {
+        return Regex.Matches(body, "<[^>]*data-init=\"[^\"]*focus[^\"]*\"[^>]*>").Select(m => Regex.Match(m.Value, "\\bid=\"([^\"]*)\"").Groups[1].Value).ToList();
+    }
+
+    [Fact]
+    public async Task After_Add_focus_goes_to_the_first_field_of_the_new_row_and_after_Remove_to_the_Add_button()
+    {
+        using TestApp app = NewApp();
+        HttpClient client = app.NewClient();
+
+        (_, string added) = await Post(client, "/dev/content/assignments/ASSIGNMENT_TEMPLATE_1/rows", Merge(Assignment, "row=add"));
+        (_, string removed) = await Post(client, "/dev/content/assignments/ASSIGNMENT_TEMPLATE_1/rows", Merge(Assignment, "row=remove:0"));
+
+        Assert.Equal(["f-offer-2-count"], Focused(added));
+        Assert.Equal(["row-add"], Focused(removed));
+    }
+
+    [Fact]
+    public async Task After_a_refusal_focus_goes_to_the_first_field_with_an_error_or_to_the_alert_for_the_loaders_words()
+    {
+        using TestApp app = NewApp();
+        HttpClient client = app.NewClient();
+
+        (_, string field) = await Post(client, "/dev/content/crew/CREW_01", Crew("caution=9&skills.SKILL_A=99"));
+        (_, string loader) = await Post(client, "/dev/content/assignments/ASSIGNMENT_TEMPLATE_1", "name=NAME_PLACEHOLDER&loadoutLimit=2&offer[0].count=3&offer[0].weight=1");
+        string page = (await Get(client, "/dev/content/crew/CREW_01")).Body;
+        (_, string saved) = await Post(client, "/dev/content/crew/CREW_01", Crew());
+
+        Assert.Equal(["f-caution"], Focused(field));
+        Assert.Equal(["form-alert"], Focused(loader));
+        Assert.Matches("<div[^>]*id=\"form-alert\"[^>]*tabindex=\"-1\"|<div[^>]*tabindex=\"-1\"[^>]*id=\"form-alert\"", loader);
+        Assert.Empty(Focused(page));
+        Assert.Empty(Focused(saved));
+    }
+
+    // --- Rows with a gap in the indexes ---
+
+    [Fact]
+    public async Task Rows_posted_with_a_gap_in_their_indexes_are_renumbered_so_an_error_points_at_a_field_on_the_page()
+    {
+        using TestApp app = NewApp();
+        HttpClient client = app.NewClient();
+
+        (HttpStatusCode refused, string body) = await Post(client, "/dev/content/assignments/ASSIGNMENT_TEMPLATE_1", "name=NAME_PLACEHOLDER&loadoutLimit=2&offer[0].count=1&offer[0].weight=6&offer[5].count=2&offer[5].weight=0");
+        (HttpStatusCode saved, _) = await Post(client, "/dev/content/assignments/ASSIGNMENT_TEMPLATE_1", "name=NAME_PLACEHOLDER&loadoutLimit=2&offer[0].count=1&offer[0].weight=6&offer[5].count=2&offer[5].weight=3");
+
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, refused);
+        Assert.Contains("id=\"f-offer-1-weight-error\"", body);
+        Assert.Contains("name=\"offer[1].weight\"", body);
+        Assert.DoesNotContain("offer[5]", body);
+        Assert.Equal(HttpStatusCode.OK, saved);
+        Assert.Equal(2, app.Live.Pack.Assignments.Single().Offer.Count);
+    }
+
+    // --- A refused save beside a lossy item ---
+
+    [Fact]
+    public async Task The_loss_message_shows_once_on_a_refused_save_in_the_alert_and_not_also_in_the_warning()
+    {
+        using TestApp app = NewApp(BreakGear);
+
+        (_, string body) = await Post(app.NewClient(), "/dev/content/gear/GEAR_02", "name=NAME_PLACEHOLDER&tag=tools");
+
+        Assert.Single(Regex.Matches(body, "GEAR_01 has a key the editor cannot keep"));
+    }
+
+    // --- Names that need quoting, and the edges of the name and id rules ---
+
+    [Theory]
+    [InlineData("a: b")]
+    [InlineData("# not a comment")]
+    [InlineData("- leading dash")]
+    [InlineData("say \"hi\" and 'bye'")]
+    [InlineData("caf\u00e9 \u65e5\u672c \ud83d\ude80")]
+    [InlineData("yes")]
+    [InlineData("123")]
+    public async Task A_name_that_needs_quoting_is_read_back_from_the_file_exactly(string name)
+    {
+        using TestApp app = NewApp();
+
+        (HttpStatusCode status, _) = await Post(app.NewClient(), "/dev/content/skills/SKILL_A", "name=" + Uri.EscapeDataString(name));
+
+        Assert.Equal(HttpStatusCode.OK, status);
+        Assert.Equal(name, ContentEdits.Get<SkillModel>(app.Editor.Read(), ContentKind.Skill, "SKILL_A")!.Name);
+        Assert.Equal(name, app.Live.Names.Skill("SKILL_A"));
+    }
+
+    [Fact]
+    public async Task A_name_of_exactly_80_characters_is_accepted_and_81_is_not()
+    {
+        using TestApp app = NewApp();
+        HttpClient client = app.NewClient();
+
+        (HttpStatusCode ok, _) = await Post(client, "/dev/content/skills/SKILL_A", "name=" + new string('n', 80));
+        (HttpStatusCode tooLong, _) = await Post(client, "/dev/content/skills/SKILL_A", "name=" + new string('n', 81));
+
+        Assert.Equal(HttpStatusCode.OK, ok);
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, tooLong);
+        Assert.Equal(new string('n', 80), app.Live.Names.Skill("SKILL_A"));
+    }
+
+    [Theory]
+    [InlineData("SKILL_E%0A")]
+    [InlineData("SKILL%0AE")]
+    public async Task An_id_with_a_trailing_or_an_embedded_line_break_is_refused(string id)
+    {
+        using TestApp app = NewApp();
+        string before = Everything(app);
+
+        (HttpStatusCode status, string body) = await Post(app.NewClient(), "/dev/content/skills", "id=" + id);
+
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, status);
+        Assert.Contains("An id must be upper case letters", body);
+        Assert.Equal(before, Everything(app));
     }
 
     // --- The repository's own content ---

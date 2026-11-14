@@ -3,7 +3,7 @@
     <label for="@Id">@Label</label>
     @if (Options is not null)
     {
-        <select id="@Id" name="@Name" aria-describedby="@Described" aria-invalid="@Invalid" aria-required="@(Required ? "true" : null)">
+        <select id="@Id" name="@Name" aria-describedby="@Described" aria-invalid="@Invalid" aria-required="@(Required ? "true" : null)" @attributes="Focus">
             <option value="" selected="@(Value.Length == 0)">@Placeholder</option>
             @foreach (string option in Options)
             {
@@ -13,7 +13,16 @@
     }
     else
     {
-        <input id="@Id" name="@Name" type="text" inputmode="@(Numeric ? "numeric" : null)" value="@Value" autocomplete="off" spellcheck="false" aria-describedby="@Described" aria-invalid="@Invalid" aria-required="@(Required ? "true" : null)">
+        <input id="@Id" name="@Name" type="text" inputmode="@(Numeric ? "numeric" : null)" value="@Value" autocomplete="off" spellcheck="false" list="@(Suggestions is null ? null : Id + "-list")" aria-describedby="@Described" aria-invalid="@Invalid" aria-required="@(Required ? "true" : null)" @attributes="Focus">
+        @if (Suggestions is not null)
+        {
+            <datalist id="@Id-list">
+                @foreach (string suggestion in Suggestions)
+                {
+                    <option value="@suggestion"></option>
+                }
+            </datalist>
+        }
     }
     @if (Hint is not null)
     {
@@ -48,7 +57,15 @@
     // A list to choose from instead of typing.
     [Parameter] public IReadOnlyList<string>? Options { get; set; }
 
+    // Tags and the like already in use, offered as a native list; any other text is still allowed.
+    [Parameter] public IReadOnlyList<string>? Suggestions { get; set; }
+
+    // Whoever renders the form passes it down so a response can ask one field to take focus.
+    [CascadingParameter] public ItemFormView? View { get; set; }
+
     [Parameter] public string Placeholder { get; set; } = "Choose";
+
+    private IReadOnlyDictionary<string, object> Focus => View?.FocusFor(Id) ?? new Dictionary<string, object>();
 
     private string Id => FormValues.Slug(Name);
 

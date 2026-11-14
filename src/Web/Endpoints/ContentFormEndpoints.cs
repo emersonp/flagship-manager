@@ -30,9 +30,11 @@ public static class ContentFormEndpoints
         return await Answer<ItemMain, ItemPage>(render, false, FormParameters(FormFlow.Blank(form, editor.Read())), StatusCodes.Status200OK);
     }
 
-    private static async Task<IResult> Open(string kind, string id, ContentEditor editor, Render render)
+    // After a create the browser comes here with ?saved=1, so a reload shows the item and the notice once the query is gone.
+    private static async Task<IResult> Open(string kind, string id, HttpRequest request, ContentEditor editor, Render render)
     {
-        if (KindForm.For(kind) is not { } form || FormFlow.Open(form, editor.Read(), id) is not { } view)
+        string? notice = request.Query["saved"] == "1" ? "Saved." : null;
+        if (KindForm.For(kind) is not { } form || FormFlow.Open(form, editor.Read(), id, notice) is not { } view)
         {
             return await NotFound(render, false);
         }
@@ -48,6 +50,11 @@ public static class ContentFormEndpoints
         }
 
         (ItemFormView view, bool saved) = await FormFlow.Create(form, editor, await Read(http.Request, cancellation), cancellation);
+        if (saved && Sse.IsDatastar(http.Request))
+        {
+            return new RedirectResult($"/dev/content/{ContentKinds.Segment(form.Kind)}/{Uri.EscapeDataString(view.Id)}?saved=1");
+        }
+
         return await Answer<ItemMain, ItemPage>(render, Sse.IsDatastar(http.Request), FormParameters(view), saved ? StatusCodes.Status200OK : StatusCodes.Status422UnprocessableEntity);
     }
 
@@ -94,7 +101,8 @@ public static class ContentFormEndpoints
         DeleteOutcome outcome = await FormFlow.Delete(form, editor, id, cancellation);
         if (!outcome.Found)
         {
-            return await NotFound(render, datastar);
+            // Already gone: the same list, with a notice, and no error.
+            return await List(render, datastar, editor, form.Kind, $"{id} is not there, so nothing was deleted.");
         }
 
         if (outcome.Refused is { } refused)
@@ -102,11 +110,17 @@ public static class ContentFormEndpoints
             return await Answer<ItemMain, ItemPage>(render, datastar, FormParameters(refused), StatusCodes.Status422UnprocessableEntity);
         }
 
-        // Deleted: the kind's list, with a notice, in place of the form.
+        // Deleted: the browser goes to the kind's list, which shows the notice.
+        return datastar
+            ? new RedirectResult($"/dev/content/{ContentKinds.Segment(form.Kind)}?deleted={Uri.EscapeDataString(id)}")
+            : await List(render, datastar, editor, form.Kind, $"Deleted {id}.");
+    }
+
+    private static async Task<IResult> List(Render render, bool datastar, ContentEditor editor, ContentKind kind, string notice)
+    {
         ContentFileSet files = editor.Read();
-        ContentKind known = form.Kind;
-        List<ContentItemRef> items = files.Index().Where(i => i.Kind == known).ToList();
-        var parameters = new Dictionary<string, object?> { ["Kind"] = known, ["Files"] = files, ["Items"] = items, ["Notice"] = $"Deleted {id}." };
+        List<ContentItemRef> items = files.Index().Where(i => i.Kind == kind).ToList();
+        var parameters = new Dictionary<string, object?> { ["Kind"] = kind, ["Files"] = files, ["Items"] = items, ["Notice"] = notice };
         return await Answer<KindList, KindPage>(render, datastar, parameters, StatusCodes.Status200OK);
     }
 
@@ -149,6 +163,17 @@ public static class ContentFormEndpoints
 
         string html = await render.Html<Web.Components.NotFoundPage>(new Dictionary<string, object?>());
         return Results.Content(html, "text/html; charset=utf-8", statusCode: StatusCodes.Status404NotFound);
+    }
+
+    // The documented way to navigate from a stream: a script appended to the body, which removes itself.
+    private sealed class RedirectResult(string url) : IResult
+    {
+        public async Task ExecuteAsync(HttpContext httpContext)
+        {
+            await Sse.Start(httpContext.Response);
+            string script = $"<script data-effect=\"el.remove()\">window.location = {System.Text.Json.JsonSerializer.Serialize(url)}</script>";
+            await Sse.PatchElements(httpContext.Response, script, "body", "append");
+        }
     }
 
     private sealed class PatchResult(string html) : IResult

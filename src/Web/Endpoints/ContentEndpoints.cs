@@ -42,7 +42,7 @@ public static class ContentEndpoints
         return Results.Content(html, "text/html; charset=utf-8", statusCode: result.Saved ? StatusCodes.Status200OK : StatusCodes.Status422UnprocessableEntity);
     }
 
-    private static async Task<IResult> Kind(string kind, ContentEditor editor, Render render)
+    private static async Task<IResult> Kind(string kind, HttpRequest request, ContentEditor editor, Render render)
     {
         if (ContentKinds.FromSegment(kind) is not { } known)
         {
@@ -51,8 +51,15 @@ public static class ContentEndpoints
 
         ContentFileSet files = editor.Read();
         List<ContentItemRef> items = files.Index().Where(i => i.Kind == known).ToList();
-        string html = await render.Html<KindPage>(new Dictionary<string, object?> { ["Kind"] = known, ["Files"] = files, ["Items"] = items });
+        string html = await render.Html<KindPage>(new Dictionary<string, object?> { ["Kind"] = known, ["Files"] = files, ["Items"] = items, ["Notice"] = Deleted(request) });
         return Results.Content(html, "text/html; charset=utf-8");
+    }
+
+    // After a delete the browser comes here with ?deleted=ID; the notice names it (the page encodes it).
+    private static string? Deleted(HttpRequest request)
+    {
+        string id = request.Query["deleted"].ToString();
+        return id.Length == 0 ? null : $"Deleted {(id.Length > 80 ? id[..80] : id)}.";
     }
 
     // The files are read once per request; the live pack is only for the id and version in play.

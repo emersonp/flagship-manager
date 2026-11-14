@@ -1,4 +1,4 @@
-<form class="act" @attributes="Indicator" data-on:submit="@Post"><StampFields Bar="Bar" /><button class="btn btn--primary" type="submit" data-attr:disabled="@Busy" data-attr:aria-busy="@Busy">@Label</button></form>
+<form class="act" @attributes="Indicator" data-on:submit="@Post"><StampFields Bar="Bar" /><button class="btn btn--primary" type="submit" data-attr:disabled="@Busy" data-attr:aria-busy="@BusyAttr">@Label</button></form>
 
 @code {
     [Parameter, EditorRequired] public Guid LegacyId { get; set; }
@@ -13,6 +13,9 @@
     private Dictionary<string, object> Indicator => new() { [$"data-indicator:{Signal}"] = true };
 
     private string Busy => $"${Signal}";
+
+    // Datastar writes a true value as an empty attribute, so the in-flight style gets the string "true".
+    private string BusyAttr => $"${Signal} ? 'true' : false";
 
     private string Post => $"@post('/legacy/{LegacyId}/advance', {{contentType: 'form'}})";
 }

@@ -79,11 +79,6 @@ internal sealed class GearKind : KindForm
         return ContentEdits.Get<GearModel>(files, Kind, id)?.Name;
     }
 
-    public override FormChoices Widen(FormChoices choices, ContentFileSet files, string id)
-    {
-        return ContentEdits.Get<GearModel>(files, Kind, id) is { } gear && !choices.GearTags.Contains(gear.Tag) ? choices with { GearTags = [.. choices.GearTags, gear.Tag] } : choices;
-    }
-
     public override FormValues? Load(ContentFileSet files, string id, FormChoices choices)
     {
         return ContentEdits.Get<GearModel>(files, Kind, id) is { } gear ? new FormValues([new("name", Name(gear.Name)), new("tag", gear.Tag)]) : null;
@@ -98,14 +93,15 @@ internal sealed class GearKind : KindForm
     {
         var errors = new Dictionary<string, string>();
         string? name = Checks.Name(values, errors);
-        string tag = values.Get("tag");
+        string tag = values.Get("tag").Trim();
+        // The loader asks only that a tag is not blank; one line keeps the file readable.
         if (tag.Length == 0)
         {
-            errors["tag"] = "Choose a tag.";
+            errors["tag"] = "Enter a tag.";
         }
-        else if (!choices.GearTags.Contains(tag))
+        else if (tag.IndexOfAny(['\r', '\n', '\u0085', '\u2028', '\u2029']) >= 0)
         {
-            errors["tag"] = "Choose a tag from the list.";
+            errors["tag"] = "A tag is one line.";
         }
 
         return new Bound(errors.Count > 0 ? null : _ => new GearModel(id, name, tag), errors);
@@ -167,7 +163,8 @@ internal sealed class CrewKind : KindForm
         return new Bound(files =>
         {
             CrewModel? stored = ContentEdits.Get<CrewModel>(files, Kind, id);
-            // A skill the member already has keeps its place and is written even at zero; a new skill left at zero adds no key.
+            // Every skill in the pack gets a key, 0 included: a member can only train a skill they have a key for.
+            // Skills the member already has keep their place; the rest follow in the pack's order.
             var skills = new Dictionary<string, int>();
             foreach (string key in stored?.Skills.Keys ?? [])
             {
@@ -179,10 +176,7 @@ internal sealed class CrewKind : KindForm
 
             foreach ((string key, int level) in levels)
             {
-                if (!skills.ContainsKey(key) && level != 0)
-                {
-                    skills[key] = level;
-                }
+                skills.TryAdd(key, level);
             }
 
             return new CrewModel(id, name, seniority, skills, caution, discipline);

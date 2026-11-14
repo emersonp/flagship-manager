@@ -20,8 +20,23 @@ public sealed record ItemFormView(
     string? Notice,
     string? WarningLead,
     IReadOnlyList<string> Warnings,
-    FormChoices Choices)
+    FormChoices Choices,
+    string? FocusId = null)
 {
+    private static readonly IReadOnlyDictionary<string, object> None = new Dictionary<string, object>();
+
+    // A number that differs for each response, so the same element asked to take focus twice in a row still does.
+    private static long counter;
+
+    private readonly long nonce = Interlocked.Increment(ref counter);
+
+    // Attributes for the element with this id: when it is the one that should take focus, a data-init (which Datastar runs when
+    // the element arrives in a patch, or when the attribute's text changes) that focuses it.
+    public IReadOnlyDictionary<string, object> FocusFor(string id)
+    {
+        return FocusId == id ? new Dictionary<string, object> { ["data-init"] = $"el.focus(); void {nonce}" } : None;
+    }
+
     public string Segment => ContentKinds.Segment(Kind);
 
     public string Noun => ContentKinds.Noun(Kind);

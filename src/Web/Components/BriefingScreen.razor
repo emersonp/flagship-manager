@@ -110,8 +110,8 @@
         <StampFields Bar="Bar" />
         <div class="actions well">
             <p class="count"><span>Team</span><span><output class="m" data-text="$_picked">0</output><span data-text="@Range2"></span></span></p>
-            <button class="btn" type="button" data-indicator:_sending data-attr:disabled="@Busy" data-attr:aria-busy="$_sending" data-on:click="@SendNobody">Send nobody</button>
-            <button class="btn btn--primary" type="submit" data-attr:disabled="@Busy" data-attr:aria-busy="$_launching">Launch</button>
+            <button class="btn" type="button" data-indicator:_sending data-attr:disabled="@Busy" data-attr:aria-busy="$_sending ? 'true' : false" data-on:click="@SendNobody">Send nobody</button>
+            <button class="btn btn--primary" type="submit" data-attr:disabled="@Busy" data-attr:aria-busy="$_launching ? 'true' : false">Launch</button>
             <Refusal Reason="@Reason" />
         </div>
     </form>

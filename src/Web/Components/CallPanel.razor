@@ -26,7 +26,7 @@
                                 <input type="hidden" name="call" value="@Call.CallId">
                                 <input type="hidden" name="answer" value="@option">
                                 <StampFields Bar="Bar" />
-                                <button class="btn" type="submit" data-attr:disabled="@AnyInFlight" data-attr:aria-busy="$_answer@(i)" aria-describedby="@(preferred ? "pref-note" : null)">@option</button>
+                                <button class="btn" type="submit" data-attr:disabled="@AnyInFlight" data-attr:aria-busy="$_answer@(i) ? 'true' : false" aria-describedby="@(preferred ? "pref-note" : null)">@option</button>
                                 <span class="answer__note" id="@(preferred ? "pref-note" : null)">@(preferred ? "Lead’s preference" : "")</span>
                             </form>
                         }

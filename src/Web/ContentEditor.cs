@@ -5,6 +5,9 @@ namespace Web;
 
 public sealed record SaveResult(bool Saved, IReadOnlyList<ContentError> Errors);
 
+// Thrown by a change that finds, under the lock, that its premise no longer holds (an id now taken, an item now gone): the save is refused with the words.
+public sealed class ChangeRefusedException(string message) : Exception(message);
+
 // The folder the content is read from and written to.
 public sealed record ContentFolder(string Path);
 
@@ -33,6 +36,9 @@ public sealed class ContentEditor
 
     public string Folder => directory;
 
+    // A test hook: runs once the save holds the lock, before the files are read, to stand for another writer getting in first.
+    internal Action? AfterGate { get; set; }
+
     // The files on disk now: the disk is the truth, since the author may edit files by hand or with git.
     public ContentFileSet Read()
     {
@@ -44,6 +50,7 @@ public sealed class ContentEditor
         await gate.WaitAsync(cancellation);
         try
         {
+            AfterGate?.Invoke();
             ContentFileSet before = Read();
             ContentFileSet after;
             try
@@ -53,6 +60,10 @@ public sealed class ContentEditor
             catch (ContentLossException lost)
             {
                 return Refused(lost.Losses.Select(l => new ContentError(l.File, l.ToString())).ToList());
+            }
+            catch (ChangeRefusedException refused)
+            {
+                return Refused([new ContentError("", refused.Message)]);
             }
 
             int changed = after.Files.Count(f => !before.Files.TryGetValue(f.Key, out string? old) || old != f.Value) + before.Files.Count(f => !after.Files.ContainsKey(f.Key));

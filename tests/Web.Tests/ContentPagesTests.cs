@@ -364,6 +364,27 @@ public sealed class ContentPagesTests : IClassFixture<RepoContentGuard>
         Assert.Equal(Stored(app, control), Stored(app, swapped));
     }
 
+    // Datastar writes a true value as an empty attribute, so the in-flight style needs the expression that gives "true".
+    [Fact]
+    public async Task The_games_buttons_write_aria_busy_as_true_while_in_flight_and_remove_it_otherwise()
+    {
+        using var app = new TestApp(developerMode: true, scratch: true);
+        HttpClient client = app.NewClient();
+        (Guid waitingId, _) = await WaitingCall(app, client);
+        string call = System.Net.WebUtility.HtmlDecode((await Get(client, $"/legacy/{waitingId}")).Body);
+        Guid other = await app.Sessions.CreateLegacy(app.Live, "OTHER", 3);
+        string orders = System.Net.WebUtility.HtmlDecode((await Get(client, $"/legacy/{other}")).Body);
+        await ToLaunch(new WebCaptain(app, client, other));
+        string briefing = System.Net.WebUtility.HtmlDecode((await Get(client, $"/legacy/{other}")).Body);
+
+        foreach (string page in new[] { call, orders, briefing })
+        {
+            MatchCollection busy = Regex.Matches(page, "data-attr:aria-busy=\"([^\"]*)\"");
+            Assert.NotEmpty(busy);
+            Assert.All(busy.Select(m => m.Groups[1].Value), v => Assert.EndsWith("? 'true' : false", v));
+        }
+    }
+
     private static async Task ToLaunch(WebCaptain captain)
     {
         while (await captain.Peek() is not AssignTeam)
