@@ -1,0 +1,115 @@
+@using Sim.Content
+@using Sim.Core.Content
+<ContentShell Title="Content" Subtitle="The files the game is made from. Edit them here or by hand; the disk is the truth.">
+    <Alert>
+        @if (Alert is not null)
+        {
+            <p class="@(Alert.Ok ? "alert-ok" : "error")">@Alert.Message</p>
+        }
+    </Alert>
+    <ChildContent>
+        <section class="well" aria-labelledby="h-pack">
+            <div class="well__head"><h2 id="h-pack">The pack</h2></div>
+            <div class="well__body">
+                @if (!View.FolderExists)
+                {
+                    <p class="error">The content folder was not found: <span class="m">@View.Folder</span></p>
+                }
+                <dl class="facts">
+                    <dt>In the game now</dt>
+                    <dd>@if (View.LiveId is null){<span class="quiet">No pack is loaded.</span>}else{<span class="m">@View.LiveId</span> <span>version </span><span class="m">@View.LiveVersion</span>}</dd>
+                    <dt>On disk</dt>
+                    <dd>
+                        @if (View.DiskId is not null)
+                        {
+                            <span class="res">Valid</span> <span class="m">@View.DiskId</span> <span>version </span><span class="m">@View.DiskVersion</span>
+                        }
+                        else
+                        {
+                            <span class="res res--fail">Invalid</span>
+                            <ContentProblems Errors="View.DiskErrors" />
+                        }
+                    </dd>
+                    <dt>Legacies</dt>
+                    <dd><span class="m">@View.LegacyCount</span> @(View.LegacyCount == 1 ? "legacy" : "legacies") saved. Edits apply to games in progress. <a href="/">Back to the legacies</a></dd>
+                </dl>
+            </div>
+            <form class="actions" method="post" action="/dev/content/reload" @attributes="Indicator" data-on:submit="@Post">
+                <p class="note">Reload reads the files again and swaps the pack in without changing any file.</p>
+                <button class="btn" type="submit" data-attr:disabled="@Busy" data-attr:aria-busy="@Busy">Reload from disk</button>
+            </form>
+        </section>
+
+        @foreach (ContentKind kind in ContentKinds.Kinds)
+        {
+            List<ContentItemRef> items = View.Items.Where(i => i.Kind == kind).ToList();
+            string segment = ContentKinds.Segment(kind);
+            <section class="well kind" aria-labelledby="@($"h-{segment}")">
+                <div class="well__head">
+                    <h2 id="@($"h-{segment}")">@ContentKinds.Title(kind)</h2>
+                    <p class="note"><span class="m">@items.Count</span> @(items.Count == 1 ? "item" : "items") <a href="/dev/content/@segment">Open the list</a></p>
+                </div>
+                @if (items.Count == 0)
+                {
+                    <div class="well__body"><p class="empty">No items.</p></div>
+                }
+                else
+                {
+                    <div class="tw">
+                        <table>
+                            <thead>
+                                <tr><th scope="col">Name</th><th scope="col" class="oid">Id</th><th scope="col">File</th></tr>
+                            </thead>
+                            <tbody>
+                                @foreach (ContentItemRef item in items)
+                                {
+                                    <tr>
+                                        <td class="who">@(item.Name is { Length: > 0 } ? item.Name : "")@if (item.Name is not { Length: > 0 }){<span class="quiet">Not named</span>}@if (item.Lossy){<span class="caution"><span class="tag tag--caution">Caution</span> <span class="note">Has content the editor cannot keep</span></span>}</td>
+                                        <td class="oid">@item.Id</td>
+                                        <td class="nw">@item.File</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </section>
+        }
+
+        <section class="well" aria-labelledby="h-files">
+            <div class="well__head"><h2 id="h-files">Other files</h2></div>
+            <div class="well__body">
+                <ul class="files">
+                    <li><a href="/dev/content/pack">pack.yaml</a> <span class="note">the pack's version</span></li>
+                    <li><a href="/dev/content/tuning/missions">tuning/missions.yaml</a> <span class="note">mission numbers, edited as text</span></li>
+                    <li><a href="/dev/content/tuning/crew">tuning/crew.yaml</a> <span class="note">crew numbers, edited as text</span></li>
+                </ul>
+                @if (View.FileProblems.Count > 0)
+                {
+                    <h3 class="sub">Problems the editor found in files</h3>
+                    <ul class="problems">
+                        @foreach ((string path, IReadOnlyList<ContentLoss> losses) in View.FileProblems)
+                        {
+                            @foreach (ContentLoss loss in losses)
+                            {
+                                <li><span class="m">@path</span> @(loss.Item is null ? "" : loss.Item + " ")@loss.Problem</li>
+                            }
+                        }
+                    </ul>
+                }
+            </div>
+        </section>
+    </ChildContent>
+</ContentShell>
+
+@code {
+    [Parameter, EditorRequired] public ContentIndexView View { get; set; } = null!;
+
+    [Parameter] public IndexAlert? Alert { get; set; }
+
+    private Dictionary<string, object> Indicator => new() { ["data-indicator:_reloading"] = true };
+
+    private string Busy => "$_reloading";
+
+    private string Post => "@post('/dev/content/reload', {contentType: 'form'})";
+}

@@ -25,7 +25,7 @@ public sealed class PageNamesTests : IDisposable
     [Fact]
     public async Task The_roster_orders_and_briefing_show_encoded_names_and_keep_ids_in_field_values_and_elements()
     {
-        Guid id = await app.Sessions.CreateLegacy("LEGACY_ONE", 1);
+        Guid id = await app.Sessions.CreateLegacy(app.Live, "LEGACY_ONE", 1);
         var captain = new WebCaptain(app, client, id);
         string orders = await client.GetStringAsync($"/legacy/{id}");
         await captain.Step();
@@ -48,7 +48,7 @@ public sealed class PageNamesTests : IDisposable
     [Fact]
     public async Task A_launch_streams_encoded_names_in_the_log_the_route_and_the_head()
     {
-        Guid id = await app.Sessions.CreateLegacy("LEGACY_TWO", 1);
+        Guid id = await app.Sessions.CreateLegacy(app.Live, "LEGACY_TWO", 1);
         var captain = new WebCaptain(app, client, id);
         string stream = "";
         for (int steps = 0; steps < 50 && stream.Length == 0; steps++)

@@ -1,0 +1,10 @@
+@using Sim.Core.Content
+<Layout Title="Content pack invalid">
+    <div class="page">
+        <InvalidPackMain Errors="Errors" />
+    </div>
+</Layout>
+
+@code {
+    [Parameter] public IReadOnlyList<ContentError> Errors { get; set; } = [];
+}

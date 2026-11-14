@@ -13,15 +13,19 @@ public sealed class LegacySession(GameServices services)
     // A test hook: runs after a run's commit, inside the lock.
     internal Action<Guid>? AfterCommit { get; set; }
 
+    // A test hook: runs after a legacy is loaded, inside the lock, before anything is done with it.
+    internal Action<Guid>? AfterLoad { get; set; }
+
     internal int LockCount => locks.Count;
 
     // Runs work under the legacy's lock on a freshly loaded state, commits what it published, and returns its result.
     // Returns null when the legacy does not exist. A rejected command rolls nothing forward and is rethrown.
-    public async Task<T?> Run<T>(Guid legacyId, Func<LoadedLegacy, T> work, CancellationToken cancellation = default)
+    // The pack is the caller's snapshot: the load, the commands, and the events all use it, whatever is swapped meanwhile.
+    public async Task<T?> Run<T>(LivePack live, Guid legacyId, Func<LoadedLegacy, T> work, CancellationToken cancellation = default)
         where T : class
     {
         using Held held = await Hold(legacyId, cancellation);
-        LoadedLegacy? legacy = Load(held);
+        LoadedLegacy? legacy = Load(live, held);
         if (legacy is null)
         {
             return null;
@@ -34,25 +38,25 @@ public sealed class LegacySession(GameServices services)
         return result;
     }
 
-    public async Task<LoadedLegacy?> Read(Guid legacyId, CancellationToken cancellation = default)
+    public async Task<LoadedLegacy?> Read(LivePack live, Guid legacyId, CancellationToken cancellation = default)
     {
         using Held held = await Hold(legacyId, cancellation);
-        return Load(held);
+        return Load(live, held);
     }
 
-    public Task<Guid> CreateLegacy(string name, CancellationToken cancellation = default)
+    public Task<Guid> CreateLegacy(LivePack live, string name, CancellationToken cancellation = default)
     {
-        return CreateLegacy(name, RandomSeed(), cancellation);
+        return CreateLegacy(live, name, RandomSeed(), cancellation);
     }
 
     // The seed is a test hook: the public overload always draws one.
-    internal async Task<Guid> CreateLegacy(string name, ulong seed, CancellationToken cancellation = default)
+    internal async Task<Guid> CreateLegacy(LivePack live, string name, ulong seed, CancellationToken cancellation = default)
     {
         Guid id = Guid.NewGuid();
         using Held held = await Hold(id, cancellation);
         var state = new LegacyState { LegacyId = id, Seed = seed };
-        var record = new LegacyRecord(state, services.Pack.Id, services.Pack.Version, name, services.Clock.GetUtcNow());
-        var legacy = new LoadedLegacy(record, services);
+        var record = new LegacyRecord(state, live.Pack.Id, live.Pack.Version, name, services.Clock.GetUtcNow());
+        var legacy = new LoadedLegacy(record, live.Game);
         // Founded in memory, then stored with its events in one transaction: a failure leaves nothing behind, not even the lock.
         legacy.Send(new FoundLegacy());
         try
@@ -69,16 +73,17 @@ public sealed class LegacySession(GameServices services)
     }
 
     // Loads under the held lock; a legacy that does not exist leaves no lock behind.
-    private LoadedLegacy? Load(Held held)
+    private LoadedLegacy? Load(LivePack live, Held held)
     {
-        LegacyRecord? record = services.Store.Load(held.LegacyId, services.Game.ModuleTypes);
+        LegacyRecord? record = services.Store.Load(held.LegacyId, live.Game.ModuleTypes);
         if (record is null)
         {
             held.Forget();
             return null;
         }
 
-        return new LoadedLegacy(record, services);
+        AfterLoad?.Invoke(held.LegacyId);
+        return new LoadedLegacy(record, live.Game);
     }
 
     private static ulong RandomSeed()

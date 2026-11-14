@@ -1,0 +1,28 @@
+<main id="main">
+    <div class="page-col">
+        <div class="view-head">
+            <nav class="crumbs" aria-label="Content editor">
+                <a class="home" href="/">Legacies</a>
+                <a class="home" href="/dev/content">Content</a>
+            </nav>
+            <h1>@Title</h1>
+            @if (Subtitle is not null)
+            {
+                <p class="note">@Subtitle</p>
+            }
+        </div>
+        <div id="alert" role="alert">@Alert</div>
+        @ChildContent
+    </div>
+</main>
+
+@code {
+    [Parameter, EditorRequired] public string Title { get; set; } = "";
+
+    [Parameter] public string? Subtitle { get; set; }
+
+    // The slot for a refusal or a result; empty when there is none.
+    [Parameter] public RenderFragment? Alert { get; set; }
+
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+}

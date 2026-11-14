@@ -30,7 +30,7 @@ public sealed class ParityTests : IDisposable
     [InlineData(3UL)]
     public async Task A_cycle_with_nobody_sent_has_the_same_event_log_too(ulong seed)
     {
-        Guid id = await app.Sessions.CreateLegacy("LEGACY", seed);
+        Guid id = await app.Sessions.CreateLegacy(app.Live, "LEGACY", seed);
         var captain = new WebCaptain(app, client, id, SendNobodyInCycleTwo);
         for (int steps = 0; (await captain.Read()).State.Cycle <= Cycles; steps++)
         {
@@ -58,7 +58,7 @@ public sealed class ParityTests : IDisposable
     [InlineData(3UL)]
     public async Task A_legacy_played_through_the_requests_has_the_simulators_event_log(ulong seed)
     {
-        Guid id = await app.Sessions.CreateLegacy("LEGACY", seed);
+        Guid id = await app.Sessions.CreateLegacy(app.Live, "LEGACY", seed);
         var captain = new WebCaptain(app, client, id);
         var routes = new HashSet<string>();
         for (int steps = 0; (await captain.Read()).State.Cycle <= Cycles; steps++)
@@ -81,18 +81,18 @@ public sealed class ParityTests : IDisposable
 
     private IReadOnlyList<EventEnvelope> Straight(ulong seed, Func<LegacyState, ICommand?>? choose = null)
     {
-        Game game = Game.Build(app.Game.Pack);
+        Game game = Game.Build(app.Live.Pack);
         var state = new LegacyState { LegacyId = new Guid((int)(seed >> 32), 0, 0, BitConverter.GetBytes(seed)), Seed = seed };
         var events = new List<PublishedEvent>();
         while (state.Cycle <= Cycles)
         {
             if (choose is null)
             {
-                events.AddRange(AutoCaptain.PlayCycle(game, state, app.Game.Pack));
+                events.AddRange(AutoCaptain.PlayCycle(game, state, app.Live.Pack));
             }
             else
             {
-                events.AddRange(game.Bus.Send(state, choose(state) ?? AutoCaptain.NextCommand(game, state, app.Game.Pack)));
+                events.AddRange(game.Bus.Send(state, choose(state) ?? AutoCaptain.NextCommand(game, state, app.Live.Pack)));
             }
         }
 

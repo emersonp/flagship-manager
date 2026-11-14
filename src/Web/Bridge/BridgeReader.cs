@@ -12,8 +12,13 @@ public static class BridgeReader
     // Pure: no store, no clock. cycleEvents are this cycle's decoded events in sequence order.
     public static BridgeView Read(LegacyRecord record, ContentPack pack, IReadOnlyList<IEvent> cycleEvents)
     {
+        return Read(record, pack, cycleEvents, new Names(pack));
+    }
+
+    // The names are the snapshot's own, so a page never mixes one pack's tables with another's names.
+    public static BridgeView Read(LegacyRecord record, ContentPack pack, IReadOnlyList<IEvent> cycleEvents, Names names)
+    {
         LegacyState state = record.State;
-        var names = new Names(pack);
         IReadOnlyList<CrewRow> roster = Roster(state, names);
         SiteState? site = state.TryModule(MissionsModule.Name, out MissionsState? missions) ? missions.Site : null;
         CyclePhase phase = state.Phase;

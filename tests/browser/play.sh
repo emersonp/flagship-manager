@@ -62,7 +62,7 @@ phase() {
 dotnet build --nologo -v quiet "$root/src/Web" > "$tmp/build.log" 2>&1 || { cat "$tmp/build.log" >&2; exit 1; }
 
 # The app is its own session leader, so one signal to its group stops dotnet run and the app it starts.
-(cd "$root" && ASPNETCORE_URLS="$base" Web__DatabasePath="$tmp/play.db" Web__BeatDelayMs=50 ASPNETCORE_ENVIRONMENT=Production \
+(cd "$root" && ASPNETCORE_URLS="$base" Web__DatabasePath="$tmp/play.db" Web__BeatDelayMs=50 Web__DeveloperMode=false ASPNETCORE_ENVIRONMENT=Production \
   setsid bash -c 'echo $$ > "$0"; exec dotnet run --no-build --project src/Web' "$tmp/app.pid" > "$tmp/app.log" 2>&1 &)
 for _ in $(seq 1 60); do
   [ -s "$tmp/app.pid" ] && break

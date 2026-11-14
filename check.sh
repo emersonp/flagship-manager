@@ -33,7 +33,7 @@ web_fail() {
   exit 1
 }
 
-ASPNETCORE_URLS="$base" Web__DatabasePath="$tmp/check.db" Web__BeatDelayMs=0 ASPNETCORE_ENVIRONMENT=Production \
+ASPNETCORE_URLS="$base" Web__DatabasePath="$tmp/check.db" Web__BeatDelayMs=0 Web__DeveloperMode=false ASPNETCORE_ENVIRONMENT=Production \
   setsid dotnet run --no-build --project src/Web > "$tmp/app.log" 2>&1 &
 app_pid=$!
 
@@ -64,4 +64,6 @@ for asset in /lib/datastar.js /css/app.css; do
   status=$(curl -s -o /dev/null -w '%{http_code}' "$base$asset" || true)
   [ "$status" = "200" ] || web_fail "GET $asset answered $status, expected 200."
 done
+status=$(curl -s -o /dev/null -w '%{http_code}' "$base/dev/content" || true)
+[ "$status" = "404" ] || web_fail "GET /dev/content answered $status with developer mode off, expected 404."
 echo "Web: legacy created and opened. OK."

@@ -68,7 +68,7 @@ public sealed class StreamFailureTests : IDisposable
     [InlineData(false)]
     public async Task A_failure_after_the_commit_shows_the_error_content_without_claiming_nothing_changed(bool datastar)
     {
-        Guid id = await app.Sessions.CreateLegacy("LEGACY", 1);
+        Guid id = await app.Sessions.CreateLegacy(app.Live, "LEGACY", 1);
         List<KeyValuePair<string, string>> stamp = app.Stamp(id);
         app.Sessions.AfterCommit = _ => throw new InvalidOperationException("Test failure after the commit.");
 
@@ -96,11 +96,11 @@ public sealed class StreamFailureTests : IDisposable
     [Fact]
     public async Task A_request_cancelled_while_waiting_for_the_lock_is_not_logged_as_a_failure()
     {
-        Guid id = await app.Sessions.CreateLegacy("LEGACY", 1);
+        Guid id = await app.Sessions.CreateLegacy(app.Live, "LEGACY", 1);
         List<KeyValuePair<string, string>> stamp = app.Stamp(id);
         var held = new TaskCompletionSource();
         var release = new TaskCompletionSource();
-        Task holder = Task.Run(() => app.Sessions.Run<object>(id, _ =>
+        Task holder = Task.Run(() => app.Sessions.Run<object>(app.Live, id, _ =>
         {
             held.SetResult();
             release.Task.Wait();

@@ -1,0 +1,11 @@
+@using Sim.Core.Content
+<ul class="problems">
+    @foreach (ContentError error in Errors)
+    {
+        <li>@if (error.File.Length > 0){<span class="m">@error.File</span>}@error.Message</li>
+    }
+</ul>
+
+@code {
+    [Parameter, EditorRequired] public IReadOnlyList<ContentError> Errors { get; set; } = [];
+}

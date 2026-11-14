@@ -71,7 +71,7 @@ public sealed class BriefingTests : IDisposable
 
     private (int Events, CyclePhase Phase, int Cycle, int Week, long Next) Snapshot(Guid id)
     {
-        LegacyRecord record = app.Game.Store.Load(id, app.Game.Game.ModuleTypes)!;
+        LegacyRecord record = app.Game.Store.Load(id, app.Live.Game.ModuleTypes)!;
         return (app.Game.Store.ReadEvents(id).Count, record.State.Phase, record.State.Cycle, record.State.Week, record.State.NextSequence);
     }
 
@@ -136,7 +136,7 @@ public sealed class BriefingTests : IDisposable
     public async Task The_briefing_lists_eight_crew_and_disables_an_unfit_one()
     {
         Guid id = await NewBriefing();
-        await app.Sessions.Run(id, legacy =>
+        await app.Sessions.Run(app.Live, id, legacy =>
         {
             legacy.State.Module<CrewState>(CrewModule.Name).Members[0].Status = CrewStatus.Recovering;
             return legacy;
@@ -194,7 +194,7 @@ public sealed class BriefingTests : IDisposable
         };
         if (kind == "unfit crew")
         {
-            await app.Sessions.Run(id, legacy =>
+            await app.Sessions.Run(app.Live, id, legacy =>
             {
                 legacy.State.Module<CrewState>(CrewModule.Name).Members.Single(m => m.Id == crew[1]).Status = CrewStatus.Recovering;
                 return legacy;
@@ -256,7 +256,7 @@ public sealed class BriefingTests : IDisposable
     {
         Guid id = await NewBriefing();
         await Post(id, "advance");
-        await app.Sessions.Run(id, legacy =>
+        await app.Sessions.Run(app.Live, id, legacy =>
         {
             while (legacy.State.Phase != CyclePhase.Aftermath)
             {
@@ -281,7 +281,7 @@ public sealed class BriefingTests : IDisposable
     {
         Guid id = await NewBriefing();
         await Post(id, "advance");
-        await app.Sessions.Run(id, legacy =>
+        await app.Sessions.Run(app.Live, id, legacy =>
         {
             while (legacy.State.Phase != CyclePhase.Advance)
             {

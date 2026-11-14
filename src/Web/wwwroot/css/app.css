@@ -266,6 +266,24 @@ input:disabled { opacity: 0.55; cursor: not-allowed; }
 .start-row input:disabled { opacity: 0.55; cursor: not-allowed; }
 .error { min-height: 1lh; font-size: var(--text-sm); font-weight: 500; color: var(--color-harm); }
 
+/* Content editor (developer mode): the same wells, tables, and buttons; only the few pieces below are new. */
+.crumbs { display: flex; flex-wrap: wrap; gap: var(--space-2xs) var(--space-lg); }
+#alert:empty { display: none; }
+#alert { min-width: 0; }
+#alert p { font-size: var(--text-sm); font-weight: 500; }
+.alert-ok { color: var(--color-ink); }
+.problems { display: grid; gap: var(--space-2xs); margin-top: var(--space-2xs); color: var(--color-ink-2); font-size: var(--text-sm); }
+.problems li { overflow-wrap: anywhere; }
+.problems .m { margin-right: var(--space-xs); }
+.files { display: grid; gap: var(--space-xs); }
+.files li { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-2xs) var(--space-md); }
+.sub { margin-top: var(--space-md); font-size: var(--text-md); font-weight: 500; color: var(--color-ink); }
+.caution { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-2xs) var(--space-xs); margin-top: var(--space-2xs); font-weight: 400; }
+.tag--caution { color: var(--color-caution); border-color: var(--color-caution); }
+.kind td.who { white-space: normal; }
+.actions .note { margin-right: auto; }
+a.btn { text-decoration: none; }
+
 /* Aftermath. */
 .verdict h1 { font-size: var(--text-4xl); }
 .changes li { display: grid; grid-template-columns: var(--space-xl) 4.5rem minmax(0, 1fr); gap: var(--space-sm); align-items: baseline; padding: var(--space-sm) var(--space-lg); border-top: var(--rule-hair) solid var(--color-rule); color: var(--color-ink-2); }

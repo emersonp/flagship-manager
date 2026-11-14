@@ -1,0 +1,32 @@
+@using Sim.Core.Content
+<main id="main">
+    <div class="page-col">
+        <div class="view-head">
+            <h1>The content pack is invalid</h1>
+            <p>The game cannot start until the content files load. Fix them in the content editor, or by hand and then reload from disk there.</p>
+        </div>
+        <section class="well" aria-labelledby="h-problems">
+            <div class="well__head"><h2 id="h-problems">What the loader said</h2><p class="note"><span class="m">@Errors.Count</span> @(Errors.Count == 1 ? "problem" : "problems")</p></div>
+            <div class="well__body">
+                @if (Errors.Count == 0)
+                {
+                    <p class="empty">No pack is loaded.</p>
+                }
+                else
+                {
+                    <ul class="problems">
+                        @foreach (ContentError error in Errors)
+                        {
+                            <li>@if (error.File.Length > 0){<span class="m">@error.File</span>}@error.Message</li>
+                        }
+                    </ul>
+                }
+            </div>
+            <div class="actions"><a class="btn btn--primary" href="/dev/content">Open the content editor</a></div>
+        </section>
+    </div>
+</main>
+
+@code {
+    [Parameter] public IReadOnlyList<ContentError> Errors { get; set; } = [];
+}

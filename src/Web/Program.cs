@@ -4,6 +4,7 @@ using Sim.Content;
 using Sim.Core.Content;
 using Web;
 using Web.Components;
+using Microsoft.Extensions.Options;
 using Web.Endpoints;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
@@ -14,19 +15,29 @@ builder.Services.AddSingleton(provider =>
     WebSettings settings = provider.GetRequiredService<IConfiguration>().GetSection("Web").Get<WebSettings>() ?? new WebSettings();
     string contentDirectory = PathResolver.Resolve(settings.ContentDirectory, Directory.GetCurrentDirectory(), AppContext.BaseDirectory);
     string databasePath = PathResolver.Resolve(settings.DatabasePath, Directory.GetCurrentDirectory(), AppContext.BaseDirectory);
-    provider.GetRequiredService<ILoggerFactory>().CreateLogger("Startup").LogInformation("Content directory {ContentDirectory}; database {DatabasePath}.", contentDirectory, databasePath);
-    ContentLoadResult content = ContentLoader.LoadDirectory(contentDirectory);
-    if (content.Pack is not { } pack)
+    provider.GetRequiredService<ILoggerFactory>().CreateLogger("Startup").LogInformation("Content directory {ContentDirectory}; database {DatabasePath}; developer mode {DeveloperMode}.", contentDirectory, databasePath, settings.DeveloperMode);
+    return new StartUp(new ContentFolder(contentDirectory), databasePath);
+});
+builder.Services.AddSingleton(provider =>
+{
+    StartUp start = provider.GetRequiredService<StartUp>();
+    bool developerMode = provider.GetRequiredService<IConfiguration>().GetSection("Web").Get<WebSettings>()?.DeveloperMode == true;
+    ContentLoadResult content = ContentLoader.LoadDirectory(start.Folder.Path);
+    if (content.Pack is null && !developerMode)
     {
         throw new InvalidOperationException("The content pack is invalid: " + string.Join("; ", content.Errors.Select(e => $"{e.File}: {e.Message}")));
     }
 
-    return new GameServices(pack, Game.Build(pack), new SqliteLegacyStore($"Data Source={databasePath}"), provider.GetRequiredService<TimeProvider>());
+    // In developer mode an invalid pack starts the editor alone, so the author can fix it there.
+    return new ContentHost(content.Pack, content.Errors);
 });
+builder.Services.AddSingleton(provider => new ContentEditor(provider.GetRequiredService<ContentHost>(), provider.GetRequiredService<StartUp>().Folder));
+builder.Services.AddSingleton(provider => new GameServices(new SqliteLegacyStore($"Data Source={provider.GetRequiredService<StartUp>().DatabasePath}"), provider.GetRequiredService<TimeProvider>()));
 builder.Services.AddSingleton<LegacySession>();
 builder.Services.AddSingleton<Render>();
 
 WebApplication app = builder.Build();
+app.Services.GetRequiredService<ContentHost>();
 app.Services.GetRequiredService<GameServices>();
 
 // An unexpected failure: the request may have stored its commands before it failed, so the player is sent to reload.
@@ -59,13 +70,16 @@ app.Use(async (context, next) =>
 });
 app.UseStaticFiles();
 
-app.MapGet("/", async (GameServices game, Render render) =>
+// Every game route takes its pack snapshot in the group's filter, once, and answers the invalid-pack page when there is none.
+RouteGroupBuilder gameRoutes = app.MapGroup("").AddEndpointFilter(RequestPack.Filter);
+
+gameRoutes.MapGet("/", async (GameServices game, Render render) =>
 {
     string html = await render.Html<LegaciesPage>(new Dictionary<string, object?> { ["Legacies"] = game.Store.ListLegacies() });
     return Results.Content(html, "text/html; charset=utf-8");
 });
 
-app.MapPost("/legacies", async Task<IResult> (HttpRequest request, GameServices game, LegacySession sessions, Render render, CancellationToken cancellation) =>
+gameRoutes.MapPost("/legacies", async Task<IResult> (HttpContext http, HttpRequest request, GameServices game, LegacySession sessions, Render render, CancellationToken cancellation) =>
 {
     async Task<IResult> Refused(string name, string reason)
     {
@@ -88,7 +102,7 @@ app.MapPost("/legacies", async Task<IResult> (HttpRequest request, GameServices 
     string name = form["name"].ToString();
     try
     {
-        Guid id = await sessions.CreateLegacy(name, cancellation);
+        Guid id = await sessions.CreateLegacy(RequestPack.Of(http), name, cancellation);
         return new SeeOtherResult($"/legacy/{id}");
     }
     catch (InvalidLegacyNameException e)
@@ -97,11 +111,19 @@ app.MapPost("/legacies", async Task<IResult> (HttpRequest request, GameServices 
     }
 });
 
-BridgeEndpoints.Map(app);
+BridgeEndpoints.Map(gameRoutes);
+
+if (app.Services.GetRequiredService<IOptions<WebSettings>>().Value.DeveloperMode)
+{
+    ContentEndpoints.Map(app);
+}
 
 app.Run();
 
 public partial class Program;
+
+// The folder and database the settings resolve to.
+internal sealed record StartUp(ContentFolder Folder, string DatabasePath);
 
 // Written by hand, not rendered: it must not depend on what may have failed.
 internal static class ErrorContent

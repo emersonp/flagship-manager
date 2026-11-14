@@ -52,7 +52,7 @@ public sealed class ResolutionTests : IDisposable
 
     private IReadOnlyList<int> StoredBeatIndexes(Guid id)
     {
-        return app.Game.Store.ReadEvents(id).Select(app.Game.Game.Events.FromEnvelope).OfType<MissionBeat>().Select(b => b.Index).ToList();
+        return app.Game.Store.ReadEvents(id).Select(app.Live.Game.Events.FromEnvelope).OfType<MissionBeat>().Select(b => b.Index).ToList();
     }
 
     // The first seed whose launch leaves a call waiting, stopped just after the launch.
@@ -60,7 +60,7 @@ public sealed class ResolutionTests : IDisposable
     {
         for (ulong seed = 1; seed < 200; seed++)
         {
-            Guid id = await app.Sessions.CreateLegacy($"LEGACY_{seed}", seed);
+            Guid id = await app.Sessions.CreateLegacy(app.Live, $"LEGACY_{seed}", seed);
             var captain = new WebCaptain(app, client, id);
             for (int steps = 0; steps < 50; steps++)
             {
@@ -97,7 +97,7 @@ public sealed class ResolutionTests : IDisposable
 
     private async Task<(string Mission, string Call, string Option)> CallFields(Guid id)
     {
-        LoadedLegacy legacy = (await app.Sessions.Read(id))!;
+        LoadedLegacy legacy = (await app.Sessions.Read(app.Live, id))!;
         legacy.State.TryModule(MissionsModule.Name, out MissionsState? missions);
         MissionInFlight mission = missions!.Site!.Mission!;
         return (mission.Id, mission.State.Pending!.CallId, mission.State.Pending.Options.First().ToString());
@@ -242,7 +242,7 @@ public sealed class ResolutionTests : IDisposable
     {
         for (ulong seed = 1; seed < 200; seed++)
         {
-            Guid id = await app.Sessions.CreateLegacy($"LEGACY_{seed}", seed);
+            Guid id = await app.Sessions.CreateLegacy(app.Live, $"LEGACY_{seed}", seed);
             var captain = new WebCaptain(app, client, id);
             for (int steps = 0; steps < 300 && (await captain.Read()).State.Cycle == 1; steps++)
             {
@@ -289,7 +289,7 @@ public sealed class ResolutionTests : IDisposable
     public async Task A_call_names_its_lead_and_the_head_shows_the_gear_line()
     {
         (Guid id, _, _) = await LaunchedWithCall();
-        LoadedLegacy legacy = (await app.Sessions.Read(id))!;
+        LoadedLegacy legacy = (await app.Sessions.Read(app.Live, id))!;
         legacy.State.TryModule(MissionsModule.Name, out MissionsState? missions);
         MissionState state = missions!.Site!.Mission!.State;
 
@@ -308,7 +308,7 @@ public sealed class ResolutionTests : IDisposable
     public async Task The_page_marks_the_away_team_in_the_roster_as_real_text_and_sends_no_style_element()
     {
         (Guid id, _, _) = await LaunchedWithCall();
-        LoadedLegacy legacy = (await app.Sessions.Read(id))!;
+        LoadedLegacy legacy = (await app.Sessions.Read(app.Live, id))!;
         legacy.State.TryModule(MissionsModule.Name, out MissionsState? missions);
         MissionState state = missions!.Site!.Mission!.State;
 
@@ -334,7 +334,7 @@ public sealed class ResolutionTests : IDisposable
         HttpClient wideClient = wide.NewClient();
         for (ulong seed = 1; seed < 400; seed++)
         {
-            Guid id = await wide.Sessions.CreateLegacy($"LEGACY_{seed}", seed);
+            Guid id = await wide.Sessions.CreateLegacy(wide.Live, $"LEGACY_{seed}", seed);
             var captain = new WebCaptain(wide, wideClient, id);
             for (int steps = 0; steps < 300 && (await captain.Read()).State.Cycle == 1; steps++)
             {
@@ -609,7 +609,7 @@ public sealed class ResolutionTests : IDisposable
     [Fact]
     public async Task Resolution_with_no_team_sent_offers_to_aftermath()
     {
-        Guid id = await app.Sessions.CreateLegacy("LEGACY", 1);
+        Guid id = await app.Sessions.CreateLegacy(app.Live, "LEGACY", 1);
         var captain = new WebCaptain(app, client, id);
         await captain.Post("advance", []);
         await captain.Post("advance", []);
@@ -634,7 +634,7 @@ public sealed class ResolutionTests : IDisposable
     {
         for (ulong seed = 1; seed < 200; seed++)
         {
-            Guid id = await app.Sessions.CreateLegacy($"LEGACY_{seed}", seed);
+            Guid id = await app.Sessions.CreateLegacy(app.Live, $"LEGACY_{seed}", seed);
             var captain = new WebCaptain(app, client, id);
             for (int steps = 0; steps < 300 && (await captain.Read()).State.Cycle == 1; steps++)
             {
@@ -672,7 +672,7 @@ public sealed class ResolutionTests : IDisposable
     {
         for (ulong seed = 1; seed < 200; seed++)
         {
-            Guid id = await app.Sessions.CreateLegacy($"LEGACY_{seed}", seed);
+            Guid id = await app.Sessions.CreateLegacy(app.Live, $"LEGACY_{seed}", seed);
             var captain = new WebCaptain(app, client, id);
             for (int steps = 0; steps < 300 && (await captain.Read()).State.Cycle == 1; steps++)
             {
@@ -706,7 +706,7 @@ public sealed class ResolutionTests : IDisposable
     {
         for (ulong seed = 1; seed < 200; seed++)
         {
-            Guid id = await app.Sessions.CreateLegacy($"LEGACY_{seed}", seed);
+            Guid id = await app.Sessions.CreateLegacy(app.Live, $"LEGACY_{seed}", seed);
             var captain = new WebCaptain(app, client, id);
             for (int steps = 0; steps < 50 && !Pending(await captain.Read()) && (await captain.Read()).State.Cycle == 1; steps++)
             {
@@ -802,11 +802,11 @@ public sealed class ResolutionTests : IDisposable
         // A beat delay far longer than the wait below: the request can only end in time because the client left.
         using var slow = new TestApp(600_000);
         HttpClient slowClient = slow.NewClient();
-        Guid id = await slow.Sessions.CreateLegacy("LEGACY", 1);
+        Guid id = await slow.Sessions.CreateLegacy(slow.Live, "LEGACY", 1);
         var captain = new WebCaptain(slow, slowClient, id);
         await captain.Post("advance", []);
         LoadedLegacy legacy = await captain.Read();
-        var team = (AssignTeam)SimRunner.AutoCaptain.NextCommand(slow.Game.Game, legacy.State, slow.Game.Pack);
+        var team = (AssignTeam)SimRunner.AutoCaptain.NextCommand(slow.Live.Game, legacy.State, slow.Live.Pack);
         var form = new List<KeyValuePair<string, string>> { new("objective", team.ObjectiveId), new("lead", team.LeadId), new("priority", "0"), new("risk", "0"), new("autonomy", "0") };
         form.AddRange(team.CrewIds.Select(c => new KeyValuePair<string, string>("crew", c)));
         using var request = new HttpRequestMessage(HttpMethod.Post, $"/legacy/{id}/launch") { Content = new FormUrlEncodedContent(slow.Stamped(id, form)) };
@@ -841,6 +841,6 @@ public sealed class ResolutionTests : IDisposable
 
     private static IReadOnlyList<int> StoredBeatIndexes(TestApp target, Guid id)
     {
-        return target.Game.Store.ReadEvents(id).Select(target.Game.Game.Events.FromEnvelope).OfType<MissionBeat>().Select(b => b.Index).ToList();
+        return target.Game.Store.ReadEvents(id).Select(target.Live.Game.Events.FromEnvelope).OfType<MissionBeat>().Select(b => b.Index).ToList();
     }
 }

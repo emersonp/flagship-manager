@@ -1,7 +1,11 @@
+@using Microsoft.Extensions.Options
 <header id="topbar">
     <div class="ship">
         <span class="ship__name">SHIP_NAME</span>
-        <span class="ship__legacy">@Bar.LegacyName <a class="home" href="/">Legacies</a></span>
+        <span class="ship__legacy">@Bar.LegacyName <a class="home" href="/">Legacies</a>@if (DeveloperMode)
+            {
+                <a class="home" href="/dev/content">Content</a>
+            }</span>
     </div>
     <dl class="clock">
         <div><dt>Week</dt><dd>@Bar.Week</dd></div>
@@ -34,7 +38,12 @@
 </header>
 
 @code {
+    [Inject] private IServiceProvider Services { get; set; } = null!;
+
     [Parameter, EditorRequired] public TopBarView Bar { get; set; } = null!;
+
+    // Read from the settings the component is rendered with; a render without them shows no link.
+    private bool DeveloperMode => Services.GetService<IOptions<WebSettings>>()?.Value.DeveloperMode == true;
 
     // Scrolls the phase row sideways (never the page) so the current step shows on a narrow screen.
     private const string Reveal = "el.closest('nav').scrollLeft = Math.max(0, el.offsetLeft - el.closest('nav').clientWidth / 2 + el.offsetWidth / 2)";

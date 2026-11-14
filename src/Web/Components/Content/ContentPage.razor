@@ -1,0 +1,11 @@
+<Layout Title="Content">
+    <div class="page">
+        <ContentIndex View="View" Alert="Alert" />
+    </div>
+</Layout>
+
+@code {
+    [Parameter, EditorRequired] public ContentIndexView View { get; set; } = null!;
+
+    [Parameter] public IndexAlert? Alert { get; set; }
+}

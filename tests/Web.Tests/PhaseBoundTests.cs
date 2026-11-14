@@ -41,7 +41,7 @@ public sealed class PhaseBoundTests : IDisposable
 
     private (int Events, CyclePhase Phase, int Cycle, long Next) Snapshot(Guid id)
     {
-        LegacyRecord record = app.Game.Store.Load(id, app.Game.Game.ModuleTypes)!;
+        LegacyRecord record = app.Game.Store.Load(id, app.Live.Game.ModuleTypes)!;
         return (app.Game.Store.ReadEvents(id).Count, record.State.Phase, record.State.Cycle, record.State.NextSequence);
     }
 
@@ -60,7 +60,7 @@ public sealed class PhaseBoundTests : IDisposable
     // Orders, then send nobody: resolution with no mission, offering "To aftermath".
     private async Task<Guid> ResolutionWithNobodySent()
     {
-        Guid id = await app.Sessions.CreateLegacy("LEGACY", 1);
+        Guid id = await app.Sessions.CreateLegacy(app.Live, "LEGACY", 1);
         await Post(id, "advance", app.Stamp(id));
         await Post(id, "advance", app.Stamp(id));
         Assert.Equal(CyclePhase.Resolution, Snapshot(id).Phase);
@@ -70,7 +70,7 @@ public sealed class PhaseBoundTests : IDisposable
     [Fact]
     public async Task A_double_click_on_to_briefing_moves_one_phase_and_the_second_click_refreshes_the_page()
     {
-        Guid id = await app.Sessions.CreateLegacy("LEGACY", 1);
+        Guid id = await app.Sessions.CreateLegacy(app.Live, "LEGACY", 1);
         List<KeyValuePair<string, string>> stamp = app.Stamp(id);
         await Post(id, "advance", stamp);
         var before = Snapshot(id);
@@ -120,10 +120,10 @@ public sealed class PhaseBoundTests : IDisposable
     [InlineData("Briefing", 1)]
     public async Task A_launch_posted_from_a_stale_page_stores_nothing(string phase, int cycleOffset)
     {
-        Guid id = await app.Sessions.CreateLegacy("LEGACY", 1);
+        Guid id = await app.Sessions.CreateLegacy(app.Live, "LEGACY", 1);
         await Post(id, "advance", app.Stamp(id));
-        LoadedLegacy legacy = (await app.Sessions.Read(id))!;
-        var team = (AssignTeam)SimRunner.AutoCaptain.NextCommand(app.Game.Game, legacy.State, app.Game.Pack);
+        LoadedLegacy legacy = (await app.Sessions.Read(app.Live, id))!;
+        var team = (AssignTeam)SimRunner.AutoCaptain.NextCommand(app.Live.Game, legacy.State, app.Live.Pack);
         var form = new List<KeyValuePair<string, string>>
         {
             new("objective", team.ObjectiveId), new("lead", team.LeadId), new("priority", "0"), new("risk", "0"), new("autonomy", "0"),
@@ -167,7 +167,7 @@ public sealed class PhaseBoundTests : IDisposable
     [MemberData(nameof(BadStamps))]
     public async Task A_missing_or_unparseable_cycle_or_phase_is_an_incomplete_form_and_stores_nothing(string route, string? cycle, string? phase)
     {
-        Guid id = await app.Sessions.CreateLegacy("LEGACY", 1);
+        Guid id = await app.Sessions.CreateLegacy(app.Live, "LEGACY", 1);
         var form = new List<KeyValuePair<string, string>>();
         if (cycle is not null)
         {
@@ -211,7 +211,7 @@ public sealed class PhaseBoundTests : IDisposable
     [Fact]
     public async Task Every_advance_button_posts_the_pages_cycle_and_phase_and_is_disabled_in_flight()
     {
-        Guid id = await app.Sessions.CreateLegacy("LEGACY", 1);
+        Guid id = await app.Sessions.CreateLegacy(app.Live, "LEGACY", 1);
         string orders = System.Net.WebUtility.HtmlDecode(await client.GetStringAsync($"/legacy/{id}"));
         AssertStamped(FormAround(orders, "To briefing"), 1, CyclePhase.Orders);
         Assert.Contains($"data-on:submit=\"@post('/legacy/{id}/advance', {{contentType: 'form'}})\"", FormAround(orders, "To briefing"));
@@ -232,7 +232,7 @@ public sealed class PhaseBoundTests : IDisposable
     [Fact]
     public async Task The_briefing_posts_its_stamp_with_launch_and_send_nobody_and_disables_both_while_either_is_in_flight()
     {
-        Guid id = await app.Sessions.CreateLegacy("LEGACY", 1);
+        Guid id = await app.Sessions.CreateLegacy(app.Live, "LEGACY", 1);
         await Post(id, "advance", app.Stamp(id));
 
         string html = System.Net.WebUtility.HtmlDecode(await client.GetStringAsync($"/legacy/{id}"));
@@ -253,7 +253,7 @@ public sealed class PhaseBoundTests : IDisposable
     {
         for (ulong seed = 1; seed < 200; seed++)
         {
-            Guid id = await app.Sessions.CreateLegacy($"LEGACY_{seed}", seed);
+            Guid id = await app.Sessions.CreateLegacy(app.Live, $"LEGACY_{seed}", seed);
             var captain = new WebCaptain(app, client, id);
             for (int steps = 0; steps < 50 && (await captain.Read()).State.Phase != CyclePhase.Resolution; steps++)
             {

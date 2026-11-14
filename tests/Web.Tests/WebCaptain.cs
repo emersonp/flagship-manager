@@ -11,8 +11,8 @@ internal sealed class WebCaptain(TestApp app, HttpClient client, Guid id, Func<L
     // What the captain would send now, after any test override.
     public async Task<ICommand> Peek()
     {
-        LoadedLegacy legacy = (await app.Sessions.Read(id))!;
-        return choose?.Invoke(legacy.State) ?? AutoCaptain.NextCommand(app.Game.Game, legacy.State, app.Game.Pack);
+        LoadedLegacy legacy = (await app.Sessions.Read(app.Live, id))!;
+        return choose?.Invoke(legacy.State) ?? AutoCaptain.NextCommand(app.Live.Game, legacy.State, app.Live.Pack);
     }
 
     // Returns the route posted and the stream it answered with.
@@ -34,7 +34,7 @@ internal sealed class WebCaptain(TestApp app, HttpClient client, Guid id, Func<L
 
     public async Task<LoadedLegacy> Read()
     {
-        return (await app.Sessions.Read(id))!;
+        return (await app.Sessions.Read(app.Live, id))!;
     }
 
     // Posts with the cycle and phase the page shows now, as the browser does, unless the form carries its own.

@@ -16,7 +16,7 @@ public static class BridgeEndpoints
 
     private const string OutOfDate = "This page was out of date. It has been refreshed.";
 
-    public static void Map(WebApplication app)
+    public static void Map(IEndpointRouteBuilder app)
     {
         app.MapGet("/legacy/{id}", Page);
         app.MapPost("/legacy/{id}/advance", Advance);
@@ -26,22 +26,24 @@ public static class BridgeEndpoints
 
     private static async Task<IResult> Page(string id, HttpContext http, GameServices game, LegacySession sessions, Render render, CancellationToken cancellation)
     {
-        LoadedLegacy? legacy = Guid.TryParse(id, out Guid legacyId) ? await sessions.Read(legacyId, cancellation) : null;
+        LivePack live = RequestPack.Of(http);
+        LoadedLegacy? legacy = Guid.TryParse(id, out Guid legacyId) ? await sessions.Read(live, legacyId, cancellation) : null;
         if (legacy is null)
         {
             return await NotFound(render, http);
         }
 
-        string html = await render.Html<BridgePage>(new Dictionary<string, object?> { ["LegacyId"] = legacyId, ["View"] = View(game, legacy) });
+        string html = await render.Html<BridgePage>(new Dictionary<string, object?> { ["LegacyId"] = legacyId, ["View"] = View(game, live, legacy) });
         return Results.Content(html, "text/html; charset=utf-8");
     }
 
     private static async Task<IResult> Advance(string id, HttpContext http, GameServices game, LegacySession sessions, Render render, CancellationToken cancellation)
     {
         Stamp? stamp = StampOf(await ReadForm(http.Request, cancellation));
-        return await Send(id, http, game, sessions, render, legacy =>
+        LivePack live = RequestPack.Of(http);
+        return await Send(id, http, game, live, sessions, render, legacy =>
         {
-            Check(stamp, game, legacy);
+            Check(stamp, game, live, legacy);
             // Aftermath goes on through the advance phase, so one request starts the next cycle.
             bool fromAftermath = legacy.State.Phase == CyclePhase.Aftermath;
             legacy.Send(new AdvancePhase());
@@ -57,9 +59,10 @@ public static class BridgeEndpoints
         IFormCollection? form = await ReadForm(http.Request, cancellation);
         Stamp? stamp = StampOf(form);
         AssignTeam? team = Bind(form);
-        return await SendPaced<Refusal>(id, http, game, sessions, render, settings.Value.BeatDelayMs, legacy =>
+        LivePack live = RequestPack.Of(http);
+        return await SendPaced<Refusal>(id, http, game, live, sessions, render, settings.Value.BeatDelayMs, legacy =>
         {
-            Check(stamp, game, legacy);
+            Check(stamp, game, live, legacy);
             if (team is null)
             {
                 throw new CommandRejectedException(Incomplete);
@@ -75,9 +78,10 @@ public static class BridgeEndpoints
         IFormCollection? form = await ReadForm(http.Request, cancellation);
         Stamp? stamp = StampOf(form);
         AnswerCall? answer = BindAnswer(form);
-        return await SendPaced<CallRefusal>(id, http, game, sessions, render, settings.Value.BeatDelayMs, legacy =>
+        LivePack live = RequestPack.Of(http);
+        return await SendPaced<CallRefusal>(id, http, game, live, sessions, render, settings.Value.BeatDelayMs, legacy =>
         {
-            Check(stamp, game, legacy);
+            Check(stamp, game, live, legacy);
             if (answer is null)
             {
                 throw new CommandRejectedException(Incomplete);
@@ -89,7 +93,7 @@ public static class BridgeEndpoints
 
     // Commits first, then plays this request's new beats one at a time; the view before the commit rides along so the
     // opening patches and the held-back parts do not give the result away.
-    private static async Task<IResult> SendPaced<TRefusal>(string id, HttpContext http, GameServices game, LegacySession sessions, Render render, int beatDelayMs, Action<LoadedLegacy> commands, CancellationToken cancellation)
+    private static async Task<IResult> SendPaced<TRefusal>(string id, HttpContext http, GameServices game, LivePack live, LegacySession sessions, Render render, int beatDelayMs, Action<LoadedLegacy> commands, CancellationToken cancellation)
         where TRefusal : IComponent
     {
         if (!Guid.TryParse(id, out Guid legacyId))
@@ -100,11 +104,11 @@ public static class BridgeEndpoints
         Turn? turn;
         try
         {
-            turn = await sessions.Run(legacyId, legacy =>
+            turn = await sessions.Run(live, legacyId, legacy =>
             {
-                BridgeView before = View(game, legacy);
+                BridgeView before = View(game, live, legacy);
                 commands(legacy);
-                return new Turn(before, View(game, legacy));
+                return new Turn(before, View(game, live, legacy));
             }, cancellation);
         }
         catch (StalePageException stale)
@@ -115,9 +119,9 @@ public static class BridgeEndpoints
         {
             // A refused answer may be for a call no longer on screen: redraw from the stored state, the reason in the
             // waiting call's panel or, with none waiting, in the bar, so the page never stays on a dead call.
-            if (typeof(TRefusal) == typeof(CallRefusal) && await sessions.Read(legacyId, cancellation) is { } current)
+            if (typeof(TRefusal) == typeof(CallRefusal) && await sessions.Read(live, legacyId, cancellation) is { } current)
             {
-                BridgeView corrected = View(game, current);
+                BridgeView corrected = View(game, live, current);
                 return corrected.Mission?.Call is null
                     ? await Patches(render, legacyId, corrected, rejected.Message)
                     : await Patches(render, legacyId, corrected, null, rejected.Message);
@@ -243,7 +247,7 @@ public static class BridgeEndpoints
     }
 
     // Commits the commands in one run, then answers with the three patches or, on a rejection, the refusal alone.
-    private static async Task<IResult> Send(string id, HttpContext http, GameServices game, LegacySession sessions, Render render, Action<LoadedLegacy> commands, CancellationToken cancellation)
+    private static async Task<IResult> Send(string id, HttpContext http, GameServices game, LivePack live, LegacySession sessions, Render render, Action<LoadedLegacy> commands, CancellationToken cancellation)
     {
         if (!Guid.TryParse(id, out Guid legacyId))
         {
@@ -253,10 +257,10 @@ public static class BridgeEndpoints
         BridgeView? view;
         try
         {
-            view = await sessions.Run(legacyId, legacy =>
+            view = await sessions.Run(live, legacyId, legacy =>
             {
                 commands(legacy);
-                return View(game, legacy);
+                return View(game, live, legacy);
             }, cancellation);
         }
         catch (StalePageException stale)
@@ -316,7 +320,7 @@ public static class BridgeEndpoints
     }
 
     // At the edge, inside the lock and before any command: a page drawn in another cycle or phase sends nothing.
-    private static void Check(Stamp? stamp, GameServices game, LoadedLegacy legacy)
+    private static void Check(Stamp? stamp, GameServices game, LivePack live, LoadedLegacy legacy)
     {
         if (stamp is null)
         {
@@ -325,7 +329,7 @@ public static class BridgeEndpoints
 
         if (stamp.Cycle != legacy.State.Cycle || stamp.Phase != legacy.State.Phase)
         {
-            throw new StalePageException(View(game, legacy));
+            throw new StalePageException(View(game, live, legacy));
         }
     }
 
@@ -379,12 +383,12 @@ public static class BridgeEndpoints
     }
 
     // This cycle's stored events plus any not yet committed, so a page built inside a run sees its own commands.
-    private static BridgeView View(GameServices game, LoadedLegacy legacy)
+    private static BridgeView View(GameServices game, LivePack live, LoadedLegacy legacy)
     {
         int cycle = legacy.State.Cycle;
-        List<IEvent> events = game.Store.ReadEvents(legacy.State.LegacyId, cycle).Select(game.Game.Events.FromEnvelope).ToList();
-        events.AddRange(legacy.Envelopes.Where(e => e.Cycle == cycle).Select(game.Game.Events.FromEnvelope));
-        return BridgeReader.Read(legacy.Record, game.Pack, events);
+        List<IEvent> events = game.Store.ReadEvents(legacy.State.LegacyId, cycle).Select(live.Game.Events.FromEnvelope).ToList();
+        events.AddRange(legacy.Envelopes.Where(e => e.Cycle == cycle).Select(live.Game.Events.FromEnvelope));
+        return BridgeReader.Read(legacy.Record, live.Pack, events, live.Names);
     }
 
     // A Datastar request gets the words as a patch of the main screen; a 404 page would change nothing on screen.

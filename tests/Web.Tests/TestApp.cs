@@ -10,13 +10,26 @@ using Web;
 namespace Web.Tests;
 
 // The real app on a throwaway database file, with the repository's content and no beat delay.
-public sealed class TestApp(int beatDelayMs = 0, bool wideDice = false, bool noCalls = false, bool oddNames = false) : WebApplicationFactory<Program>
+// Options: developerMode turns the editor's routes on; scratch runs on a temporary copy of the repository's content (any test that
+// saves needs it); prepare gets that copy's folder before the app starts, to break it or change it.
+public sealed class TestApp(int beatDelayMs = 0, bool wideDice = false, bool noCalls = false, bool oddNames = false, bool developerMode = false, bool scratch = false, Action<string>? prepare = null) : WebApplicationFactory<Program>
 {
+    private readonly RepoContentGuard guard = new();
     private string? wideContent;
 
     private readonly string path = Path.Combine(Path.GetTempPath(), $"starship-sim-web-{Guid.NewGuid():N}.db");
 
     public CapturedLogs Logs { get; } = new();
+
+    public ContentHost Host => Services.GetRequiredService<ContentHost>();
+
+    public ContentEditor Editor => Services.GetRequiredService<ContentEditor>();
+
+    // The pack in play now; a test that needs one snapshot reads it once.
+    public LivePack Live => Host.Current!;
+
+    // The scratch copy of the content, when the app runs on one.
+    public string ContentPath => wideContent ?? throw new InvalidOperationException("This app runs on the repository's content.");
 
     public GameServices Game => Services.GetRequiredService<GameServices>();
 
@@ -30,7 +43,7 @@ public sealed class TestApp(int beatDelayMs = 0, bool wideDice = false, bool noC
     // The cycle and phase a page drawn now carries in its action forms.
     public List<KeyValuePair<string, string>> Stamp(Guid id)
     {
-        LegacyRecord record = Game.Store.Load(id, Game.Game.ModuleTypes)!;
+        LegacyRecord record = Game.Store.Load(id, Live.Game.ModuleTypes)!;
         return [new("cycle", record.State.Cycle.ToString(System.Globalization.CultureInfo.InvariantCulture)), new("phase", record.State.Phase.ToString())];
     }
 
@@ -52,7 +65,8 @@ public sealed class TestApp(int beatDelayMs = 0, bool wideDice = false, bool noC
         builder.ConfigureAppConfiguration((_, config) => config.AddInMemoryCollection(new Dictionary<string, string?>
         {
             ["Web:DatabasePath"] = path,
-            ["Web:ContentDirectory"] = wideDice || oddNames ? WideContent() : Path.Combine(RepositoryRoot(), "content"),
+            ["Web:ContentDirectory"] = wideDice || oddNames || scratch ? WideContent() : Path.Combine(RepositoryRoot(), "content"),
+            ["Web:DeveloperMode"] = developerMode ? "true" : "false",
             ["Web:BeatDelayMs"] = beatDelayMs.ToString(),
         }));
     }
@@ -66,6 +80,8 @@ public sealed class TestApp(int beatDelayMs = 0, bool wideDice = false, bool noC
         {
             Directory.Delete(wideContent, true);
         }
+
+        guard.Verify();
     }
 
     // A copy of the content with 1d20 check dice and deadly severe injuries, so lead changes are common inside a short run.
@@ -89,6 +105,8 @@ public sealed class TestApp(int beatDelayMs = 0, bool wideDice = false, bool noC
         {
             NameEverything(wideContent);
         }
+
+        prepare?.Invoke(wideContent);
 
         if (!wideDice)
         {
@@ -126,7 +144,7 @@ public sealed class TestApp(int beatDelayMs = 0, bool wideDice = false, bool noC
         }
     }
 
-    private static string RepositoryRoot()
+    internal static string RepositoryRoot()
     {
         DirectoryInfo? directory = new(AppContext.BaseDirectory);
         while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "Directory.Build.props")))

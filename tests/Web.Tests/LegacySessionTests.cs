@@ -15,12 +15,12 @@ public sealed class LegacySessionTests : IDisposable
     [Fact]
     public async Task A_second_run_waits_for_the_first_and_both_runs_events_are_stored_in_order()
     {
-        Guid id = await app.Sessions.CreateLegacy("LEGACY");
+        Guid id = await app.Sessions.CreateLegacy(app.Live, "LEGACY");
         var firstEntered = new TaskCompletionSource();
         var gate = new TaskCompletionSource();
         int secondEntered = 0;
 
-        Task first = Task.Run(() => app.Sessions.Run<object>(id, legacy =>
+        Task first = Task.Run(() => app.Sessions.Run<object>(app.Live, id, legacy =>
         {
             firstEntered.SetResult();
             gate.Task.Wait();
@@ -28,7 +28,7 @@ public sealed class LegacySessionTests : IDisposable
             return new object();
         }));
         await firstEntered.Task;
-        Task second = Task.Run(() => app.Sessions.Run<object>(id, legacy =>
+        Task second = Task.Run(() => app.Sessions.Run<object>(app.Live, id, legacy =>
         {
             Interlocked.Increment(ref secondEntered);
             legacy.Send(new AdvancePhase());
@@ -42,25 +42,25 @@ public sealed class LegacySessionTests : IDisposable
         Assert.Equal(0, enteredWhileHeld);
         IReadOnlyList<EventEnvelope> events = app.Game.Store.ReadEvents(id);
         Assert.Equal(Enumerable.Range(1, events.Count).Select(n => (long)n), events.Select(e => e.Sequence));
-        Assert.Equal(CyclePhase.Resolution, (await app.Sessions.Read(id))!.State.Phase);
-        Assert.Equal(events.Count + 1, (await app.Sessions.Read(id))!.State.NextSequence);
+        Assert.Equal(CyclePhase.Resolution, (await app.Sessions.Read(app.Live, id))!.State.Phase);
+        Assert.Equal(events.Count + 1, (await app.Sessions.Read(app.Live, id))!.State.NextSequence);
     }
 
     [Fact]
     public async Task A_rejected_command_leaves_the_stored_legacy_unchanged()
     {
-        Guid id = await app.Sessions.CreateLegacy("LEGACY");
-        LoadedLegacy before = (await app.Sessions.Read(id))!;
+        Guid id = await app.Sessions.CreateLegacy(app.Live, "LEGACY");
+        LoadedLegacy before = (await app.Sessions.Read(app.Live, id))!;
         int eventsBefore = app.Game.Store.ReadEvents(id).Count;
 
-        await Assert.ThrowsAsync<CommandRejectedException>(() => app.Sessions.Run<object>(id, legacy =>
+        await Assert.ThrowsAsync<CommandRejectedException>(() => app.Sessions.Run<object>(app.Live, id, legacy =>
         {
             legacy.Send(new AdvancePhase());
             legacy.Send(new FoundLegacy());
             return new object();
         }));
 
-        LoadedLegacy after = (await app.Sessions.Read(id))!;
+        LoadedLegacy after = (await app.Sessions.Read(app.Live, id))!;
         Assert.Equal(before.State.NextSequence, after.State.NextSequence);
         Assert.Equal(before.State.Phase, after.State.Phase);
         Assert.Equal(eventsBefore, app.Game.Store.ReadEvents(id).Count);
@@ -69,20 +69,20 @@ public sealed class LegacySessionTests : IDisposable
     [Fact]
     public async Task Run_on_an_unknown_legacy_returns_null()
     {
-        Assert.Null(await app.Sessions.Run<object>(Guid.NewGuid(), _ => new object()));
+        Assert.Null(await app.Sessions.Run<object>(app.Live, Guid.NewGuid(), _ => new object()));
     }
 
     [Fact]
     public async Task A_created_legacy_has_its_founding_events_and_loads_as_founded()
     {
-        Guid id = await app.Sessions.CreateLegacy("LEGACY");
+        Guid id = await app.Sessions.CreateLegacy(app.Live, "LEGACY");
 
         IReadOnlyList<EventEnvelope> events = app.Game.Store.ReadEvents(id);
-        LoadedLegacy loaded = (await app.Sessions.Read(id))!;
+        LoadedLegacy loaded = (await app.Sessions.Read(app.Live, id))!;
         Assert.NotEmpty(events);
         Assert.Equal(events.Count + 1, loaded.State.NextSequence);
         Assert.Equal(CyclePhase.Orders, loaded.State.Phase);
-        await Assert.ThrowsAsync<CommandRejectedException>(() => app.Sessions.Run<object>(id, legacy =>
+        await Assert.ThrowsAsync<CommandRejectedException>(() => app.Sessions.Run<object>(app.Live, id, legacy =>
         {
             legacy.Send(new FoundLegacy());
             return new object();
@@ -95,7 +95,7 @@ public sealed class LegacySessionTests : IDisposable
     [InlineData(null)]
     public async Task A_blank_or_null_name_is_refused_and_nothing_is_created(string? name)
     {
-        await Assert.ThrowsAsync<InvalidLegacyNameException>(() => app.Sessions.CreateLegacy(name!));
+        await Assert.ThrowsAsync<InvalidLegacyNameException>(() => app.Sessions.CreateLegacy(app.Live, name!));
 
         Assert.Empty(app.Game.Store.ListLegacies());
     }
@@ -104,13 +104,13 @@ public sealed class LegacySessionTests : IDisposable
     [Fact]
     public async Task No_lock_is_kept_for_an_id_that_does_not_exist()
     {
-        Guid id = await app.Sessions.CreateLegacy("LEGACY");
+        Guid id = await app.Sessions.CreateLegacy(app.Live, "LEGACY");
         int locks = app.Sessions.LockCount;
 
-        Assert.Null(await app.Sessions.Read(Guid.NewGuid()));
-        Assert.Null(await app.Sessions.Run<object>(Guid.NewGuid(), _ => new object()));
-        await Assert.ThrowsAsync<InvalidLegacyNameException>(() => app.Sessions.CreateLegacy(" "));
-        Assert.NotNull(await app.Sessions.Read(id));
+        Assert.Null(await app.Sessions.Read(app.Live, Guid.NewGuid()));
+        Assert.Null(await app.Sessions.Run<object>(app.Live, Guid.NewGuid(), _ => new object()));
+        await Assert.ThrowsAsync<InvalidLegacyNameException>(() => app.Sessions.CreateLegacy(app.Live, " "));
+        Assert.NotNull(await app.Sessions.Read(app.Live, id));
 
         Assert.Equal(locks, app.Sessions.LockCount);
     }
@@ -118,10 +118,10 @@ public sealed class LegacySessionTests : IDisposable
     [Fact]
     public async Task A_cancelled_token_stops_the_wait_for_the_lock()
     {
-        Guid id = await app.Sessions.CreateLegacy("LEGACY");
+        Guid id = await app.Sessions.CreateLegacy(app.Live, "LEGACY");
         using var cancelled = new CancellationTokenSource();
         await cancelled.CancelAsync();
 
-        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => app.Sessions.Read(id, cancelled.Token));
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => app.Sessions.Read(app.Live, id, cancelled.Token));
     }
 }

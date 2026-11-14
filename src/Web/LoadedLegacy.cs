@@ -1,3 +1,4 @@
+using GameHost;
 using Persistence;
 using Sim.Core;
 
@@ -6,13 +7,13 @@ namespace Web;
 // One legacy as loaded for one request. Never shared between requests.
 public sealed class LoadedLegacy
 {
-    private readonly GameServices services;
+    private readonly Game game;
     private readonly List<EventEnvelope> envelopes = [];
 
-    internal LoadedLegacy(LegacyRecord record, GameServices services)
+    internal LoadedLegacy(LegacyRecord record, Game game)
     {
         Record = record;
-        this.services = services;
+        this.game = game;
     }
 
     public LegacyRecord Record { get; }
@@ -24,9 +25,9 @@ public sealed class LoadedLegacy
     // Collects the envelopes for the commit.
     public void Send(ICommand command)
     {
-        foreach (PublishedEvent published in services.Game.Bus.Send(State, command))
+        foreach (PublishedEvent published in game.Bus.Send(State, command))
         {
-            envelopes.Add(services.Game.Events.ToEnvelope(published));
+            envelopes.Add(game.Events.ToEnvelope(published));
         }
     }
 }
