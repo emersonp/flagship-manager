@@ -44,7 +44,7 @@ internal static class PrototypeCrew
             directory = directory.Parent;
         }
 
-        ContentLoadResult result = ContentLoader.LoadDirectory(Path.Combine(directory!.FullName, "content"));
+        ContentLoadResult result = ContentLoader.LoadDirectory(Path.Combine(directory!.FullName, "tests", "fixtures", "content"));
         return result.Pack ?? throw new InvalidOperationException(string.Join("; ", result.Errors.Select(e => $"{e.File}: {e.Message}")));
     }
 }

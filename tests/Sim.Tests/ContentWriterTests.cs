@@ -9,7 +9,7 @@ public class ContentWriterTests : IClassFixture<RepoContentGuard>
 
     private static string Render(params IContentModel[] items) => ContentWriter.Render(null, items);
 
-    private static ContentFileSet Repo() => ContentFileSet.ReadDirectory(Path.Combine(TestContent.Root, "content"));
+    private static ContentFileSet Repo() => ContentFileSet.ReadDirectory(Path.Combine(TestContent.Root, "tests", "fixtures", "content"));
 
     [Fact]
     public void A_skill_is_written_with_its_name_and_tags()

@@ -1,0 +1,41 @@
+# Placeholders. The author replaces these. The roster of a new legacy.
+- id: CREW_01
+  seniority: 5
+  skills: { SKILL_A: 6, SKILL_B: 5, SKILL_C: 4, SKILL_D: 3 }
+  caution: 2
+  discipline: 2
+- id: CREW_02
+  seniority: 4
+  skills: { SKILL_A: 4, SKILL_B: 6, SKILL_C: 5, SKILL_D: 2 }
+  caution: -2
+  discipline: -1
+- id: CREW_03
+  seniority: 4
+  skills: { SKILL_A: 5, SKILL_B: 3, SKILL_C: 6, SKILL_D: 5 }
+  caution: 0
+  discipline: 1
+- id: CREW_04
+  seniority: 3
+  skills: { SKILL_A: 3, SKILL_B: 4, SKILL_C: 3, SKILL_D: 6 }
+  caution: 1
+  discipline: -2
+- id: CREW_05
+  seniority: 2
+  skills: { SKILL_A: 2, SKILL_B: 3, SKILL_C: 2, SKILL_D: 3 }
+  caution: -1
+  discipline: 0
+- id: CREW_06
+  seniority: 2
+  skills: { SKILL_A: 3, SKILL_B: 1, SKILL_C: 3, SKILL_D: 2 }
+  caution: 1
+  discipline: 1
+- id: CREW_07
+  seniority: 1
+  skills: { SKILL_A: 1, SKILL_B: 2, SKILL_C: 1, SKILL_D: 2 }
+  caution: 0
+  discipline: 0
+- id: CREW_08
+  seniority: 1
+  skills: { SKILL_A: 2, SKILL_B: 1, SKILL_C: 2, SKILL_D: 1 }
+  caution: -2
+  discipline: 2

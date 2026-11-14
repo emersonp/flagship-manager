@@ -19,7 +19,7 @@ internal static class TestPack
         }
 
         string root = directory?.FullName ?? throw new InvalidOperationException("Repository root not found.");
-        return ContentLoader.LoadDirectory(Path.Combine(root, "content")).Pack ?? throw new InvalidOperationException("The content pack did not load.");
+        return ContentLoader.LoadDirectory(Path.Combine(root, "tests", "fixtures", "content")).Pack ?? throw new InvalidOperationException("The content pack did not load.");
     }
 
     public static LegacyState NewLegacy(ulong seed)

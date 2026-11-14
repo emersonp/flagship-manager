@@ -29,7 +29,7 @@ internal static partial class TestContent
 
     public static Dictionary<string, string> RepoFiles()
     {
-        string content = Path.Combine(Root, "content");
+        string content = Path.Combine(Root, "tests", "fixtures", "content");
         return Directory
             .EnumerateFiles(content, "*.yaml", SearchOption.AllDirectories)
             .ToDictionary(f => Path.GetRelativePath(content, f).Replace('\\', '/'), File.ReadAllText);

@@ -1,14 +1,17 @@
 #!/usr/bin/env bash
-# The gate every change must pass: build, tests, a headless simulator run, and a mission bench.
+# The gate every change must pass: build, tests, a headless simulator run, and a mission bench, all pinned to the
+# placeholder pack in tests/fixtures/content; one more run only proves the game's own content/ plays (exit code only).
 set -euo pipefail
 cd "$(dirname "$0")"
 dotnet build --nologo -v quiet
 dotnet test --nologo --no-build -v quiet
-dotnet run --no-build --project src/SimRunner -- cycles --legacies 20 --cycles 50 --seed 1 --content content
-dotnet run --no-build --project src/SimRunner -- bench --objective OBJECTIVE_TEMPLATE_1 --runs 2000 --team sweep --content content > /dev/null
+dotnet run --no-build --project src/SimRunner -- cycles --legacies 20 --cycles 50 --seed 1 --content tests/fixtures/content
+dotnet run --no-build --project src/SimRunner -- bench --objective OBJECTIVE_TEMPLATE_1 --runs 2000 --team sweep --content tests/fixtures/content > /dev/null
 echo "Mission bench: 3 x 2000 missions. OK."
+game=$(dotnet run --no-build --project src/SimRunner -- cycles --legacies 3 --cycles 5 --seed 1 --content content) || { echo "$game" >&2; exit 1; }
+echo "Game content: $game"
 
-# Web smoke check: scratch database and a scratch copy of content/, free port, everything removed on exit.
+# Web smoke check: scratch database and a scratch copy of tests/fixtures/content/, free port, everything removed on exit.
 port=$(python3 -c 'import socket; s=socket.socket(); s.bind(("127.0.0.1",0)); print(s.getsockname()[1])')
 tmp=$(mktemp -d)
 base="http://127.0.0.1:$port"
@@ -37,12 +40,13 @@ web_fail() {
   exit 1
 }
 
-# The editor writes the files it reads, so the app reads a copy of content/, never the repository's; a checksum proves it.
+# The editor writes the files it reads, so the app reads a copy of the fixture, never the repository's folders; checksums prove it.
 content_sum() {
   (cd "$1" && find . -type f | LC_ALL=C sort | xargs sha256sum | sha256sum)
 }
 content_before=$(content_sum content)
-cp -r content "$tmp/content"
+fixture_before=$(content_sum tests/fixtures/content)
+cp -r tests/fixtures/content "$tmp/content"
 
 # Starts the app with developer mode $1 (true or false) and waits until it answers.
 start_app() {
@@ -120,4 +124,5 @@ start_app false
 status=$(curl -s -o /dev/null -w '%{http_code}' "$base/dev/content" || true)
 [ "$status" = "404" ] || web_fail "GET /dev/content answered $status with developer mode off, expected 404."
 [ "$(content_sum content)" = "$content_before" ] || web_fail "The check changed the repository's content/."
+[ "$(content_sum tests/fixtures/content)" = "$fixture_before" ] || web_fail "The check changed tests/fixtures/content/."
 echo "Web: legacy created and opened, and content edited. OK."

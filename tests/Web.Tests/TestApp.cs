@@ -65,7 +65,7 @@ public sealed class TestApp(int beatDelayMs = 0, bool wideDice = false, bool noC
         builder.ConfigureAppConfiguration((_, config) => config.AddInMemoryCollection(new Dictionary<string, string?>
         {
             ["Web:DatabasePath"] = path,
-            ["Web:ContentDirectory"] = wideDice || oddNames || scratch ? WideContent() : Path.Combine(RepositoryRoot(), "content"),
+            ["Web:ContentDirectory"] = wideDice || oddNames || scratch ? WideContent() : Path.Combine(RepositoryRoot(), "tests", "fixtures", "content"),
             ["Web:DeveloperMode"] = developerMode ? "true" : "false",
             ["Web:BeatDelayMs"] = beatDelayMs.ToString(),
         }));
@@ -93,7 +93,7 @@ public sealed class TestApp(int beatDelayMs = 0, bool wideDice = false, bool noC
         }
 
         wideContent = Path.Combine(Path.GetTempPath(), $"starship-sim-content-{Guid.NewGuid():N}");
-        string source = Path.Combine(RepositoryRoot(), "content");
+        string source = Path.Combine(RepositoryRoot(), "tests", "fixtures", "content");
         foreach (string file in Directory.GetFiles(source, "*", SearchOption.AllDirectories))
         {
             string target = Path.Combine(wideContent, Path.GetRelativePath(source, file));

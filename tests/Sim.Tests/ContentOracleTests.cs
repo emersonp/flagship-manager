@@ -60,7 +60,7 @@ public partial class ContentOracleTests : IClassFixture<RepoContentGuard>
     [Fact]
     public void A_save_the_check_allows_never_changes_the_loaders_verdict()
     {
-        var repo = ContentFileSet.ReadDirectory(Path.Combine(TestContent.Root, "content"));
+        var repo = ContentFileSet.ReadDirectory(Path.Combine(TestContent.Root, "tests", "fixtures", "content"));
         var baseFiles = new Dictionary<string, string>(repo.Files) { ["assignments/base.yaml"] = repo.Files["assignments/base.yaml"] + SecondAssignment };
         int allowed = 0;
         int refused = 0;

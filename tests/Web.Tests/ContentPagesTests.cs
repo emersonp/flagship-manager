@@ -14,7 +14,7 @@ public sealed class ContentPagesTests : IClassFixture<RepoContentGuard>
 
     private static ContentFileSet Repo()
     {
-        return ContentFileSet.ReadDirectory(Path.Combine(TestApp.RepositoryRoot(), "content"));
+        return ContentFileSet.ReadDirectory(Path.Combine(TestApp.RepositoryRoot(), "tests", "fixtures", "content"));
     }
 
     private static string Segment(ContentKind kind)

@@ -8,11 +8,11 @@ A starship captain management sim, played in the browser, with a headless simula
 
 ## Checks
 
-`./check.sh` is the gate: it builds, runs the tests, runs the headless simulator and the mission bench, and starts the web app on a scratch database and a scratch copy of `content/` to create and open a legacy and to edit content through the editor, then starts it again with developer mode off to check that the editor is gone.
+`./check.sh` is the gate: it builds, runs the tests, runs the headless simulator and the mission bench, and starts the web app on a scratch database and a scratch copy of `tests/fixtures/content/` to create and open a legacy and to edit content through the editor, then starts it again with developer mode off to check that the editor is gone.
 
 `tests/browser/play.sh` plays one cycle in a real browser through `playwright-cli`, double-clicking every action; it is not part of the gate.
 
-`tests/browser/edit.sh` drives the content editor in a real browser on a scratch copy of `content/`: it renames content through the forms, plays until a renamed encounter appears, and checks that refused saves write nothing. It is not part of the gate either.
+`tests/browser/edit.sh` drives the content editor in a real browser on a scratch copy of `tests/fixtures/content/`: it renames content through the forms, plays until a renamed encounter appears, and checks that refused saves write nothing. It is not part of the gate either.
 
 ## Run the game
 
@@ -35,6 +35,6 @@ A starship captain management sim, played in the browser, with a headless simula
 
 ## Where things live
 
-- `content/` holds the game content.
+- `content/` holds the game content, which can change freely. The tests, golden hashes, bench figures, and scripts use the placeholder pack in `tests/fixtures/content/` instead (see `tests/fixtures/README.md`).
 - `docs/` holds the design, plans, research, and screens; `docs/gdd.md` is the game design document.
 - `wayfinder/` holds the project map.

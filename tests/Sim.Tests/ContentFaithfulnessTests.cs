@@ -6,20 +6,20 @@ using Sim.Core.Content;
 
 namespace Sim.Tests;
 
-// Fails the class if anything under the repository's content/ changes while its tests run.
+// Fails the class if anything under the repository's content/ or tests/fixtures/content/ changes while its tests run.
 public sealed class RepoContentGuard : IDisposable
 {
-    private readonly string _root;
+    private readonly string[] _roots;
     private readonly string _before;
 
     public RepoContentGuard()
-        : this(Path.Combine(TestContent.Root, "content"))
+        : this(Path.Combine(TestContent.Root, "content"), Path.Combine(TestContent.Root, "tests", "fixtures", "content"))
     {
     }
 
-    internal RepoContentGuard(string root)
+    internal RepoContentGuard(params string[] roots)
     {
-        _root = root;
+        _roots = roots;
         _before = Hash();
     }
 
@@ -27,13 +27,14 @@ public sealed class RepoContentGuard : IDisposable
     {
         if (Hash() != _before)
         {
-            throw new InvalidOperationException($"A test changed the files under {_root}.");
+            throw new InvalidOperationException($"A test changed the files under {string.Join(" or ", _roots)}.");
         }
     }
 
     private string Hash()
     {
-        IEnumerable<string> parts = Directory.EnumerateFiles(_root, "*", SearchOption.AllDirectories)
+        IEnumerable<string> parts = _roots
+            .SelectMany(r => Directory.EnumerateFiles(r, "*", SearchOption.AllDirectories))
             .OrderBy(f => f, StringComparer.Ordinal)
             .Select(f => f + ":" + Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(f))));
         return string.Join("\n", parts);
@@ -48,7 +49,7 @@ public class ContentFaithfulnessTests : IClassFixture<RepoContentGuard>
         public override string ToString() => Name;
     }
 
-    private static ContentFileSet Repo() => ContentFileSet.ReadDirectory(System.IO.Path.Combine(TestContent.Root, "content"));
+    private static ContentFileSet Repo() => ContentFileSet.ReadDirectory(System.IO.Path.Combine(TestContent.Root, "tests", "fixtures", "content"));
 
     private static string EditBlock(string text, string marker, Func<string, string> edit)
     {

@@ -12,7 +12,7 @@ internal sealed class ScratchContent : IDisposable
     public ScratchContent()
     {
         Path = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"starship-sim-scratch-{Guid.NewGuid():N}");
-        string source = System.IO.Path.Combine(TestApp.RepositoryRoot(), "content");
+        string source = System.IO.Path.Combine(TestApp.RepositoryRoot(), "tests", "fixtures", "content");
         foreach (string file in Directory.GetFiles(source, "*", SearchOption.AllDirectories))
         {
             string target = System.IO.Path.Combine(Path, System.IO.Path.GetRelativePath(source, file));

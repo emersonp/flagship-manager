@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# The content editor in a real browser through playwright-cli, on a scratch copy of content/ with developer mode on: rename a crew
+# The content editor in a real browser through playwright-cli, on a scratch copy of tests/fixtures/content/ with developer mode on: rename a crew
 # member, a skill, and every encounter a first stage can draw through the forms; start a legacy and see the names; play the first
 # mission and see an encounter's new name in its log; see an encounter and a text file refused with nothing written; tick boxes in
 # rows, remove and move rows, and see the saved values match the page; add a stage to an objective and see it saved.
@@ -89,10 +89,12 @@ expect_refusal() {
 
 dotnet build --nologo -v quiet "$root/src/Web" > "$tmp/build.log" 2>&1 || { cat "$tmp/build.log" >&2; exit 1; }
 
-# The editor writes the files it reads, so the app reads a copy of content/, never the repository's.
+# The editor writes the files it reads, so the app reads a copy of the fixture, never the repository's folders.
+fixture="$root/tests/fixtures/content"
 before_repo=$(sum_of "$root/content")
-status_before=$(git -C "$root" status --porcelain content)
-cp -r "$root/content" "$tmp/content"
+before_fixture=$(sum_of "$fixture")
+status_before=$(git -C "$root" status --porcelain content tests/fixtures/content)
+cp -r "$fixture" "$tmp/content"
 
 # The app is its own session leader, so one signal to its group stops dotnet run and the app it starts.
 (cd "$root" && ASPNETCORE_URLS="$base" Web__DatabasePath="$tmp/edit.db" Web__ContentDirectory="$tmp/content" Web__BeatDelayMs=0 Web__DeveloperMode=true ASPNETCORE_ENVIRONMENT=Production \
@@ -263,5 +265,6 @@ case "$console" in
 esac
 
 [ "$(sum_of "$root/content")" = "$before_repo" ] || fail "the repository's content/ changed."
-[ "$(git -C "$root" status --porcelain content)" = "$status_before" ] || fail "git status of the repository's content/ changed."
+[ "$(sum_of "$fixture")" = "$before_fixture" ] || fail "tests/fixtures/content/ changed."
+[ "$(git -C "$root" status --porcelain content tests/fixtures/content)" = "$status_before" ] || fail "git status of content/ or tests/fixtures/content/ changed."
 echo "Browser: content edited and refused. OK."

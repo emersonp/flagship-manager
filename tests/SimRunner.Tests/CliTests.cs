@@ -4,7 +4,7 @@ namespace SimRunner.Tests;
 
 public class CliTests
 {
-    private static readonly string Content = Path.Combine(FindRoot(), "content");
+    private static readonly string Content = Path.Combine(FindRoot(), "tests", "fixtures", "content");
 
     [Theory]
     [InlineData()]

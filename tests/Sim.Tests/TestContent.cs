@@ -3,12 +3,12 @@ using Sim.Core.Content;
 
 namespace Sim.Tests;
 
-// The repository's own content pack.
+// The placeholder pack in tests/fixtures/content, not the game's content.
 internal static partial class TestContent
 {
     public static readonly string Root = FindRoot();
 
-    public static readonly string TuningText = File.ReadAllText(Path.Combine(Root, "content", "tuning", "missions.yaml"));
+    public static readonly string TuningText = File.ReadAllText(Path.Combine(Root, "tests", "fixtures", "content", "tuning", "missions.yaml"));
 
     public static readonly ContentPack Pack = LoadPack();
 
@@ -29,7 +29,7 @@ internal static partial class TestContent
 
     private static ContentPack LoadPack()
     {
-        ContentLoadResult result = ContentLoader.LoadDirectory(Path.Combine(Root, "content"));
+        ContentLoadResult result = ContentLoader.LoadDirectory(Path.Combine(Root, "tests", "fixtures", "content"));
         return result.Pack ?? throw new InvalidOperationException(string.Join("; ", result.Errors.Select(e => $"{e.File}: {e.Message}")));
     }
 }

@@ -7,7 +7,7 @@ namespace Sim.Tests;
 
 public class ContentEditsTests : IClassFixture<RepoContentGuard>
 {
-    private static string ContentRoot => Path.Combine(TestContent.Root, "content");
+    private static string ContentRoot => Path.Combine(TestContent.Root, "tests", "fixtures", "content");
 
     private static ContentFileSet Repo() => ContentFileSet.ReadDirectory(ContentRoot);
 
