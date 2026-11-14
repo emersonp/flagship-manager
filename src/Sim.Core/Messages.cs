@@ -27,4 +27,10 @@ public interface IBusContext
     void Send(ICommand command);
 
     RngStream Rng(string streamName);
+
+    TState Module<TState>()
+        where TState : class, new();
+
+    TView View<TView>()
+        where TView : class;
 }

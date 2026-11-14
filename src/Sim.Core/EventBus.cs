@@ -4,6 +4,54 @@ public sealed class EventBus
 {
     private readonly Dictionary<Type, Action<ICommand, IBusContext>> handlers = new();
     private readonly List<Subscription> subscriptions = new();
+    private readonly List<GuardEntry> guards = new();
+    private readonly Dictionary<string, Type> moduleTypes = new();
+    private readonly Dictionary<Type, Func<LegacyState, object>> views = new();
+
+    public IReadOnlyDictionary<string, Type> ModuleTypes => moduleTypes;
+
+    public void Guard<TCommand>(int order, string name, Func<TCommand, IBusContext, string?> check)
+        where TCommand : ICommand
+    {
+        if (guards.Any(g => g.CommandType == typeof(TCommand) && g.Order == order && g.Name == name))
+        {
+            throw new InvalidOperationException($"Command {typeof(TCommand).Name} already has a guard '{name}' at order {order}.");
+        }
+
+        guards.Add(new GuardEntry(typeof(TCommand), order, name, (command, context) => check((TCommand)command, context)));
+        guards.Sort((a, b) => a.Order != b.Order ? a.Order.CompareTo(b.Order) : string.CompareOrdinal(a.Name, b.Name));
+    }
+
+    public void Module<TState>(string name)
+        where TState : class, new()
+    {
+        if (moduleTypes.ContainsKey(name) || moduleTypes.ContainsValue(typeof(TState)))
+        {
+            throw new InvalidOperationException($"Module '{name}' or state type {typeof(TState).Name} is already declared.");
+        }
+
+        moduleTypes.Add(name, typeof(TState));
+    }
+
+    public void Provide<TView>(Func<LegacyState, TView> factory)
+        where TView : class
+    {
+        if (!views.TryAdd(typeof(TView), factory))
+        {
+            throw new InvalidOperationException($"View {typeof(TView).Name} is already provided.");
+        }
+    }
+
+    public TView View<TView>(LegacyState state)
+        where TView : class
+    {
+        if (!views.TryGetValue(typeof(TView), out Func<LegacyState, object>? factory))
+        {
+            throw new InvalidOperationException($"View {typeof(TView).Name} is not provided.");
+        }
+
+        return (TView)factory(state);
+    }
 
     public void Handle<TCommand>(Action<TCommand, IBusContext> handler)
         where TCommand : ICommand
@@ -26,6 +74,8 @@ public sealed class EventBus
         subscriptions.Sort((a, b) => a.Order != b.Order ? a.Order.CompareTo(b.Order) : string.CompareOrdinal(a.Name, b.Name));
     }
 
+    // If a handler or subscriber throws anything, the state may be half-changed: the caller must discard it and reload.
+    // Only a guard's refusal of the top-level command is guaranteed to leave the state untouched.
     public IReadOnlyList<PublishedEvent> Send(LegacyState state, ICommand command)
     {
         var context = new Context(this, state);
@@ -45,6 +95,8 @@ public sealed class EventBus
         context.SaveStreams();
         return context.Published;
     }
+
+    private sealed record GuardEntry(Type CommandType, int Order, string Name, Func<ICommand, IBusContext, string?> Check);
 
     private sealed record Subscription(Type EventType, int Order, string Name, Action<IEvent, IBusContext> Invoke);
 
@@ -72,7 +124,39 @@ public sealed class EventBus
                 throw new InvalidOperationException($"Command {command.GetType().Name} has no handler.");
             }
 
+            foreach (GuardEntry guard in bus.guards)
+            {
+                if (guard.CommandType == command.GetType())
+                {
+                    string? reason = guard.Check(command, this);
+                    if (reason is not null)
+                    {
+                        throw new CommandRejectedException(reason);
+                    }
+                }
+            }
+
             handler(command, this);
+        }
+
+        public TState Module<TState>()
+            where TState : class, new()
+        {
+            foreach ((string name, Type type) in bus.moduleTypes)
+            {
+                if (type == typeof(TState))
+                {
+                    return State.Module<TState>(name);
+                }
+            }
+
+            throw new InvalidOperationException($"Module state {typeof(TState).Name} is not declared.");
+        }
+
+        public TView View<TView>()
+            where TView : class
+        {
+            return bus.View<TView>(State);
         }
 
         public RngStream Rng(string streamName)

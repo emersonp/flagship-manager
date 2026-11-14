@@ -5,12 +5,12 @@ namespace SimRunner.Tests;
 public class SimulationTests
 {
     [Fact]
-    public void An_empty_cycle_run_produces_six_events_per_cycle()
+    public void An_empty_cycle_run_produces_two_founding_events_and_seven_per_cycle()
     {
         SimSummary summary = Simulation.Run(new SimOptions(Legacies: 3, Cycles: 10, Seed: 1));
 
         Assert.Equal(new ulong[] { 1, 2, 3 }, summary.Legacies.Select(l => l.Seed));
-        Assert.All(summary.Legacies, l => Assert.Equal(60, l.Events));
+        Assert.All(summary.Legacies, l => Assert.Equal(72, l.Events));
     }
 
     // Golden seed: this hash changes only when behaviour changes. If the change is intended, update it in the same commit and say why.
@@ -19,6 +19,6 @@ public class SimulationTests
     {
         SimSummary summary = Simulation.Run(new SimOptions(Legacies: 1, Cycles: 10, Seed: 1));
 
-        Assert.Equal("0407DFACDF8847EB7B1571D8DA27C0A3705A5A45F7DF82BE06A23D22FBCEF520", summary.Legacies[0].LogHash);
+        Assert.Equal("B0AD902EB4679031544F1B88FD84DE1702B01E2EC74821F6A46F40E77FB51D7E", summary.Legacies[0].LogHash);
     }
 }

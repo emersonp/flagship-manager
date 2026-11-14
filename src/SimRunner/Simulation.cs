@@ -25,6 +25,7 @@ public static class Simulation
             ulong seed = options.Seed + (ulong)i;
             var state = new LegacyState { LegacyId = new Guid((int)(seed >> 32), 0, 0, BitConverter.GetBytes(seed)), Seed = seed };
             var log = new List<EventEnvelope>();
+            log.AddRange(bus.Send(state, new FoundLegacy()).Select(registry.ToEnvelope));
             while (state.Cycle <= options.Cycles)
             {
                 log.AddRange(bus.Send(state, new AdvancePhase()).Select(registry.ToEnvelope));
