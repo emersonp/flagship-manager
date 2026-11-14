@@ -55,6 +55,8 @@ Noted while building the browser part; none matters while the game is local and 
 
 ## Carried forward to the content editor
 
+**Direction from the author (2026-11-14):** crew will be generated from authored sources (species, cultures, life paths, and name generators), not written one by one. Keep the crew form small: it names the eight starters and nothing more. Forms worth investing in are the ones for sources. Design the grammar engine in slice 1d so that name generators can use it.
+
 From the review of the browser part.
 
 Helps:

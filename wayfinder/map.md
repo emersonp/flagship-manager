@@ -49,6 +49,7 @@ Settled by grilling and review on 2026-11-13 (no tickets; detail lives in `docs/
 - Slice 1c, first part, built 2026-11-14: a whole cycle plays headless. A site arrives, a team is sent, the mission resolves with its calls answered, and the crew grow, are hurt, heal, and die. A legacy stored and reloaded after every command, including while a call waits, plays out identically. A fifth outcome, incomplete; "develop juniors" carried by the senior; all dice behind one seam. The placeholder assignment offers one or two objectives (weights 6:3) until a third objective template exists.
 - Slice 1c, second part, built 2026-11-14: a whole cycle plays in the browser (`./run.sh`). The page is the state; one request is one command and one commit; briefing is one form; beats are paced by the server and nothing gives the ending away early; a browser-played legacy has exactly the simulator's event log. A legacy has a name.
 - Visual design, settled 2026-11-14: Parker chose between four mock-ups and asked for a blend (layout, type, and card shape between two of them; the blues of a third, less saturated; no warm accents). The result is the design of record in `docs/design/`: blue-slate ground, one azure signal, Source Serif 4 for headings, Host Grotesk for text, Atkinson Hyperlegible Mono for figures, and the mission log as a numbered trail running into the call. Built with the Hallmark skill.
+- Crew are generated in the long run (Parker, 2026-11-14): "long term, I don't want to be creating crew. I want to be creating species and cultures and life paths and name generators that allow random crew to be created." Authored content starts static and migrates to procedural. The author writes the sources (species, cultures, life paths, and name generators); the game generates people from a seed. A hand-authored crew member is a generated one with every field pinned. The eight starters are a stopgap.
 - Content editor: developer-mode pages that write the same YAML files in `content/`, validated by the loader on save. Its own slice, straight after 1c; each later slice adds a form for its content type. Git stays the record.
 
 ## Not yet specified
@@ -62,6 +63,7 @@ Settled by grilling and review on 2026-11-13 (no tickets; detail lives in `docs/
 - **Insight distortion.** Traits that make insight wrong, in the observed and in the observer.
 - **Away across cycles.** Whether a team can stay at a site while the ship moves on.
 - **Careers detail.** Rank ladder, ageing rates, poaching offers, and ambitions.
+- **Crew generation.** The content types for species, cultures, life paths, and name generators; how a life path builds skills, age, seniority, and history; whether names share the report's grammar engine (slice 1d); and where the slice sits (proposed: early in Phase 2, before anything replaces crew).
 - **Succession detail.** What carries over to a new hull, and how the successor pool is generated.
 
 ## Out of scope
