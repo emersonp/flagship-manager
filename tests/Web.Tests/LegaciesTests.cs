@@ -46,8 +46,8 @@ public sealed class LegaciesTests : IDisposable
     }
 
     [Theory]
-    [InlineData("   ", "Enter a name.")]
-    [InlineData("0123456789012345678901234567890123456789012345678901234567890", "Use 60 characters or fewer.")]
+    [InlineData("   ", "A legacy name is 1 to 60 characters.")]
+    [InlineData("0123456789012345678901234567890123456789012345678901234567890", "A legacy name is 1 to 60 characters.")]
     public async Task A_bad_name_is_refused_with_the_reason_and_nothing_is_created(string name, string reason)
     {
         HttpClient client = app.NewClient();
@@ -85,5 +85,21 @@ public sealed class LegaciesTests : IDisposable
         Assert.Contains("Week 1", html);
         Assert.Contains("Cycle 1", html);
         Assert.Contains("Orders", html);
+    }
+
+    [Fact]
+    public async Task A_name_with_markup_is_shown_as_text_on_the_list_and_the_bridge()
+    {
+        HttpClient client = app.NewClient();
+        HttpResponseMessage created = await client.PostAsync("/legacies", Form("<script>x</script>"));
+
+        string list = await client.GetStringAsync("/");
+        string bridge = await client.GetStringAsync(created.Headers.Location);
+
+        foreach (string html in new[] { list, bridge })
+        {
+            Assert.Contains("&lt;script&gt;x&lt;/script&gt;", html);
+            Assert.DoesNotContain("<script>x</script>", html);
+        }
     }
 }

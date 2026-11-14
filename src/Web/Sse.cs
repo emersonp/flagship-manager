@@ -15,6 +15,8 @@ public static class Sse
 
     public static Task PatchElements(HttpResponse response, string html, string? selector = null, string? mode = null)
     {
+        RefuseLineBreak(selector, nameof(selector));
+        RefuseLineBreak(mode, nameof(mode));
         var text = new StringBuilder("event: datastar-patch-elements\n");
         if (selector is not null)
         {
@@ -41,8 +43,21 @@ public static class Sse
 
     public static Task Redirect(HttpResponse response, string url)
     {
-        string script = $"<script>window.location = \"{url.Replace("\\", "\\\\").Replace("\"", "\\\"")}\"</script>";
+        if (!url.StartsWith('/') || url.StartsWith("//") || url.IndexOfAny(['\r', '\n', '"', '<', '>', '\\']) >= 0)
+        {
+            throw new ArgumentException("A redirect must be a server-relative path.", nameof(url));
+        }
+
+        string script = $"<script>window.location = \"{url}\"</script>";
         return PatchElements(response, script, "body", "append");
+    }
+
+    private static void RefuseLineBreak(string? value, string name)
+    {
+        if (value is not null && value.AsSpan().IndexOfAny('\r', '\n') >= 0)
+        {
+            throw new ArgumentException("A line break would end the stream field.", name);
+        }
     }
 
     private static async Task Write(HttpResponse response, StringBuilder text)

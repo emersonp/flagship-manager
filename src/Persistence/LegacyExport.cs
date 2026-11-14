@@ -82,8 +82,7 @@ public static class LegacyExport
             }
         }
 
-        store.Create(new LegacyRecord(state, legacy.ContentPackId, legacy.ContentPackVersion, legacy.Name, legacy.CreatedAt));
-        store.Commit(state, snapshot.Events, state.NextSequence);
+        store.Create(new LegacyRecord(state, legacy.ContentPackId, legacy.ContentPackVersion, legacy.Name, legacy.CreatedAt), snapshot.Events);
         return state.LegacyId;
     }
 

@@ -1,20 +1,11 @@
 using System.Text;
 using Microsoft.AspNetCore.Http;
-using Persistence;
-using Sim.Core;
 using Web;
 
 namespace Web.Tests;
 
-public sealed class SseTests : IDisposable
+public sealed class SseTests
 {
-    private readonly TestApp app = new();
-
-    public void Dispose()
-    {
-        app.Dispose();
-    }
-
     private static async Task<string> Written(Func<HttpResponse, Task> write)
     {
         var context = new DefaultHttpContext();
@@ -68,50 +59,24 @@ public sealed class SseTests : IDisposable
         Assert.Equal("no-cache", context.Response.Headers.CacheControl.ToString());
     }
 
-    [Fact]
-    public async Task Two_concurrent_runs_on_one_legacy_run_one_after_the_other()
+    [Theory]
+    [InlineData("#a\n#b", "append")]
+    [InlineData("#a", "append\r\nevent: x")]
+    public async Task A_selector_or_mode_with_a_line_break_is_refused(string selector, string mode)
     {
-        Guid id = await app.Sessions.CreateLegacy("LEGACY");
-        long before = (await app.Sessions.Read(id))!.State.NextSequence;
-
-        Task<object?>[] runs = Enumerable.Range(0, 2).Select(_ => app.Sessions.Run<object>(id, legacy =>
-        {
-            legacy.Send(new AdvancePhase());
-            return legacy.State.Phase;
-        })).ToArray();
-        await Task.WhenAll(runs);
-
-        LoadedLegacy stored = (await app.Sessions.Read(id))!;
-        IReadOnlyList<EventEnvelope> events = app.Game.Store.ReadEvents(id);
-        Assert.Equal(CyclePhase.Resolution, stored.State.Phase);
-        Assert.Equal(events.Count + 1, stored.State.NextSequence);
-        Assert.Equal(events.Select(e => e.Sequence).Order(), events.Select(e => e.Sequence).Distinct().Order());
-        Assert.True(stored.State.NextSequence > before);
+        await Assert.ThrowsAsync<ArgumentException>(() => Written(r => Sse.PatchElements(r, "<p id=\"a\"></p>", selector, mode)));
     }
 
-    [Fact]
-    public async Task A_rejected_command_leaves_the_stored_legacy_unchanged()
+    [Theory]
+    [InlineData("https://example.com/")]
+    [InlineData("//example.com/")]
+    [InlineData("legacy/x")]
+    [InlineData("/a\"b")]
+    [InlineData("/a<b")]
+    [InlineData("/a>b")]
+    [InlineData("/a\nb")]
+    public async Task Redirect_refuses_a_url_that_is_not_a_server_relative_path(string url)
     {
-        Guid id = await app.Sessions.CreateLegacy("LEGACY");
-        LoadedLegacy before = (await app.Sessions.Read(id))!;
-        int eventsBefore = app.Game.Store.ReadEvents(id).Count;
-
-        await Assert.ThrowsAsync<CommandRejectedException>(() => app.Sessions.Run<object>(id, legacy =>
-        {
-            legacy.Send(new AdvancePhase());
-            legacy.Send(new FoundLegacy());
-            return new object();
-        }));
-
-        LoadedLegacy after = (await app.Sessions.Read(id))!;
-        Assert.Equal(before.State.NextSequence, after.State.NextSequence);
-        Assert.Equal(before.State.Phase, after.State.Phase);
-        Assert.Equal(eventsBefore, app.Game.Store.ReadEvents(id).Count);
-    }
-
-    [Fact]
-    public async Task Run_on_an_unknown_legacy_returns_null()
-    {
-        Assert.Null(await app.Sessions.Run<object>(Guid.NewGuid(), _ => new object()));
+        await Assert.ThrowsAsync<ArgumentException>(() => Written(r => Sse.Redirect(r, url)));
     }
 }

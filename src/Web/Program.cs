@@ -11,13 +11,16 @@ builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton(provider =>
 {
     WebSettings settings = provider.GetRequiredService<IConfiguration>().GetSection("Web").Get<WebSettings>() ?? new WebSettings();
-    ContentLoadResult content = ContentLoader.LoadDirectory(settings.ContentDirectory);
+    string contentDirectory = PathResolver.Resolve(settings.ContentDirectory, Directory.GetCurrentDirectory(), AppContext.BaseDirectory);
+    string databasePath = PathResolver.Resolve(settings.DatabasePath, Directory.GetCurrentDirectory(), AppContext.BaseDirectory);
+    provider.GetRequiredService<ILoggerFactory>().CreateLogger("Startup").LogInformation("Content directory {ContentDirectory}; database {DatabasePath}.", contentDirectory, databasePath);
+    ContentLoadResult content = ContentLoader.LoadDirectory(contentDirectory);
     if (content.Pack is not { } pack)
     {
         throw new InvalidOperationException("The content pack is invalid: " + string.Join("; ", content.Errors.Select(e => $"{e.File}: {e.Message}")));
     }
 
-    return new GameServices(pack, Game.Build(pack), new SqliteLegacyStore($"Data Source={settings.DatabasePath}"), provider.GetRequiredService<TimeProvider>());
+    return new GameServices(pack, Game.Build(pack), new SqliteLegacyStore($"Data Source={databasePath}"), provider.GetRequiredService<TimeProvider>());
 });
 builder.Services.AddSingleton<LegacySession>();
 builder.Services.AddSingleton<Render>();
@@ -43,32 +46,31 @@ app.Use(async (context, next) =>
 });
 app.UseStaticFiles();
 
-const int MaxNameLength = 60;
-
 app.MapGet("/", async (GameServices game, Render render) =>
 {
     string html = await render.Html<LegaciesPage>(new Dictionary<string, object?> { ["Legacies"] = game.Store.ListLegacies() });
     return Results.Content(html, "text/html; charset=utf-8");
 });
 
-app.MapPost("/legacies", async Task<IResult> (HttpRequest request, GameServices game, LegacySession sessions, Render render) =>
+app.MapPost("/legacies", async Task<IResult> (HttpRequest request, GameServices game, LegacySession sessions, Render render, CancellationToken cancellation) =>
 {
     // Read straight from the form: this is a local single-player app with no cross-site state to protect.
-    string name = (await request.ReadFormAsync())["name"].ToString().Trim();
-    string? error = name.Length == 0 ? "Enter a name." : name.Length > MaxNameLength ? $"Use {MaxNameLength} characters or fewer." : null;
-    if (error is not null)
+    string name = (await request.ReadFormAsync())["name"].ToString();
+    try
     {
-        string html = await render.Html<LegaciesPage>(new Dictionary<string, object?> { ["Legacies"] = game.Store.ListLegacies(), ["Name"] = name, ["Error"] = error });
+        Guid id = await sessions.CreateLegacy(name, cancellation);
+        return new SeeOtherResult($"/legacy/{id}");
+    }
+    catch (ArgumentException e)
+    {
+        string html = await render.Html<LegaciesPage>(new Dictionary<string, object?> { ["Legacies"] = game.Store.ListLegacies(), ["Name"] = name, ["Error"] = e.Message });
         return Results.Content(html, "text/html; charset=utf-8", statusCode: StatusCodes.Status400BadRequest);
     }
-
-    Guid id = await sessions.CreateLegacy(name);
-    return new SeeOtherResult($"/legacy/{id}");
 });
 
-app.MapGet("/legacy/{id}", async (string id, LegacySession sessions, Render render) =>
+app.MapGet("/legacy/{id}", async (string id, LegacySession sessions, Render render, CancellationToken cancellation) =>
 {
-    LoadedLegacy? legacy = Guid.TryParse(id, out Guid legacyId) ? await sessions.Read(legacyId) : null;
+    LoadedLegacy? legacy = Guid.TryParse(id, out Guid legacyId) ? await sessions.Read(legacyId, cancellation) : null;
     if (legacy is null)
     {
         string notFound = await render.Html<NotFoundPage>(new Dictionary<string, object?>());

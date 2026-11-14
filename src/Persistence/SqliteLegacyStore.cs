@@ -61,12 +61,12 @@ public sealed class SqliteLegacyStore : ILegacyStore
         Execute(connection, null, $"PRAGMA user_version = {SchemaVersion}");
     }
 
-    public void Create(LegacyRecord record)
+    public void Create(LegacyRecord record, IReadOnlyList<EventEnvelope> events)
     {
-        string name = record.Name.Trim();
+        string name = record.Name?.Trim() ?? "";
         if (name.Length is < 1 or > MaxNameLength)
         {
-            throw new ArgumentException($"A legacy name is 1 to {MaxNameLength} characters.", nameof(record));
+            throw new ArgumentException($"A legacy name is 1 to {MaxNameLength} characters.");
         }
 
         using SqliteConnection connection = Open();
@@ -82,6 +82,7 @@ public sealed class SqliteLegacyStore : ILegacyStore
                 .Append(("$createdAt", record.CreatedAt.ToUniversalTime().ToString("O", CultureInfo.InvariantCulture)))
                 .ToArray());
         WriteModules(connection, transaction, record.State);
+        WriteEvents(connection, transaction, record.State.LegacyId, events);
         transaction.Commit();
     }
 
@@ -135,19 +136,7 @@ public sealed class SqliteLegacyStore : ILegacyStore
         Execute(connection, transaction, "DELETE FROM module_state WHERE legacy_id = $id", ("$id", state.LegacyId.ToString()));
         WriteModules(connection, transaction, state);
 
-        foreach (EventEnvelope e in newEvents)
-        {
-            Execute(
-                connection,
-                transaction,
-                "INSERT INTO event_log (legacy_id, sequence, cycle, type, version, payload) VALUES ($id, $sequence, $cycle, $type, $version, $payload)",
-                ("$id", state.LegacyId.ToString()),
-                ("$sequence", e.Sequence),
-                ("$cycle", e.Cycle),
-                ("$type", e.Type),
-                ("$version", e.Version),
-                ("$payload", e.Payload));
-        }
+        WriteEvents(connection, transaction, state.LegacyId, newEvents);
 
         transaction.Commit();
     }
@@ -196,6 +185,23 @@ public sealed class SqliteLegacyStore : ILegacyStore
         }
 
         return events;
+    }
+
+    private static void WriteEvents(SqliteConnection connection, SqliteTransaction transaction, Guid legacyId, IReadOnlyList<EventEnvelope> events)
+    {
+        foreach (EventEnvelope e in events)
+        {
+            Execute(
+                connection,
+                transaction,
+                "INSERT INTO event_log (legacy_id, sequence, cycle, type, version, payload) VALUES ($id, $sequence, $cycle, $type, $version, $payload)",
+                ("$id", legacyId.ToString()),
+                ("$sequence", e.Sequence),
+                ("$cycle", e.Cycle),
+                ("$type", e.Type),
+                ("$version", e.Version),
+                ("$payload", e.Payload));
+        }
     }
 
     private static void WriteModules(SqliteConnection connection, SqliteTransaction transaction, LegacyState state)

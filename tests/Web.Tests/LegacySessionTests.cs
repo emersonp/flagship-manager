@@ -1,0 +1,112 @@
+using Persistence;
+using Sim.Core;
+
+namespace Web.Tests;
+
+public sealed class LegacySessionTests : IDisposable
+{
+    private readonly TestApp app = new();
+
+    public void Dispose()
+    {
+        app.Dispose();
+    }
+
+    [Fact]
+    public async Task A_second_run_waits_for_the_first_and_both_runs_events_are_stored_in_order()
+    {
+        Guid id = await app.Sessions.CreateLegacy("LEGACY");
+        var firstEntered = new TaskCompletionSource();
+        var gate = new TaskCompletionSource();
+        int secondEntered = 0;
+
+        Task first = Task.Run(() => app.Sessions.Run<object>(id, legacy =>
+        {
+            firstEntered.SetResult();
+            gate.Task.Wait();
+            legacy.Send(new AdvancePhase());
+            return new object();
+        }));
+        await firstEntered.Task;
+        Task second = Task.Run(() => app.Sessions.Run<object>(id, legacy =>
+        {
+            Interlocked.Increment(ref secondEntered);
+            legacy.Send(new AdvancePhase());
+            return new object();
+        }));
+        await Task.Delay(300);
+        int enteredWhileHeld = Volatile.Read(ref secondEntered);
+        gate.SetResult();
+        await Task.WhenAll(first, second);
+
+        Assert.Equal(0, enteredWhileHeld);
+        IReadOnlyList<EventEnvelope> events = app.Game.Store.ReadEvents(id);
+        Assert.Equal(Enumerable.Range(1, events.Count).Select(n => (long)n), events.Select(e => e.Sequence));
+        Assert.Equal(CyclePhase.Resolution, (await app.Sessions.Read(id))!.State.Phase);
+        Assert.Equal(events.Count + 1, (await app.Sessions.Read(id))!.State.NextSequence);
+    }
+
+    [Fact]
+    public async Task A_rejected_command_leaves_the_stored_legacy_unchanged()
+    {
+        Guid id = await app.Sessions.CreateLegacy("LEGACY");
+        LoadedLegacy before = (await app.Sessions.Read(id))!;
+        int eventsBefore = app.Game.Store.ReadEvents(id).Count;
+
+        await Assert.ThrowsAsync<CommandRejectedException>(() => app.Sessions.Run<object>(id, legacy =>
+        {
+            legacy.Send(new AdvancePhase());
+            legacy.Send(new FoundLegacy());
+            return new object();
+        }));
+
+        LoadedLegacy after = (await app.Sessions.Read(id))!;
+        Assert.Equal(before.State.NextSequence, after.State.NextSequence);
+        Assert.Equal(before.State.Phase, after.State.Phase);
+        Assert.Equal(eventsBefore, app.Game.Store.ReadEvents(id).Count);
+    }
+
+    [Fact]
+    public async Task Run_on_an_unknown_legacy_returns_null()
+    {
+        Assert.Null(await app.Sessions.Run<object>(Guid.NewGuid(), _ => new object()));
+    }
+
+    [Fact]
+    public async Task A_created_legacy_has_its_founding_events_and_loads_as_founded()
+    {
+        Guid id = await app.Sessions.CreateLegacy("LEGACY");
+
+        IReadOnlyList<EventEnvelope> events = app.Game.Store.ReadEvents(id);
+        LoadedLegacy loaded = (await app.Sessions.Read(id))!;
+        Assert.NotEmpty(events);
+        Assert.Equal(events.Count + 1, loaded.State.NextSequence);
+        Assert.Equal(CyclePhase.Orders, loaded.State.Phase);
+        await Assert.ThrowsAsync<CommandRejectedException>(() => app.Sessions.Run<object>(id, legacy =>
+        {
+            legacy.Send(new FoundLegacy());
+            return new object();
+        }));
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    [InlineData(null)]
+    public async Task A_blank_or_null_name_is_refused_and_nothing_is_created(string? name)
+    {
+        await Assert.ThrowsAsync<ArgumentException>(() => app.Sessions.CreateLegacy(name!));
+
+        Assert.Empty(app.Game.Store.ListLegacies());
+    }
+
+    [Fact]
+    public async Task A_cancelled_token_stops_the_wait_for_the_lock()
+    {
+        Guid id = await app.Sessions.CreateLegacy("LEGACY");
+        using var cancelled = new CancellationTokenSource();
+        await cancelled.CancelAsync();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => app.Sessions.Read(id, cancelled.Token));
+    }
+}

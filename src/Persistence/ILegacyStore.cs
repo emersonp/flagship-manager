@@ -11,7 +11,8 @@ public sealed class StaleLegacyException(Guid legacyId, long expected, long foun
 
 public interface ILegacyStore
 {
-    void Create(LegacyRecord record);
+    // One transaction: the legacy row, its module rows, and its events, or nothing.
+    void Create(LegacyRecord record, IReadOnlyList<EventEnvelope> events);
 
     // Every stored module is read as the type declared for its name; an undeclared module is an error.
     LegacyRecord? Load(Guid legacyId, IReadOnlyDictionary<string, Type> moduleTypes);

@@ -12,10 +12,10 @@ public sealed class LegacySession(GameServices services)
 
     // Runs work under the legacy's lock on a freshly loaded state, commits what it published, and returns its result.
     // Returns null when the legacy does not exist. A rejected command rolls nothing forward and is rethrown.
-    public async Task<T?> Run<T>(Guid legacyId, Func<LoadedLegacy, T> work)
+    public async Task<T?> Run<T>(Guid legacyId, Func<LoadedLegacy, T> work, CancellationToken cancellation = default)
         where T : class
     {
-        using IDisposable held = await Hold(legacyId);
+        using IDisposable held = await Hold(legacyId, cancellation);
         LoadedLegacy? legacy = Load(legacyId);
         if (legacy is null)
         {
@@ -28,23 +28,22 @@ public sealed class LegacySession(GameServices services)
         return result;
     }
 
-    public async Task<LoadedLegacy?> Read(Guid legacyId)
+    public async Task<LoadedLegacy?> Read(Guid legacyId, CancellationToken cancellation = default)
     {
-        using IDisposable held = await Hold(legacyId);
+        using IDisposable held = await Hold(legacyId, cancellation);
         return Load(legacyId);
     }
 
-    public async Task<Guid> CreateLegacy(string name)
+    public async Task<Guid> CreateLegacy(string name, CancellationToken cancellation = default)
     {
         Guid id = Guid.NewGuid();
-        using IDisposable held = await Hold(id);
+        using IDisposable held = await Hold(id, cancellation);
         var state = new LegacyState { LegacyId = id, Seed = RandomSeed() };
         var record = new LegacyRecord(state, services.Pack.Id, services.Pack.Version, name, services.Clock.GetUtcNow());
-        services.Store.Create(record);
         var legacy = new LoadedLegacy(record, services);
-        long loadedAt = state.NextSequence;
+        // Founded in memory, then stored with its events in one transaction: a failure leaves nothing behind.
         legacy.Send(new FoundLegacy());
-        services.Store.Commit(state, legacy.Envelopes, loadedAt);
+        services.Store.Create(record, legacy.Envelopes);
         return id;
     }
 
@@ -61,10 +60,10 @@ public sealed class LegacySession(GameServices services)
         return BitConverter.ToUInt64(bytes);
     }
 
-    private async Task<IDisposable> Hold(Guid legacyId)
+    private async Task<IDisposable> Hold(Guid legacyId, CancellationToken cancellation)
     {
         SemaphoreSlim gate = locks.GetOrAdd(legacyId, _ => new SemaphoreSlim(1, 1));
-        await gate.WaitAsync();
+        await gate.WaitAsync(cancellation);
         return new Releaser(gate);
     }
 

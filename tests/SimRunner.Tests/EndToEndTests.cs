@@ -49,7 +49,7 @@ public sealed class EndToEndTests : IDisposable
         var store = new SqliteLegacyStore($"Data Source={path}");
         LegacyState state = TestPack.NewLegacy(Seed);
         Guid id = state.LegacyId;
-        store.Create(new LegacyRecord(state, Pack.Id, Pack.Version, "LEGACY", new DateTimeOffset(2026, 11, 14, 8, 30, 0, TimeSpan.Zero)));
+        store.Create(new LegacyRecord(state, Pack.Id, Pack.Version, "LEGACY", new DateTimeOffset(2026, 11, 14, 8, 30, 0, TimeSpan.Zero)), []);
         int stepsWhileWaiting = 0;
         while (state.Cycle <= Cycles)
         {
