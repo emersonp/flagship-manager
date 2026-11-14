@@ -18,6 +18,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\Persistence\Persistence.csproj" />
     <ProjectReference Include="..\..\src\Sim.Core\Sim.Core.csproj" />
+    <ProjectReference Include="..\..\src\Sim.Crew\Sim.Crew.csproj" />
   </ItemGroup>
 
 </Project>

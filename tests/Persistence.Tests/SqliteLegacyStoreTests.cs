@@ -1,5 +1,6 @@
 using Persistence;
 using Sim.Core;
+using Sim.Crew;
 
 namespace Persistence.Tests;
 
@@ -38,6 +39,37 @@ public sealed class SqliteLegacyStoreTests : IDisposable
     {
         // A seed above long.MaxValue checks that the full unsigned range survives storage.
         return new LegacyRecord(new LegacyState { LegacyId = id, Seed = ulong.MaxValue - 5 }, "CORE", 1);
+    }
+
+    [Fact]
+    public void Crew_state_survives_the_store()
+    {
+        Guid id = Guid.NewGuid();
+        SqliteLegacyStore store = NewStore();
+        LegacyRecord record = NewRecord(id);
+        store.Create(record);
+        record.State.Module<CrewState>("crew").Members.Add(new CrewMember
+        {
+            Id = "CREW_01",
+            Seniority = 2,
+            Skills = new Dictionary<string, SkillState> { ["SKILL_A"] = new SkillState { Level = 3, Xp = 1.5 } },
+            Caution = 1,
+            Discipline = -1,
+            Status = CrewStatus.Recovering,
+            LightInjuriesHealAtWeek = new List<int> { 4 },
+            ReturnsAtWeek = 9,
+            Loyalty = 55,
+            AwayMissions = 2,
+        });
+        store.Commit(record.State, Array.Empty<EventEnvelope>());
+
+        var types = new Dictionary<string, Type> { ["crew"] = typeof(CrewState) };
+        CrewMember loaded = NewStore().Load(id, types)!.State.Module<CrewState>("crew").Members.Single();
+
+        Assert.Equal(CrewStatus.Recovering, loaded.Status);
+        Assert.Equal(9, loaded.ReturnsAtWeek);
+        Assert.Equal([4], loaded.LightInjuriesHealAtWeek);
+        Assert.Equal(1.5, loaded.Skills["SKILL_A"].Xp);
     }
 
     [Fact]
