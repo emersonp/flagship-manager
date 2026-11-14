@@ -115,6 +115,31 @@ public class MissionsModuleTests
         throw new InvalidOperationException("No seed in range raises a call.");
     }
 
+    private static LegacyState Restore(Harness original)
+    {
+        var restored = new LegacyState
+        {
+            LegacyId = original.State.LegacyId,
+            Seed = original.State.Seed,
+            Cycle = original.State.Cycle,
+            Phase = original.State.Phase,
+            Week = original.State.Week,
+            NextSequence = original.State.NextSequence,
+        };
+        foreach ((string key, ulong value) in original.State.RngStates)
+        {
+            restored.RngStates[key] = value;
+        }
+
+        foreach ((string name, object value) in original.State.Modules)
+        {
+            Type type = original.Bus.ModuleTypes[name];
+            restored.Modules[name] = JsonSerializer.Deserialize(JsonSerializer.Serialize(value, type, SimJson.Options), type, SimJson.Options)!;
+        }
+
+        return restored;
+    }
+
     private static List<string> Types(IEnumerable<PublishedEvent> events)
     {
         return events.Select(e => Registry.ToEnvelope(e).Type).ToList();
@@ -332,6 +357,63 @@ public class MissionsModuleTests
     }
 
     [Fact]
+    public void Every_listed_option_of_a_pending_call_is_accepted()
+    {
+        Harness h = WaitingOnCall();
+        PendingCall call = h.Mission!.State.Pending!;
+
+        foreach (CallAnswer option in call.Options)
+        {
+            LegacyState copy = Restore(h);
+            h.Bus.Send(copy, new AnswerCall(h.Mission.Id, call.CallId, option));
+        }
+    }
+
+    [Fact]
+    public void A_site_that_cannot_be_filled_is_a_defect_naming_the_assignment()
+    {
+        ContentPack empty = TestContent.Pack with { Objectives = [] };
+        var bus = new EventBus();
+        CycleModule.Register(bus);
+        CrewModule.Register(bus, empty);
+        MissionsModule.Register(bus, empty);
+        var state = new LegacyState { LegacyId = Guid.Empty, Seed = 1 };
+
+        var error = Assert.Throws<InvalidOperationException>(() => bus.Send(state, new FoundLegacy()));
+
+        Assert.Contains(TestContent.Pack.Assignments[0].Id, error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void A_team_is_refused_when_no_site_has_arrived()
+    {
+        var bus = new EventBus();
+        CycleModule.Register(bus);
+        CrewModule.Register(bus, TestContent.Pack);
+        MissionsModule.Register(bus, TestContent.Pack);
+        var state = new LegacyState { LegacyId = Guid.Empty, Seed = 1, Phase = CyclePhase.Briefing };
+        state.Module<CycleState>("cycle").Founded = true;
+
+        var refusal = Assert.Throws<CommandRejectedException>(() => bus.Send(state, new AssignTeam("o_1_1", Pair, "CREW_01", [], new Parameters())));
+
+        Assert.Equal("No site has arrived.", refusal.Message);
+    }
+
+    [Fact]
+    public void Phases_entered_without_a_site_do_nothing()
+    {
+        var bus = NewBus();
+        var state = new LegacyState { LegacyId = Guid.Empty, Seed = 1 };
+        state.Module<CycleState>("cycle").Founded = true;
+        state.Phase = CyclePhase.Resolution;
+
+        bus.Send(state, new AdvancePhase());
+        bus.Send(state, new AdvancePhase());
+
+        Assert.Equal(CyclePhase.Advance, state.Phase);
+    }
+
+    [Fact]
     public void An_answer_with_no_mission_waiting_is_refused()
     {
         Harness h = ToBriefing();
@@ -389,25 +471,7 @@ public class MissionsModuleTests
     public void A_legacy_with_a_call_waiting_round_trips_per_module_and_continues_to_the_same_events()
     {
         Harness original = WaitingOnCall();
-        var restored = new LegacyState
-        {
-            LegacyId = original.State.LegacyId,
-            Seed = original.State.Seed,
-            Cycle = original.State.Cycle,
-            Phase = original.State.Phase,
-            Week = original.State.Week,
-            NextSequence = original.State.NextSequence,
-        };
-        foreach ((string key, ulong value) in original.State.RngStates)
-        {
-            restored.RngStates[key] = value;
-        }
-
-        foreach ((string name, object value) in original.State.Modules)
-        {
-            Type type = original.Bus.ModuleTypes[name];
-            restored.Modules[name] = JsonSerializer.Deserialize(JsonSerializer.Serialize(value, type, SimJson.Options), type, SimJson.Options)!;
-        }
+        LegacyState restored = Restore(original);
 
         EventBus bus = NewBus();
         List<string> Run(EventBus b, LegacyState state)
@@ -465,5 +529,7 @@ public class MissionsModuleTests
 
         Assert.Equal("m_2_1", h.Mission!.Id);
         Assert.NotEqual(first, h.Mission.State.Seed);
+        Assert.Equal(RngStream.For(5, 2, "mission:m_2_1").NextUInt64(), h.Mission.State.Seed);
+        Assert.Equal(RngStream.For(5, 1, "mission:m_1_1").NextUInt64(), first);
     }
 }

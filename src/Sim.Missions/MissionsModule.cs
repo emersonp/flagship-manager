@@ -45,7 +45,12 @@ public static class MissionsModule
     private static string? CheckAssign(ContentPack pack, AssignTeam command, IBusContext context)
     {
         SiteState? site = context.Module<MissionsState>().Site;
-        if (context.State.Phase != CyclePhase.Briefing || site is null)
+        if (site is null)
+        {
+            return "No site has arrived.";
+        }
+
+        if (context.State.Phase != CyclePhase.Briefing)
         {
             return "A team can only be assigned in the briefing.";
         }
@@ -140,15 +145,7 @@ public static class MissionsModule
             return $"The pending call is '{pending.CallId}', not '{command.CallId}'.";
         }
 
-        try
-        {
-            MissionResolver.Advance(mission.State, new CallReply(command.CallId, command.Answer));
-            return null;
-        }
-        catch (ArgumentException e)
-        {
-            return e.Message.Split(" (Parameter", 2)[0];
-        }
+        return pending.Options.Contains(command.Answer) ? null : $"'{command.Answer}' is not an option for {pending.DecisionId}.";
     }
 
     private static void OnAnswer(AnswerCall command, IBusContext context)
@@ -194,8 +191,13 @@ public static class MissionsModule
             .OrderBy(o => o.Id, StringComparer.Ordinal)
             .ToList();
         var objectives = new List<SiteObjective>();
-        for (int n = 1; n <= count && candidates.Count > 0; n++)
+        for (int n = 1; n <= count; n++)
         {
+            if (candidates.Count == 0)
+            {
+                throw new InvalidOperationException($"Assignment '{assignment.Id}' offers {count} objectives, but only {n - 1} templates match.");
+            }
+
             ObjectiveDef drawn = candidates[context.Rng($"site:draw:{n}").Next(candidates.Count)];
             candidates.Remove(drawn);
             objectives.Add(new SiteObjective($"o_{cycle}_{n}", drawn.Id));
@@ -214,8 +216,7 @@ public static class MissionsModule
 
     private static void StartMission(ContentPack pack, int cycle, IBusContext context)
     {
-        SiteState site = context.Module<MissionsState>().Site!;
-        if (site.Briefing is not { } briefing)
+        if (context.Module<MissionsState>().Site is not { } site || site.Briefing is not { } briefing)
         {
             return;
         }
@@ -253,7 +254,11 @@ public static class MissionsModule
 
     private static void RollUnattended(ContentPack pack, IBusContext context)
     {
-        SiteState site = context.Module<MissionsState>().Site!;
+        if (context.Module<MissionsState>().Site is not { } site)
+        {
+            return;
+        }
+
         foreach (SiteObjective objective in site.Objectives.Where(o => site.Briefing?.ObjectiveId != o.Id))
         {
             if (pack.Objectives.Single(o => o.Id == objective.TemplateId).UnattendedDifficulty is not { } difficulty)
