@@ -85,23 +85,14 @@ h2 { font-size: var(--text-xl); line-height: 1.12; max-width: 30ch; }
   .course > :not(:empty) ~ :not(:empty) { border-top: 0; border-left: var(--rule-hair) solid var(--color-rule); }
 }
 .course__cap { margin-bottom: var(--space-sm); }
-/* One row that scrolls inside its wrapper. Laid out from the end, so the current (last) stage is the one in view.
- * While stages lie off to the left, a fade in the well's own paper covers the leading edge, so the row reads as one that
- * scrolls and the card cut there is never a hard cut. A row that fits has no fade; where the query is unknown, the scrollbar alone shows it. */
+/* A wrapping grid: the stops flow left to right and wrap, so every card is whole and nothing scrolls. The stage numbers carry the order. */
 #route { min-width: 0; }
-.route-scroll { container-type: scroll-state; display: flex; flex-direction: row-reverse; overflow-x: auto; scrollbar-width: thin; scrollbar-color: var(--color-rule-2) transparent; padding-bottom: var(--space-xs); }
-.route { display: flex; gap: var(--space-md); flex: none; margin-right: auto; padding-left: var(--space-3xs); }
-.route > .stop { flex: 0 0 auto; min-width: 10rem; }
-@container scroll-state(scrollable: left) {
-  .route::before { content: ""; position: sticky; left: 0; z-index: 1; flex: none; width: var(--space-xl); margin-right: calc(-1 * (var(--space-xl) + var(--space-md))); background: linear-gradient(to right, var(--color-paper-2), transparent); }
-}
+.route { display: grid; grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr)); gap: var(--space-md); }
 .stop { position: relative; display: grid; gap: var(--space-3xs); align-content: start; padding: var(--space-xs) var(--space-sm); border: var(--rule-hair) solid var(--color-rule-2); border-radius: var(--radius-inner); min-width: 0; }
-.stop + .stop::before { content: ""; position: absolute; top: 50%; right: 100%; width: var(--space-md); border-top: var(--rule-hair) solid var(--color-rule-2); }
 .stop__no { font-size: var(--text-sm); color: var(--color-muted); }
 .stop__id { color: var(--color-ink-2); white-space: nowrap; }
 .stop__note { font-size: var(--text-sm); color: var(--color-muted); }
 .stop[aria-current="step"] { border-color: var(--color-accent); }
-.stop[aria-current="step"]::before { border-top-color: var(--color-accent); }
 .stop[aria-current="step"] .stop__no { color: var(--color-accent); font-weight: 500; }
 .stop[aria-current="step"] .stop__no .m { color: var(--color-accent); }
 .stop[aria-current="step"] .stop__id { color: var(--color-ink); }
@@ -311,12 +302,9 @@ input:disabled { opacity: 0.55; cursor: not-allowed; }
   h1 { font-size: var(--text-2xl); }
   .verdict h1 { font-size: var(--text-3xl); }
   .call h2 { font-size: var(--text-xl); }
-  .route-scroll { display: block; overflow: visible; container-type: normal; }
-  .route { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-xs); padding-left: 0; }
+  .route { grid-template-columns: minmax(0, 1fr); gap: var(--space-xs); }
   .stop { grid-template-columns: 7.5rem minmax(0, 1fr); align-items: baseline; }
   .stop__note { grid-column: 2; }
-  .stop + .stop::before { top: auto; bottom: 100%; right: auto; left: var(--space-lg); width: 0; height: var(--space-xs); border-top: 0; border-left: var(--rule-hair) solid var(--color-rule-2); }
-  .stop[aria-current="step"]::before { border-left-color: var(--color-accent); }
   .log, .call { --pad: var(--space-md); --no: 1.25rem; --node: 1.25rem; --gap: var(--space-xs); }
   .beat { grid-template-columns: var(--no) var(--node) minmax(0, 1fr); row-gap: 0; }
   .beat__kind { grid-column: 3; grid-row: 1; font-size: var(--text-xs); }

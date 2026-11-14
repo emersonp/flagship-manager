@@ -408,13 +408,13 @@ public sealed class ResolutionTests : IDisposable
     }
 
     [Fact]
-    public async Task The_route_stages_sit_in_one_scrolling_row()
+    public async Task The_route_stages_sit_in_one_ordered_list_with_no_scroll_wrapper()
     {
         (Guid id, _, _) = await LaunchedWithCall();
 
         string page = await Page(id);
 
-        Assert.Matches("<div id=\"route\"><p[^>]*>[^<]*</p><div class=\"route-scroll\"><ol class=\"route\"", page);
+        Assert.Matches("<div id=\"route\"><p[^>]*>[^<]*</p><ol class=\"route\"", page);
     }
 
     [Fact]
@@ -542,7 +542,7 @@ public sealed class ResolutionTests : IDisposable
         Assert.Contains("Result:", page);
         Assert.DoesNotContain("name=\"answer\"", page);
         Assert.Contains("<div id=\"call\"></div>", page);
-        string route = Regex.Match(page, "<div id=\"route\">.*?</ol></div>\\s*</div>", RegexOptions.Singleline).Value;
+        string route = Regex.Match(page, "<div id=\"route\">.*?</ol>\\s*</div>", RegexOptions.Singleline).Value;
         Assert.Contains("class=\"stop\"", route);
         Assert.DoesNotContain("aria-current", route);
         Assert.DoesNotContain("current", route);

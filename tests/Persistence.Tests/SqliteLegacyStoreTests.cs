@@ -568,6 +568,26 @@ public sealed class SqliteLegacyStoreTests : IDisposable
         Assert.Equal(0, RowCount("event_log"));
     }
 
+    // A null payload passes the upfront checks and fails the NOT NULL column on the second event, after the legacy and module rows are in.
+    [Fact]
+    public void A_failure_inside_the_creation_transaction_rolls_back_every_table_and_the_id_can_be_reused()
+    {
+        Guid id = Guid.NewGuid();
+        SqliteLegacyStore store = NewStore();
+        LegacyRecord record = NewRecord(id);
+        record.State.Module<FuelState>("fuel").Units = 4;
+        record.State.NextSequence = 3;
+
+        Assert.ThrowsAny<Exception>(() => store.Create(record, [new EventEnvelope(1, 1, "A", 1, "{}"), new EventEnvelope(2, 1, "B", 1, null!)]));
+
+        Assert.Equal(0, RowCount("legacy"));
+        Assert.Equal(0, RowCount("module_state"));
+        Assert.Equal(0, RowCount("event_log"));
+        store.Create(record, [new EventEnvelope(1, 1, "A", 1, "{}"), new EventEnvelope(2, 1, "B", 1, "{}")]);
+        Assert.Equal(1, RowCount("legacy"));
+        Assert.Equal(2, RowCount("event_log"));
+    }
+
     [Fact]
     public void A_null_name_is_refused_as_a_bad_name()
     {
