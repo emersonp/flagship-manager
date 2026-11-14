@@ -8,7 +8,8 @@ public interface ILegacyStore
 {
     void Create(LegacyRecord record);
 
-    LegacyRecord? Load(Guid legacyId);
+    // Every stored module is read as the type declared for its name; an undeclared module is an error.
+    LegacyRecord? Load(Guid legacyId, IReadOnlyDictionary<string, Type> moduleTypes);
 
     // Saves the state and appends its new events in one transaction.
     void Commit(LegacyState state, IReadOnlyList<EventEnvelope> newEvents);
