@@ -1,5 +1,5 @@
 @using Web.Forms
-<ContentShell Title="@View.File.Title" Subtitle="@Subtitle" ParentTitle="Content" ParentHref="/dev/content">
+<ContentShell Title="@View.File.Title" Subtitle="@Subtitle">
     <ChildContent>
         <form id="text-form" class="well" method="post" action="@View.File.Action" novalidate aria-labelledby="h-text" data-indicator:_saving data-on:submit="@Post">
             <div class="well__head"><h2 id="h-text"><span class="m">@View.File.Path</span></h2></div>
