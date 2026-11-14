@@ -1,14 +1,14 @@
-<p id="resolution-footer">
+<div id="resolution-footer">
     @if (Show)
     {
-        <button class="btn btn--primary" type="button" data-indicator:_closing data-attr:aria-busy="$_closing" data-on:click="@Advance">To aftermath</button>
+        <AdvanceForm LegacyId="LegacyId" Bar="Bar" Label="To aftermath" Signal="_closing" />
     }
-</p>
+</div>
 
 @code {
     [Parameter, EditorRequired] public Guid LegacyId { get; set; }
 
-    [Parameter] public bool Show { get; set; }
+    [Parameter, EditorRequired] public TopBarView Bar { get; set; } = null!;
 
-    private string Advance => $"@post('/legacy/{LegacyId}/advance')";
+    [Parameter] public bool Show { get; set; }
 }

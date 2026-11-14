@@ -4,6 +4,7 @@ using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Persistence;
 using Web;
 
 namespace Web.Tests;
@@ -24,6 +25,25 @@ public sealed class TestApp(int beatDelayMs = 0, bool wideDice = false, bool noC
     public HttpClient NewClient()
     {
         return CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+    }
+
+    // The cycle and phase a page drawn now carries in its action forms.
+    public List<KeyValuePair<string, string>> Stamp(Guid id)
+    {
+        LegacyRecord record = Game.Store.Load(id, Game.Game.ModuleTypes)!;
+        return [new("cycle", record.State.Cycle.ToString(System.Globalization.CultureInfo.InvariantCulture)), new("phase", record.State.Phase.ToString())];
+    }
+
+    // The form with the current stamp added, unless it already carries a cycle or a phase.
+    public List<KeyValuePair<string, string>> Stamped(Guid id, IEnumerable<KeyValuePair<string, string>> form)
+    {
+        List<KeyValuePair<string, string>> fields = form.ToList();
+        if (!fields.Any(f => f.Key is "cycle" or "phase"))
+        {
+            fields.AddRange(Stamp(id));
+        }
+
+        return fields;
     }
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)

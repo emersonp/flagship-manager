@@ -101,17 +101,21 @@
             </section>
         </div>
 
+        <StampFields Bar="Bar" />
         <div class="actions well">
             <p class="count"><span>Team</span><span><output class="m" data-text="$_picked">0</output><span data-text="@Range2"></span></span></p>
-            <button class="btn" type="button" data-indicator:_sending data-attr:aria-busy="$_sending" data-on:click="@SendNobody">Send nobody</button>
-            <button class="btn btn--primary" type="submit" data-attr:aria-busy="$_launching">Launch</button>
+            <button class="btn" type="button" data-indicator:_sending data-attr:disabled="@Busy" data-attr:aria-busy="$_sending" data-on:click="@SendNobody">Send nobody</button>
+            <button class="btn btn--primary" type="submit" data-attr:disabled="@Busy" data-attr:aria-busy="$_launching">Launch</button>
             <Refusal Reason="@Reason" />
         </div>
     </form>
+    <form id="send-nobody"><StampFields Bar="Bar" /></form>
 </main>
 
 @code {
     [Parameter, EditorRequired] public Guid LegacyId { get; set; }
+
+    [Parameter, EditorRequired] public TopBarView Bar { get; set; } = null!;
 
     [Parameter, EditorRequired] public BriefingView Briefing { get; set; } = null!;
 
@@ -160,7 +164,11 @@
 
     private string Launch => $"@post('/legacy/{LegacyId}/launch', {{contentType: 'form'}})";
 
-    private string SendNobody => $"@post('/legacy/{LegacyId}/advance')";
+    // Sends only the small stamp form: the briefing's own fields and its checks do not apply to sending nobody.
+    private string SendNobody => $"@post('/legacy/{LegacyId}/advance', {{contentType: 'form', selector: '#send-nobody'}})";
+
+    // Both actions wait while either is in flight.
+    private const string Busy = "$_launching || $_sending";
 
     private const string Count = "$_picked = el.form.querySelectorAll('input[name=crew]:checked').length";
 }

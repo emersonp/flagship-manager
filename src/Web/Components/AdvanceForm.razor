@@ -1,0 +1,18 @@
+<form class="act" @attributes="Indicator" data-on:submit="@Post"><StampFields Bar="Bar" /><button class="btn btn--primary" type="submit" data-attr:disabled="@Busy" data-attr:aria-busy="@Busy">@Label</button></form>
+
+@code {
+    [Parameter, EditorRequired] public Guid LegacyId { get; set; }
+
+    [Parameter, EditorRequired] public TopBarView Bar { get; set; } = null!;
+
+    [Parameter, EditorRequired] public string Label { get; set; } = "";
+
+    // The local in-flight signal, without its dollar sign.
+    [Parameter, EditorRequired] public string Signal { get; set; } = "";
+
+    private Dictionary<string, object> Indicator => new() { [$"data-indicator:{Signal}"] = true };
+
+    private string Busy => $"${Signal}";
+
+    private string Post => $"@post('/legacy/{LegacyId}/advance', {{contentType: 'form'}})";
+}

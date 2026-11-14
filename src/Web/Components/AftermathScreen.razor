@@ -36,13 +36,15 @@
         </section>
     </div>
     <div class="actions well">
-        <button class="btn btn--primary" type="button" data-indicator:_advancing data-attr:aria-busy="$_advancing" data-on:click="@Advance">Next cycle</button>
+        <AdvanceForm LegacyId="LegacyId" Bar="Bar" Label="Next cycle" Signal="_advancing" />
         <Refusal Reason="@Reason" />
     </div>
 </main>
 
 @code {
     [Parameter, EditorRequired] public Guid LegacyId { get; set; }
+
+    [Parameter, EditorRequired] public TopBarView Bar { get; set; } = null!;
 
     [Parameter] public AftermathView? Aftermath { get; set; }
 
@@ -54,8 +56,6 @@
     [Parameter] public string? Reason { get; set; }
 
     private IReadOnlyList<CrewChange> Changes => Aftermath?.Changes ?? [];
-
-    private string Advance => $"@post('/legacy/{LegacyId}/advance')";
 
     // The kind label read from the change's own sentence, as the reader writes it.
     private static (string Kind, bool Harm) Kind(string text)

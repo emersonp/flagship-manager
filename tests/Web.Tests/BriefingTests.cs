@@ -30,7 +30,7 @@ public sealed class BriefingTests : IDisposable
 
     private async Task<string> Post(Guid id, string action, IEnumerable<KeyValuePair<string, string>>? form = null)
     {
-        HttpResponseMessage response = await client.PostAsync($"/legacy/{id}/{action}", new FormUrlEncodedContent(form ?? []));
+        HttpResponseMessage response = await client.PostAsync($"/legacy/{id}/{action}", new FormUrlEncodedContent(app.Stamped(id, form ?? [])));
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         return await response.Content.ReadAsStringAsync();
     }
@@ -94,7 +94,7 @@ public sealed class BriefingTests : IDisposable
         Assert.Contains("OBJECTIVE_TEMPLATE_", html);
         Assert.Contains("<p id=\"refusal\" role=\"alert\"></p>", html);
         Assert.Contains("To briefing", html);
-        Assert.Contains($"@post(&#x27;/legacy/{id}/advance&#x27;)", html);
+        Assert.Contains($"@post(&#x27;/legacy/{id}/advance&#x27;, {{contentType: &#x27;form&#x27;}})", html);
     }
 
     [Fact]

@@ -33,7 +33,7 @@
         }
     </section>
     <div class="actions well">
-        <button class="btn btn--primary" type="button" data-indicator:_advancing data-attr:aria-busy="$_advancing" data-on:click="@Advance">To briefing</button>
+        <AdvanceForm LegacyId="LegacyId" Bar="Bar" Label="To briefing" Signal="_advancing" />
         <Refusal Reason="@Reason" />
     </div>
 </main>
@@ -41,9 +41,9 @@
 @code {
     [Parameter, EditorRequired] public Guid LegacyId { get; set; }
 
+    [Parameter, EditorRequired] public TopBarView Bar { get; set; } = null!;
+
     [Parameter] public SiteView? Site { get; set; }
 
     [Parameter] public string? Reason { get; set; }
-
-    private string Advance => $"@post('/legacy/{LegacyId}/advance')";
 }

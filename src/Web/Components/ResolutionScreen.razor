@@ -24,15 +24,17 @@
         <div class="well__head"><h2 id="log-head">Mission log</h2><p class="note">Newest last</p></div>
         <MissionLog Lines="@(Mission?.Log ?? [])" />
     </section>
-    <CallPanel LegacyId="LegacyId" MissionId="@(Mission?.MissionId ?? "")" Call="Mission?.Call" />
+    <CallPanel LegacyId="LegacyId" Bar="Bar" MissionId="@(Mission?.MissionId ?? "")" Call="Mission?.Call" />
     <div class="actions well">
-        <ResolutionFooter LegacyId="LegacyId" Show="@(Mission is null || Mission.Outcome is not null)" />
+        <ResolutionFooter LegacyId="LegacyId" Bar="Bar" Show="@(Mission is null || Mission.Outcome is not null)" />
         <Refusal Reason="@Reason" />
     </div>
 </main>
 
 @code {
     [Parameter, EditorRequired] public Guid LegacyId { get; set; }
+
+    [Parameter, EditorRequired] public TopBarView Bar { get; set; } = null!;
 
     [Parameter] public MissionView? Mission { get; set; }
 

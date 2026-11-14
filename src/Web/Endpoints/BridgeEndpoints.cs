@@ -14,6 +14,8 @@ public static class BridgeEndpoints
 {
     private const string Incomplete = "The form was not complete.";
 
+    private const string OutOfDate = "This page was out of date. It has been refreshed.";
+
     public static void Map(WebApplication app)
     {
         app.MapGet("/legacy/{id}", Page);
@@ -36,8 +38,10 @@ public static class BridgeEndpoints
 
     private static async Task<IResult> Advance(string id, HttpContext http, GameServices game, LegacySession sessions, Render render, CancellationToken cancellation)
     {
+        Stamp? stamp = StampOf(await ReadForm(http.Request, cancellation));
         return await Send(id, http, game, sessions, render, legacy =>
         {
+            Check(stamp, game, legacy);
             // Aftermath goes on through the advance phase, so one request starts the next cycle.
             bool fromAftermath = legacy.State.Phase == CyclePhase.Aftermath;
             legacy.Send(new AdvancePhase());
@@ -50,9 +54,12 @@ public static class BridgeEndpoints
 
     private static async Task<IResult> Launch(string id, HttpContext http, GameServices game, LegacySession sessions, Render render, IOptions<WebSettings> settings, CancellationToken cancellation)
     {
-        AssignTeam? team = await Bind(http.Request, cancellation);
+        IFormCollection? form = await ReadForm(http.Request, cancellation);
+        Stamp? stamp = StampOf(form);
+        AssignTeam? team = Bind(form);
         return await SendPaced<Refusal>(id, game, sessions, render, settings.Value.BeatDelayMs, legacy =>
         {
+            Check(stamp, game, legacy);
             if (team is null)
             {
                 throw new CommandRejectedException(Incomplete);
@@ -65,9 +72,12 @@ public static class BridgeEndpoints
 
     private static async Task<IResult> Answer(string id, HttpContext http, GameServices game, LegacySession sessions, Render render, IOptions<WebSettings> settings, CancellationToken cancellation)
     {
-        AnswerCall? answer = await BindAnswer(http.Request, cancellation);
+        IFormCollection? form = await ReadForm(http.Request, cancellation);
+        Stamp? stamp = StampOf(form);
+        AnswerCall? answer = BindAnswer(form);
         return await SendPaced<CallRefusal>(id, game, sessions, render, settings.Value.BeatDelayMs, legacy =>
         {
+            Check(stamp, game, legacy);
             if (answer is null)
             {
                 throw new CommandRejectedException(Incomplete);
@@ -96,6 +106,10 @@ public static class BridgeEndpoints
                 commands(legacy);
                 return new Turn(before, View(game, legacy));
             }, cancellation);
+        }
+        catch (StalePageException stale)
+        {
+            return await Patches(render, legacyId, stale.Current, OutOfDate);
         }
         catch (CommandRejectedException rejected)
         {
@@ -149,8 +163,8 @@ public static class BridgeEndpoints
         }
 
         string meter = await render.Html<Meter>(new Dictionary<string, object?> { ["Mission"] = mission });
-        string call = await render.Html<CallPanel>(new Dictionary<string, object?> { ["LegacyId"] = legacyId, ["MissionId"] = mission?.MissionId ?? "", ["Call"] = mission?.Call });
-        string footer = await render.Html<ResolutionFooter>(new Dictionary<string, object?> { ["LegacyId"] = legacyId, ["Show"] = mission is null || mission.Outcome is not null });
+        string call = await render.Html<CallPanel>(new Dictionary<string, object?> { ["LegacyId"] = legacyId, ["Bar"] = after.TopBar, ["MissionId"] = mission?.MissionId ?? "", ["Call"] = mission?.Call });
+        string footer = await render.Html<ResolutionFooter>(new Dictionary<string, object?> { ["LegacyId"] = legacyId, ["Bar"] = after.TopBar, ["Show"] = mission is null || mission.Outcome is not null });
         string? team = mission is null ? null : await render.Html<TeamLine>(new Dictionary<string, object?> { ["Team"] = mission.Team, ["LeadId"] = mission.LeadId });
         string finalRoster = await render.Html<Roster>(new Dictionary<string, object?> { ["Rows"] = after.Roster });
         return new StreamResult(async response =>
@@ -207,6 +221,14 @@ public static class BridgeEndpoints
 
     private sealed record Turn(BridgeView Before, BridgeView After);
 
+    private sealed record Stamp(int Cycle, CyclePhase Phase);
+
+    // Carries the stored state's view out of the lock, so the redrawn page is the one the check saw.
+    private sealed class StalePageException(BridgeView current) : Exception(OutOfDate)
+    {
+        public BridgeView Current { get; } = current;
+    }
+
     // Commits the commands in one run, then answers with the three patches or, on a rejection, the refusal alone.
     private static async Task<IResult> Send(string id, HttpContext http, GameServices game, LegacySession sessions, Render render, Action<LoadedLegacy> commands, CancellationToken cancellation)
     {
@@ -223,6 +245,10 @@ public static class BridgeEndpoints
                 commands(legacy);
                 return View(game, legacy);
             }, cancellation);
+        }
+        catch (StalePageException stale)
+        {
+            return await Patches(render, legacyId, stale.Current, OutOfDate);
         }
         catch (CommandRejectedException rejected)
         {
@@ -249,15 +275,51 @@ public static class BridgeEndpoints
         });
     }
 
-    // Anything missing or unparseable is null; the bus judges the rest.
-    private static async Task<AssignTeam?> Bind(HttpRequest request, CancellationToken cancellation)
+    // Null when the body is not a readable form.
+    private static async Task<IFormCollection?> ReadForm(HttpRequest request, CancellationToken cancellation)
     {
-        IFormCollection form;
         try
         {
-            form = await request.ReadFormAsync(cancellation);
+            return await request.ReadFormAsync(cancellation);
         }
         catch (Exception e) when (e is InvalidDataException or InvalidOperationException or IOException)
+        {
+            return null;
+        }
+    }
+
+    // The cycle and phase the page was drawn at; null when either is missing or unparseable.
+    private static Stamp? StampOf(IFormCollection? form)
+    {
+        string? cycle = form is null ? null : Single(form, "cycle");
+        string? phase = form is null ? null : Single(form, "phase");
+        // Names only for the phase: a number would parse as an enum value.
+        if (cycle is null || !int.TryParse(cycle, NumberStyles.None, CultureInfo.InvariantCulture, out int number) || phase is null || !Enum.GetNames<CyclePhase>().Contains(phase))
+        {
+            return null;
+        }
+
+        return new Stamp(number, Enum.Parse<CyclePhase>(phase));
+    }
+
+    // At the edge, inside the lock and before any command: a page drawn in another cycle or phase sends nothing.
+    private static void Check(Stamp? stamp, GameServices game, LoadedLegacy legacy)
+    {
+        if (stamp is null)
+        {
+            throw new CommandRejectedException(Incomplete);
+        }
+
+        if (stamp.Cycle != legacy.State.Cycle || stamp.Phase != legacy.State.Phase)
+        {
+            throw new StalePageException(View(game, legacy));
+        }
+    }
+
+    // Anything missing or unparseable is null; the bus judges the rest.
+    private static AssignTeam? Bind(IFormCollection? form)
+    {
+        if (form is null)
         {
             return null;
         }
@@ -272,14 +334,9 @@ public static class BridgeEndpoints
         return new AssignTeam(objective, form["crew"].OfType<string>().ToList(), lead, form["gear"].OfType<string>().ToList(), new Parameters(priority, risk, autonomy));
     }
 
-    private static async Task<AnswerCall?> BindAnswer(HttpRequest request, CancellationToken cancellation)
+    private static AnswerCall? BindAnswer(IFormCollection? form)
     {
-        IFormCollection form;
-        try
-        {
-            form = await request.ReadFormAsync(cancellation);
-        }
-        catch (Exception e) when (e is InvalidDataException or InvalidOperationException or IOException)
+        if (form is null)
         {
             return null;
         }

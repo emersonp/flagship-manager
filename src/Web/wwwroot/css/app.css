@@ -252,6 +252,8 @@ input:disabled { opacity: 0.55; cursor: not-allowed; }
 /* Action bar at the foot of a view; refusals sit in it. */
 .actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: var(--space-sm) var(--space-md); padding: var(--space-sm) var(--space-lg); }
 .actions:not(:has(button, p:not(:empty))) { display: none; }
+/* An action's small form adds no box: its button sits in the bar as before, and the stamp fields are hidden. */
+.act, #send-nobody { display: contents; }
 .count { margin-right: auto; display: flex; align-items: baseline; gap: var(--space-xs); font-size: var(--text-sm); color: var(--color-muted); }
 .count .m { font-size: var(--text-md); }
 #refusal, #call-refusal { flex-basis: 100%; order: 9; font-size: var(--text-sm); font-weight: 500; color: var(--color-harm); }

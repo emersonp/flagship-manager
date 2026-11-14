@@ -4,7 +4,7 @@
         <p class="empty">The @Phase.ToString().ToLowerInvariant() phase has no screen yet.</p>
     </div>
     <div class="actions well">
-        <button class="btn btn--primary" type="button" data-indicator:_advancing data-attr:aria-busy="$_advancing" data-on:click="@Advance">Advance</button>
+        <AdvanceForm LegacyId="LegacyId" Bar="Bar" Label="Advance" Signal="_advancing" />
         <Refusal Reason="@Reason" />
     </div>
 </main>
@@ -12,9 +12,9 @@
 @code {
     [Parameter, EditorRequired] public Guid LegacyId { get; set; }
 
-    [Parameter, EditorRequired] public CyclePhase Phase { get; set; }
+    [Parameter, EditorRequired] public TopBarView Bar { get; set; } = null!;
+
+    private CyclePhase Phase => Bar.Phase;
 
     [Parameter] public string? Reason { get; set; }
-
-    private string Advance => $"@post('/legacy/{LegacyId}/advance')";
 }

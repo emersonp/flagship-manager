@@ -37,9 +37,10 @@ internal sealed class WebCaptain(TestApp app, HttpClient client, Guid id, Func<L
         return (await app.Sessions.Read(id))!;
     }
 
+    // Posts with the cycle and phase the page shows now, as the browser does, unless the form carries its own.
     public async Task<string> Post(string route, IEnumerable<KeyValuePair<string, string>> form)
     {
-        HttpResponseMessage response = await client.PostAsync($"/legacy/{id}/{route}", new FormUrlEncodedContent(form));
+        HttpResponseMessage response = await client.PostAsync($"/legacy/{id}/{route}", new FormUrlEncodedContent(app.Stamped(id, form)));
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         return await response.Content.ReadAsStringAsync();
     }

@@ -1,22 +1,22 @@
 @if (View.Briefing is not null && Phase == CyclePhase.Briefing)
 {
-    <BriefingScreen LegacyId="LegacyId" Briefing="View.Briefing" Heading="@View.Site?.AssignmentId" Reason="@Reason" />
+    <BriefingScreen LegacyId="LegacyId" Bar="View.TopBar" Briefing="View.Briefing" Heading="@View.Site?.AssignmentId" Reason="@Reason" />
 }
 else if (Phase == CyclePhase.Orders)
 {
-    <OrdersScreen LegacyId="LegacyId" Site="View.Site" Reason="@Reason" />
+    <OrdersScreen LegacyId="LegacyId" Bar="View.TopBar" Site="View.Site" Reason="@Reason" />
 }
 else if (Phase == CyclePhase.Resolution)
 {
-    <ResolutionScreen LegacyId="LegacyId" Mission="View.Mission" ObjectiveName="@ObjectiveName" HideMeter="HideMeter" Reason="@Reason" />
+    <ResolutionScreen LegacyId="LegacyId" Bar="View.TopBar" Mission="View.Mission" ObjectiveName="@ObjectiveName" HideMeter="HideMeter" Reason="@Reason" />
 }
 else if (Phase == CyclePhase.Aftermath)
 {
-    <AftermathScreen LegacyId="LegacyId" Aftermath="View.Aftermath" Mission="View.Mission" ObjectiveName="@ObjectiveName" Reason="@Reason" />
+    <AftermathScreen LegacyId="LegacyId" Bar="View.TopBar" Aftermath="View.Aftermath" Mission="View.Mission" ObjectiveName="@ObjectiveName" Reason="@Reason" />
 }
 else
 {
-    <PhaseScreen LegacyId="LegacyId" Phase="Phase" Reason="@Reason" />
+    <PhaseScreen LegacyId="LegacyId" Bar="View.TopBar" Reason="@Reason" />
 }
 
 @code {

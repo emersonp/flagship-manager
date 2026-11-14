@@ -1,0 +1,6 @@
+<input type="hidden" name="cycle" value="@Bar.Cycle"><input type="hidden" name="phase" value="@Bar.Phase">
+
+@code {
+    // The cycle and phase the page was drawn at; the server refuses an action whose page is out of date.
+    [Parameter, EditorRequired] public TopBarView Bar { get; set; } = null!;
+}

@@ -440,7 +440,7 @@ public sealed class ResolutionTests : IDisposable
         Assert.Single(patches);
         Assert.Contains("A call is waiting for an answer.", patches[0]);
         Assert.Equal(stored, app.Game.Store.ReadEvents(id).Count);
-        Assert.DoesNotContain("data-on:click=\"@post('/legacy/" + id + "/advance')\"", Entity(await Page(id)));
+        Assert.DoesNotContain("/advance", Entity(await Page(id)));
     }
 
     [Fact]
@@ -493,7 +493,7 @@ public sealed class ResolutionTests : IDisposable
         // The first listed change is the loyalty one, as before the re-theme.
         Assert.Matches("(?s)<ol id=\"changes\"[^>]*>\\s*<li[^>]*>(?:(?!</li>).)*loyalty now", page);
         Assert.Contains("Next cycle", page);
-        Assert.Contains("@post('/legacy/" + id + "/advance')", page);
+        Assert.Contains("@post('/legacy/" + id + "/advance', {contentType: 'form'})", page);
     }
 
     [Fact]
@@ -667,7 +667,7 @@ public sealed class ResolutionTests : IDisposable
         var team = (AssignTeam)SimRunner.AutoCaptain.NextCommand(slow.Game.Game, legacy.State, slow.Game.Pack);
         var form = new List<KeyValuePair<string, string>> { new("objective", team.ObjectiveId), new("lead", team.LeadId), new("priority", "0"), new("risk", "0"), new("autonomy", "0") };
         form.AddRange(team.CrewIds.Select(c => new KeyValuePair<string, string>("crew", c)));
-        using var request = new HttpRequestMessage(HttpMethod.Post, $"/legacy/{id}/launch") { Content = new FormUrlEncodedContent(form) };
+        using var request = new HttpRequestMessage(HttpMethod.Post, $"/legacy/{id}/launch") { Content = new FormUrlEncodedContent(slow.Stamped(id, form)) };
         using var cts = new CancellationTokenSource();
 
         HttpResponseMessage response = await slowClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cts.Token);
