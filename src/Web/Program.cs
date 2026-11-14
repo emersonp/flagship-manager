@@ -74,7 +74,7 @@ app.MapPost("/legacies", async Task<IResult> (HttpRequest request, GameServices 
         Guid id = await sessions.CreateLegacy(name, cancellation);
         return new SeeOtherResult($"/legacy/{id}");
     }
-    catch (ArgumentException e)
+    catch (InvalidLegacyNameException e)
     {
         string html = await render.Html<LegaciesPage>(new Dictionary<string, object?> { ["Legacies"] = game.Store.ListLegacies(), ["Name"] = name, ["Error"] = e.Message });
         return Results.Content(html, "text/html; charset=utf-8", statusCode: StatusCodes.Status400BadRequest);

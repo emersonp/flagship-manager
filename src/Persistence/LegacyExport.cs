@@ -82,7 +82,15 @@ public static class LegacyExport
             }
         }
 
-        store.Create(new LegacyRecord(state, legacy.ContentPackId, legacy.ContentPackVersion, legacy.Name, legacy.CreatedAt), snapshot.Events);
+        try
+        {
+            store.Create(new LegacyRecord(state, legacy.ContentPackId, legacy.ContentPackVersion, legacy.Name, legacy.CreatedAt), snapshot.Events);
+        }
+        catch (InvalidLegacyNameException e)
+        {
+            throw new InvalidOperationException(e.Message, e);
+        }
+
         return state.LegacyId;
     }
 

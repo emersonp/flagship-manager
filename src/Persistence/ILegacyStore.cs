@@ -9,6 +9,9 @@ public sealed record LegacyListing(Guid LegacyId, string Name, DateTimeOffset Cr
 public sealed class StaleLegacyException(Guid legacyId, long expected, long found)
     : Exception($"Legacy {legacyId} moved on: expected sequence {expected}, found {found}.");
 
+// A legacy name the store will not keep; the message is fit to show the player.
+public sealed class InvalidLegacyNameException(string message) : Exception(message);
+
 public interface ILegacyStore
 {
     // One transaction: the legacy row, its module rows, and its events, or nothing.

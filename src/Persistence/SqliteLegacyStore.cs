@@ -66,7 +66,21 @@ public sealed class SqliteLegacyStore : ILegacyStore
         string name = record.Name?.Trim() ?? "";
         if (name.Length is < 1 or > MaxNameLength)
         {
-            throw new ArgumentException($"A legacy name is 1 to {MaxNameLength} characters.");
+            throw new InvalidLegacyNameException($"A legacy name is 1 to {MaxNameLength} characters.");
+        }
+
+        // The log is whole from the first event: 1, 2, 3, and so on up to the state's last sequence.
+        for (int i = 0; i < events.Count; i++)
+        {
+            if (events[i].Sequence != i + 1)
+            {
+                throw new ArgumentException($"Event {i + 1} has sequence {events[i].Sequence}; the events must run from 1 without a gap.", nameof(events));
+            }
+        }
+
+        if (events.Count != record.State.NextSequence - 1)
+        {
+            throw new ArgumentException($"The events end at {events.Count}, and the state's next sequence is {record.State.NextSequence}.", nameof(events));
         }
 
         using SqliteConnection connection = Open();

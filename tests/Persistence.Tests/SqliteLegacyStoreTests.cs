@@ -216,7 +216,7 @@ public sealed class SqliteLegacyStoreTests : IDisposable
     [InlineData("   ")]
     public void A_blank_name_is_refused(string name)
     {
-        Assert.Throws<ArgumentException>(() => NewStore().Create(NewRecord(Guid.NewGuid()) with { Name = name }, []));
+        Assert.Throws<InvalidLegacyNameException>(() => NewStore().Create(NewRecord(Guid.NewGuid()) with { Name = name }, []));
     }
 
     [Fact]
@@ -224,7 +224,7 @@ public sealed class SqliteLegacyStoreTests : IDisposable
     {
         SqliteLegacyStore store = NewStore();
 
-        Assert.Throws<ArgumentException>(() => store.Create(NewRecord(Guid.NewGuid()) with { Name = new string('A', 61) }, []));
+        Assert.Throws<InvalidLegacyNameException>(() => store.Create(NewRecord(Guid.NewGuid()) with { Name = new string('A', 61) }, []));
         store.Create(NewRecord(Guid.NewGuid()) with { Name = " " + new string('A', 60) + " " }, []);
     }
 
@@ -493,6 +493,7 @@ public sealed class SqliteLegacyStoreTests : IDisposable
         SqliteLegacyStore store = NewStore();
         LegacyRecord record = NewRecord(id);
         store.Create(record, []);
+        record.State.NextSequence = 2;
         store.Commit(record.State, [new EventEnvelope(1, 1, "A", 1, "{}")], 1);
         var node = System.Text.Json.Nodes.JsonNode.Parse(LegacyExport.Export(store, id, ModuleTypes))!;
         string[] assign = edit.Split('=', 2);
@@ -568,9 +569,89 @@ public sealed class SqliteLegacyStoreTests : IDisposable
     }
 
     [Fact]
-    public void A_null_name_is_refused_as_an_argument_error()
+    public void A_null_name_is_refused_as_a_bad_name()
     {
-        Assert.Throws<ArgumentException>(() => NewStore().Create(NewRecord(Guid.NewGuid()) with { Name = null! }, []));
+        Assert.Throws<InvalidLegacyNameException>(() => NewStore().Create(NewRecord(Guid.NewGuid()) with { Name = null! }, []));
+    }
+
+    // An import refuses a bad name the way it refuses everything else, with the store's words.
+    [Fact]
+    public void An_import_with_a_bad_name_is_refused_as_an_invalid_operation_and_stores_nothing()
+    {
+        Guid id = Guid.NewGuid();
+        SqliteLegacyStore store = NewStore();
+        store.Create(NewRecord(id), []);
+        var node = System.Text.Json.Nodes.JsonNode.Parse(LegacyExport.Export(store, id, ModuleTypes))!;
+        node["Legacy"]!["Name"] = "   ";
+        Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+        File.Delete(path);
+        SqliteLegacyStore empty = NewStore();
+
+        var ex = Assert.Throws<InvalidOperationException>(() => LegacyExport.Import(empty, node.ToJsonString(), ModuleTypes));
+
+        Assert.Equal("A legacy name is 1 to 60 characters.", ex.Message);
+        Assert.IsType<InvalidLegacyNameException>(ex.InnerException);
+        Assert.Null(empty.Load(id, ModuleTypes));
+    }
+
+    // The events must run 1, 2, 3, and so on up to the state's last sequence: anything else is refused before a row is written.
+    [Theory]
+    [InlineData(3L, new long[] { 2, 3 })]
+    [InlineData(3L, new long[] { 1, 3 })]
+    [InlineData(4L, new long[] { 1, 2 })]
+    [InlineData(2L, new long[] { 1, 2 })]
+    [InlineData(2L, new long[] { })]
+    [InlineData(1L, new long[] { 1 })]
+    [InlineData(3L, new long[] { 2, 1 })]
+    public void Create_refuses_events_that_do_not_run_from_one_to_the_states_last_sequence(long nextSequence, long[] sequences)
+    {
+        Guid id = Guid.NewGuid();
+        SqliteLegacyStore store = NewStore();
+        LegacyRecord record = NewRecord(id);
+        record.State.NextSequence = nextSequence;
+
+        Assert.Throws<ArgumentException>(() => store.Create(record, sequences.Select(n => new EventEnvelope(n, 1, "A", 1, "{}")).ToList()));
+
+        Assert.Equal(0, RowCount("legacy"));
+        Assert.Equal(0, RowCount("event_log"));
+    }
+
+    [Theory]
+    [InlineData(1L, new long[] { })]
+    [InlineData(2L, new long[] { 1 })]
+    [InlineData(4L, new long[] { 1, 2, 3 })]
+    public void Create_accepts_events_that_run_from_one_to_the_states_last_sequence(long nextSequence, long[] sequences)
+    {
+        Guid id = Guid.NewGuid();
+        SqliteLegacyStore store = NewStore();
+        LegacyRecord record = NewRecord(id);
+        record.State.NextSequence = nextSequence;
+
+        store.Create(record, sequences.Select(n => new EventEnvelope(n, 1, "A", 1, "{}")).ToList());
+
+        Assert.Equal(sequences, store.ReadEvents(id).Select(e => e.Sequence));
+    }
+
+    // Name and creation time are required in the snapshot: neither is defaulted.
+    [Theory]
+    [InlineData("Name")]
+    [InlineData("CreatedAt")]
+    public void An_import_without_a_name_or_creation_time_is_refused_and_stores_nothing(string member)
+    {
+        Guid id = Guid.NewGuid();
+        SqliteLegacyStore store = NewStore();
+        store.Create(NewRecord(id), []);
+        var node = System.Text.Json.Nodes.JsonNode.Parse(LegacyExport.Export(store, id, ModuleTypes))!;
+        Assert.True(node["Legacy"]!.AsObject().Remove(member));
+        Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+        File.Delete(path);
+        SqliteLegacyStore empty = NewStore();
+
+        var ex = Assert.Throws<InvalidOperationException>(() => LegacyExport.Import(empty, node.ToJsonString(), ModuleTypes));
+
+        Assert.Contains(member, ex.Message);
+        Assert.Null(empty.Load(id, ModuleTypes));
+        Assert.Equal(0, RowCount("legacy"));
     }
 
     [Fact]
@@ -581,6 +662,7 @@ public sealed class SqliteLegacyStoreTests : IDisposable
         LegacyRecord record = NewRecord(id);
         record.State.Module<FuelState>("fuel").Units = 4;
         source.Create(record, []);
+        record.State.NextSequence = 3;
         source.Commit(record.State, [new EventEnvelope(1, 1, "A", 1, "{}"), new EventEnvelope(2, 1, "B", 1, "{}")], 1);
         string good = LegacyExport.Export(source, id, ModuleTypes);
         string broken = good.Replace("\"Sequence\": 2", "\"Sequence\": 1");

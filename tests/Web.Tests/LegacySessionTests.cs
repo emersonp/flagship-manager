@@ -95,7 +95,7 @@ public sealed class LegacySessionTests : IDisposable
     [InlineData(null)]
     public async Task A_blank_or_null_name_is_refused_and_nothing_is_created(string? name)
     {
-        await Assert.ThrowsAsync<ArgumentException>(() => app.Sessions.CreateLegacy(name!));
+        await Assert.ThrowsAsync<InvalidLegacyNameException>(() => app.Sessions.CreateLegacy(name!));
 
         Assert.Empty(app.Game.Store.ListLegacies());
     }
