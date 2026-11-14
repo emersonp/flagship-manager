@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Persistence;
 using Sim.Core;
 using Sim.Crew;
@@ -232,7 +233,8 @@ public sealed class SqliteLegacyStoreTests : IDisposable
     [Theory]
     [InlineData(0)]
     [InlineData(1)]
-    public void A_database_from_an_older_schema_is_refused(int version)
+    [InlineData(3)]
+    public void A_database_from_another_schema_is_refused(int version)
     {
         using (var connection = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={path}"))
         {
@@ -244,7 +246,25 @@ public sealed class SqliteLegacyStoreTests : IDisposable
 
         var ex = Assert.Throws<InvalidOperationException>(() => NewStore());
 
-        Assert.Equal($"This database is from an older build (schema {version}). Delete it or export its legacies with that build.", ex.Message);
+        Assert.Equal($"This database is from a different build (schema {version}, this build reads 2). Delete it or export its legacies with the build that wrote it.", ex.Message);
+    }
+
+    // A phase stored as a number would parse as a member by accident; the store refuses it.
+    [Fact]
+    public void A_stored_numeric_phase_is_refused()
+    {
+        Guid id = Guid.NewGuid();
+        SqliteLegacyStore store = NewStore();
+        store.Create(NewRecord(id));
+        using (var connection = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={path}"))
+        {
+            connection.Open();
+            using Microsoft.Data.Sqlite.SqliteCommand command = connection.CreateCommand();
+            command.CommandText = "UPDATE legacy SET phase = '3'";
+            command.ExecuteNonQuery();
+        }
+
+        Assert.ThrowsAny<Exception>(() => store.Load(id, ModuleTypes));
     }
 
     // A fresh database must carry the version later builds check.
@@ -314,6 +334,58 @@ public sealed class SqliteLegacyStoreTests : IDisposable
         var ex = Assert.Throws<InvalidOperationException>(() => LegacyExport.Import(NewStore(), node.ToJsonString(), ModuleTypes));
 
         Assert.Contains(member, ex.Message);
+    }
+
+    // The envelope reads as strictly as every stored form: nothing is defaulted, dropped, or tolerated.
+    [Theory]
+    [InlineData("Legacy.Week")]
+    [InlineData("Legacy.NextSequence")]
+    [InlineData("Legacy.Seed")]
+    [InlineData("Events.0.Sequence")]
+    [InlineData("Events")]
+    [InlineData("Legacy.Phase=3")]
+    [InlineData("Legacy.Extra=1")]
+    [InlineData("Extra=1")]
+    [InlineData("Legacy=null")]
+    [InlineData("Events.0.Payload=null")]
+    public void An_import_that_does_not_read_strictly_is_refused_and_creates_nothing(string edit)
+    {
+        Guid id = Guid.NewGuid();
+        SqliteLegacyStore store = NewStore();
+        LegacyRecord record = NewRecord(id);
+        store.Create(record);
+        store.Commit(record.State, [new EventEnvelope(1, 1, "A", 1, "{}")]);
+        var node = System.Text.Json.Nodes.JsonNode.Parse(LegacyExport.Export(store, id, ModuleTypes))!;
+        string[] assign = edit.Split('=', 2);
+        string[] path = assign[0].Split('.');
+        System.Text.Json.Nodes.JsonNode parent = node;
+        foreach (string step in path[..^1])
+        {
+            parent = int.TryParse(step, out int index) ? parent.AsArray()[index]! : parent[step]!;
+        }
+
+        if (assign.Length == 1)
+        {
+            parent.AsObject().Remove(path[^1]);
+        }
+        else
+        {
+            parent.AsObject()[path[^1]] = assign[1] switch
+            {
+                "null" => null,
+                var number when int.TryParse(number, out int value) => value,
+                _ => assign[1],
+            };
+        }
+
+        Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+        File.Delete(this.path);
+        SqliteLegacyStore empty = NewStore();
+
+        Exception ex = Assert.ThrowsAny<Exception>(() => LegacyExport.Import(empty, node.ToJsonString(), ModuleTypes));
+
+        Assert.True(ex is JsonException or InvalidOperationException, ex.GetType().Name);
+        Assert.Null(empty.Load(id, ModuleTypes));
     }
 
     // A field added to LegacyState must be carried by the export before this passes.

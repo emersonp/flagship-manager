@@ -1,5 +1,4 @@
 using System.Text.Json;
-using System.Text.Json.Serialization;
 using Sim.Core;
 
 namespace Persistence;
@@ -9,11 +8,7 @@ public static class LegacyExport
 {
     private const int CurrentFormatVersion = 2;
 
-    private static readonly JsonSerializerOptions Options = new()
-    {
-        WriteIndented = true,
-        Converters = { new JsonStringEnumConverter(namingPolicy: null, allowIntegerValues: false) },
-    };
+    private static readonly JsonSerializerOptions Options = new(SimJson.Options) { WriteIndented = true };
 
     public static string Export(ILegacyStore store, Guid legacyId, IReadOnlyDictionary<string, Type> moduleTypes)
     {
@@ -42,23 +37,22 @@ public static class LegacyExport
     // Fails if the legacy already exists; restore into an empty database or delete the legacy first.
     public static Guid Import(ILegacyStore store, string json, IReadOnlyDictionary<string, Type> moduleTypes)
     {
-        Snapshot snapshot = JsonSerializer.Deserialize<Snapshot>(json, Options) ?? throw new InvalidOperationException("The snapshot is empty.");
+        Snapshot snapshot;
+        try
+        {
+            snapshot = JsonSerializer.Deserialize<Snapshot>(json, Options) ?? throw new InvalidOperationException("The snapshot is empty.");
+        }
+        catch (JsonException e)
+        {
+            throw new InvalidOperationException($"The snapshot does not read as a legacy export: {e.Message}", e);
+        }
+
         if (snapshot.FormatVersion != CurrentFormatVersion)
         {
             throw new InvalidOperationException($"Unsupported snapshot format version {snapshot.FormatVersion}; expected {CurrentFormatVersion}.");
         }
 
-        SnapshotLegacy legacy = snapshot.Legacy ?? throw new InvalidOperationException("The snapshot has no Legacy.");
-        if (legacy.Modules is null)
-        {
-            throw new InvalidOperationException("The snapshot Legacy has no Modules.");
-        }
-
-        if (legacy.RngStates is null)
-        {
-            throw new InvalidOperationException("The snapshot Legacy has no RngStates.");
-        }
-
+        SnapshotLegacy legacy = snapshot.Legacy;
         var state = new LegacyState
         {
             LegacyId = legacy.LegacyId,

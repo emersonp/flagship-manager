@@ -49,7 +49,7 @@ public sealed class SqliteLegacyStore : ILegacyStore
             long found = Scalar(connection, "PRAGMA user_version");
             if (found != SchemaVersion)
             {
-                throw new InvalidOperationException($"This database is from an older build (schema {found}). Delete it or export its legacies with that build.");
+                throw new InvalidOperationException($"This database is from a different build (schema {found}, this build reads {SchemaVersion}). Delete it or export its legacies with the build that wrote it.");
             }
         }
 
@@ -87,10 +87,11 @@ public sealed class SqliteLegacyStore : ILegacyStore
             LegacyId = legacyId,
             Seed = ulong.Parse(reader.GetString(0), CultureInfo.InvariantCulture),
             Cycle = reader.GetInt32(1),
-            Phase = Enum.Parse<CyclePhase>(reader.GetString(2)),
+            Phase = JsonSerializer.Deserialize<CyclePhase>(JsonSerializer.Serialize(reader.GetString(2)), SimJson.Options),
             Week = reader.GetInt32(3),
             NextSequence = reader.GetInt64(4),
-            RngStates = JsonSerializer.Deserialize<Dictionary<string, ulong>>(reader.GetString(5))!,
+            RngStates = JsonSerializer.Deserialize<Dictionary<string, ulong>>(reader.GetString(5), SimJson.Options)
+                ?? throw new InvalidOperationException($"Legacy {legacyId} has no stored RNG states."),
         };
         var record = new LegacyRecord(state, reader.GetString(6), reader.GetInt32(7));
         reader.Close();
@@ -205,7 +206,7 @@ public sealed class SqliteLegacyStore : ILegacyStore
             ("$phase", state.Phase.ToString()),
             ("$week", state.Week),
             ("$next", state.NextSequence),
-            ("$rng", JsonSerializer.Serialize(state.RngStates)),
+            ("$rng", JsonSerializer.Serialize(state.RngStates, SimJson.Options)),
         ];
     }
 
