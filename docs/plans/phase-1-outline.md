@@ -33,6 +33,7 @@ From the review of the first part. None is a rule change; each is something the 
 - **Seeds are 64-bit numbers** in module rows, stream states, the export, and the simulator's output. Never put those in the browser's signals.
 - **Listing legacies.** The store has no list, and a legacy has no name or creation time. The stored content pack id and version are never checked against the loaded pack.
 - **Import is two transactions.** A failed import can leave a legacy with no events; a retry then fails as already existing.
+- **Small test gaps left from the first part:** no committed test reads every event type back from its stored form (a probe did, and all passed); a stored event missing a member that has a default in its record is not refused.
 - **For the author:** experience in a skill a crew member does not have is dropped (the starter crew all list every skill), and light injuries have no cap across missions (the most seen on one crew member in 10,000 missions was 2).
 
 ## Decisions each slice plan must make first
