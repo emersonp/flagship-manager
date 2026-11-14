@@ -14,7 +14,7 @@ public static partial class ContentLoader
     public static ContentLoadResult Load(IReadOnlyDictionary<string, string> files)
     {
         var errors = new List<ContentError>();
-        IDeserializer yaml = new DeserializerBuilder().WithNamingConvention(CamelCaseNamingConvention.Instance).Build();
+        IDeserializer yaml = new DeserializerBuilder().WithNamingConvention(CamelCaseNamingConvention.Instance).WithDuplicateKeyChecking().Build();
 
         PackDto? manifest = null;
         if (files.TryGetValue(ManifestFile, out string? manifestText))
@@ -50,8 +50,14 @@ public static partial class ContentLoader
                 continue;
             }
 
-            foreach (SkillDto dto in Parse<List<SkillDto>>(yaml, path, text, errors) ?? [])
+            foreach (SkillDto? dto in Parse<List<SkillDto?>>(yaml, path, text, errors) ?? [])
             {
+                if (dto is null)
+                {
+                    errors.Add(new ContentError(path, "A list item is blank."));
+                    continue;
+                }
+
                 if (!CheckId(path, dto.Id, errors))
                 {
                     continue;
@@ -64,7 +70,7 @@ public static partial class ContentLoader
                 }
 
                 seenIn[dto.Id] = path;
-                skills.Add(new SkillDef(dto.Id, dto.Tags));
+                skills.Add(new SkillDef(dto.Id, dto.Tags ?? []));
             }
         }
 
@@ -130,6 +136,6 @@ public static partial class ContentLoader
     {
         public string Id { get; set; } = "";
 
-        public List<string> Tags { get; set; } = [];
+        public List<string>? Tags { get; set; } = [];
     }
 }

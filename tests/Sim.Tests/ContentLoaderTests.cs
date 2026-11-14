@@ -56,4 +56,43 @@ public class ContentLoaderTests
 
         Assert.Equal("The pack has no pack.yaml.", Assert.Single(result.Errors).Message);
     }
+
+    [Fact]
+    public void A_blank_list_item_is_reported_for_its_file()
+    {
+        ContentLoadResult result = ContentLoader.Load(new Dictionary<string, string>
+        {
+            ["pack.yaml"] = Manifest,
+            ["skills/a.yaml"] = "- id: SKILL_A\n-\n",
+        });
+
+        Assert.Null(result.Pack);
+        Assert.Equal("skills/a.yaml", Assert.Single(result.Errors).File);
+    }
+
+    [Fact]
+    public void Tags_with_no_value_load_as_an_empty_list()
+    {
+        ContentLoadResult result = ContentLoader.Load(new Dictionary<string, string>
+        {
+            ["pack.yaml"] = Manifest,
+            ["skills/a.yaml"] = "- id: SKILL_A\n  tags:\n",
+        });
+
+        Assert.Empty(result.Errors);
+        Assert.Empty(result.Pack!.Skills[0].Tags);
+    }
+
+    [Fact]
+    public void A_duplicated_key_is_reported_for_its_file()
+    {
+        ContentLoadResult result = ContentLoader.Load(new Dictionary<string, string>
+        {
+            ["pack.yaml"] = Manifest,
+            ["skills/a.yaml"] = "- id: SKILL_A\n  id: SKILL_B\n",
+        });
+
+        Assert.Null(result.Pack);
+        Assert.Equal("skills/a.yaml", Assert.Single(result.Errors).File);
+    }
 }

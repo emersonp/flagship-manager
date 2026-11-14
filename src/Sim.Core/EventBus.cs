@@ -17,6 +17,11 @@ public sealed class EventBus
     public void Subscribe<TEvent>(int order, string name, Action<TEvent, IBusContext> subscriber)
         where TEvent : IEvent
     {
+        if (subscriptions.Any(s => s.EventType == typeof(TEvent) && s.Order == order && s.Name == name))
+        {
+            throw new InvalidOperationException($"Event {typeof(TEvent).Name} already has a subscriber '{name}' at order {order}.");
+        }
+
         subscriptions.Add(new Subscription(typeof(TEvent), order, name, (e, context) => subscriber((TEvent)e, context)));
         subscriptions.Sort((a, b) => a.Order != b.Order ? a.Order.CompareTo(b.Order) : string.CompareOrdinal(a.Name, b.Name));
     }

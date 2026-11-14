@@ -34,6 +34,15 @@ public class EventBusTests
         Assert.Throws<InvalidOperationException>(() => bus.Handle<Ping>((_, _) => { }));
     }
 
+    [Fact]
+    public void A_duplicate_subscription_throws()
+    {
+        var bus = new EventBus();
+        bus.Subscribe<Pinged>(10, "echo", (_, _) => { });
+
+        Assert.Throws<InvalidOperationException>(() => bus.Subscribe<Pinged>(10, "echo", (_, _) => { }));
+    }
+
     // Replays depend on this: order is by declared number, then name, never by registration order.
     [Fact]
     public void Subscribers_run_in_declared_order()
