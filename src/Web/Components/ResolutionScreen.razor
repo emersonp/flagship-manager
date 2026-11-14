@@ -1,25 +1,25 @@
 <main id="main">
-    <h2>Resolution</h2>
-    @if (Mission is null)
-    {
-        <p class="empty-state">No team was sent.</p>
-    }
-    <div class="readout">
-        @if (Mission is not null)
+    <div class="view-head">
+        <h1>@(ObjectiveName ?? "Resolution")</h1>
+        @if (Mission is null)
+        {
+            <p class="empty-state">No team was sent. Every objective resolves unattended.</p>
+        }
+        else
         {
             <dl class="facts">
-                <div><dt>Team</dt><dd>@string.Join(", ", Mission.Team)</dd></div>
-                <div><dt>Lead</dt><dd>@Mission.LeadId</dd></div>
+                <dt>Team</dt><dd>@Figures.List(Mission.Team.Select(t => t == Mission.LeadId ? $"{t} (lead)" : t).ToList())</dd>
             </dl>
+            <AwayStyle Team="Mission.Team" LeadId="@Mission.LeadId" />
         }
-        <Meter Mission="@(HideMeter ? null : Mission)" />
     </div>
-    <section class="@(Mission is null ? "logbook" : "logbook logbook--live")" aria-labelledby="log-head">
-        <h3 id="log-head">Mission log</h3>
+    <Meter Mission="@(HideMeter ? null : Mission)" />
+    <section class="@(Mission is null ? "well log log--none" : "well log")" aria-labelledby="log-head">
+        <div class="well__head"><h2 id="log-head">Mission log</h2><p class="note">Newest last</p></div>
         <MissionLog Lines="@(Mission?.Log ?? [])" />
     </section>
-    <div class="dock dock--call">
-        <CallPanel LegacyId="LegacyId" MissionId="@(Mission?.MissionId ?? "")" Call="Mission?.Call" />
+    <CallPanel LegacyId="LegacyId" MissionId="@(Mission?.MissionId ?? "")" Call="Mission?.Call" />
+    <div class="actions well">
         <ResolutionFooter LegacyId="LegacyId" Show="@(Mission is null || Mission.Outcome is not null)" />
         <Refusal Reason="@Reason" />
     </div>
@@ -29,6 +29,9 @@
     [Parameter, EditorRequired] public Guid LegacyId { get; set; }
 
     [Parameter] public MissionView? Mission { get; set; }
+
+    // The mission's objective by its template, when the site still names it.
+    [Parameter] public string? ObjectiveName { get; set; }
 
     // True while a launch is still playing its beats.
     [Parameter] public bool HideMeter { get; set; }

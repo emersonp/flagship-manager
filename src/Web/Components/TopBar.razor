@@ -1,20 +1,32 @@
 <header id="topbar">
-    <a class="home" href="/">Legacies</a>
-    <h1>@Bar.LegacyName</h1>
-    <p class="when">Week @Bar.Week, Cycle @Bar.Cycle</p>
-    <ol class="phases" aria-label="Phase">
-        @foreach (CyclePhase phase in Enum.GetValues<CyclePhase>())
-        {
-            @if (phase == Bar.Phase)
+    <div class="ship">
+        <span class="ship__name">SHIP_NAME</span>
+        <span class="ship__legacy">@Bar.LegacyName <a class="home" href="/">Legacies</a></span>
+    </div>
+    <dl class="clock">
+        <div><dt>Week</dt><dd>@Bar.Week</dd></div>
+        <div><dt>Cycle</dt><dd>@Bar.Cycle</dd></div>
+    </dl>
+    <nav class="phases" aria-label="Cycle phases">
+        <ol>
+            @foreach (CyclePhase phase in Enum.GetValues<CyclePhase>())
             {
-                <li aria-current="step">@phase <span class="now">now</span></li>
+                int number = (int)phase + 1;
+                @if (phase == Bar.Phase)
+                {
+                    <li class="phase" data-state="current" aria-current="step" data-init="@Reveal"><span class="phase__no">@number</span><span class="phase__name">@phase</span><span class="phase__state">Current</span></li>
+                }
+                else if (phase < Bar.Phase)
+                {
+                    <li class="phase" data-state="done"><span class="phase__no">@number</span><span class="phase__name">@phase</span><span class="phase__state">Done</span></li>
+                }
+                else
+                {
+                    <li class="phase" data-state="next"><span class="phase__no">@number</span><span class="phase__name">@phase</span><span class="phase__state">Next</span></li>
+                }
             }
-            else
-            {
-                <li>@phase</li>
-            }
-        }
-    </ol>
+        </ol>
+    </nav>
     @if (Bar.PackWarning is not null)
     {
         <p class="warning">@Bar.PackWarning</p>
@@ -23,4 +35,7 @@
 
 @code {
     [Parameter, EditorRequired] public TopBarView Bar { get; set; } = null!;
+
+    // Scrolls the phase row sideways (never the page) so the current step shows on a narrow screen.
+    private const string Reveal = "el.closest('nav').scrollLeft = Math.max(0, el.offsetLeft - el.closest('nav').clientWidth / 2 + el.offsetWidth / 2)";
 }

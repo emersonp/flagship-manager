@@ -251,8 +251,9 @@ public sealed class BriefingTests : IDisposable
 
         var after = Snapshot(id);
         Assert.Equal((CyclePhase.Orders, 2, 2), (after.Phase, after.Cycle, after.Week));
-        Assert.Contains("Week 2, Cycle 2", stream);
-        Assert.Contains("aria-current=\"step\">Orders", stream);
+        Assert.Contains("<dt>Week</dt><dd>2</dd>", stream);
+        Assert.Contains("<dt>Cycle</dt><dd>2</dd>", stream);
+        Assert.Matches("aria-current=\"step\"[^>]*><span class=\"phase__no\">1</span><span class=\"phase__name\">Orders</span>", stream);
         Assert.Contains("To briefing", stream);
     }
 
@@ -315,7 +316,7 @@ public sealed class BriefingTests : IDisposable
         string many = await BriefingWithObjectives(2);
         MatchCollection ranges = Regex.Matches(many, "name=\"objective\"[^>]* data-min=\"(\\d+)\" data-max=\"(\\d+)\"");
         Assert.Equal(2, ranges.Count);
-        Assert.All(ranges, r => Assert.Contains($"team {r.Groups[1].Value} to {r.Groups[2].Value}</label>", many));
+        Assert.All(ranges, r => Assert.Contains($"team {r.Groups[1].Value} to {r.Groups[2].Value}</span></label>", many));
         Assert.Contains("data-signals:_min=\"0\" data-signals:_max=\"0\"", many);
         Assert.DoesNotContain(" checked", Regex.Match(many, "<fieldset>.*?</fieldset>", RegexOptions.Singleline).Value);
         Assert.Equal(2, Regex.Matches(many, "name=\"objective\"[^>]* required").Count);

@@ -1,33 +1,40 @@
 <main id="main">
-    <h2>Orders</h2>
-    @if (Site is null)
-    {
-        <p class="empty">No site has arrived.</p>
-    }
-    else
-    {
-        <table class="site">
-            <thead>
-                <tr><th>Objective</th><th>Template</th><th>Skills</th><th class="num">Team</th><th class="num">Unattended difficulty</th></tr>
-            </thead>
-            <tbody>
-                @foreach (ObjectiveView objective in Site.Objectives)
-                {
-                    <tr>
-                        <td class="id">@objective.Id</td>
-                        <td data-label="Template">@objective.TemplateId</td>
-                        <td class="skills" data-label="Skills">@string.Join(", ", objective.PossibleSkills)</td>
-                        <td class="num" data-label="Team">@objective.TeamSizeMin to @objective.TeamSizeMax</td>
-                        <td class="num" data-label="Unattended difficulty">@objective.UnattendedDifficulty</td>
-                    </tr>
-                }
-            </tbody>
-        </table>
-    }
-    <p class="actions">
+    <div class="view-head">
+        <h1>@(Site?.AssignmentId ?? "Orders")</h1>
+        <p class="note">The site's objectives. Choose one and a team in the briefing.</p>
+    </div>
+    <section class="well" aria-labelledby="h-site">
+        <div class="well__head"><h2 id="h-site">Objectives</h2></div>
+        @if (Site is null)
+        {
+            <div class="well__body"><p class="empty">No site has arrived.</p></div>
+        }
+        else
+        {
+            <div class="tw">
+                <table class="site">
+                    <thead>
+                        <tr><th scope="col">Objective</th><th scope="col">Possible skills</th><th scope="col" class="n">Team</th><th scope="col" class="n">Unattended difficulty</th></tr>
+                    </thead>
+                    <tbody>
+                        @foreach (ObjectiveView objective in Site.Objectives)
+                        {
+                            <tr>
+                                <td class="who">@objective.TemplateId <span class="note">@objective.Id</span></td>
+                                <td>@Figures.List(objective.PossibleSkills)</td>
+                                <td class="n">@objective.TeamSizeMin to @objective.TeamSizeMax</td>
+                                <td class="n">@objective.UnattendedDifficulty</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </section>
+    <div class="actions well">
         <button class="btn btn--primary" type="button" data-indicator:_advancing data-attr:aria-busy="$_advancing" data-on:click="@Advance">To briefing</button>
-    </p>
-    <Refusal Reason="@Reason" />
+        <Refusal Reason="@Reason" />
+    </div>
 </main>
 
 @code {

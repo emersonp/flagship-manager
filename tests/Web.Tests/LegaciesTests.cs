@@ -82,8 +82,8 @@ public sealed class LegaciesTests : IDisposable
         Assert.Contains("<header id=\"topbar\">", html);
         Assert.Contains("<aside id=\"roster\">", html);
         Assert.Contains("LEGACY_ONE", html);
-        Assert.Contains("Week 1", html);
-        Assert.Contains("Cycle 1", html);
+        Assert.Contains("<dt>Week</dt><dd>1</dd>", html);
+        Assert.Contains("<dt>Cycle</dt><dd>1</dd>", html);
         Assert.Contains("Orders", html);
     }
 

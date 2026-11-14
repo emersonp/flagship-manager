@@ -1,10 +1,17 @@
-@if (Row.Status != nameof(Sim.Crew.CrewStatus.Active))
+@if (Row.Status == nameof(Sim.Crew.CrewStatus.Dead))
 {
-    <span class="state" data-state="harm">@Row.Status</span>
+    <span class="harm">Dead</span>
+}
+else if (Row.Status != nameof(Sim.Crew.CrewStatus.Active))
+{
+    <span class="quiet">@Row.Status@if (Row.ReturnsAtWeek is { } week)
+        {
+            <text> (returns week </text><span class="m">@week</span><text>)</text>
+        }</span>
 }
 else if (Row.LightInjuryHealWeeks.Count > 0)
 {
-    @Row.Status<text>, </text><span class="state" data-state="harm">injured</span>
+    @Row.Status<text>, </text><span class="harm">@Injuries</span><text> (heals </text>@HealWeeks<text>)</text>
 }
 else
 {
@@ -12,6 +19,17 @@ else
 }
 
 @code {
-    // Recovering and dead are harm; an active member still healing a light injury is marked injured.
+    // Dead and light injuries are harm, beside their words; recovering is muted.
     [Parameter, EditorRequired] public CrewRow Row { get; set; } = null!;
+
+    private string Injuries => Row.LightInjuryHealWeeks.Count == 1 ? "1 light injury" : $"{Row.LightInjuryHealWeeks.Count} light injuries";
+
+    private MarkupString HealWeeks
+    {
+        get
+        {
+            List<string> weeks = Row.LightInjuryHealWeeks.Distinct().Order().Select(w => w.ToString(System.Globalization.CultureInfo.InvariantCulture)).ToList();
+            return Figures.Mono((weeks.Count == 1 ? "week " : "weeks ") + Figures.List(weeks));
+        }
+    }
 }

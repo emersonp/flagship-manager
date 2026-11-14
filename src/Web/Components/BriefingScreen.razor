@@ -1,68 +1,109 @@
 <main id="main">
-    <h2>Briefing</h2>
-    <form id="briefing" data-signals:_picked="0" data-signals:_min="@Initial.Min" data-signals:_max="@Initial.Max" data-indicator:_launching data-on:submit="@Launch">
-        <fieldset>
-            <legend>Objective</legend>
-            @foreach (ObjectiveView objective in Briefing.Objectives)
-            {
-                <p>
-                    <input type="radio" id="objective-@objective.Id" name="objective" value="@objective.Id" required checked="@(Briefing.Objectives.Count == 1)" data-min="@objective.TeamSizeMin" data-max="@objective.TeamSizeMax" data-on:change="@Range">
-                    <label for="objective-@objective.Id"><span class="id">@objective.Id</span> (@objective.TemplateId), team @objective.TeamSizeMin to @objective.TeamSizeMax</label>
-                </p>
-            }
-        </fieldset>
-        <table class="crew">
-            <thead>
-                <tr><th>Crew</th><th>Status</th><th>Skills</th><th class="pick">Team</th><th class="pick">Lead</th></tr>
-            </thead>
-            <tbody>
-                @foreach (CrewRow row in Briefing.Crew)
-                {
-                    <tr>
-                        <td class="id">@row.Id</td>
-                        <td class="status"><CrewStatusText Row="row" /></td>
-                        <td class="skills">@string.Join(", ", row.Skills.Select(s => $"{s.SkillId} {s.EffectiveLevel}"))</td>
-                        <td class="pick team">
-                            <input type="checkbox" id="crew-@row.Id" name="crew" value="@row.Id" aria-label="Team @row.Id" disabled="@(!row.Fit)" data-on:change="@Count">
-                            <label for="crew-@row.Id"><span class="pick-word">Team</span></label>
-                        </td>
-                        <td class="pick lead">
-                            <input type="radio" id="lead-@row.Id" name="lead" value="@row.Id" aria-label="Lead @row.Id" disabled="@(!row.Fit)">
-                            <label for="lead-@row.Id"><span class="pick-word">Lead</span></label>
-                        </td>
-                    </tr>
-                }
-            </tbody>
-        </table>
-        <div class="loadout">
-            <fieldset class="gear">
-                <legend>Gear (at most @Briefing.LoadoutLimit)</legend>
-                @foreach (GearChoice gear in Briefing.Gear)
-                {
-                    <p>
-                        <input type="checkbox" id="gear-@gear.Id" name="gear" value="@gear.Id">
-                        <label for="gear-@gear.Id">@gear.Id (@gear.Tag)</label>
-                    </p>
-                }
+    <div class="view-head">
+        <h1>@(Heading ?? "Briefing")</h1>
+        <p class="note">Choose one objective, an away team, and gear.</p>
+    </div>
+    <form id="briefing" data-signals:_picked="0" data-signals:_min="@Initial.Min" data-signals:_max="@Initial.Max" data-signals:_skills="@InitialSkills" data-signals:_gear="0" data-indicator:_launching data-on:submit="@Launch">
+        <section class="well" aria-labelledby="h-obj">
+            <div class="well__head"><h2 id="h-obj">Objective</h2></div>
+            <fieldset>
+                <legend class="visually-hidden">Objective</legend>
+                <div class="tw">
+                    <table class="pick">
+                        <thead>
+                            <tr><th scope="col">Objective</th><th scope="col">Possible skills</th><th scope="col" class="n">Team</th><th scope="col" class="n">Unattended difficulty</th></tr>
+                        </thead>
+                        <tbody>
+                            @foreach (ObjectiveView objective in Briefing.Objectives)
+                            {
+                                <tr>
+                                    <td class="lg">
+                                        <label class="obj" for="objective-@objective.Id"><span class="hit"><input type="radio" id="objective-@objective.Id" name="objective" value="@objective.Id" required checked="@(Briefing.Objectives.Count == 1)" data-min="@objective.TeamSizeMin" data-max="@objective.TeamSizeMax" data-skills="@string.Join(' ', objective.PossibleSkills)" data-on:change="@Range"></span>@objective.TemplateId<span class="note">@objective.Id</span><span class="visually-hidden">, team @objective.TeamSizeMin to @objective.TeamSizeMax</span></label>
+                                    </td>
+                                    <td>@Figures.List(objective.PossibleSkills)</td>
+                                    <td class="n">@objective.TeamSizeMin to @objective.TeamSizeMax</td>
+                                    <td class="n">@objective.UnattendedDifficulty</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
             </fieldset>
-            <div class="params">
-                @foreach (string name in new[] { "priority", "risk", "autonomy" })
-                {
-                    <fieldset>
-                        <legend>@(char.ToUpperInvariant(name[0]) + name[1..])</legend>
-                        @foreach (int value in new[] { -1, 0, 1 })
+            <p class="note unatt">An objective not chosen resolves unattended.</p>
+        </section>
+
+        <section class="well" aria-labelledby="h-crew">
+            <div class="well__head"><h2 id="h-crew">Away team</h2><p class="note">Skills for the chosen objective. A figure in brackets is the level while injured.</p></div>
+            <div class="tw">
+                <table class="pick">
+                    <thead>
+                        <tr>
+                            <th scope="col">Crew</th>
+                            <th scope="col">Status</th>
+                            @foreach (string skill in Skills)
+                            {
+                                <th scope="col" class="n" data-show="@Shows(skill)">@skill</th>
+                            }
+                            <th scope="col" class="c">Team</th>
+                            <th scope="col" class="c">Lead</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (CrewRow row in Briefing.Crew)
                         {
-                            <input type="radio" id="@name-@value" name="@name" value="@value" checked="@(value == 0)">
-                            <label for="@name-@value">@value</label>
+                            <tr class="@(row.Fit ? null : "is-off")">
+                                <td class="who">@row.Id</td>
+                                <td class="status"><CrewStatusText Row="row" /></td>
+                                @foreach (string skill in Skills)
+                                {
+                                    <td class="n" data-show="@Shows(skill)"><SkillLevel Row="row" Skill="@skill" /></td>
+                                }
+                                <td class="c"><label class="hit"><input type="checkbox" id="crew-@row.Id" name="crew" value="@row.Id" aria-label="@Named("Team", row)" disabled="@(!row.Fit)" data-on:change="@Count"></label></td>
+                                <td class="c"><label class="hit"><input type="radio" id="lead-@row.Id" name="lead" value="@row.Id" aria-label="@Named("Lead", row)" disabled="@(!row.Fit)"></label></td>
+                            </tr>
                         }
-                    </fieldset>
-                }
+                    </tbody>
+                </table>
             </div>
+        </section>
+
+        <div class="brief-pair">
+            <fieldset class="well">
+                <legend class="visually-hidden">Gear, loadout limit @Briefing.LoadoutLimit</legend>
+                <div class="well__head"><h2 aria-hidden="true">Gear</h2><p class="note">Loadout limit @Briefing.LoadoutLimit: <span class="m" data-text="@GearText">0 of @Briefing.LoadoutLimit</span></p></div>
+                <ul class="gear well__body">
+                    @foreach (GearChoice gear in Briefing.Gear)
+                    {
+                        <li><label for="gear-@gear.Id"><span class="hit"><input type="checkbox" id="gear-@gear.Id" name="gear" value="@gear.Id" data-on:change="@GearCount" data-attr:disabled="@GearFull"></span><span class="gear__id">@gear.Id</span><span class="gear__kind">@gear.Tag</span></label></li>
+                    }
+                </ul>
+            </fieldset>
+
+            <section class="well" aria-labelledby="h-params">
+                <div class="well__head"><h2 id="h-params">Operational parameters</h2></div>
+                <div class="params well__body">
+                    @foreach ((string name, string legend, string[] words) in Parameters)
+                    {
+                        <fieldset class="seg">
+                            <legend>@legend</legend>
+                            <div class="seg__row">
+                                @for (int i = 0; i < 3; i++)
+                                {
+                                    int value = i - 1;
+                                    <input type="radio" id="@name-@value" name="@name" value="@value" checked="@(value == 0)">
+                                    <label for="@name-@value">@words[i]</label>
+                                }
+                            </div>
+                        </fieldset>
+                    }
+                </div>
+            </section>
         </div>
-        <div class="dock">
-            <p class="picked">Team <span data-text="@Text">0</span></p>
-            <button class="btn btn--primary" type="submit" data-attr:aria-busy="$_launching">Launch</button>
+
+        <div class="actions well">
+            <p class="count"><span>Team</span><span><output class="m" data-text="$_picked">0</output><span data-text="@Range2"></span></span></p>
             <button class="btn" type="button" data-indicator:_sending data-attr:aria-busy="$_sending" data-on:click="@SendNobody">Send nobody</button>
+            <button class="btn btn--primary" type="submit" data-attr:aria-busy="$_launching">Launch</button>
             <Refusal Reason="@Reason" />
         </div>
     </form>
@@ -73,14 +114,48 @@
 
     [Parameter, EditorRequired] public BriefingView Briefing { get; set; } = null!;
 
+    // The assignment id from the site, as the view's head.
+    [Parameter] public string? Heading { get; set; }
+
     [Parameter] public string? Reason { get; set; }
 
     // Display only: the chosen objective's own range, held in local signals; 0 means none chosen.
     private (int Min, int Max) Initial => Briefing.Objectives.Count == 1 ? (Briefing.Objectives[0].TeamSizeMin, Briefing.Objectives[0].TeamSizeMax) : (0, 0);
 
-    private const string Range = "$_min = +el.dataset.min; $_max = +el.dataset.max";
+    // Display only: the chosen objective's possible skills pick the skill columns; empty shows every site skill.
+    private string InitialSkills => $"'{(Briefing.Objectives.Count == 1 ? string.Join(' ', Briefing.Objectives[0].PossibleSkills) : string.Empty)}'";
 
-    private const string Text = "$_max > 0 ? $_picked + ' of ' + $_min + ' to ' + $_max : $_picked";
+    private List<string> Skills => Briefing.Objectives.SelectMany(o => o.PossibleSkills).Distinct().ToList();
+
+    private static string Shows(string skill)
+    {
+        return $"$_skills == '' || $_skills.split(' ').includes('{skill}')";
+    }
+
+    private static string Named(string control, CrewRow row)
+    {
+        return row.Fit ? $"{control} {row.Id}" : $"{control} {row.Id}, unavailable while {row.Status.ToLowerInvariant()}";
+    }
+
+    // The values stay -1, 0, and 1; the words follow the rules: risk is tolerance, autonomy is how readily the lead calls,
+    // and a higher priority leans the lead toward the bold answer.
+    private static readonly (string Name, string Legend, string[] Words)[] Parameters =
+    [
+        ("priority", "Priority", ["Thorough", "Balanced", "Fast"]),
+        ("risk", "Risk tolerance", ["Low", "Medium", "High"]),
+        ("autonomy", "Autonomy", ["Ask often", "Balanced", "Act alone"]),
+    ];
+
+    private const string Range = "$_min = +el.dataset.min; $_max = +el.dataset.max; $_skills = el.dataset.skills";
+
+    private const string Range2 = "$_max > 0 ? ' of ' + $_min + ' to ' + $_max : ''";
+
+    private string GearText => $"$_gear + ' of {Briefing.LoadoutLimit}'";
+
+    private const string GearCount = "$_gear = el.form.querySelectorAll('input[name=gear]:checked').length";
+
+    // Display only: at the loadout limit the unchecked boxes disable; the server still judges the loadout.
+    private string GearFull => $"!el.checked && $_gear >= {Briefing.LoadoutLimit}";
 
     private string Launch => $"@post('/legacy/{LegacyId}/launch', {{contentType: 'form'}})";
 

@@ -130,9 +130,9 @@ public sealed class ResolutionTests : IDisposable
         (_, _, string stream) = await LaunchedWithCall();
 
         List<string> patches = Patches(stream);
-        Assert.Contains("<p id=\"meter\"></p>", patches[1]);
+        Assert.Contains("<div id=\"meter\"></div>", patches[1]);
         int lastLog = patches.FindLastIndex(p => p.StartsWith("<ol id=\"log\"", StringComparison.Ordinal));
-        int meter = patches.FindIndex(p => p.StartsWith("<p id=\"meter\">", StringComparison.Ordinal));
+        int meter = patches.FindIndex(p => p.StartsWith("<div id=\"meter\">", StringComparison.Ordinal));
         int call = patches.FindIndex(p => p.StartsWith("<div id=\"call\"", StringComparison.Ordinal));
         Assert.True(meter > lastLog && call > lastLog, "The meter and call come after the last beat.");
         Assert.Contains("Momentum", patches[meter]);
@@ -190,7 +190,7 @@ public sealed class ResolutionTests : IDisposable
         Assert.Equal(indexes.Count - before, logs.Count);
         List<string> patches = Patches(stream);
         Assert.StartsWith("<main id=\"main\"", patches[1]);
-        Assert.Equal(before, Items(patches[1]));
+        Assert.Equal(before, Items(Regex.Match(patches[1], "<ol id=\"log\".*?</ol>", RegexOptions.Singleline).Value));
     }
 
     [Fact]
@@ -294,8 +294,8 @@ public sealed class ResolutionTests : IDisposable
 
         Assert.Contains("<main id=\"main\"", page);
         Assert.Contains("Outcome", page);
-        Assert.Matches("(FullSuccess|PartialSuccess|Withdrawal|Loss|Incomplete)", page);
-        Assert.Matches("<ul id=\"changes\">\\s*<li>[^<]*loyalty now", page);
+        Assert.Matches("<h1>(Full success|Partial success|Withdrawal|Loss|Incomplete)</h1>", page);
+        Assert.Matches("(?s)<ol id=\"changes\"[^>]*>.*?<li[^>]*>.*?loyalty now", page);
         Assert.Contains("Next cycle", page);
         Assert.Contains("@post('/legacy/" + id + "/advance')", page);
     }
@@ -311,8 +311,9 @@ public sealed class ResolutionTests : IDisposable
 
         string page = await Page(id);
 
-        Assert.Contains("Week 2, Cycle 2", page);
-        Assert.Contains("aria-current=\"step\">Orders", page);
+        Assert.Contains("<dt>Week</dt><dd>2</dd>", page);
+        Assert.Contains("<dt>Cycle</dt><dd>2</dd>", page);
+        Assert.Matches("aria-current=\"step\"[^>]*><span class=\"phase__no\">1</span><span class=\"phase__name\">Orders</span>", page);
         Assert.Contains("To briefing", Entity(page));
     }
 

@@ -1,0 +1,15 @@
+@if (Row.Skills.FirstOrDefault(s => s.SkillId == Skill) is { } cell)
+{
+    @(cell.Level)
+    @if (cell.EffectiveLevel != cell.Level)
+    {
+        <text> </text><span class="eff">(@(cell.EffectiveLevel))</span>
+    }
+}
+
+@code {
+    // The level, and in brackets the level while injured when it differs.
+    [Parameter, EditorRequired] public CrewRow Row { get; set; } = null!;
+
+    [Parameter, EditorRequired] public string Skill { get; set; } = "";
+}

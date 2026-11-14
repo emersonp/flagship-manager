@@ -42,7 +42,7 @@ app.Use(async (context, next) =>
         context.Response.Clear();
         context.Response.StatusCode = StatusCodes.Status500InternalServerError;
         context.Response.ContentType = "text/html; charset=utf-8";
-        await context.Response.WriteAsync("<!DOCTYPE html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>Error</title><link rel=\"stylesheet\" href=\"/css/app.css\"></head><body><div class=\"shell container\"><main id=\"main\"><div class=\"legacies-page\"><h1>Something went wrong</h1><p>The request failed, and the legacy was not changed. Go back and try again.</p><p><a href=\"/\">Back to the legacies</a></p></div></main></div></body></html>");
+        await context.Response.WriteAsync("<!DOCTYPE html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>Error</title><link rel=\"icon\" href=\"/favicon.svg\" type=\"image/svg+xml\"><link rel=\"stylesheet\" href=\"/css/app.css\"></head><body><div class=\"page\"><main id=\"main\"><div class=\"page-col\"><div class=\"view-head\"><h1>Something went wrong</h1><p>The request failed, and the legacy was not changed. Go back and try again.</p></div><div class=\"actions well\"><a class=\"btn btn--primary\" href=\"/\">Back to the legacies</a></div></div></main></div></body></html>");
     }
 });
 app.UseStaticFiles();

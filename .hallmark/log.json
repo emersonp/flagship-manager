@@ -2,6 +2,31 @@
  {
   "scope": "app",
   "shape": "app screen",
+  "theme": "custom",
+  "axes": "dark/roman-serif/cool",
+  "hero": "none (app screen)",
+  "nav": "top bar in cells, five phases marked Done, Current, and Next",
+  "footer": "none",
+  "imagery": "none",
+  "photos": [],
+  "entry": "the current phase view beside the roster well",
+  "fingerprint": "bar-cells/main+roster-wells/log-trail-into-call/action-bar",
+  "sections": [
+   "top bar",
+   "view head",
+   "wells",
+   "action bar",
+   "roster"
+  ],
+  "signature": "the mission log as a numbered trail on one spine",
+  "waived": [],
+  "prompt": "re-theme to the design of record: blue-slate, Source Serif 4 heads, Host Grotesk body, Atkinson Hyperlegible Mono figures",
+  "date": "2026-11-14",
+  "mode": "build"
+ },
+ {
+  "scope": "app",
+  "shape": "app screen",
   "theme": "midnight",
   "axes": "dark/grotesk-sans/cool",
   "hero": "none (app screen)",

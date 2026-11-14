@@ -1,52 +1,48 @@
 <main id="main">
-    <h2>Aftermath</h2>
-    <dl class="facts readout">
-        <div><dt>Outcome</dt><dd>@(Aftermath?.Outcome ?? "None, no team was sent")</dd></div>
-    </dl>
-    <section aria-labelledby="changes-head">
-        <h3 id="changes-head">Crew changes</h3>
-        <ul id="changes">
-            @foreach (CrewChange change in Aftermath?.Changes ?? [])
+    <div class="view-head verdict">
+        <h1>@(Aftermath?.Outcome is { } outcome ? Figures.Words(outcome) : "No team was sent")</h1>
+        <p>@(ObjectiveName is null ? "Outcome: none, so every objective resolved unattended." : $"Outcome of {ObjectiveName}")</p>
+    </div>
+    @if (Mission is not null)
+    {
+        <AwayStyle Team="Mission.Team" LeadId="@Mission.LeadId" />
+    }
+    <div class="after-pair">
+        <section class="well" aria-labelledby="changes-head">
+            <div class="well__head"><h2 id="changes-head">Crew changes</h2></div>
+            <ol id="changes" class="changes">
+                @for (int i = 0; i < Changes.Count; i++)
+                {
+                    (string kind, bool harm) = Kind(Changes[i].Text);
+                    <li class="@(harm ? "is-harm" : null)"><span class="changes__no">@((i + 1).ToString("00", System.Globalization.CultureInfo.InvariantCulture))</span><span class="changes__kind">@kind</span><span>@Figures.Mono(Changes[i].Text)</span></li>
+                }
+            </ol>
+            @if (Changes.Count == 0)
             {
-                <li>@change.Text</li>
+                <div class="well__body"><p class="empty-state">No crew changes this cycle.</p></div>
             }
-        </ul>
-        @if ((Aftermath?.Changes ?? []).Count == 0)
-        {
-            <p class="empty-state">No crew changes this cycle.</p>
-        }
-    </section>
-    <section aria-labelledby="unattended-head">
-        <h3 id="unattended-head">Unattended objectives</h3>
-        @if ((Aftermath?.Unattended ?? []).Count == 0)
-        {
-            <p class="empty-state" id="unattended">No objective was left unattended.</p>
-        }
-        else
-        {
-            <table class="stack" id="unattended">
-                <thead>
-                    <tr><th>Objective</th><th>Template</th><th class="num">Roll</th><th class="num">Target</th><th>Result</th></tr>
-                </thead>
-                <tbody>
+        </section>
+        <section class="well" aria-labelledby="unattended-head">
+            <div class="well__head"><h2 id="unattended-head">Unattended</h2></div>
+            <div class="well__body" id="unattended">
+                @if ((Aftermath?.Unattended ?? []).Count == 0)
+                {
+                    <p class="empty-state">No objective was left unattended.</p>
+                }
+                else
+                {
                     @foreach (UnattendedView roll in Aftermath!.Unattended)
                     {
-                        <tr>
-                            <td class="id">@roll.ObjectiveId</td>
-                            <td data-label="Template">@roll.TemplateId</td>
-                            <td class="num" data-label="Roll">@roll.Roll</td>
-                            <td class="num" data-label="Target">@roll.Target</td>
-                            <td data-label="Result">@(roll.Succeeded ? "Succeeded" : "Failed")</td>
-                        </tr>
+                        <p>@roll.TemplateId (@roll.ObjectiveId), rolled <span class="m">@roll.Roll</span> against <span class="m">@roll.Target</span>, <span class="@(roll.Succeeded ? "res" : "res res--fail")">@(roll.Succeeded ? "succeeded" : "failed")</span>.</p>
                     }
-                </tbody>
-            </table>
-        }
-    </section>
-    <p class="actions">
+                }
+            </div>
+        </section>
+    </div>
+    <div class="actions well">
         <button class="btn btn--primary" type="button" data-indicator:_advancing data-attr:aria-busy="$_advancing" data-on:click="@Advance">Next cycle</button>
-    </p>
-    <Refusal Reason="@Reason" />
+        <Refusal Reason="@Reason" />
+    </div>
 </main>
 
 @code {
@@ -54,7 +50,45 @@
 
     [Parameter] public AftermathView? Aftermath { get; set; }
 
+    // The mission just ended, for the away-team marks and the objective's name.
+    [Parameter] public MissionView? Mission { get; set; }
+
+    [Parameter] public string? ObjectiveName { get; set; }
+
     [Parameter] public string? Reason { get; set; }
 
+    private IReadOnlyList<CrewChange> Changes => Aftermath?.Changes ?? [];
+
     private string Advance => $"@post('/legacy/{LegacyId}/advance')";
+
+    // The kind label read from the change's own sentence, as the reader writes it.
+    private static (string Kind, bool Harm) Kind(string text)
+    {
+        if (text.Contains(" died ", StringComparison.Ordinal))
+        {
+            return ("death", true);
+        }
+
+        if (text.Contains(" injured", StringComparison.Ordinal))
+        {
+            return ("injury", true);
+        }
+
+        if (text.Contains(" loyalty ", StringComparison.Ordinal))
+        {
+            return ("loyalty", false);
+        }
+
+        if (text.Contains(" raises ", StringComparison.Ordinal))
+        {
+            return ("skill", false);
+        }
+
+        if (text.Contains(" recovered", StringComparison.Ordinal))
+        {
+            return ("recovery", false);
+        }
+
+        return ("change", false);
+    }
 }

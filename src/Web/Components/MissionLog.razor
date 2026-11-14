@@ -1,10 +1,43 @@
 <ol id="log">
-    @foreach (LogLine line in Lines)
+    @for (int i = 0; i < Lines.Count; i++)
     {
-        <li id="beat-@line.Index" data-kind="@line.Kind"><span class="beat-n">@line.Index</span> <span class="beat-kind">@line.Kind</span> <span class="beat-text">@line.Text</span></li>
+        LogLine line = Lines[i];
+        bool newest = i == Lines.Count - 1;
+        <li id="beat-@line.Index" data-kind="@line.Kind" class="@Css(line, newest)" aria-current="@(newest ? "true" : null)"><span class="beat__no">@((line.Index + 1).ToString("00", System.Globalization.CultureInfo.InvariantCulture))</span> <span class="beat__kind">@line.Kind</span> <p class="beat__text">@if (line.Kind == "stage" && line.Text.IndexOf(": ", StringComparison.Ordinal) is int split and > 0)
+            {
+                <span class="stage-title">@line.Text[..(split + 1)]</span> <span class="stage-read">@line.Text[(split + 2)..]</span>@if (newest)
+                {
+                    <span class="tag">Newest</span>
+                }
+            }
+            else if (newest)
+            {
+                <span>@Body(line)</span><span class="tag">Newest</span>
+            }
+            else
+            {
+                @Body(line)
+            }</p></li>
     }
 </ol>
 
 @code {
     [Parameter, EditorRequired] public IReadOnlyList<LogLine> Lines { get; set; } = null!;
+
+    // Each paced patch replaces the list whole, so its last line is the newest beat.
+    private static string Css(LogLine line, bool newest)
+    {
+        return newest ? $"beat beat--{line.Kind} beat--newest" : $"beat beat--{line.Kind}";
+    }
+
+    // The line's own text; only its figures and result words gain a span.
+    private static MarkupString Body(LogLine line)
+    {
+        return line.Kind switch
+        {
+            "check" => Figures.Check(line.Text),
+            "injury" => Figures.Injury(line.Text),
+            _ => Figures.Mono(line.Text),
+        };
+    }
 }

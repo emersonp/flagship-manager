@@ -1,24 +1,41 @@
 <aside id="roster">
-    <h2>Roster</h2>
-    <table class="roster">
-        <thead>
-            <tr><th>Crew</th><th class="num">Seniority</th><th>Status</th><th>Skills</th><th class="num">Loyalty</th></tr>
-        </thead>
-        <tbody>
-            @foreach (CrewRow row in Rows)
-            {
-                <tr class="@(row.Status == nameof(Sim.Crew.CrewStatus.Dead) ? "gone" : null)">
-                    <td class="id">@row.Id</td>
-                    <td class="num" data-label="Seniority">@row.Seniority</td>
-                    <td data-label="Status"><CrewStatusText Row="row" /></td>
-                    <td class="skills" data-label="Skills">@string.Join(", ", row.Skills.Select(s => $"{s.SkillId} {s.EffectiveLevel}"))</td>
-                    <td class="num" data-label="Loyalty">@row.Loyalty</td>
+    <div class="well__head"><h2>Roster</h2><p class="note"><span class="m">@Rows.Count</span> crew</p></div>
+    <p class="note roster__key">A figure in brackets is the level while injured.</p>
+    <div class="tw" tabindex="0" role="region" aria-label="Roster table, scrolls sideways">
+        <table>
+            <thead>
+                <tr>
+                    <th scope="col">Crew</th>
+                    <th scope="col">Status</th>
+                    @foreach (string skill in Skills)
+                    {
+                        <th scope="col" class="n">@skill</th>
+                    }
+                    <th scope="col" class="n">Loyalty</th>
+                    <th scope="col" class="n">Away</th>
                 </tr>
-            }
-        </tbody>
-    </table>
+            </thead>
+            <tbody>
+                @foreach (CrewRow row in Rows)
+                {
+                    <tr data-crew="@row.Id" class="@(row.Status == nameof(Sim.Crew.CrewStatus.Dead) ? "is-dead" : null)">
+                        <td class="who">@row.Id<span class="away-tag tag" aria-hidden="true"></span></td>
+                        <td class="status"><CrewStatusText Row="row" /></td>
+                        @foreach (string skill in Skills)
+                        {
+                            <td class="n"><SkillLevel Row="row" Skill="@skill" /></td>
+                        }
+                        <td class="n">@row.Loyalty</td>
+                        <td class="n">@row.AwayMissions</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
 </aside>
 
 @code {
     [Parameter, EditorRequired] public IReadOnlyList<CrewRow> Rows { get; set; } = null!;
+
+    private List<string> Skills => Rows.SelectMany(r => r.Skills).Select(s => s.SkillId).Distinct().ToList();
 }

@@ -1,42 +1,53 @@
 <Layout Title="Legacies">
-    <div class="shell container">
+    <div class="page">
         <main id="main">
-            <div class="legacies-page">
-                <h1>Legacies</h1>
-                @if (Legacies.Count == 0)
-                {
-                    <p class="empty">No legacies yet. Start one below.</p>
-                }
-                else
-                {
-                    <table class="legacies">
-                        <thead>
-                            <tr><th>Name</th><th class="num">Week</th><th class="num">Cycle</th><th class="num">Created</th></tr>
-                        </thead>
-                        <tbody>
-                            @foreach (LegacyListing legacy in Legacies)
-                            {
-                                <tr>
-                                    <td class="id"><a href="/legacy/@legacy.LegacyId">@legacy.Name</a></td>
-                                    <td class="num">@legacy.Week</td>
-                                    <td class="num">@legacy.Cycle</td>
-                                    <td class="num"><time datetime="@legacy.CreatedAt.ToString("O")">@legacy.CreatedAt.UtcDateTime.ToString("yyyy-MM-dd")</time></td>
-                                </tr>
-                            }
-                        </tbody>
-                    </table>
-                }
-                <form method="post" action="/legacies" class="start">
-                    <label for="name">Name</label>
-                    <div class="start-row">
-                        <input id="name" name="name" type="text" value="@Name" autocomplete="off" required aria-invalid="@(Error is null ? null : "true")" aria-describedby="@(Error is null ? null : "name-error")">
-                        <button class="btn btn--primary" type="submit">Start a legacy</button>
-                    </div>
-                    @if (Error is not null)
+            <div class="page-col">
+                <div class="view-head">
+                    <h1>Legacies</h1>
+                    <p class="note">Each legacy is one ship's career. Open one to take the bridge.</p>
+                </div>
+                <section class="well" aria-labelledby="h-list">
+                    <div class="well__head"><h2 id="h-list">Your legacies</h2><p class="note"><span class="m">@Legacies.Count</span> saved</p></div>
+                    @if (Legacies.Count == 0)
                     {
-                        <p class="error" id="name-error">@Error</p>
+                        <div class="well__body"><p class="empty">No legacies yet. Start one below.</p></div>
                     }
-                </form>
+                    else
+                    {
+                        <div class="tw">
+                            <table class="legacies">
+                                <thead>
+                                    <tr><th scope="col">Name</th><th scope="col" class="n">Week</th><th scope="col" class="n">Cycle</th><th scope="col" class="n">Created</th></tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (LegacyListing legacy in Legacies)
+                                    {
+                                        <tr>
+                                            <td class="who"><a href="/legacy/@legacy.LegacyId">@legacy.Name</a></td>
+                                            <td class="n">@legacy.Week</td>
+                                            <td class="n">@legacy.Cycle</td>
+                                            <td class="n"><time datetime="@legacy.CreatedAt.ToString("O")">@legacy.CreatedAt.UtcDateTime.ToString("yyyy-MM-dd")</time></td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                </section>
+                <section class="well" aria-labelledby="h-start">
+                    <div class="well__head"><h2 id="h-start">Start a legacy</h2></div>
+                    <form method="post" action="/legacies" class="start well__body">
+                        <label for="name">Name</label>
+                        <div class="start-row">
+                            <input id="name" name="name" type="text" value="@Name" autocomplete="off" required aria-invalid="@(Error is null ? null : "true")" aria-describedby="@(Error is null ? null : "name-error")">
+                            <button class="btn btn--primary" type="submit">Start a legacy</button>
+                        </div>
+                        @if (Error is not null)
+                        {
+                            <p class="error" id="name-error">@Error</p>
+                        }
+                    </form>
+                </section>
             </div>
         </main>
     </div>

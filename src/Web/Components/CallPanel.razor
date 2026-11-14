@@ -1,28 +1,38 @@
 <div id="call">
     @if (Call is not null)
     {
-        <section class="call" aria-labelledby="call-head">
-            <div class="call-head">
-                <h3 id="call-head">@Call.DecisionId</h3>
-                <p class="state" data-state="caution" role="status">Call waiting</p>
+        <section class="well call" aria-labelledby="call-head">
+            <div class="call__grid">
+                <span class="call__node" aria-hidden="true"></span>
+                <div class="call__body">
+                    <p class="call__status" role="status">Call waiting for your answer</p>
+                    <div class="call__main">
+                        <div>
+                            <h2 id="call-head">The lead is calling</h2>
+                            <dl class="facts">
+                                <div><dt>Decision</dt><dd>@Call.DecisionId</dd></div>
+                                <div><dt>Stakes</dt><dd><span class="m">@Call.Stakes</span></dd></div>
+                            </dl>
+                        </div>
+                        <p class="prefers">The lead prefers: @Call.LeadPrefers</p>
+                    </div>
+                    <div class="answers" role="group" aria-labelledby="call-head">
+                        @for (int i = 0; i < Call.Options.Count; i++)
+                        {
+                            string option = Call.Options[i];
+                            bool preferred = option == Call.LeadPrefers;
+                            <form data-on:submit="@Answer" class="answer" @attributes="Indicator(i)">
+                                <input type="hidden" name="mission" value="@MissionId">
+                                <input type="hidden" name="call" value="@Call.CallId">
+                                <input type="hidden" name="answer" value="@option">
+                                <button class="btn" type="submit" data-attr:aria-busy="$_answer@(i)" aria-describedby="@(preferred ? "pref-note" : null)">@option</button>
+                                <span class="answer__note" id="@(preferred ? "pref-note" : null)">@(preferred ? "Lead’s preference" : "")</span>
+                            </form>
+                        }
+                    </div>
+                    <CallRefusal Reason="@Reason" />
+                </div>
             </div>
-            <div class="call-facts">
-                <p>Stakes @Call.Stakes</p>
-                <p>The lead prefers @Call.LeadPrefers</p>
-            </div>
-            <div class="call-options">
-                @for (int i = 0; i < Call.Options.Count; i++)
-                {
-                    string option = Call.Options[i];
-                    <form data-on:submit="@Answer" @attributes="Indicator(i)">
-                        <input type="hidden" name="mission" value="@MissionId">
-                        <input type="hidden" name="call" value="@Call.CallId">
-                        <input type="hidden" name="answer" value="@option">
-                        <button class="btn" type="submit" data-attr:aria-busy="$_answer@(i)">@option</button>
-                    </form>
-                }
-            </div>
-            <CallRefusal Reason="@Reason" />
         </section>
     }
 </div>

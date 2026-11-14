@@ -1,0 +1,22 @@
+<div class="readout">
+    <dt id="@Id">@Label</dt>
+    <dd>
+        <span class="readout__fig"><span class="m">@Value</span><span class="of">of @Max</span></span>
+        <span class="meter" role="meter" aria-labelledby="@Id" aria-valuemin="0" aria-valuemax="@Max" aria-valuenow="@Value">
+            @for (int i = 0; i < Max; i++)
+            {
+                <i class="@(i < Value ? "on" : null)"></i>
+            }
+        </span>
+    </dd>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public string Id { get; set; } = "";
+
+    [Parameter, EditorRequired] public string Label { get; set; } = "";
+
+    [Parameter] public int Value { get; set; }
+
+    [Parameter] public int Max { get; set; }
+}

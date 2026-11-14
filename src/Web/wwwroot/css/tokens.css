@@ -1,31 +1,33 @@
+/* Bridge tokens: copied from docs/design/bridge-design.md (the design of record). Every colour and face goes through these. */
 :root {
   color-scheme: dark;
-  --space-3xs: 2px; --space-2xs: 4px; --space-xs: 8px; --space-sm: 12px; --space-md: 16px; --space-lg: 24px; --space-xl: 40px; --space-2xl: 64px; --space-3xl: 96px; --space-4xl: 144px;
-  --text-xs: 0.75rem; --text-sm: 0.875rem; --text-md: 1rem; --text-lg: 1.2rem; --text-xl: 1.44rem; --text-2xl: 1.728rem; --text-3xl: 2.074rem;
-  --text-display-s: 1.44rem; --text-display: 1.728rem; --text-section: 1.2rem; --text-title: 1rem; --text-lead: 1rem;
-  --ease-out: cubic-bezier(0.16, 1, 0.3, 1); --ease-in: cubic-bezier(0.7, 0, 0.84, 0); --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
-  --dur-micro: 120ms; --dur-short: 220ms; --dur-long: 420ms;
-  --color-error: oklch(72% 0.15 27); --color-success: oklch(76% 0.13 150);
-  --container: 1440px; --gutter: 64px; --gap-columns: 32px; --section-gap-s: 120px; --section-gap: 144px; --section-gap-l: 176px;
-  --z-base: 1; --z-raised: 10; --z-dropdown: 100; --z-sticky: 200; --z-sticky-nav: 300; --z-modal: 400; --z-toast: 500; --z-tooltip: 600;
-  --color-paper: oklch(14% 0.048 264); --color-paper-2: oklch(18.5% 0.052 264); --color-paper-3: oklch(23% 0.055 264);
-  --color-ink: oklch(95% 0.016 250); --color-ink-2: oklch(88% 0.05 245); --color-muted: oklch(73% 0.04 256);
-  --color-rule: oklch(29% 0.058 264); --color-rule-2: oklch(40% 0.06 262);
-  --color-accent: oklch(80% 0.11 230); --color-accent-2: oklch(58% 0.1 236); --color-accent-ink: oklch(16% 0.05 264); --color-focus: oklch(84% 0.12 228);
-  --font-display: "Mona Sans", ui-sans-serif, system-ui, sans-serif; --font-body: var(--font-display); --font-outlier: var(--font-display);
-  --radius-card: 0; --radius-pill: 0; --rule-hair: 1px;
-  --shadow-card: 0 24px 48px -24px oklch(6% 0.04 264 / 0.7);
-  --tracking-display: -0.015em; --display-weight: 300; --display-stretch: 125%;
+  --space-3xs: 2px; --space-2xs: 4px; --space-xs: 8px; --space-sm: 12px; --space-md: 16px; --space-lg: 24px; --space-xl: 40px; --space-2xl: 64px;
+  --text-xs: 0.75rem; --text-sm: 0.875rem; --text-md: 1rem; --text-lg: 1.2rem; --text-xl: 1.44rem; --text-2xl: 1.728rem; --text-3xl: 2.074rem; --text-4xl: 2.488rem;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --dur-micro: 120ms; --dur-short: 220ms;
+  --container: 1440px;
+  --color-paper: oklch(15.5% 0.024 260);
+  --color-paper-2: oklch(19.5% 0.026 260);
+  --color-paper-3: oklch(24% 0.028 260);
+  --color-ink: oklch(95% 0.01 250);
+  --color-ink-2: oklch(85% 0.02 252);
+  --color-muted: oklch(73% 0.025 256);
+  --color-rule: oklch(30% 0.03 260);
+  --color-rule-2: oklch(41% 0.035 258);
+  --color-accent: oklch(78% 0.12 235);
+  --color-accent-ink: oklch(17% 0.03 260);
+  --color-accent-soft: oklch(30% 0.05 240);
+  --color-focus: oklch(82% 0.12 235);
+  --color-harm: oklch(72% 0.12 25);
+  --color-caution: oklch(86% 0.075 88);
+  --font-display: "Source Serif 4", ui-serif, Georgia, serif;
+  --font-body: "Host Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --font-outlier: "Atkinson Hyperlegible Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --radius-well: 8px; --radius-inner: 6px; --radius-control: 5px; --radius-chip: 4px; --rule-hair: 1px;
+  --tracking-display: -0.012em;
+  --z-sticky: 200;
 }
-/* Starship bridge: tokens beyond the theme's. State colours sit in the ground's blue at low chroma and always travel with a text label. */
-:root {
-  --color-harm: oklch(74% 0.075 22); --color-caution: oklch(82% 0.075 85);
-  --color-error: oklch(74% 0.075 22);
-  --control-h: 40px; --target: 44px;
-  --roster-w: 30rem; --log-kind-w: 6rem;
-}
-@font-face {
-  font-family: "Mona Sans";
-  src: url("/fonts/MonaSans-wdth-opsz-wght.woff2") format("woff2-variations"), url("/fonts/MonaSans-wdth-opsz-wght.woff2") format("woff2");
-  font-weight: 200 900; font-stretch: 75% 125%; font-style: normal; font-display: swap;
-}
+/* Self-hosted, latin subset of each family from Google Fonts; licences beside the files. */
+@font-face { font-family: "Source Serif 4"; src: url("/fonts/SourceSerif4-latin.woff2") format("woff2"); font-weight: 400; font-style: normal; font-display: swap; }
+@font-face { font-family: "Host Grotesk"; src: url("/fonts/HostGrotesk-latin.woff2") format("woff2"); font-weight: 300 800; font-style: normal; font-display: swap; }
+@font-face { font-family: "Atkinson Hyperlegible Mono"; src: url("/fonts/AtkinsonHyperlegibleMono-latin.woff2") format("woff2"); font-weight: 200 800; font-style: normal; font-display: swap; }
