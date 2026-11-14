@@ -1,0 +1,16 @@
+<main id="main">
+    <h2>@Phase</h2>
+    <p>The @Phase.ToString().ToLowerInvariant() phase has no screen yet.</p>
+    <button type="button" data-on:click="@Advance">Advance</button>
+    <Refusal Reason="@Reason" />
+</main>
+
+@code {
+    [Parameter, EditorRequired] public Guid LegacyId { get; set; }
+
+    [Parameter, EditorRequired] public CyclePhase Phase { get; set; }
+
+    [Parameter] public string? Reason { get; set; }
+
+    private string Advance => $"@post('/legacy/{LegacyId}/advance')";
+}

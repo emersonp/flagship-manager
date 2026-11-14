@@ -1,0 +1,82 @@
+<main id="main">
+    <h2>Briefing</h2>
+    <form id="briefing" data-signals:_picked="0" data-on:submit="@Launch">
+        <fieldset>
+            <legend>Objective</legend>
+            @foreach (ObjectiveView objective in Briefing.Objectives)
+            {
+                <p>
+                    <input type="radio" id="objective-@objective.Id" name="objective" value="@objective.Id" checked="@(Briefing.Objectives.Count == 1)">
+                    <label for="objective-@objective.Id">@objective.Id (@objective.TemplateId), team @objective.TeamSizeMin to @objective.TeamSizeMax</label>
+                </p>
+            }
+        </fieldset>
+        <table class="crew">
+            <thead>
+                <tr><th>Crew</th><th>Status</th><th>Skills</th><th>Team</th><th>Lead</th></tr>
+            </thead>
+            <tbody>
+                @foreach (CrewRow row in Briefing.Crew)
+                {
+                    <tr>
+                        <td>@row.Id</td>
+                        <td>@row.Status</td>
+                        <td>@string.Join(", ", row.Skills.Select(s => $"{s.SkillId} {s.EffectiveLevel}"))</td>
+                        <td>
+                            <input type="checkbox" id="crew-@row.Id" name="crew" value="@row.Id" disabled="@(!row.Fit)" data-on:change="@Count">
+                            <label for="crew-@row.Id">Team</label>
+                        </td>
+                        <td>
+                            <input type="radio" id="lead-@row.Id" name="lead" value="@row.Id" disabled="@(!row.Fit)">
+                            <label for="lead-@row.Id">Lead</label>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+        <fieldset>
+            <legend>Gear (at most @Briefing.LoadoutLimit)</legend>
+            @foreach (GearChoice gear in Briefing.Gear)
+            {
+                <p>
+                    <input type="checkbox" id="gear-@gear.Id" name="gear" value="@gear.Id">
+                    <label for="gear-@gear.Id">@gear.Id (@gear.Tag)</label>
+                </p>
+            }
+        </fieldset>
+        @foreach (string name in new[] { "priority", "risk", "autonomy" })
+        {
+            <fieldset>
+                <legend>@(char.ToUpperInvariant(name[0]) + name[1..])</legend>
+                @foreach (int value in new[] { -1, 0, 1 })
+                {
+                    <input type="radio" id="@name-@value" name="@name" value="@value" checked="@(value == 0)">
+                    <label for="@name-@value">@value</label>
+                }
+            </fieldset>
+        }
+        <p class="picked"><span data-text="$_picked">0</span> of @Min to @Max</p>
+        <button type="submit">Launch</button>
+        <button type="button" data-on:click="@SendNobody">Send nobody</button>
+        <Refusal Reason="@Reason" />
+    </form>
+</main>
+
+@code {
+    [Parameter, EditorRequired] public Guid LegacyId { get; set; }
+
+    [Parameter, EditorRequired] public BriefingView Briefing { get; set; } = null!;
+
+    [Parameter] public string? Reason { get; set; }
+
+    // Display only: the server decides what a valid team is.
+    private int Min => Briefing.Objectives.Count == 0 ? 0 : Briefing.Objectives.Min(o => o.TeamSizeMin);
+
+    private int Max => Briefing.Objectives.Count == 0 ? 0 : Briefing.Objectives.Max(o => o.TeamSizeMax);
+
+    private string Launch => $"@post('/legacy/{LegacyId}/launch', {{contentType: 'form'}})";
+
+    private string SendNobody => $"@post('/legacy/{LegacyId}/advance')";
+
+    private const string Count = "$_picked = el.form.querySelectorAll('input[name=crew]:checked').length";
+}

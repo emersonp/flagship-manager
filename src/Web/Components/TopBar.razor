@@ -1,0 +1,12 @@
+<header id="topbar">
+    <h1>@Bar.LegacyName</h1>
+    <p>Week @Bar.Week, Cycle @Bar.Cycle, @Bar.Phase</p>
+    @if (Bar.PackWarning is not null)
+    {
+        <p class="warning">@Bar.PackWarning</p>
+    }
+</header>
+
+@code {
+    [Parameter, EditorRequired] public TopBarView Bar { get; set; } = null!;
+}

@@ -4,6 +4,7 @@ using Sim.Content;
 using Sim.Core.Content;
 using Web;
 using Web.Components;
+using Web.Endpoints;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 builder.Services.Configure<WebSettings>(builder.Configuration.GetSection("Web"));
@@ -68,18 +69,7 @@ app.MapPost("/legacies", async Task<IResult> (HttpRequest request, GameServices 
     }
 });
 
-app.MapGet("/legacy/{id}", async (string id, LegacySession sessions, Render render, CancellationToken cancellation) =>
-{
-    LoadedLegacy? legacy = Guid.TryParse(id, out Guid legacyId) ? await sessions.Read(legacyId, cancellation) : null;
-    if (legacy is null)
-    {
-        string notFound = await render.Html<NotFoundPage>(new Dictionary<string, object?>());
-        return Results.Content(notFound, "text/html; charset=utf-8", statusCode: StatusCodes.Status404NotFound);
-    }
-
-    string html = await render.Html<BridgePage>(new Dictionary<string, object?> { ["Record"] = legacy.Record });
-    return Results.Content(html, "text/html; charset=utf-8");
-});
+BridgeEndpoints.Map(app);
 
 app.Run();
 

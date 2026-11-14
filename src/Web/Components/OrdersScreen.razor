@@ -1,0 +1,39 @@
+<main id="main">
+    <h2>Orders</h2>
+    @if (Site is null)
+    {
+        <p class="empty">No site has arrived.</p>
+    }
+    else
+    {
+        <table class="site">
+            <thead>
+                <tr><th>Objective</th><th>Template</th><th>Skills</th><th>Team</th><th>Unattended difficulty</th></tr>
+            </thead>
+            <tbody>
+                @foreach (ObjectiveView objective in Site.Objectives)
+                {
+                    <tr>
+                        <td>@objective.Id</td>
+                        <td>@objective.TemplateId</td>
+                        <td>@string.Join(", ", objective.PossibleSkills)</td>
+                        <td>@objective.TeamSizeMin to @objective.TeamSizeMax</td>
+                        <td>@objective.UnattendedDifficulty</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+    <button type="button" data-on:click="@Advance">To briefing</button>
+    <Refusal Reason="@Reason" />
+</main>
+
+@code {
+    [Parameter, EditorRequired] public Guid LegacyId { get; set; }
+
+    [Parameter] public SiteView? Site { get; set; }
+
+    [Parameter] public string? Reason { get; set; }
+
+    private string Advance => $"@post('/legacy/{LegacyId}/advance')";
+}

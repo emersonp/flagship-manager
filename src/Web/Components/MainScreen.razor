@@ -1,0 +1,22 @@
+@if (View.Briefing is not null && Phase == CyclePhase.Briefing)
+{
+    <BriefingScreen LegacyId="LegacyId" Briefing="View.Briefing" Reason="@Reason" />
+}
+else if (Phase == CyclePhase.Orders)
+{
+    <OrdersScreen LegacyId="LegacyId" Site="View.Site" Reason="@Reason" />
+}
+else
+{
+    <PhaseScreen LegacyId="LegacyId" Phase="Phase" Reason="@Reason" />
+}
+
+@code {
+    [Parameter, EditorRequired] public Guid LegacyId { get; set; }
+
+    [Parameter, EditorRequired] public BridgeView View { get; set; } = null!;
+
+    [Parameter] public string? Reason { get; set; }
+
+    private CyclePhase Phase => View.TopBar.Phase;
+}

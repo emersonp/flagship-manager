@@ -1,0 +1,24 @@
+<aside id="roster">
+    <h2>Roster</h2>
+    <table class="roster">
+        <thead>
+            <tr><th>Crew</th><th>Seniority</th><th>Status</th><th>Skills</th><th>Loyalty</th></tr>
+        </thead>
+        <tbody>
+            @foreach (CrewRow row in Rows)
+            {
+                <tr>
+                    <td>@row.Id</td>
+                    <td>@row.Seniority</td>
+                    <td>@row.Status</td>
+                    <td>@string.Join(", ", row.Skills.Select(s => $"{s.SkillId} {s.EffectiveLevel}"))</td>
+                    <td>@row.Loyalty</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</aside>
+
+@code {
+    [Parameter, EditorRequired] public IReadOnlyList<CrewRow> Rows { get; set; } = null!;
+}

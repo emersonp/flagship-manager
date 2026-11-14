@@ -1,14 +1,11 @@
-<Layout Title="@Record.Name">
-    <header id="topbar">
-        <h1>@Record.Name</h1>
-        <p>Week @Record.State.Week, Cycle @Record.State.Cycle, @Record.State.Phase</p>
-    </header>
-    <main id="main">
-    </main>
-    <aside id="roster">
-    </aside>
+<Layout Title="@View.TopBar.LegacyName">
+    <TopBar Bar="View.TopBar" />
+    <MainScreen LegacyId="LegacyId" View="View" />
+    <Roster Rows="View.Roster" />
 </Layout>
 
 @code {
-    [Parameter, EditorRequired] public LegacyRecord Record { get; set; } = null!;
+    [Parameter, EditorRequired] public Guid LegacyId { get; set; }
+
+    [Parameter, EditorRequired] public BridgeView View { get; set; } = null!;
 }
