@@ -26,7 +26,7 @@ public static class BeatLines
             ResultBeat b => ("result", Inv($"Result: {Words(b.Outcome)}.")),
             _ => throw new ArgumentOutOfRangeException(nameof(beat), beat.GetType().Name, "No line for this beat type."),
         };
-        return new LogLine(index, kind, text);
+        return beat is StageBeat s ? new LogLine(index, kind, text, s.EncounterId, s.CommsBlocked, s.Momentum, s.Strain) : new LogLine(index, kind, text);
     }
 
     // PascalCase enum name as lower-case words.

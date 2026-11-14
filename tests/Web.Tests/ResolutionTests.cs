@@ -203,6 +203,89 @@ public sealed class ResolutionTests : IDisposable
     }
 
     [Fact]
+    public async Task An_answer_opens_with_the_call_panel_empty_and_no_answer_buttons()
+    {
+        (_, WebCaptain captain, _) = await LaunchedWithCall();
+
+        string stream = (await captain.Step()).Stream;
+
+        string main = Patches(stream)[1];
+        Assert.StartsWith("<main id=\"main\"", main);
+        Assert.Contains("<div id=\"call\"></div>", main);
+        Assert.DoesNotContain("<form", main);
+        Assert.DoesNotContain("name=\"answer\"", main);
+    }
+
+    private static (int Momentum, int Strain) MeterValues(string meter)
+    {
+        int Value(string id) => int.Parse(Regex.Match(meter, $"aria-labelledby=\"{id}\"[^>]*aria-valuenow=\"(\\d+)\"").Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture);
+        return (Value("g-mom"), Value("g-str"));
+    }
+
+    // The figures of the newest stage line in a log patch.
+    private static (int Momentum, int Strain)? LastStageFigures(string log)
+    {
+        Match last = Regex.Matches(log, @"Momentum <span class=""m"">(\d+)</span>, strain <span class=""m"">(\d+)</span>|Momentum (\d+), strain (\d+)").LastOrDefault() ?? Match.Empty;
+        if (!last.Success)
+        {
+            return null;
+        }
+
+        string momentum = last.Groups[1].Success ? last.Groups[1].Value : last.Groups[3].Value;
+        string strain = last.Groups[2].Success ? last.Groups[2].Value : last.Groups[4].Value;
+        return (int.Parse(momentum, System.Globalization.CultureInfo.InvariantCulture), int.Parse(strain, System.Globalization.CultureInfo.InvariantCulture));
+    }
+
+    // During an answer's beats the meter follows the stage lines the log has shown; after the last beat it is the stored state.
+    [Fact]
+    public async Task An_answers_meter_shows_only_figures_a_shown_stage_line_stated_and_ends_on_the_stored_state()
+    {
+        for (ulong seed = 1; seed < 200; seed++)
+        {
+            Guid id = await app.Sessions.CreateLegacy($"LEGACY_{seed}", seed);
+            var captain = new WebCaptain(app, client, id);
+            for (int steps = 0; steps < 300 && (await captain.Read()).State.Cycle == 1; steps++)
+            {
+                bool answering = await captain.Peek() is AnswerCall;
+                string stream = (await captain.Step()).Stream;
+                List<string> patches = Patches(stream);
+                int stageBeats = patches.Count(p => p.StartsWith("<div id=\"route\"", StringComparison.Ordinal));
+                if (!answering || stageBeats == 0)
+                {
+                    continue;
+                }
+
+                List<string> meters = patches.Skip(3).Where(p => p.StartsWith("<div id=\"meter\"", StringComparison.Ordinal)).ToList();
+                Assert.Equal(stageBeats + 1, meters.Count);
+                (int, int)? stated = null;
+                var during = new List<(int, int)>();
+                foreach (string patch in patches.Skip(3))
+                {
+                    if (patch.StartsWith("<ol id=\"log\"", StringComparison.Ordinal))
+                    {
+                        stated = LastStageFigures(patch) ?? stated;
+                    }
+                    else if (patch.StartsWith("<div id=\"meter\"", StringComparison.Ordinal) && during.Count < stageBeats)
+                    {
+                        Assert.NotNull(stated);
+                        Assert.Equal(stated.Value, MeterValues(patch));
+                        during.Add(MeterValues(patch));
+                    }
+                }
+
+                LoadedLegacy legacy = await captain.Read();
+                legacy.State.TryModule(MissionsModule.Name, out MissionsState? missions);
+                MissionState state = missions!.Site!.Mission!.State;
+                Assert.Equal((state.Momentum, state.Strain), MeterValues(meters[^1]));
+                Assert.True(patches.FindLastIndex(p => p.StartsWith("<div id=\"meter\"", StringComparison.Ordinal)) > patches.FindLastIndex(p => p.StartsWith("<ol id=\"log\"", StringComparison.Ordinal)));
+                return;
+            }
+        }
+
+        Assert.Fail("No seed to 200 had an answer whose beats reached a stage.");
+    }
+
+    [Fact]
     public async Task A_call_names_its_lead_and_the_head_shows_the_gear_line()
     {
         (Guid id, _, _) = await LaunchedWithCall();

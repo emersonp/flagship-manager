@@ -21,7 +21,8 @@ public sealed record GearChoice(string Id, string Tag);
 
 public sealed record MissionView(string MissionId, string ObjectiveId, IReadOnlyList<string> Team, string LeadId, int Momentum, int Strain, IReadOnlyList<LogLine> Log, CallView? Call, string? Outcome, IReadOnlyList<string> GearIds, int Cap, string StartLeadId);
 
-public sealed record LogLine(int Index, string Kind, string Text);
+// A stage line also carries its encounter, blocked flag, and figures as data; every other line has them null.
+public sealed record LogLine(int Index, string Kind, string Text, string? EncounterId = null, bool? CommsBlocked = null, int? Momentum = null, int? Strain = null);
 
 // CallId is the resolver's string id; Options and LeadPrefers are CallAnswer names.
 public sealed record CallView(string CallId, string DecisionId, int Stakes, IReadOnlyList<string> Options, string LeadPrefers, string LeadId);

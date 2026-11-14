@@ -104,6 +104,20 @@ public class BeatLinesTests
 
     private const int StageIndex = 0;
 
+    // The route and the meter read a stage line's encounter, blocked flag, and figures as data, never from its text.
+    [Fact]
+    public void A_stage_line_carries_its_encounter_blocked_flag_momentum_and_strain_as_data_and_other_lines_carry_none()
+    {
+        LogLine stage = BeatLines.Line(0, new StageBeat(5, "ENCOUNTER_02", "SLOT_9", true, 3, 4), 1);
+
+        Assert.Equal(("ENCOUNTER_02", true, 3, 4), (stage.EncounterId, stage.CommsBlocked, stage.Momentum, stage.Strain));
+        Assert.All(Samples.Where(s => s is not StageBeat), s =>
+        {
+            LogLine line = BeatLines.Line(0, s);
+            Assert.Equal((null, null, null, null), (line.EncounterId, line.CommsBlocked, line.Momentum, line.Strain));
+        });
+    }
+
     [Fact]
     public void An_unblocked_stage_has_no_blocked_sentence_and_drops_the_slot_name()
     {

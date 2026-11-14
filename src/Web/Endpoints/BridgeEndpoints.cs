@@ -141,7 +141,8 @@ public static class BridgeEndpoints
         // A launch has no earlier mission: show an empty log, no meter, and no call until the beats have played.
         bool launching = turn.Before.Mission is null;
         // The opening screen shows the lead as it stood before this request's beats; a lead change appears with its log line and the closing patches.
-        MissionView? opening = launching ? mission is null ? null : mission with { Log = [], Call = null, Outcome = null, LeadId = mission.StartLeadId } : turn.Before.Mission;
+        // An answer opens with the call gone: it has been answered, and the next call, if any, comes after the last beat.
+        MissionView? opening = launching ? mission is null ? null : mission with { Log = [], Call = null, Outcome = null, LeadId = mission.StartLeadId } : turn.Before.Mission! with { Call = null };
         IReadOnlyList<CrewRow> openingRoster = opening is null ? turn.Before.Roster : BridgeReader.MarkAway(turn.Before.Roster, opening.Team, opening.LeadId);
         BridgeView first = after with { Mission = opening, Roster = openingRoster };
 
@@ -149,14 +150,19 @@ public static class BridgeEndpoints
         string main = await render.Html<MainScreen>(new Dictionary<string, object?> { ["LegacyId"] = legacyId, ["View"] = first, ["HideMeter"] = launching });
         string roster = await render.Html<Roster>(new Dictionary<string, object?> { ["Rows"] = openingRoster });
         // Each beat's patches: the log, then the route when that beat is a stage, so the route never gets ahead of the log.
+        // An answer's meter is on screen, so a stage beat also sets it to the figures that stage line states.
         var beats = new List<string[]>();
         for (int count = known + 1; mission is not null && count <= mission.Log.Count; count++)
         {
             List<LogLine> shown = mission.Log.Take(count).ToList();
             var patches = new List<string> { await render.Html<MissionLog>(new Dictionary<string, object?> { ["Lines"] = shown }) };
-            if (shown[^1].Kind == "stage")
+            if (shown[^1] is { Kind: "stage" } stage)
             {
                 patches.Add(await render.Html<StageRoute>(new Dictionary<string, object?> { ["Lines"] = shown }));
+                if (!launching && stage is { Momentum: int momentum, Strain: int strain })
+                {
+                    patches.Add(await render.Html<Meter>(new Dictionary<string, object?> { ["Mission"] = mission with { Momentum = momentum, Strain = strain } }));
+                }
             }
 
             beats.Add(patches.ToArray());
