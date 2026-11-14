@@ -1,0 +1,16 @@
+@using Web.Forms
+<div id="form-alert" class="alert" role="alert" tabindex="-1" @attributes="View.AlertFocus">
+    @if (View.Notice is not null)
+    {
+        <p class="alert-ok">@View.Notice</p>
+    }
+    @if (View.Reasons.Count > 0)
+    {
+        <p class="error">The change was refused. Nothing was written.</p>
+        <ContentProblems Errors="View.Reasons" />
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public TextFileView View { get; set; } = null!;
+}

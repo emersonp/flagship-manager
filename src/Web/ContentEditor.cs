@@ -79,9 +79,10 @@ public sealed class ContentEditor
             {
                 return Refused(lost.Losses.Select(l => new ContentError(l.File, l.ToString())).ToList());
             }
-            catch (ChangeRefusedException refused)
+            catch (Exception e) when (e is not OperationCanceledException)
             {
-                return Refused([new ContentError("", refused.Message)]);
+                // A change that cannot be made (an id now taken, a file that does not parse) is refused in its words, never a 500.
+                return Refused([new ContentError("", e.Message)]);
             }
 
             List<string> changed = after.Files.Keys.Where(k => !before.Files.TryGetValue(k, out string? old) || old != after.Files[k])

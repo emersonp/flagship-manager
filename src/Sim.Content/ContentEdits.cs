@@ -53,7 +53,7 @@ public static class ContentEdits
             target = ContentFolders.ConventionalFile(kind);
             if (files.Files.ContainsKey(target))
             {
-                throw new InvalidOperationException($"{target} does not parse, so the new {kind} has nowhere to go.");
+                throw new InvalidOperationException($"{target} cannot be read, so nothing can be added to it.");
             }
 
             return Replace(files, target, Rewrite("", [item]));
@@ -168,6 +168,7 @@ public static class ContentEdits
     }
 
     // Writes only the files that differ from before, each through a temporary file and a rename; deletes nothing.
+    // A file that starts with a byte-order mark keeps it: reading the text drops the mark, so it is put back here.
     public static void Write(string root, ContentFileSet before, ContentFileSet after)
     {
         foreach (string path in after.Files.Keys)
@@ -186,9 +187,10 @@ public static class ContentEdits
             string full = Path.Combine(root, path);
             Directory.CreateDirectory(Path.GetDirectoryName(full)!);
             string temp = full + ".tmp";
+            bool marked = HasByteOrderMark(full);
             try
             {
-                File.WriteAllText(temp, text);
+                File.WriteAllText(temp, text, new System.Text.UTF8Encoding(marked));
                 File.Move(temp, full, overwrite: true);
             }
             catch
@@ -201,6 +203,18 @@ public static class ContentEdits
                 throw;
             }
         }
+    }
+
+    private static bool HasByteOrderMark(string path)
+    {
+        if (!File.Exists(path))
+        {
+            return false;
+        }
+
+        using FileStream stream = File.OpenRead(path);
+        Span<byte> head = stackalloc byte[3];
+        return stream.ReadAtLeast(head, 3, throwOnEndOfStream: false) == 3 && head.SequenceEqual(new byte[] { 0xEF, 0xBB, 0xBF });
     }
 
     // A file that used CRLF keeps it, so a save is not a whole-file diff.

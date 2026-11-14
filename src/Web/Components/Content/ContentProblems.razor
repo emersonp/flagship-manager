@@ -2,7 +2,8 @@
 <ul class="problems">
     @foreach (ContentError error in Errors)
     {
-        <li>@if (error.File.Length > 0){<span class="m">@error.File</span>}@error.Message</li>
+        @* The file and the reason in the loader's own "file: reason" form, so they stay apart when copied or read out. *@
+        <li>@if (error.File.Length > 0){<span class="m">@error.File</span>@(": ")}@error.Message</li>
     }
 </ul>
 

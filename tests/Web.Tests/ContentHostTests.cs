@@ -181,6 +181,21 @@ public sealed class ContentHostTests : IClassFixture<RepoContentGuard>, IDisposa
         Assert.Empty(Changed(before, editor.Read()));
     }
 
+    // Any exception from the change is a refusal in its words, never a 500, and nothing is written.
+    [Fact]
+    public async Task A_change_that_throws_is_refused_with_its_reason_and_writes_nothing()
+    {
+        ContentHost host = scratch.NewHost();
+        var editor = new ContentEditor(host, scratch.Folder);
+        ContentFileSet before = editor.Read();
+
+        SaveResult result = await editor.Save(_ => throw new InvalidOperationException("REASON_PLACEHOLDER"));
+
+        Assert.False(result.Saved);
+        Assert.Equal("REASON_PLACEHOLDER", Assert.Single(result.Errors).Message);
+        Assert.Empty(Changed(before, editor.Read()));
+    }
+
     [Fact]
     public async Task An_invalid_save_writes_nothing_returns_the_loaders_errors_and_leaves_the_live_pack()
     {

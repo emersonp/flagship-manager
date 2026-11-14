@@ -1,4 +1,7 @@
+using System.Text;
+using Microsoft.AspNetCore.Http.Features;
 using Sim.Content;
+using Sim.Core.Content;
 using Web.Components.Content;
 using Web.Forms;
 
@@ -33,6 +36,14 @@ public static class ContentFormEndpoints
         return await Answer<TextFileForm, TextFilePage>(render, false, TextParameters(TextFileFlow.Open(file, editor.Read())), StatusCodes.Status200OK);
     }
 
+    // The most text a text file page saves, in bytes of UTF-8.
+    internal const int TextLimit = 2 * 1024 * 1024;
+
+    private const string TooLarge = "That is too large to save here (2 MB).";
+
+    // Each byte of text posts as at most three characters (%XX), so the reader lets through any text within the limit.
+    private static readonly FormOptions TextForm = new() { ValueLengthLimit = TextLimit * 3, BufferBodyLengthLimit = (TextLimit * 3) + 4096, MultipartBodyLengthLimit = (TextLimit * 3) + 4096 };
+
     private static async Task<IResult> SaveFile(string name, HttpContext http, ContentEditor editor, Render render, CancellationToken cancellation)
     {
         bool datastar = Sse.IsDatastar(http.Request);
@@ -42,8 +53,39 @@ public static class ContentFormEndpoints
         }
 
         // A post with no text field is an empty text, which the loader refuses.
-        (TextFileView view, bool saved) = await TextFileFlow.Save(file, editor, (await Read(http.Request, cancellation)).Get("text"), cancellation);
+        string? typed = await ReadText(http, cancellation);
+        if (typed is null || Encoding.UTF8.GetByteCount(typed) > TextLimit)
+        {
+            // The text is never echoed back: the page keeps what was typed, and only the alert is patched.
+            if (!datastar)
+            {
+                return Results.Text(TooLarge, statusCode: StatusCodes.Status413PayloadTooLarge);
+            }
+
+            var refused = new TextFileView(file, "", [new ContentError("", TooLarge)], null, true);
+            return new PatchResult(await render.Html<TextFileAlert>(new Dictionary<string, object?> { ["View"] = refused }));
+        }
+
+        (TextFileView view, bool saved) = await TextFileFlow.Save(file, editor, typed, cancellation);
         return await Answer<TextFileForm, TextFilePage>(render, datastar, TextParameters(view), saved ? StatusCodes.Status200OK : StatusCodes.Status422UnprocessableEntity);
+    }
+
+    // The posted text, empty when there is none; null when the post is over the reader's limits.
+    private static async Task<string?> ReadText(HttpContext http, CancellationToken cancellation)
+    {
+        http.Features.Set<IFormFeature>(new FormFeature(http.Request, TextForm));
+        try
+        {
+            return FormValues.From(await http.Request.ReadFormAsync(cancellation)).Get("text");
+        }
+        catch (InvalidDataException)
+        {
+            return null;
+        }
+        catch (Exception e) when (e is InvalidOperationException or IOException)
+        {
+            return "";
+        }
     }
 
     private static Dictionary<string, object?> TextParameters(TextFileView view)

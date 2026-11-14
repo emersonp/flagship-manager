@@ -40,6 +40,50 @@ public sealed class ContentTextFilesTests(RepoContentGuard guard) : IClassFixtur
         Assert.Contains("id=\"form-alert\"", body);
     }
 
+    private const int Limit = 2 * 1024 * 1024;
+
+    // A pack file of exactly this many bytes of UTF-8: valid, with the rest a comment.
+    private static string PackOfSize(int bytes)
+    {
+        const string head = "id: CORE\nversion: 2\n# ";
+        return head + new string('x', bytes - head.Length - 1) + "\n";
+    }
+
+    // The limit is 2 MB of text: exactly that saves, one byte more is answered plainly with 413 and nothing is written.
+    [Fact]
+    public async Task A_text_at_the_limit_saves_and_one_byte_more_is_too_large()
+    {
+        using TestApp app = NewApp();
+        HttpClient client = app.NewClient();
+        string before = Everything(app);
+
+        (HttpStatusCode over, string refused) = await Post(client, "/dev/content/files/pack", Body(PackOfSize(Limit + 1)));
+        Assert.Equal(HttpStatusCode.RequestEntityTooLarge, over);
+        Assert.Equal("That is too large to save here (2 MB).", refused);
+        Assert.Equal(before, Everything(app));
+
+        (HttpStatusCode at, _) = await Post(client, "/dev/content/files/pack", Body(PackOfSize(Limit)));
+        Assert.Equal(HttpStatusCode.OK, at);
+        Assert.Equal(Limit, new FileInfo(Path.Combine(app.ContentPath, "pack.yaml")).Length);
+    }
+
+    // From the page, only the alert is patched: the text area keeps what was typed, since the text is never echoed.
+    [Fact]
+    public async Task A_text_too_large_from_the_page_patches_only_the_alert()
+    {
+        using TestApp app = NewApp();
+        string before = Everything(app);
+
+        (HttpStatusCode status, string body) = await Post(app.NewClient(), "/dev/content/files/missions", Body(PackOfSize(Limit + 1)), datastar: true);
+
+        Assert.Equal(HttpStatusCode.OK, status);
+        Assert.Contains("data: elements <div id=\"form-alert\"", body);
+        Assert.Contains("That is too large to save here (2 MB).", body);
+        Assert.DoesNotContain("textarea", body);
+        Assert.DoesNotContain("xxxx", body);
+        Assert.Equal(before, Everything(app));
+    }
+
     // A text area drops a literal line break straight after its tag, so a file that starts with one must reach it as a character reference.
     [Fact]
     public async Task A_file_that_starts_with_a_line_break_is_shown_whole()

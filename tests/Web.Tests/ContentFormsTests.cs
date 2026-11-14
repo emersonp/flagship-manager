@@ -925,6 +925,66 @@ public sealed class ContentFormsTests(RepoContentGuard guard) : IClassFixture<Re
         }
     }
 
+    // The kind's only file does not parse, so a new item has nowhere to go: a refusal with the reason, not a 500.
+    [Fact]
+    public async Task A_create_when_the_kinds_only_file_does_not_parse_is_refused_in_words()
+    {
+        using TestApp app = NewApp(root => File.WriteAllText(Path.Combine(root, "gear", "base.yaml"), "- [\n"));
+        string before = Everything(app);
+
+        (HttpStatusCode status, string body) = await Post(app.NewClient(), "/dev/content/gear", "id=GEAR_09&tag=tools");
+
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, status);
+        Assert.Contains("gear/base.yaml cannot be read, so nothing can be added to it.", body);
+        Assert.Equal(before, Everything(app));
+    }
+
+    // The file and the reason stay apart when copied or read out.
+    [Fact]
+    public async Task A_refusal_puts_a_separator_between_the_file_and_the_reason()
+    {
+        using TestApp app = NewApp();
+
+        (_, string body) = await Post(app.NewClient(), "/dev/content/objectives/OBJECTIVE_TEMPLATE_1/delete", "");
+
+        Assert.Matches("<li><span class=\"m\">assignments/base\\.yaml</span>: ASSIGNMENT_TEMPLATE_1", body);
+    }
+
+    // The index says how games in progress learn that the content changed.
+    [Fact]
+    public async Task The_index_says_when_to_raise_the_pack_version()
+    {
+        using TestApp app = NewApp();
+
+        (_, string body) = await Get(app.NewClient(), "/dev/content");
+
+        Assert.Contains("Raise the version in the pack file when games in progress should show that the content has changed.", body);
+    }
+
+    // A file saved with a byte-order mark keeps it, whether the save is of a text file or an item.
+    [Fact]
+    public async Task A_byte_order_mark_is_kept_when_a_file_is_saved()
+    {
+        byte[] mark = [0xEF, 0xBB, 0xBF];
+        using TestApp app = NewApp(root =>
+        {
+            foreach (string file in new[] { "pack.yaml", "skills/base.yaml" })
+            {
+                string path = Path.Combine(root, file);
+                File.WriteAllBytes(path, [.. mark, .. File.ReadAllBytes(path)]);
+            }
+        });
+
+        (HttpStatusCode text, _) = await Post(app.NewClient(), "/dev/content/files/pack", "text=" + Uri.EscapeDataString("id: CORE\nversion: 2\n"));
+        (HttpStatusCode item, _) = await Post(app.NewClient(), "/dev/content/skills/SKILL_A", "name=NAME_PLACEHOLDER");
+
+        Assert.Equal((HttpStatusCode.OK, HttpStatusCode.OK), (text, item));
+        Assert.Equal(mark, File.ReadAllBytes(Path.Combine(app.ContentPath, "pack.yaml"))[..3]);
+        Assert.Equal(mark, File.ReadAllBytes(Path.Combine(app.ContentPath, "skills", "base.yaml"))[..3]);
+        Assert.Contains("version: 2", Disk(app, "pack.yaml"));
+        Assert.Contains("NAME_PLACEHOLDER", Disk(app, "skills/base.yaml"));
+    }
+
     // --- Same-origin posts ---
 
     [Theory]
