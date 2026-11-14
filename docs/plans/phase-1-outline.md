@@ -16,7 +16,7 @@ Order matters: the mission comes first because it is proven fun (the prototype),
 | 1e. Life aboard | `Sim.Storylets` with the expression language and quality view; morale; 5 vignettes and 2 captain storylets; captain's time; the inbox and crew file; `Sim.Chronicle` with the chronicle list | A full cycle of both layers in the browser (the Phase 1 result) | 3.7, 3.8, 5.1, 5.2, 5.4 |
 | 1f. Tuning in play | Developer-mode pages: the mission bench in the browser, and the tuning page that edits the tuning file and re-runs the bench on the same seeds, before and after side by side | The author tunes without leaving the game | 4.7, 10.1 |
 
-Slices 1a and 1b were built on 2026-11-14 from `2026-11-14-phase-1ab-plan.md`. The first part of 1c (a whole cycle, headless) was built on 2026-11-14 from `2026-11-14-phase-1c-headless-plan.md`: `Sim.Crew`, missions on the event bus, module state in the store, and `SimRunner cycles` playing real cycles. Next is the second part of 1c: the browser.
+Slices 1a and 1b were built on 2026-11-14 from `2026-11-14-phase-1ab-plan.md`. The first part of 1c (a whole cycle, headless) was built on 2026-11-14 from `2026-11-14-phase-1c-headless-plan.md`: `Sim.Crew`, missions on the event bus, module state in the store, and `SimRunner cycles` playing real cycles. The second part of 1c (the cycle in the browser) was built on 2026-11-14 from `2026-11-14-phase-1c-web-plan.md`: `src/Web`, legacy selection, orders, briefing, resolution with paced beats and calls, aftermath, and the chosen design in `docs/design/`. Next is the content editor.
 
 ## Carried forward to the second part of slice 1c (the browser)
 
@@ -36,6 +36,17 @@ From the review of the first part. None is a rule change; each is something the 
 - **Import is two transactions.** A failed import can leave a legacy with no events; a retry then fails as already existing.
 - **Small test gaps left from the first part:** no committed test reads every event type back from its stored form (a probe did, and all passed); a stored event missing a member that has a default in its record is not refused.
 - **For the author:** experience in a skill a crew member does not have is dropped (the starter crew all list every skill), and light injuries have no cap across missions (the most seen on one crew member in 10,000 missions was 2).
+
+## Carried forward to going online
+
+Noted while building the browser part; none matters while the game is local and single-player.
+
+- **No protection against cross-site form posts.** Add antiforgery to every post, including Datastar's.
+- **No sign-in and no ownership.** Anyone who can reach the server can open any legacy by its id.
+- **The server binds to localhost** by default; bind deliberately when hosting.
+- **One lock per legacy, held in memory, never released from the table.** Fine for one process; a second server needs the stale-commit check (already in the store) to be the real guard, and the lock table needs trimming.
+- **The beat pause holds a request open.** Many players mean many open streams; measure before hosting.
+- **Content Security Policy.** Datastar's default needs `unsafe-eval`; its nonce mode avoids that.
 
 ## Decisions each slice plan must make first
 

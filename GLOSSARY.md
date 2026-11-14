@@ -175,6 +175,14 @@ The graded weight of a decision or storylet. Compared against a threshold to dec
 **Beat**:
 One recorded moment of a mission or storylet, the raw material for narrative text.
 
+**Mission log**:
+The beats of one mission in order, as the captain sees them arrive.
+_Avoid_: Feed, timeline, history
+
+**Bridge**:
+The screen the captain plays a cycle from: the phase's main view with the roster beside it.
+_Avoid_: Dashboard, HUD, main screen
+
 **Report**:
 The narrative account of a finished mission, generated from its beats.
 

@@ -494,6 +494,18 @@ Why not full event sourcing: rebuilding state from the log requires every old ev
 
 Server-rendered HTML with Datastar. The server holds all state; the browser holds none. Resolution streams beats over server-sent events, and a call arrives as a fragment containing a form. Three screens carry the game: the inbox, the crew file, and the assignment screen. The duty roster, chronicle, and ship screen follow.
 
+Built in slice 1c (`src/Web`, run with `./run.sh`):
+
+- **The page is the state.** Every screen is drawn from the stored legacy, so a reload at any moment, even with a call waiting, shows where things stand. Nothing the game needs lives only in the browser.
+- **One request, one command, one commit.** Each request locks the legacy, loads it, sends its commands, commits, and renders. A refusal is shown beside the control that caused it and stores nothing.
+- **Datastar 1.0.5, self-hosted,** with the stream events written by hand; pages and stream fragments are the same server-rendered components. The game needs no network.
+- **Briefing is one form,** sent whole at launch. Sending nobody just moves the phase on.
+- **Beats are paced by the server.** A launch or an answer resolves the mission to its next call or its end and commits; the response then sends the log one beat longer each time, with a pause that is a setting. The roster, the meters, the call, and the outcome hold back until the log reaches them, so nothing gives the ending away. A dropped connection loses nothing.
+- **The screens so far:** the list of legacies, orders, briefing, resolution, and aftermath, with the top bar (week, cycle, and the five phases) and the roster beside each. The inbox and the crew file come with slices 1d and 1e.
+- **Beat lines are plain and structural** until the narrative report (slice 1d) replaces them: `CREW_02 checks SKILL_B at ENCOUNTER_01, helped by CREW_05: 6 + 3 against 15, failure (−6).`
+- **A legacy played through the browser has exactly the simulator's event log** for the same seed and choices; a test holds the two together.
+- **The look** is recorded in `docs/design/` (the mock-up, the tokens, and the component recipes): a blue-slate ground, one azure signal, a serif for headings over a technical grotesk, monospaced figures, and the mission log as one numbered trail that runs into the call. Screens are in `docs/screens/1c/`.
+
 ## 8. Engine recommendation
 
 Stay with C# and Datastar.
@@ -622,6 +634,7 @@ The throwaway mission prototype (risk 1) was built and played on 2026-11-13. The
 - **Portraits**: each part is a transparent PNG drawn on a shared canvas with fixed anchor points, in greyscale where it will be tinted. Layer order is fixed: back hair, body and uniform, head, species features, face, front hair, and rank marks. Tints are applied per layer in code. A portrait is fully described by its spec, so it is reproducible and cacheable.
 - **Consistency rules**: one brush, one line weight, a fixed palette for skin, hair, and uniform tints, and one light direction. A contact sheet of random portraits is generated on every part added, to catch parts that clash.
 - **Coverage**: a small set multiplies fast. Six faces, eight hairstyles, four species feature sets, and three uniforms give 576 silhouettes before tinting.
+- **Interface**: dark only. The palette, type, and component recipes are in `docs/design/bridge-design.md`; new screens follow them.
 - **Icons and ship screen**: flat, single-weight, and monochrome with one accent colour. The ship screen is a static cutaway with department status overlaid as data.
 - **Ageing**: optional overlay layers (lines, greying tint) keyed to age, so veterans visibly age.
 
