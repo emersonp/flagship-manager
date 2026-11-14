@@ -32,6 +32,12 @@ public class ArchitectureTests
     }
 
     [Fact]
+    public void GameHost_references_only_Sim_projects()
+    {
+        Assert.All(References("GameHost"), reference => Assert.StartsWith("Sim.", reference, StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void The_bench_references_only_the_pure_core()
     {
         Assert.All(References("MissionBench"), reference => Assert.StartsWith("Sim.", reference, StringComparison.Ordinal));

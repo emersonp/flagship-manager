@@ -17,6 +17,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\SimRunner\SimRunner.csproj" />
+    <ProjectReference Include="..\..\src\Persistence\Persistence.csproj" />
+    <ProjectReference Include="..\..\src\GameHost\GameHost.csproj" />
   </ItemGroup>
 
 </Project>

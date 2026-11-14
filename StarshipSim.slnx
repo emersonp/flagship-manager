@@ -1,5 +1,6 @@
 <Solution>
   <Folder Name="/src/">
+    <Project Path="src/GameHost/GameHost.csproj" />
     <Project Path="src/MissionBench/MissionBench.csproj" />
     <Project Path="src/Persistence/Persistence.csproj" />
     <Project Path="src/Sim.Content/Sim.Content.csproj" />

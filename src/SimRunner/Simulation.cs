@@ -1,40 +1,61 @@
 using System.Security.Cryptography;
 using System.Text;
+using GameHost;
 using Sim.Core;
-using Sim.Cycle;
+using Sim.Core.Content;
+using Sim.Crew;
 
 namespace SimRunner;
 
 public sealed record SimOptions(int Legacies, int Cycles, ulong Seed);
 
-public sealed record LegacySummary(ulong Seed, int Cycles, int Events, string LogHash);
+public sealed record LegacySummary(
+    ulong Seed,
+    int Cycles,
+    int Events,
+    string LogHash,
+    IReadOnlyDictionary<MissionOutcome, int> Missions,
+    int Deaths,
+    int Alive,
+    int HighestLevel);
 
 public sealed record SimSummary(IReadOnlyList<LegacySummary> Legacies);
 
 public static class Simulation
 {
-    public static SimSummary Run(SimOptions options)
+    public static SimSummary Run(SimOptions options, ContentPack pack)
     {
-        var bus = new EventBus();
-        CycleModule.Register(bus);
-        EventTypeRegistry registry = EventTypeRegistry.FromAssemblies(typeof(LegacyState).Assembly);
-
+        Game game = Game.Build(pack);
         var legacies = new List<LegacySummary>();
         for (int i = 0; i < options.Legacies; i++)
         {
             ulong seed = options.Seed + (ulong)i;
             var state = new LegacyState { LegacyId = new Guid((int)(seed >> 32), 0, 0, BitConverter.GetBytes(seed)), Seed = seed };
-            var log = new List<EventEnvelope>();
-            log.AddRange(bus.Send(state, new FoundLegacy()).Select(registry.ToEnvelope));
+            var events = new List<PublishedEvent>();
             while (state.Cycle <= options.Cycles)
             {
-                log.AddRange(bus.Send(state, new AdvancePhase()).Select(registry.ToEnvelope));
+                events.AddRange(AutoCaptain.PlayCycle(game, state, pack));
             }
 
-            legacies.Add(new LegacySummary(seed, options.Cycles, log.Count, Hash(log)));
+            legacies.Add(Summarise(game, state, seed, options.Cycles, events));
         }
 
         return new SimSummary(legacies);
+    }
+
+    private static LegacySummary Summarise(Game game, LegacyState state, ulong seed, int cycles, List<PublishedEvent> events)
+    {
+        Dictionary<MissionOutcome, int> missions = Enum.GetValues<MissionOutcome>().ToDictionary(o => o, _ => 0);
+        foreach (MissionEnded ended in events.Select(e => e.Event).OfType<MissionEnded>())
+        {
+            missions[ended.Result.Outcome]++;
+        }
+
+        CrewState crew = state.Module<CrewState>("crew");
+        int deaths = events.Count(e => e.Event is CrewDied);
+        int alive = game.Bus.View<IRosterView>(state).Roster.Count;
+        int highest = crew.Members.SelectMany(m => m.Skills.Values).Max(s => s.Level);
+        return new LegacySummary(seed, cycles, events.Count, Hash(events.Select(game.Events.ToEnvelope)), missions, deaths, alive, highest);
     }
 
     // The golden-seed fingerprint: any change to what happens, or in what order, changes it.

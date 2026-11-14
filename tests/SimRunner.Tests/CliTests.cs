@@ -45,7 +45,7 @@ public class CliTests
             (int exit, string output, _) = Run("cycles", "--legacies", "2", "--cycles", "3", "--content", Content, "--out", file);
 
             Assert.Equal(0, exit);
-            Assert.Equal("Content CORE v1: 2 legacies x 3 cycles, 46 events. OK.", output.Trim());
+            Assert.Equal("Content CORE v1: 2 legacies x 3 cycles, 180 events. Missions: 4 full, 2 partial, 0 incomplete, 0 withdrawn, 0 lost. Deaths: 0. OK.", output.Trim());
             Assert.Contains("LogHash", File.ReadAllText(file), StringComparison.Ordinal);
         }
         finally

@@ -51,13 +51,21 @@ public static class Cli
             return 1;
         }
 
-        SimSummary summary = Simulation.Run(options);
+        SimSummary summary = Simulation.Run(options, pack);
         if (line.Has("--out"))
         {
             File.WriteAllText(line.Text("--out", ""), JsonSerializer.Serialize(summary, Json));
         }
 
-        output.WriteLine($"Content {pack.Id} v{pack.Version}: {summary.Legacies.Count} legacies x {options.Cycles} cycles, {summary.Legacies.Sum(l => l.Events)} events. OK.");
+        int Total(MissionOutcome outcome)
+        {
+            return summary.Legacies.Sum(l => l.Missions[outcome]);
+        }
+
+        output.WriteLine(
+            $"Content {pack.Id} v{pack.Version}: {summary.Legacies.Count} legacies x {options.Cycles} cycles, {summary.Legacies.Sum(l => l.Events)} events. "
+            + $"Missions: {Total(MissionOutcome.FullSuccess)} full, {Total(MissionOutcome.PartialSuccess)} partial, {Total(MissionOutcome.Incomplete)} incomplete, {Total(MissionOutcome.Withdrawal)} withdrawn, {Total(MissionOutcome.Loss)} lost. "
+            + $"Deaths: {summary.Legacies.Sum(l => l.Deaths)}. OK.");
         return 0;
     }
 

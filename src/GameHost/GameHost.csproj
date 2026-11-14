@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\Sim.Core\Sim.Core.csproj" />
+    <ProjectReference Include="..\Sim.Cycle\Sim.Cycle.csproj" />
+    <ProjectReference Include="..\Sim.Crew\Sim.Crew.csproj" />
+    <ProjectReference Include="..\Sim.Missions\Sim.Missions.csproj" />
+  </ItemGroup>
+
+</Project>
