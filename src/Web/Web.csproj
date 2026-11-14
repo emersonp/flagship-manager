@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <ItemGroup>
+    <ProjectReference Include="..\Sim.Core\Sim.Core.csproj" />
+    <ProjectReference Include="..\Sim.Content\Sim.Content.csproj" />
+    <ProjectReference Include="..\Sim.Crew\Sim.Crew.csproj" />
+    <ProjectReference Include="..\Sim.Cycle\Sim.Cycle.csproj" />
+    <ProjectReference Include="..\Sim.Missions\Sim.Missions.csproj" />
+    <ProjectReference Include="..\GameHost\GameHost.csproj" />
+    <ProjectReference Include="..\Persistence\Persistence.csproj" />
+  </ItemGroup>
+
+</Project>

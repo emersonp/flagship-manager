@@ -1,0 +1,14 @@
+<Layout Title="@Record.Name">
+    <header id="topbar">
+        <h1>@Record.Name</h1>
+        <p>Week @Record.State.Week, Cycle @Record.State.Cycle, @Record.State.Phase</p>
+    </header>
+    <main id="main">
+    </main>
+    <aside id="roster">
+    </aside>
+</Layout>
+
+@code {
+    [Parameter, EditorRequired] public LegacyRecord Record { get; set; } = null!;
+}

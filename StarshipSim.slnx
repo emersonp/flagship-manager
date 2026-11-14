@@ -9,11 +9,13 @@
     <Project Path="src/Sim.Cycle/Sim.Cycle.csproj" />
     <Project Path="src/Sim.Missions/Sim.Missions.csproj" />
     <Project Path="src/SimRunner/SimRunner.csproj" />
+    <Project Path="src/Web/Web.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/MissionBench.Tests/MissionBench.Tests.csproj" />
     <Project Path="tests/Persistence.Tests/Persistence.Tests.csproj" />
     <Project Path="tests/Sim.Tests/Sim.Tests.csproj" />
     <Project Path="tests/SimRunner.Tests/SimRunner.Tests.csproj" />
+    <Project Path="tests/Web.Tests/Web.Tests.csproj" />
   </Folder>
 </Solution>

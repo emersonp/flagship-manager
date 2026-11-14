@@ -1,0 +1,45 @@
+<Layout Title="Legacies">
+    <main id="main">
+        <h1>Legacies</h1>
+        @if (Legacies.Count == 0)
+        {
+            <p class="empty">No legacies yet. Start one below.</p>
+        }
+        else
+        {
+            <table class="legacies">
+                <thead>
+                    <tr><th>Name</th><th>Week</th><th>Cycle</th><th>Created</th></tr>
+                </thead>
+                <tbody>
+                    @foreach (LegacyListing legacy in Legacies)
+                    {
+                        <tr>
+                            <td><a href="/legacy/@legacy.LegacyId">@legacy.Name</a></td>
+                            <td>@legacy.Week</td>
+                            <td>@legacy.Cycle</td>
+                            <td><time datetime="@legacy.CreatedAt.ToString("O")">@legacy.CreatedAt.UtcDateTime.ToString("yyyy-MM-dd")</time></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+        <form method="post" action="/legacies">
+            <label for="name">Name</label>
+            <input id="name" name="name" type="text" value="@Name" autocomplete="off" required>
+            @if (Error is not null)
+            {
+                <p class="error" id="name-error">@Error</p>
+            }
+            <button type="submit">Start a legacy</button>
+        </form>
+    </main>
+</Layout>
+
+@code {
+    [Parameter] public IReadOnlyList<LegacyListing> Legacies { get; set; } = [];
+
+    [Parameter] public string? Name { get; set; }
+
+    [Parameter] public string? Error { get; set; }
+}
