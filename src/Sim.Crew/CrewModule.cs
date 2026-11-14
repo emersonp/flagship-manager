@@ -71,7 +71,7 @@ public static class CrewModule
 
     private static void GainExperience(CrewTuning tuning, CrewMember member, CrewResult result, IBusContext context)
     {
-        foreach ((string skillId, double amount) in result.Experience)
+        foreach ((string skillId, double amount) in result.Experience.OrderBy(e => e.Key, StringComparer.Ordinal))
         {
             if (!member.Skills.TryGetValue(skillId, out SkillState? skill))
             {

@@ -54,7 +54,7 @@ public class RngStreamTests
         RngStream dice = RngStream.For(1, 1, "golden");
         RngStream picks = RngStream.For(1, 1, "golden");
 
-        Assert.Equal(new[] { 2, 6, 1, 1, 1, 4, 6, 6 }, Enumerable.Range(0, 8).Select(_ => dice.D6()));
+        Assert.Equal(new[] { 1, 5, 0, 0, 0, 3, 5, 5 }, Enumerable.Range(0, 8).Select(_ => dice.Next(6)));
         Assert.Equal(new[] { 29, 91, 6, 16, 3 }, Enumerable.Range(0, 5).Select(_ => picks.Next(100)));
     }
 
@@ -64,8 +64,7 @@ public class RngStreamTests
         RngStream stream = RngStream.For(1, 1, "dice");
         for (int i = 0; i < 1000; i++)
         {
-            Assert.InRange(stream.D6(), 1, 6);
-            Assert.InRange(stream.TwoD6(), 2, 12);
+            Assert.InRange(stream.Next(6), 0, 5);
             Assert.InRange(stream.Next(10), 0, 9);
         }
     }

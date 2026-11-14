@@ -49,16 +49,6 @@ public sealed class RngStream
         return (int)(NextDouble() * maxExclusive);
     }
 
-    public int D6()
-    {
-        return 1 + Next(6);
-    }
-
-    public int TwoD6()
-    {
-        return D6() + D6();
-    }
-
     private static ulong Mix(ulong z)
     {
         z = (z ^ (z >> 30)) * 0xBF58476D1CE4E5B9UL;

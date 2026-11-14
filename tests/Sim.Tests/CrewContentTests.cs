@@ -116,7 +116,7 @@ public class CrewContentTests
             {
                 "assignments/base.yaml|ASSIGNMENT_TEMPLATE_1: offer count 0 must be 1 or more.",
                 "assignments/base.yaml|ASSIGNMENT_TEMPLATE_2: offer weight for 1 must be 1 or more, not 0.",
-                "assignments/base.yaml|ASSIGNMENT_TEMPLATE_3: offers up to 2 objectives, but only 1 objective templates match tags [science].",
+                "assignments/base.yaml|ASSIGNMENT_TEMPLATE_3: offers up to 2 objectives, but the objective templates matching tags [science] number only 1.",
                 "assignments/base.yaml|ASSIGNMENT_TEMPLATE_4: loadoutLimit must be 0 or more.",
                 "assignments/base.yaml|ASSIGNMENT_TEMPLATE_5: offer must list at least one count.",
             },

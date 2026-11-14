@@ -25,6 +25,17 @@ public class EventLogTests
         Assert.Throws<InvalidOperationException>(() => registry.FromEnvelope(envelope));
     }
 
+    [Theory]
+    [InlineData("{}")]
+    [InlineData("""{"Cycle":3,"Phase":"Resolution","Extra":1}""")]
+    public void A_stored_payload_with_a_missing_or_unknown_member_is_refused(string payload)
+    {
+        string type = payload == "{}" ? "MissionEnded" : "PhaseEntered";
+        var envelope = new EventEnvelope(1, 1, type, 1, payload);
+
+        Assert.ThrowsAny<System.Text.Json.JsonException>(() => registry.FromEnvelope(envelope));
+    }
+
     // Every event must carry a stable name and version, because class names will change over the years.
     [Fact]
     public void An_event_without_the_attribute_is_rejected()

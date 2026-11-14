@@ -157,7 +157,7 @@ public static partial class ContentLoader
             int matches = objectives.Count(o => tags.All((o.Tags ?? []).Contains));
             if (offer.Count > 0 && offer.Keys.Max() > matches)
             {
-                Error($"offers up to {offer.Keys.Max()} objectives, but only {matches} objective templates match tags [{string.Join(", ", tags)}].");
+                Error($"offers up to {offer.Keys.Max()} objectives, but the objective templates matching tags [{string.Join(", ", tags)}] number only {matches}.");
             }
 
             if (dto.LoadoutLimit < 0)

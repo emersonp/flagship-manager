@@ -137,6 +137,20 @@ public class CrewModuleTests
         Assert.Equal(3, h.Member("CREW_01").Skills["SKILL_A"].Xp);
     }
 
+    // The order must not depend on how the result's dictionary happens to enumerate.
+    [Fact]
+    public void Skills_are_raised_in_ordinal_order_of_skill_id()
+    {
+        var h = new Harness();
+        var experience = new Dictionary<string, double> { ["SKILL_C"] = 1000, ["SKILL_A"] = 1000, ["SKILL_B"] = 1000 };
+
+        IReadOnlyList<IEvent> events = h.End(new CrewResult("CREW_01", MemberStatus.Active, 0, experience, 0));
+
+        string[] raised = events.OfType<SkillRaised>().Select(e => e.SkillId).ToArray();
+        Assert.Equal(["SKILL_A", "SKILL_B", "SKILL_C"], raised.Distinct());
+        Assert.Equal(raised.Order(StringComparer.Ordinal), raised);
+    }
+
     [Fact]
     public void No_level_is_gained_past_the_maximum()
     {

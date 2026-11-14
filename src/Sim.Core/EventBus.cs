@@ -115,9 +115,9 @@ public sealed class EventBus
     {
         private readonly Dictionary<string, RngStream> streams = new();
 
-        public LegacyState State { get; } = state;
-
         private bool guarding;
+
+        public LegacyState State { get; } = state;
 
         public Queue<PublishedEvent> Pending { get; } = new();
 
