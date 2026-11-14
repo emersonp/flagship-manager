@@ -29,14 +29,14 @@ public static class BridgeReader
             showSite ? new SiteView(site!.AssignmentId, objectives) : null,
             showBriefing ? Briefing(pack, site!, objectives, roster) : null,
             showMission ? Mission(site!.Mission!, cycleEvents) : null,
-            showAftermath ? Aftermath(site!, cycleEvents) : null);
+            showAftermath ? Aftermath(site!, state, cycleEvents) : null);
     }
 
     private static TopBarView TopBar(LegacyRecord record, ContentPack pack)
     {
         string? warning = record.ContentPackId == pack.Id && record.ContentPackVersion == pack.Version
             ? null
-            : $"Legacy uses pack {record.ContentPackId} version {record.ContentPackVersion}, and pack {pack.Id} version {pack.Version} is loaded.";
+            : Inv($"Legacy uses pack {record.ContentPackId} version {record.ContentPackVersion}, and pack {pack.Id} version {pack.Version} is loaded.");
         return new TopBarView(record.Name, record.State.Week, record.State.Cycle, record.State.Phase, warning);
     }
 
@@ -72,9 +72,10 @@ public static class BridgeReader
 
     private static ObjectiveView Objective(ContentPack pack, SiteState site, SiteObjective objective)
     {
-        ObjectiveDef template = pack.Objectives.Single(o => o.Id == objective.TemplateId);
-        // Every skill an encounter the template can draw is checked with, either approach.
-        List<string> skills = pack.Encounters
+        // A stored legacy may name a template the loaded pack lacks: the pack warning explains it, so a miss reads as empty.
+        ObjectiveDef? template = pack.Objectives.FirstOrDefault(o => o.Id == objective.TemplateId);
+        // Every skill any encounter the template can draw is checked with, either approach.
+        List<string> skills = template is null ? [] : pack.Encounters
             .Where(e => template.Stages.Any(s => s.DrawTags.All(e.Tags.Contains)))
             .SelectMany(e => new[] { e.Careful.Skill, e.Fast.Skill })
             .Distinct()
@@ -84,47 +85,26 @@ public static class BridgeReader
             objective.Id,
             objective.TemplateId,
             skills,
-            template.TeamSizeMin,
-            template.TeamSizeMax,
-            template.UnattendedDifficulty,
+            template?.TeamSizeMin ?? 0,
+            template?.TeamSizeMax ?? 0,
+            template?.UnattendedDifficulty,
             site.Briefing?.ObjectiveId == objective.Id);
     }
 
     private static BriefingView Briefing(ContentPack pack, SiteState site, IReadOnlyList<ObjectiveView> objectives, IReadOnlyList<CrewRow> roster)
     {
-        AssignmentDef assignment = pack.Assignments.Single(a => a.Id == site.AssignmentId);
+        AssignmentDef? assignment = pack.Assignments.FirstOrDefault(a => a.Id == site.AssignmentId);
         return new BriefingView(
             objectives,
             roster.Where(c => c.Status != nameof(CrewStatus.Dead)).ToList(),
             pack.Gear.Select(g => new GearChoice(g.Id, g.Tag)).ToList(),
-            assignment.LoadoutLimit);
+            assignment?.LoadoutLimit ?? 0);
     }
 
     private static MissionView Mission(MissionInFlight mission, IReadOnlyList<IEvent> cycleEvents)
     {
         MissionState state = mission.State;
         List<MissionBeat> beats = cycleEvents.OfType<MissionBeat>().Where(b => b.MissionId == mission.Id).OrderBy(b => b.Index).ToList();
-        int momentum = state.Momentum;
-        int strain = state.Strain;
-        foreach (Beat beat in beats.Select(b => b.Beat))
-        {
-            // The latest beat that reports the pair wins; the state's own values stand when none does.
-            switch (beat)
-            {
-                case StageBeat s:
-                    (momentum, strain) = (s.Momentum, s.Strain);
-                    break;
-                case CheckBeat c:
-                    (momentum, strain) = (c.Momentum, c.Strain);
-                    break;
-            }
-        }
-
-        if (beats.Count == 0)
-        {
-            (momentum, strain) = (state.Momentum, state.Strain);
-        }
-
         CallView? call = state.Pending is { } pending
             ? new CallView(pending.CallId, pending.DecisionId, pending.Stakes, pending.Options.Select(o => o.ToString()).ToList(), pending.LeadPrefers.ToString())
             : null;
@@ -133,15 +113,21 @@ public static class BridgeReader
             mission.ObjectiveId,
             state.Team.Select(m => m.Member.Id).ToList(),
             state.LeadId,
-            momentum,
-            strain,
+            state.Momentum,
+            state.Strain,
             beats.Select(b => BeatLines.Line(b.Index, b.Beat)).ToList(),
             call,
             state.Result?.Outcome.ToString());
     }
 
-    private static AftermathView Aftermath(SiteState site, IReadOnlyList<IEvent> cycleEvents)
+    private static string Inv(FormattableString text)
     {
+        return text.ToString(CultureInfo.InvariantCulture);
+    }
+
+    private static AftermathView Aftermath(SiteState site, LegacyState state, IReadOnlyList<IEvent> cycleEvents)
+    {
+        CrewState? crew = state.TryModule(CrewModule.Name, out CrewState? found) ? found : null;
         string? outcome = null;
         var changes = new List<CrewChange>();
         var unattended = new List<UnattendedView>();
@@ -151,17 +137,26 @@ public static class BridgeReader
             {
                 case MissionEnded ended:
                     outcome = ended.Result.Outcome.ToString();
-                    changes.AddRange(ended.Result.Crew.Where(c => c.Loyalty != 0).Select(c => new CrewChange(c.Id, $"{c.Id} loyalty {c.Loyalty.ToString("+0;-0", CultureInfo.InvariantCulture)}.")));
+                    // The result holds mission points, not the applied change: show the stored loyalty, never a delta.
+                    foreach (CrewResult result in ended.Result.Crew.Where(c => c.Loyalty != 0))
+                    {
+                        if (crew?.Members.FirstOrDefault(m => m.Id == result.Id) is { } member)
+                        {
+                            changes.Add(new CrewChange(member.Id, Inv($"{member.Id} loyalty now {member.Loyalty}.")));
+                        }
+                    }
+
+
                     break;
                 case SkillRaised raised:
-                    changes.Add(new CrewChange(raised.CrewId, $"{raised.CrewId} raises {raised.SkillId} to level {raised.Level}."));
+                    changes.Add(new CrewChange(raised.CrewId, Inv($"{raised.CrewId} raises {raised.SkillId} to level {raised.Level}.")));
                     break;
                 case CrewInjured injured:
-                    string returns = injured.ReturnsAtWeek is { } week ? $", returns at week {week}" : string.Empty;
-                    changes.Add(new CrewChange(injured.CrewId, $"{injured.CrewId} injured: {BeatLines.Words(injured.Outcome)}, light injuries {injured.LightInjuries}{returns}."));
+                    string returns = injured.ReturnsAtWeek is { } week ? Inv($", returns at week {week}") : string.Empty;
+                    changes.Add(new CrewChange(injured.CrewId, Inv($"{injured.CrewId} injured: {BeatLines.Words(injured.Outcome)}, light injuries {injured.LightInjuries}{returns}.")));
                     break;
                 case CrewDied died:
-                    changes.Add(new CrewChange(died.CrewId, $"{died.CrewId} died on {died.MissionId}."));
+                    changes.Add(new CrewChange(died.CrewId, Inv($"{died.CrewId} died on {died.MissionId}.")));
                     break;
                 case CrewRecovered recovered:
                     changes.Add(new CrewChange(recovered.CrewId, $"{recovered.CrewId} recovered."));

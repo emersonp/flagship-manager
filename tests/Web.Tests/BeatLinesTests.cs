@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Reflection;
 using Sim.Core;
 using Sim.Core.Content;
@@ -91,4 +92,29 @@ public class BeatLinesTests
     }
 
     private sealed record UnknownBeat : Beat;
+
+    // sv-SE writes a Unicode minus; lines must still carry an ASCII hyphen-minus.
+    [Fact]
+    public void Numbers_use_the_invariant_culture()
+    {
+        CultureInfo saved = CultureInfo.CurrentCulture;
+        try
+        {
+            CultureInfo.CurrentCulture = new CultureInfo("sv-SE");
+            Assert.NotEqual("-", (-1).ToString());
+            var check = new CheckBeat("ENCOUNTER_03", Approach.Careful, "SKILL_A", "CREW_02", null, false, 0, 0, 0, 0, 0, -5, 1, 11, -15, Tier.Disaster, 0, false, 0);
+            var stage = new StageBeat(0, "ENCOUNTER_03", "SLOT_1", false, -1, 2);
+            var effects = new EffectsBeat(new EffectDef(Momentum: -1, Strain: -2, Progress: -3));
+
+            string[] lines = [BeatLines.Line(0, check).Text, BeatLines.Line(0, stage).Text, BeatLines.Line(0, effects).Text];
+
+            Assert.Equal("CREW_02 checks SKILL_A at ENCOUNTER_03: -4 against 11, disaster.", lines[0]);
+            Assert.Equal("Stage ENCOUNTER_03 in slot SLOT_1: momentum -1, strain 2.", lines[1]);
+            Assert.Equal("Effects: momentum -1, strain -2, progress -3.", lines[2]);
+        }
+        finally
+        {
+            CultureInfo.CurrentCulture = saved;
+        }
+    }
 }

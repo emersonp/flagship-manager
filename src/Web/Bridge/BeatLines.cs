@@ -13,17 +13,17 @@ public static class BeatLines
         (string kind, string text) = beat switch
         {
             StageBeat b => ("stage", Stage(b)),
-            SkipBeat b => ("skip", $"{b.EncounterId} skipped."),
+            SkipBeat b => ("skip", Inv($"{b.EncounterId} skipped.")),
             CheckBeat b => ("check", Check(b)),
             EffectsBeat b => ("effects", Effects(b.Effects)),
-            InjuryBeat b => ("injury", $"{b.CrewId} injury roll at {b.EncounterId}: {Words(b.Severity)} severity, roll {b.Roll}, {Words(b.Outcome)}."),
-            LeadChangeBeat b => ("lead", $"{b.CrewId} becomes lead."),
-            ChainBeat b => ("chain", $"Chain to {b.EncounterId}."),
+            InjuryBeat b => ("injury", Inv($"{b.CrewId} injury roll at {b.EncounterId}: {Words(b.Severity)} severity, roll {b.Roll}, {Words(b.Outcome)}.")),
+            LeadChangeBeat b => ("lead", Inv($"{b.CrewId} becomes lead.")),
+            ChainBeat b => ("chain", Inv($"Chain to {b.EncounterId}.")),
             CallBeat b => ("call", Call(b.Call)),
             NoticeBeat b => ("notice", Notice(b)),
-            AnswerBeat b => ("answer", $"Answer {Words(b.Answer)}, {Words(b.Standing)}, lead {b.LeadId}."),
+            AnswerBeat b => ("answer", Inv($"Answer {Words(b.Answer)}, {Words(b.Standing)}, lead {b.LeadId}.")),
             CollapseBeat => ("collapse", "Team collapse."),
-            ResultBeat b => ("result", $"Result: {Words(b.Outcome)}."),
+            ResultBeat b => ("result", Inv($"Result: {Words(b.Outcome)}.")),
             _ => throw new ArgumentOutOfRangeException(nameof(beat), beat.GetType().Name, "No line for this beat type."),
         };
         return new LogLine(index, kind, text);
@@ -48,6 +48,11 @@ public static class BeatLines
         return builder.ToString();
     }
 
+    private static string Inv(FormattableString text)
+    {
+        return text.ToString(CultureInfo.InvariantCulture);
+    }
+
     private static string Num(double value)
     {
         return value.ToString("0.##", CultureInfo.InvariantCulture);
@@ -61,12 +66,12 @@ public static class BeatLines
     private static string Stage(StageBeat b)
     {
         string blocked = b.CommsBlocked ? ", comms blocked" : string.Empty;
-        return $"Stage {b.EncounterId} in slot {b.Slot}: momentum {b.Momentum}, strain {b.Strain}{blocked}.";
+        return Inv($"Stage {b.EncounterId} in slot {b.Slot}: momentum {b.Momentum}, strain {b.Strain}{blocked}.");
     }
 
     private static string Check(CheckBeat b)
     {
-        string text = $"{b.ActorId} checks {b.Skill} at {b.EncounterId}: {b.Score + b.Roll} against {b.Target}, {Words(b.Tier)}.";
+        string text = Inv($"{b.ActorId} checks {b.Skill} at {b.EncounterId}: {b.Score + b.Roll} against {b.Target}, {Words(b.Tier)}.");
         if (b.Approach == Approach.Fast)
         {
             text += " Fast approach.";
@@ -108,18 +113,18 @@ public static class BeatLines
             parts.Add("withdraw");
         }
 
-        return parts.Count == 0 ? "Effects: none." : $"Effects: {string.Join(", ", parts)}.";
+        return parts.Count == 0 ? "Effects: none." : Inv($"Effects: {string.Join(", ", parts)}.");
     }
 
     private static string Call(PendingCall c)
     {
         string options = string.Join(", ", c.Options.Select(Words));
-        return $"Call {c.DecisionId}: stakes {c.Stakes}, threshold {Num(c.Threshold)}, lead {c.LeadId} prefers {Words(c.LeadPrefers)}, options {options}.";
+        return Inv($"Call {c.DecisionId}: stakes {c.Stakes}, threshold {Num(c.Threshold)}, lead {c.LeadId} prefers {Words(c.LeadPrefers)}, options {options}.");
     }
 
     private static string Notice(NoticeBeat b)
     {
         string blocked = b.Blocked ? " Comms blocked." : string.Empty;
-        return $"Notice {b.DecisionId}: stakes {b.Stakes}, threshold {Num(b.Threshold)}, lead {b.LeadId} chose {Words(b.Chose)}.{blocked}";
+        return Inv($"Notice {b.DecisionId}: stakes {b.Stakes}, threshold {Num(b.Threshold)}, lead {b.LeadId} chose {Words(b.Chose)}.{blocked}");
     }
 }

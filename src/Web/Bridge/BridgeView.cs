@@ -13,7 +13,7 @@ public sealed record SkillCell(string SkillId, int Level, int EffectiveLevel);
 
 public sealed record SiteView(string AssignmentId, IReadOnlyList<ObjectiveView> Objectives);
 
-public sealed record ObjectiveView(string Id, string TemplateId, IReadOnlyList<string> Skills, int TeamSizeMin, int TeamSizeMax, int? UnattendedDifficulty, bool HasTeam);
+public sealed record ObjectiveView(string Id, string TemplateId, IReadOnlyList<string> PossibleSkills, int TeamSizeMin, int TeamSizeMax, int? UnattendedDifficulty, bool HasTeam);
 
 public sealed record BriefingView(IReadOnlyList<ObjectiveView> Objectives, IReadOnlyList<CrewRow> Crew, IReadOnlyList<GearChoice> Gear, int LoadoutLimit);
 

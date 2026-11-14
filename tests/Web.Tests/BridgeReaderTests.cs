@@ -67,7 +67,7 @@ public class BridgeReaderTests
         Assert.All(view.Site.Objectives, o =>
         {
             Assert.False(o.HasTeam);
-            Assert.NotEmpty(o.Skills);
+            Assert.NotEmpty(o.PossibleSkills);
             Assert.True(o.TeamSizeMin <= o.TeamSizeMax);
         });
         Assert.Null(view.Briefing);
@@ -151,23 +151,36 @@ public class BridgeReaderTests
     }
 
     [Fact]
-    public void Momentum_and_strain_are_the_latest_a_beat_reports()
+    public void Momentum_and_strain_equal_the_stored_mission_state_while_waiting_after_the_end_and_in_aftermath()
     {
-        Played played = Until(Pack, p => p.State.Phase == CyclePhase.Resolution && p.Mission?.State.Result is not null);
-        (int momentum, int strain) = played.CycleEvents().OfType<MissionBeat>()
+        foreach (Func<Played, bool> reached in new Func<Played, bool>[]
+        {
+            p => p.State.Phase == CyclePhase.Resolution && p.Mission?.State.Pending is not null,
+            p => p.State.Phase == CyclePhase.Resolution && p.Mission?.State.Result is not null && LastBeatDisagrees(p),
+            p => p.State.Phase == CyclePhase.Aftermath && p.Mission is not null,
+        })
+        {
+            Played played = Until(Pack, reached);
+
+            MissionView mission = Assert.IsType<MissionView>(Read(played).Mission);
+
+            Assert.Equal(played.Mission!.State.Momentum, mission.Momentum);
+            Assert.Equal(played.Mission.State.Strain, mission.Strain);
+        }
+    }
+
+    // A mission whose last reporting beat predates its own effects: the case a beat scan gets wrong.
+    private static bool LastBeatDisagrees(Played p)
+    {
+        (int Momentum, int Strain)? last = p.CycleEvents().OfType<MissionBeat>()
             .Select(b => b.Beat switch
             {
                 StageBeat s => ((int, int)?)(s.Momentum, s.Strain),
                 CheckBeat c => (c.Momentum, c.Strain),
                 _ => null,
             })
-            .Where(x => x is not null)
-            .Last()!.Value;
-
-        MissionView mission = Assert.IsType<MissionView>(Read(played).Mission);
-
-        Assert.Equal(momentum, mission.Momentum);
-        Assert.Equal(strain, mission.Strain);
+            .LastOrDefault(x => x is not null);
+        return last is { } l && l != (p.Mission!.State.Momentum, p.Mission.State.Strain);
     }
 
     [Fact]
@@ -196,7 +209,9 @@ public class BridgeReaderTests
 
         List<CrewChange> changes = Assert.IsType<AftermathView>(Read(played).Aftermath).Changes.ToList();
 
-        Assert.Contains(changes, c => c.CrewId == changed.Id && c.Text == $"{changed.Id} loyalty {changed.Loyalty:+0;-0}.");
+        int stored = played.State.Module<CrewState>(CrewModule.Name).Members.Single(m => m.Id == changed.Id).Loyalty;
+        Assert.Equal(stored, Read(played).Roster.Single(r => r.Id == changed.Id).Loyalty);
+        Assert.Contains(changes, c => c.CrewId == changed.Id && c.Text == $"{changed.Id} loyalty now {stored}.");
         string[] expected = played.CycleEvents()
             .Where(e => e is MissionEnded or SkillRaised or CrewInjured or CrewDied or CrewRecovered)
             .SelectMany(e => e switch
@@ -291,6 +306,104 @@ public class BridgeReaderTests
         Assert.Equal(member.Seniority, row.Seniority);
         Assert.Equal(member.Loyalty, row.Loyalty);
         Assert.Equal(member.AwayMissions, row.AwayMissions);
+    }
+
+    // Played under the repository pack, read under one with another version and without the site's template and assignment.
+    [Fact]
+    public void A_pack_mismatch_sets_the_warning_and_never_throws_in_orders_briefing_and_resolution()
+    {
+        foreach (CyclePhase phase in new[] { CyclePhase.Orders, CyclePhase.Briefing, CyclePhase.Resolution })
+        {
+            Played played = Until(Pack, p => p.State.Phase == phase && p.State.Module<MissionsState>(MissionsModule.Name).Site is not null && p.Mission is null == (phase != CyclePhase.Resolution) || p.State.Phase == phase && p.Mission is not null);
+            SiteState site = played.State.Module<MissionsState>(MissionsModule.Name).Site!;
+            var templates = site.Objectives.Select(o => o.TemplateId).ToHashSet();
+            ContentPack other = Pack with
+            {
+                Version = Pack.Version + 1,
+                Objectives = Pack.Objectives.Where(o => !templates.Contains(o.Id)).ToList(),
+                Assignments = Pack.Assignments.Where(a => a.Id != site.AssignmentId).ToList(),
+                Gear = [],
+            };
+
+            BridgeView view = BridgeReader.Read(played.Record(), other, played.CycleEvents());
+
+            Assert.False(string.IsNullOrWhiteSpace(view.TopBar.PackWarning));
+            Assert.NotNull(view.Site);
+            Assert.All(view.Site.Objectives, o =>
+            {
+                Assert.Empty(o.PossibleSkills);
+                Assert.Equal(0, o.TeamSizeMin);
+                Assert.Equal(0, o.TeamSizeMax);
+                Assert.Null(o.UnattendedDifficulty);
+            });
+            if (phase == CyclePhase.Briefing)
+            {
+                Assert.Equal(0, view.Briefing!.LoadoutLimit);
+            }
+        }
+    }
+
+    [Fact]
+    public void Read_changes_nothing_in_the_legacy_in_any_phase()
+    {
+        var played = new Played(BridgePack.Wide(Pack), 7);
+        for (int i = 0; i < 120; i++)
+        {
+            played.Step();
+            string before = Snapshot(played.State);
+
+            Read(played);
+
+            Assert.Equal(before, Snapshot(played.State));
+        }
+    }
+
+    private static string Snapshot(LegacyState state)
+    {
+        return System.Text.Json.JsonSerializer.Serialize(new { state.Modules, state.RngStates }, SimJson.Options);
+    }
+
+    [Fact]
+    public void Aftermath_with_no_team_sent_has_no_outcome_no_mission_and_lists_the_unattended_rolls()
+    {
+        for (ulong seed = 1; seed <= 40; seed++)
+        {
+            var played = new Played(Pack, seed);
+            played.StepUntil(() => played.State.Phase == CyclePhase.Briefing);
+            foreach (CrewMember member in played.State.Module<CrewState>(CrewModule.Name).Members.Skip(1))
+            {
+                member.Status = CrewStatus.Recovering;
+            }
+
+            played.StepUntil(() => played.State.Phase == CyclePhase.Aftermath);
+            List<ObjectiveUnattended> rolled = played.CycleEvents().OfType<ObjectiveUnattended>().ToList();
+            if (rolled.Count == 0)
+            {
+                continue;
+            }
+
+            BridgeView view = Read(played);
+
+            Assert.Null(view.Mission);
+            Assert.Null(view.Aftermath!.Outcome);
+            Assert.Equal(rolled.Select(r => r.ObjectiveId), view.Aftermath.Unattended.Select(u => u.ObjectiveId));
+            return;
+        }
+
+        Assert.Fail("No seed rolled an unattended objective.");
+    }
+
+    [Fact]
+    public void The_briefing_after_the_team_is_assigned_still_shows_with_that_objective_marked()
+    {
+        Played played = Until(Pack, p => p.State.Phase == CyclePhase.Briefing);
+        played.Step();
+
+        BridgeView view = Read(played);
+
+        Assert.Equal(CyclePhase.Briefing, played.State.Phase);
+        Assert.NotNull(view.Briefing);
+        Assert.Single(view.Briefing.Objectives, o => o.HasTeam);
     }
 
     [Theory]
