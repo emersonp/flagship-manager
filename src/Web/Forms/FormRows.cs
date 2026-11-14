@@ -105,6 +105,24 @@ public static class FormRows
         return new FormValues(fields);
     }
 
+    // True when the posted action is a remove or a move whose row number is not a whole number of 0 or more.
+    // A number that names no row (7 of 3) is not bad: that action changes nothing.
+    public static bool HasBadRowNumber(FormValues values, IReadOnlyList<RowSet> sets)
+    {
+        string action = values.Get(RowSet.ActionField);
+        foreach (RowSet set in sets)
+        {
+            string head = set.Qualified ? $"^(remove|up|down):{Regex.Escape(set.Prefix)}:(.*)$" : "^(remove|up|down):(.*)$";
+            Match match = Regex.Match(action, head, RegexOptions.Singleline);
+            if (match.Success && !Regex.IsMatch(match.Groups[2].Value, "^[0-9]+\\z"))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     // What the posted action did, for the focus: the set it acted on, the verb, and the row it left the list on (the new row, or the moved row).
     public sealed record Applied(FormValues Values, RowSet? Set, string Verb, int Row);
 

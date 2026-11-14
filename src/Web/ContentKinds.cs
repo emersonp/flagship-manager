@@ -57,6 +57,13 @@ public static class ContentKinds
         };
     }
 
+    // The noun with its article, for a sentence: "a skill", "an encounter".
+    public static string WithArticle(ContentKind kind)
+    {
+        string noun = Noun(kind);
+        return ("aeiou".Contains(noun[0], StringComparison.Ordinal) ? "an " : "a ") + noun;
+    }
+
     public static IReadOnlyList<KindColumn> Columns(ContentKind kind)
     {
         return kind switch

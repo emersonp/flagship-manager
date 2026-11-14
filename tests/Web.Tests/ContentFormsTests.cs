@@ -496,6 +496,10 @@ public sealed class ContentFormsTests(RepoContentGuard guard) : IClassFixture<Re
         { "/dev/content/skills", "id=", "Enter an id." },
         { "/dev/content/skills", "id=SKILL_A", "That id is already used by a skill." },
         { "/dev/content/skills", "id=CREW_01", "That id is already used by a crew member." },
+        { "/dev/content/skills", "id=ENCOUNTER_01", "That id is already used by an encounter." },
+        { "/dev/content/skills", "id=OBJECTIVE_TEMPLATE_1", "That id is already used by an objective." },
+        { "/dev/content/skills", "id=ASSIGNMENT_TEMPLATE_1", "That id is already used by an assignment." },
+        { "/dev/content/skills", "id=GEAR_01", "That id is already used by a gear item." },
         { "/dev/content/skills", "id=SKILL_E&name=" + "x82", "A name is 1 to 80 characters with no line break." },
         { "/dev/content/skills/SKILL_A", "name=" + "x82", "A name is 1 to 80 characters with no line break." },
         { "/dev/content/gear", "id=GEAR_05&tag=", "Enter a tag." },
@@ -732,6 +736,26 @@ public sealed class ContentFormsTests(RepoContentGuard guard) : IClassFixture<Re
         Assert.Equal("", Value(body, "offer[1].count"));
         Assert.Null(Value(bad, "offer[1].count"));
         Assert.Equal("1", Value(bad, "offer[0].count"));
+    }
+
+    // A row number that is not a whole number of 0 or more is a bad request, not an action that quietly does nothing.
+    [Theory]
+    [InlineData("/dev/content/assignments/ASSIGNMENT_TEMPLATE_1/rows", "row=remove:abc")]
+    [InlineData("/dev/content/assignments/ASSIGNMENT_TEMPLATE_1/rows", "row=remove:-1")]
+    [InlineData("/dev/content/assignments/ASSIGNMENT_TEMPLATE_1/rows", "row=remove:")]
+    [InlineData("/dev/content/assignments/ASSIGNMENT_TEMPLATE_1/rows", "row=up:1.5")]
+    [InlineData("/dev/content/assignments/ASSIGNMENT_TEMPLATE_1/rows", "row=down:%200")]
+    [InlineData("/dev/content/assignments/rows", "row=remove:x")]
+    [InlineData("/dev/content/encounters/ENCOUNTER_01/rows", "row=remove:bold:x")]
+    public async Task A_row_action_with_a_bad_row_number_is_answered_with_400(string url, string action)
+    {
+        using TestApp app = NewApp();
+        string before = Everything(app);
+
+        (HttpStatusCode status, _) = await Post(app.NewClient(), url, Merge(Assignment, action));
+
+        Assert.Equal(HttpStatusCode.BadRequest, status);
+        Assert.Equal(before, Everything(app));
     }
 
     [Fact]

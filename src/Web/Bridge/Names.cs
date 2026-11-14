@@ -48,10 +48,20 @@ public sealed class Names(ContentPack pack)
         return Of(assignments, id);
     }
 
-    // Only named items are kept, so a lookup that misses falls back to the id.
+    // Only named items are kept, so a lookup that misses falls back to the id. The loader refuses a repeated id, but a page must
+    // never crash on one, so the first name wins.
     private static Dictionary<string, string> Index(IEnumerable<(string Id, string? Name)> items)
     {
-        return items.Where(i => i.Name is not null).ToDictionary(i => i.Id, i => i.Name!);
+        var names = new Dictionary<string, string>();
+        foreach ((string id, string? name) in items)
+        {
+            if (name is not null)
+            {
+                names.TryAdd(id, name);
+            }
+        }
+
+        return names;
     }
 
     private static string Of(Dictionary<string, string> names, string id)

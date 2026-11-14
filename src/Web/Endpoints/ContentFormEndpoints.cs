@@ -82,7 +82,13 @@ public static class ContentFormEndpoints
     private static async Task<IResult> RowsAnswer(string kind, string? id, HttpContext http, ContentEditor editor, Render render, CancellationToken cancellation)
     {
         bool datastar = Sse.IsDatastar(http.Request);
-        if (KindForm.For(kind) is not { } form || FormFlow.Rows(form, editor.Read(), id, await Read(http.Request, cancellation), http.Request.Query["focus"]) is not { } view)
+        FormValues posted = await Read(http.Request, cancellation);
+        if (KindForm.For(kind) is { } known && FormRows.HasBadRowNumber(posted, known.RowSets))
+        {
+            return Results.Text("A row number must be a whole number, 0 or more.", statusCode: StatusCodes.Status400BadRequest);
+        }
+
+        if (KindForm.For(kind) is not { } form || FormFlow.Rows(form, editor.Read(), id, posted, http.Request.Query["focus"]) is not { } view)
         {
             return await NotFound(render, datastar);
         }

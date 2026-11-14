@@ -16,6 +16,7 @@
                 <div class="block__head">
                     <span class="block__no">Stage @(row + 1)</span>
                     <p class="@(matches == 0 ? "match match--none" : "match")" id="@($"stage-{row}-match")" role="status">@(matches == 0 ? "No encounters match" : matches == 1 ? "1 encounter matches" : $"{matches} encounters match")</p>
+                    <span class="note">Counted when the form was last refreshed.</span>
                     <div class="block__acts">
                         <RowButton Id="@Set.ButtonId("up", row)" Value="@Set.Action("up", row)" Aria="@($"Move stage {row + 1} up")" Edge="@(row == 0)">Move up</RowButton>
                         <RowButton Id="@Set.ButtonId("down", row)" Value="@Set.Action("down", row)" Aria="@($"Move stage {row + 1} down")" Edge="@(row == Rows.Count - 1)">Move down</RowButton>

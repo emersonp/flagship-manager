@@ -467,6 +467,32 @@ public class ContentFaithfulnessTests : IClassFixture<RepoContentGuard>
         Assert.Contains(result.Errors, e => e.Message.Contains(message, StringComparison.Ordinal));
     }
 
+    // A stage with no draw tags is written without a draw key, and a file that spells it any other way loses nothing by a rewrite.
+    [Theory]
+    [InlineData("{ slot: approach, count: 1 }")]
+    [InlineData("{ slot: approach, draw: {}, count: 1 }")]
+    [InlineData("{ slot: approach, draw: ~, count: 1 }")]
+    [InlineData("{ slot: approach, draw: { tags: [] }, count: 1 }")]
+    public void A_stage_with_no_draw_tags_is_faithful_however_it_is_written(string stage)
+    {
+        ContentFileSet repo = Repo();
+        string text = "- id: OBJECTIVE_TEMPLATE_9\n  teamSize: 2\n  need: 1\n  stages:\n    - " + stage + "\n";
+        ContentFileSet files = ContentEdits.ReplaceText(repo, "objectives/extra.yaml", text);
+
+        Assert.Empty(ContentEdits.Losses(files, "objectives/extra.yaml"));
+        Assert.DoesNotContain(files.Index(), i => i.Lossy);
+    }
+
+    [Fact]
+    public void A_stage_with_a_draw_tag_still_must_keep_it()
+    {
+        ContentFileSet repo = Repo();
+        string text = "- id: OBJECTIVE_TEMPLATE_9\n  teamSize: 2\n  need: 1\n  stages:\n    - { slot: approach, draw: { tags: [field], extra: 1 }, count: 1 }\n";
+        ContentFileSet files = ContentEdits.ReplaceText(repo, "objectives/extra.yaml", text);
+
+        Assert.NotEmpty(ContentEdits.Losses(files, "objectives/extra.yaml"));
+    }
+
     private static string Temp()
     {
         string path = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "content-faith-" + System.IO.Path.GetRandomFileName());

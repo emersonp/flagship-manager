@@ -80,6 +80,53 @@ public class MissionContentTests
             result.Errors.Select(e => $"{e.File}|{e.Message}"));
     }
 
+    // Decision ids key the game's calls and its display names, so each is used once in the whole pack.
+    [Fact]
+    public void A_decision_id_used_by_two_encounters_is_an_error()
+    {
+        string second = Encounter.Replace("ENCOUNTER_01", "ENCOUNTER_02");
+
+        ContentLoadResult result = Load(Encounter + second, Objective);
+
+        Assert.Null(result.Pack);
+        ContentError error = Assert.Single(result.Errors);
+        Assert.Equal(("encounters/a.yaml", "Duplicate decision id 'DECISION_PROMPT_1', first used by ENCOUNTER_01."), (error.File, error.Message));
+    }
+
+    // The resolver raises the abort call with this id.
+    [Fact]
+    public void The_abort_decision_id_is_reserved()
+    {
+        ContentLoadResult result = Load(Encounter.Replace("DECISION_PROMPT_1", "DECISION_ABORT"), Objective);
+
+        Assert.Null(result.Pack);
+        ContentError error = result.Errors[0];
+        Assert.Equal(("encounters/a.yaml", "ENCOUNTER_01 decision id 'DECISION_ABORT' is reserved for the abort call."), (error.File, error.Message));
+    }
+
+    [Fact]
+    public void An_encounter_that_chains_to_itself_is_an_error()
+    {
+        ContentLoadResult result = Load(Encounter.Replace("tags: [field]", "tags: [field]\n  chain: ENCOUNTER_01"), Objective);
+
+        Assert.Null(result.Pack);
+        Assert.Contains(result.Errors, e => e is { File: "encounters/a.yaml", Message: "ENCOUNTER_01 chains to itself." });
+    }
+
+    // A stage written without draw, with an empty draw, or with empty tags draws by no tag.
+    [Theory]
+    [InlineData("{ slot: approach, count: 1 }")]
+    [InlineData("{ slot: approach, draw: {}, count: 1 }")]
+    [InlineData("{ slot: approach, draw: ~, count: 1 }")]
+    [InlineData("{ slot: approach, draw: { tags: [] }, count: 1 }")]
+    public void A_stage_with_no_draw_tags_reads_the_same_however_it_is_written(string stage)
+    {
+        ContentLoadResult result = Load(Encounter, Objective.Replace("{ slot: approach, draw: { tags: [field] }, count: 1 }", stage));
+
+        Assert.Empty(result.Errors);
+        Assert.Empty(result.Pack!.Objectives[0].Stages[0].DrawTags);
+    }
+
     // A tuning number never falls back to a default: a typo must not quietly change the game.
     [Fact]
     public void A_missing_misspelt_or_malformed_tuning_value_is_an_error()

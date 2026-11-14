@@ -35,6 +35,25 @@ public class NamesTests
         Assert.Equal("NAME_PLACEHOLDER_ASSIGNMENT_TEMPLATE_1", names.Assignment("ASSIGNMENT_TEMPLATE_1"));
     }
 
+    // The loader refuses a repeated decision id, but a page must not crash if one ever got through: the first one wins.
+    [Fact]
+    public void A_repeated_id_does_not_throw_and_the_first_name_wins()
+    {
+        ContentPack pack = NamedPack.Of(Plain);
+        EncounterDef first = pack.Encounters[0];
+        EncounterDef second = pack.Encounters[1];
+        ContentPack repeated = pack with
+        {
+            Skills = [.. pack.Skills, pack.Skills[0] with { Name = "NAME_PLACEHOLDER_LATER" }],
+            Encounters = [first, second with { Decision = first.Decision! with { Name = "NAME_PLACEHOLDER_LATER" } }, .. pack.Encounters.Skip(2)],
+        };
+
+        var names = new Names(repeated);
+
+        Assert.Equal("NAME_PLACEHOLDER_SKILL_A", names.Skill("SKILL_A"));
+        Assert.Equal(first.Decision!.Name, names.Decision(first.Decision.Id));
+    }
+
     // A stored legacy may name an id the loaded pack lacks.
     [Fact]
     public void An_unknown_id_comes_back_unchanged()

@@ -336,6 +336,7 @@ public sealed class ContentMissionFormsTests(RepoContentGuard guard) : IClassFix
         { "/dev/content/encounters/ENCOUNTER_01", Encounter1, "fast.difficulty=", "Enter a whole number." },
         { "/dev/content/encounters/ENCOUNTER_01", Encounter1, "careful.gearTag=not_a_tag", "Unknown gear tag." },
         { "/dev/content/encounters/ENCOUNTER_01", Encounter1, "chain=ENCOUNTER_NOT_THERE", "Unknown encounter." },
+        { "/dev/content/encounters/ENCOUNTER_01", Encounter1, "chain=ENCOUNTER_01", "ENCOUNTER_01 chains to itself." },
         { "/dev/content/encounters/ENCOUNTER_01", Encounter1, "decision.stakes=6", "Must be 1 to 5." },
         { "/dev/content/encounters/ENCOUNTER_01", Encounter1, "decision.stakes=", "Enter a whole number." },
         { "/dev/content/encounters/ENCOUNTER_01", Encounter1, "bold[0].momentum=x", "Must be a whole number." },
@@ -550,6 +551,17 @@ public sealed class ContentMissionFormsTests(RepoContentGuard guard) : IClassFix
         Assert.Contains("<p class=\"match match--none\" id=\"stage-0-match\" role=\"status\">No encounters match</p>", chained);
         Assert.Contains("id=\"stage-0-match\" role=\"status\">8 encounters match</p>", any);
         Assert.Contains("id=\"stage-4-match\" role=\"status\">8 encounters match</p>", any);
+    }
+
+    // The count is drawn when the form is, so the page says so beside each stage.
+    [Fact]
+    public async Task Each_stage_says_when_its_match_count_was_taken()
+    {
+        using TestApp app = NewApp();
+
+        (_, string body) = await Get(app.NewClient(), "/dev/content/objectives/OBJECTIVE_TEMPLATE_1");
+
+        Assert.Equal(4, Regex.Matches(body, "Counted when the form was last refreshed\\.").Count);
     }
 
     [Fact]

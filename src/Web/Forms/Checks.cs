@@ -25,7 +25,7 @@ internal static partial class Checks
         }
         else if (files.Index().FirstOrDefault(i => i.Id == id) is { } used)
         {
-            errors["id"] = $"That id is already used by a {ContentKinds.Noun(used.Kind)}.";
+            errors["id"] = $"That id is already used by {ContentKinds.WithArticle(used.Kind)}.";
         }
     }
 

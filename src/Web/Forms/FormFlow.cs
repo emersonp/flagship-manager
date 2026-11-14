@@ -43,7 +43,7 @@ internal static class FormFlow
         {
             if (f.Index().FirstOrDefault(i => i.Id == id) is { } used)
             {
-                throw new ChangeRefusedException($"That id is already used by a {ContentKinds.Noun(used.Kind)}.");
+                throw new ChangeRefusedException($"That id is already used by {ContentKinds.WithArticle(used.Kind)}.");
             }
 
             return ContentEdits.Upsert(f, form.Kind, bound.Make(f));

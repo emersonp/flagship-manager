@@ -153,7 +153,9 @@ public static class ContentWriter
                 foreach (StageModel stage in objective.Stages)
                 {
                     string skippable = stage.Skippable ? ", skippable: true" : "";
-                    f.Add($"  - {{ slot: {Quote(stage.Slot)}, draw: {{ tags: {List(stage.DrawTags)} }}, count: {Count(stage.CountMin, stage.CountMax)}{skippable} }}");
+                    // No draw tags, no draw key: the loader reads an absent draw as no tags.
+                    string draw = stage.DrawTags.Count == 0 ? "" : $" draw: {{ tags: {List(stage.DrawTags)} }},";
+                    f.Add($"  - {{ slot: {Quote(stage.Slot)},{draw} count: {Count(stage.CountMin, stage.CountMax)}{skippable} }}");
                 }
 
                 break;

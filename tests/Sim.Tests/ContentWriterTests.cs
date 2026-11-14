@@ -46,6 +46,15 @@ public class ContentWriterTests : IClassFixture<RepoContentGuard>
             Render(new AssignmentModel("ASSIGNMENT_1", null, [], new Dictionary<int, int> { [1] = 1 }, 0)));
     }
 
+    // A stage with no draw tags has no draw key: the canonical form, which the loader reads as no tags.
+    [Fact]
+    public void A_stage_with_no_draw_tags_is_written_without_a_draw_key()
+    {
+        Assert.Equal(
+            Lines("- id: OBJECTIVE_1", "  tags: []", "  teamSize: 1", "  need: 1", "  stages:", "    - { slot: approach, count: 1 }"),
+            Render(new ObjectiveModel("OBJECTIVE_1", null, [], 1, 1, 1, null, [new StageModel("approach", [], 1, 1, false)])));
+    }
+
     [Fact]
     public void An_objective_is_written_with_a_pair_or_a_number_for_each_count()
     {

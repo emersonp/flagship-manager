@@ -188,6 +188,11 @@ internal sealed class EncounterKind : KindForm
             errors["chain"] = "Unknown encounter.";
         }
 
+        if (chain == id)
+        {
+            errors["chain"] = $"{id} chains to itself.";
+        }
+
         ApproachModel? careful = BindApproach(values, "careful", choices, errors);
         ApproachModel? fast = BindApproach(values, "fast", choices, errors);
         bool hasDecision = values.Get("hasDecision") == "true";
