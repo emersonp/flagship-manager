@@ -637,9 +637,9 @@ What has been built, slice by slice. A phase is cut into slices when it is plann
 | 1. Thinnest game | 1a. Mission resolver | Checks with tiers, momentum and strain, decisions with the call rule, and the tuning file | Done 2026-11-14 |
 | 1. Thinnest game | 1b. Mission bench | One mission run thousands of times from the command line, with before and after comparison | Done 2026-11-14 |
 | 1. Thinnest game | 1c, part one. A whole cycle, headless | Crew that grow, are hurt, heal, and die; missions on the event bus; module state stored; the simulator plays real cycles | Done 2026-11-14 |
-| 1. Thinnest game | 1c, part two. The cycle in the browser | Legacy selection, orders, briefing, resolution with paced beats and calls, aftermath, and the visual design | In progress |
-| 1. Thinnest game | 1c-editor. Content editor | Developer-mode pages that write the content files, validated on save | Next |
-| 1. Thinnest game | 1d. Reports | The grammar engine and the narrative report built from beats | Later |
+| 1. Thinnest game | 1c, part two. The cycle in the browser | Legacy selection, orders, briefing, resolution with paced beats and calls, aftermath, and the visual design | Done 2026-11-14 |
+| 1. Thinnest game | 1c-editor. Content editor | Developer-mode pages that write the content files, validated on save; display names for crew, skills, gear, objectives, encounters, and assignments | In progress |
+| 1. Thinnest game | 1d. Reports | The grammar engine and the narrative report built from beats | Next |
 | 1. Thinnest game | 1e. Life aboard | Storylets, morale, captain's time, the inbox and crew file, and the chronicle list | Later |
 | 1. Thinnest game | 1f. Tuning in play | The mission bench and the tuning page in the browser | Later |
 | 1. Thinnest game | Playtest | Three legacies of 20 to 30 cycles against the checklist below | Later |
