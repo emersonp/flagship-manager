@@ -126,7 +126,7 @@ public sealed class BriefingTests : IDisposable
         string html = await Page(id);
 
         Assert.Equal(8, Values(html, "crew").Count);
-        Assert.Matches("<input type=\"checkbox\" id=\"crew-[^\"]+\" name=\"crew\" value=\"[^\"]+\" disabled", html);
+        Assert.Matches("<input type=\"checkbox\" id=\"crew-[^\"]+\" name=\"crew\" value=\"[^\"]+\" aria-label=\"[^\"]+\" disabled", html);
         Assert.Single(Regex.Matches(html, "name=\"crew\"[^>]* disabled"));
         Assert.Contains("<form id=\"briefing\"", html);
         Assert.Contains("<p id=\"refusal\" role=\"alert\"></p>", html);
@@ -284,5 +284,75 @@ public sealed class BriefingTests : IDisposable
         HttpResponseMessage response = await client.PostAsync($"/legacy/{Guid.NewGuid()}/{action}", new FormUrlEncodedContent([]));
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    private async Task<string> BriefingWithObjectives(int count)
+    {
+        for (int i = 0; i < 60; i++)
+        {
+            Guid id = await NewBriefing();
+            string html = await Page(id);
+            if (Values(html, "objective").Count == count)
+            {
+                return html;
+            }
+        }
+
+        throw new InvalidOperationException("No legacy offered that many objectives.");
+    }
+
+    [Fact]
+    public async Task Each_objective_radio_carries_its_own_team_range_and_a_single_one_seeds_the_signals()
+    {
+        string single = await BriefingWithObjectives(1);
+        Match one = Regex.Match(single, "name=\"objective\"[^>]* data-min=\"(\\d+)\" data-max=\"(\\d+)\"");
+        Assert.True(one.Success);
+        Assert.Contains($"data-signals:_min=\"{one.Groups[1].Value}\" data-signals:_max=\"{one.Groups[2].Value}\"", single);
+
+        string many = await BriefingWithObjectives(2);
+        MatchCollection ranges = Regex.Matches(many, "name=\"objective\"[^>]* data-min=\"(\\d+)\" data-max=\"(\\d+)\"");
+        Assert.Equal(2, ranges.Count);
+        Assert.All(ranges, r => Assert.Contains($"team {r.Groups[1].Value} to {r.Groups[2].Value}</label>", many));
+        Assert.Contains("data-signals:_min=\"0\" data-signals:_max=\"0\"", many);
+        Assert.DoesNotContain(" checked", Regex.Match(many, "<fieldset>.*?</fieldset>", RegexOptions.Singleline).Value);
+        Assert.Equal(2, Regex.Matches(many, "name=\"objective\"[^>]* required").Count);
+    }
+
+    [Fact]
+    public async Task Crew_controls_are_named_with_the_crew_id()
+    {
+        string html = await Page(await NewBriefing());
+
+        Assert.Contains("name=\"crew\" value=\"CREW_01\" aria-label=\"Team CREW_01\"", html);
+        Assert.Contains("name=\"lead\" value=\"CREW_01\" aria-label=\"Lead CREW_01\"", html);
+    }
+
+    [Fact]
+    public async Task A_repeated_lead_field_is_refused_as_incomplete()
+    {
+        (Guid id, var form, IReadOnlyList<string> crew, _) = await Ready();
+        form.Add(new("lead", crew[1]));
+        var before = Snapshot(id);
+
+        AssertRefusal(await Post(id, "launch", form), "The form was not complete.");
+        Assert.Equal(before, Snapshot(id));
+    }
+
+    [Fact]
+    public async Task A_launch_for_a_non_guid_legacy_is_a_404()
+    {
+        HttpResponseMessage response = await client.PostAsync("/legacy/not-a-guid/launch", new FormUrlEncodedContent([]));
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task An_unknown_objective_is_refused_with_the_buss_reason_and_stores_nothing()
+    {
+        (Guid id, _, IReadOnlyList<string> crew, _) = await Ready();
+        var before = Snapshot(id);
+
+        AssertRefusal(await Post(id, "launch", Valid("NO_SUCH", crew.Take(2), crew[0])), "Objective &#x27;NO_SUCH&#x27; is not at this site.");
+        Assert.Equal(before, Snapshot(id));
     }
 }

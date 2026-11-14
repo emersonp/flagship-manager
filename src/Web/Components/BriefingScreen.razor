@@ -1,12 +1,12 @@
 <main id="main">
     <h2>Briefing</h2>
-    <form id="briefing" data-signals:_picked="0" data-on:submit="@Launch">
+    <form id="briefing" data-signals:_picked="0" data-signals:_min="@Initial.Min" data-signals:_max="@Initial.Max" data-on:submit="@Launch">
         <fieldset>
             <legend>Objective</legend>
             @foreach (ObjectiveView objective in Briefing.Objectives)
             {
                 <p>
-                    <input type="radio" id="objective-@objective.Id" name="objective" value="@objective.Id" checked="@(Briefing.Objectives.Count == 1)">
+                    <input type="radio" id="objective-@objective.Id" name="objective" value="@objective.Id" required checked="@(Briefing.Objectives.Count == 1)" data-min="@objective.TeamSizeMin" data-max="@objective.TeamSizeMax" data-on:change="@Range">
                     <label for="objective-@objective.Id">@objective.Id (@objective.TemplateId), team @objective.TeamSizeMin to @objective.TeamSizeMax</label>
                 </p>
             }
@@ -23,11 +23,11 @@
                         <td>@row.Status</td>
                         <td>@string.Join(", ", row.Skills.Select(s => $"{s.SkillId} {s.EffectiveLevel}"))</td>
                         <td>
-                            <input type="checkbox" id="crew-@row.Id" name="crew" value="@row.Id" disabled="@(!row.Fit)" data-on:change="@Count">
+                            <input type="checkbox" id="crew-@row.Id" name="crew" value="@row.Id" aria-label="Team @row.Id" disabled="@(!row.Fit)" data-on:change="@Count">
                             <label for="crew-@row.Id">Team</label>
                         </td>
                         <td>
-                            <input type="radio" id="lead-@row.Id" name="lead" value="@row.Id" disabled="@(!row.Fit)">
+                            <input type="radio" id="lead-@row.Id" name="lead" value="@row.Id" aria-label="Lead @row.Id" disabled="@(!row.Fit)">
                             <label for="lead-@row.Id">Lead</label>
                         </td>
                     </tr>
@@ -55,7 +55,7 @@
                 }
             </fieldset>
         }
-        <p class="picked"><span data-text="$_picked">0</span> of @Min to @Max</p>
+        <p class="picked"><span data-text="@Text">0</span></p>
         <button type="submit">Launch</button>
         <button type="button" data-on:click="@SendNobody">Send nobody</button>
         <Refusal Reason="@Reason" />
@@ -69,10 +69,12 @@
 
     [Parameter] public string? Reason { get; set; }
 
-    // Display only: the server decides what a valid team is.
-    private int Min => Briefing.Objectives.Count == 0 ? 0 : Briefing.Objectives.Min(o => o.TeamSizeMin);
+    // Display only: the chosen objective's own range, held in local signals; 0 means none chosen.
+    private (int Min, int Max) Initial => Briefing.Objectives.Count == 1 ? (Briefing.Objectives[0].TeamSizeMin, Briefing.Objectives[0].TeamSizeMax) : (0, 0);
 
-    private int Max => Briefing.Objectives.Count == 0 ? 0 : Briefing.Objectives.Max(o => o.TeamSizeMax);
+    private const string Range = "$_min = +el.dataset.min; $_max = +el.dataset.max";
+
+    private const string Text = "$_max > 0 ? $_picked + ' of ' + $_min + ' to ' + $_max : $_picked";
 
     private string Launch => $"@post('/legacy/{LegacyId}/launch', {{contentType: 'form'}})";
 
