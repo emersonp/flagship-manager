@@ -12,6 +12,8 @@
 
 **Verified:** every file in this plan was compiled and every test run on 2026-11-14 (.NET SDK 10.0.402). The five build tasks were replayed in order on a fresh copy of `main`; the build was clean and the tests passed after each: 41, 47, 78, 91, and 108 tests. The pinned values (the dice sequence in Task 1, the walkthrough seeds and golden hash in Task 3) come from that run. Task 3 was amended after its review (risk direction, dice keyed by encounter, chain targets never drawn, and the mentoring share), and the replay was run again on the amended code. If a pinned value does not match, the code has drifted from this plan; fix the code, not the constant.
 
+**Built:** 2026-11-14. The whole-branch review then changed the loader, the bench report, and the command line (commit `477e4ec`: tuning cross-checks, the loader's slot check, bench rows by encounter position, and unknown gear tags rejected), ending at 126 tests. Where this plan and the repository differ, the repository is the record.
+
 ## Global Constraints
 
 - Target framework `net10.0`; nullable enabled; warnings are errors. These are set once in `Directory.Build.props`; a csproj never repeats them.
