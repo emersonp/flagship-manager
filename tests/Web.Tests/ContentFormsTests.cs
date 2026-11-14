@@ -10,7 +10,7 @@ namespace Web.Tests;
 // The first editor forms (skills, gear, starting crew, assignments), through the real app on a scratch copy of the content.
 public sealed class ContentFormsTests(RepoContentGuard guard) : IClassFixture<RepoContentGuard>
 {
-    private static TestApp NewApp(Action<string>? prepare = null)
+    internal static TestApp NewApp(Action<string>? prepare = null)
     {
         var app = new TestApp(developerMode: true, scratch: true, prepare: prepare);
         // Starts the host, which makes the scratch copy.
@@ -18,20 +18,20 @@ public sealed class ContentFormsTests(RepoContentGuard guard) : IClassFixture<Re
         return app;
     }
 
-    private static async Task<(HttpStatusCode Status, string Body)> Get(HttpClient client, string url)
+    internal static async Task<(HttpStatusCode Status, string Body)> Get(HttpClient client, string url)
     {
         HttpResponseMessage response = await client.GetAsync(url);
         return (response.StatusCode, await response.Content.ReadAsStringAsync());
     }
 
-    private static List<KeyValuePair<string, string>> Fields(string text)
+    internal static List<KeyValuePair<string, string>> Fields(string text)
     {
         return text.Length == 0
             ? []
             : text.Split('&').Select(p => p.Split('=', 2)).Select(p => new KeyValuePair<string, string>(Uri.UnescapeDataString(p[0]), Uri.UnescapeDataString(p.Length > 1 ? p[1] : ""))).ToList();
     }
 
-    private static async Task<(HttpStatusCode Status, string Body)> Post(HttpClient client, string url, string fields, bool datastar = false, Action<HttpRequestHeaders>? headers = null)
+    internal static async Task<(HttpStatusCode Status, string Body)> Post(HttpClient client, string url, string fields, bool datastar = false, Action<HttpRequestHeaders>? headers = null)
     {
         var request = new HttpRequestMessage(HttpMethod.Post, url) { Content = new FormUrlEncodedContent(Fields(fields)) };
         if (datastar)
@@ -44,32 +44,32 @@ public sealed class ContentFormsTests(RepoContentGuard guard) : IClassFixture<Re
         return (response.StatusCode, await response.Content.ReadAsStringAsync());
     }
 
-    private static string Disk(TestApp app, string file)
+    internal static string Disk(TestApp app, string file)
     {
         return File.ReadAllText(Path.Combine(app.ContentPath, file));
     }
 
-    private static string Everything(TestApp app)
+    internal static string Everything(TestApp app)
     {
         return string.Join("\n", Directory.EnumerateFiles(app.ContentPath, "*", SearchOption.AllDirectories).OrderBy(f => f, StringComparer.Ordinal).Select(f => f + ":" + Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(f)))));
     }
 
     // The value attribute of the first input with this name, decoded.
-    private static string? Value(string body, string name)
+    internal static string? Value(string body, string name)
     {
         Match tag = Regex.Match(body, $"<input\\b[^>]*\\bname=\"{Regex.Escape(name)}\"[^>]*>");
         Match value = Regex.Match(tag.Value, "\\bvalue=\"([^\"]*)\"");
         return tag.Success ? WebUtility.HtmlDecode(value.Groups[1].Value) : null;
     }
 
-    private static string? Selected(string body, string name)
+    internal static string? Selected(string body, string name)
     {
         Match select = Regex.Match(body, $"<select\\b[^>]*\\bname=\"{Regex.Escape(name)}\"[^>]*>(.*?)</select>", RegexOptions.Singleline);
         Match option = Regex.Match(select.Value, "<option\\b[^>]*\\bvalue=\"([^\"]*)\"[^>]*\\bselected\\b");
         return select.Success ? option.Groups[1].Value : null;
     }
 
-    private static List<string> Checked(string body, string name)
+    internal static List<string> Checked(string body, string name)
     {
         return Regex.Matches(body, $"<input\\b[^>]*\\bname=\"{Regex.Escape(name)}\"[^>]*>").Select(m => m.Value).Where(t => Regex.IsMatch(t, "\\bchecked\\b")).Select(t => Regex.Match(t, "\\bvalue=\"([^\"]*)\"").Groups[1].Value).ToList();
     }
@@ -663,14 +663,14 @@ public sealed class ContentFormsTests(RepoContentGuard guard) : IClassFixture<Re
     }
 
     [Fact]
-    public async Task A_kind_with_no_form_yet_and_an_id_that_is_in_another_kind_are_404()
+    public async Task An_id_that_is_in_another_kind_is_404()
     {
         using TestApp app = NewApp();
         HttpClient client = app.NewClient();
 
-        Assert.Equal(HttpStatusCode.NotFound, (await Get(client, "/dev/content/objectives/OBJECTIVE_1")).Status);
         Assert.Equal(HttpStatusCode.NotFound, (await Get(client, "/dev/content/skills/CREW_01")).Status);
-        Assert.Equal(HttpStatusCode.NotFound, (await Post(client, "/dev/content/encounters", "id=ENCOUNTER_X")).Status);
+        Assert.Equal(HttpStatusCode.NotFound, (await Get(client, "/dev/content/objectives/ENCOUNTER_01")).Status);
+        Assert.Equal(HttpStatusCode.NotFound, (await Get(client, "/dev/content/encounters/OBJECTIVE_TEMPLATE_1")).Status);
     }
 
     [Fact]
@@ -735,7 +735,7 @@ public sealed class ContentFormsTests(RepoContentGuard guard) : IClassFixture<Re
     }
 
     [Fact]
-    public async Task Rows_exist_only_for_assignments()
+    public async Task Rows_exist_only_for_the_kinds_that_have_them()
     {
         using TestApp app = NewApp();
 
@@ -870,7 +870,7 @@ public sealed class ContentFormsTests(RepoContentGuard guard) : IClassFixture<Re
     // --- Focus after a response ---
 
     // The element that takes focus carries a data-init that calls focus(); one element per response.
-    private static List<string> Focused(string body)
+    internal static List<string> Focused(string body)
     {
         return Regex.Matches(body, "<[^>]*data-init=\"[^\"]*focus[^\"]*\"[^>]*>").Select(m => Regex.Match(m.Value, "\\bid=\"([^\"]*)\"").Groups[1].Value).ToList();
     }

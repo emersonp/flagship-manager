@@ -1,0 +1,46 @@
+@using Web.Forms
+<div class="field">
+    <label for="@Id">@Label</label>
+    <input id="@Id" name="@Name" type="text" value="@Value" autocomplete="off" spellcheck="false" aria-describedby="@Described" aria-invalid="@(Error is null ? null : "true")" @attributes="Focus">
+    <p class="hint" id="@Id-hint">Separate tags with commas. Tags are matched exactly, so case matters.</p>
+    @if (Error is not null)
+    {
+        <p class="error" id="@Id-error">@Error</p>
+    }
+    @if (Suggestions.Count > 0)
+    {
+        <div class="chips" role="group" aria-label="@InUseLabel">
+            <span class="hint" aria-hidden="true">@InUseLabel:</span>
+            @foreach (string tag in Suggestions)
+            {
+                <button class="chip" type="button" data-tag="@tag" data-attr:disabled="@FormShell.Busy" data-on:click="@Add">@tag</button>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public string Name { get; set; } = "";
+
+    [Parameter, EditorRequired] public string Label { get; set; } = "";
+
+    [Parameter] public string Value { get; set; } = "";
+
+    [Parameter] public string? Error { get; set; }
+
+    // The tags already in use: each is a button that adds its tag to the box (a tag already there is not added twice). No round trip.
+    [Parameter] public IReadOnlyList<string> Suggestions { get; set; } = [];
+
+    [Parameter] public string InUseLabel { get; set; } = "Tags already in use";
+
+    [CascadingParameter] public ItemFormView? View { get; set; }
+
+    private string Id => FormValues.Slug(Name);
+
+    private IReadOnlyDictionary<string, object> Focus => View?.FocusFor(Id) ?? new Dictionary<string, object>();
+
+    private string Described => Error is null ? Id + "-hint" : Id + "-hint " + Id + "-error";
+
+    // The tag comes from the button's data attribute, not from the expression, so no tag can break it.
+    private string Add => $"(f => f.value = f.value.split(',').map(s => s.trim()).filter(s => s).concat(el.dataset.tag).filter((s, i, a) => a.indexOf(s) === i).join(', '))(document.getElementById('{Id}'))";
+}

@@ -295,10 +295,9 @@ a.btn { text-decoration: none; }
 .hint { font-size: var(--text-sm); color: var(--color-muted); }
 .field .error, .cell .error { min-height: 0; }
 .field-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr)); gap: var(--space-md); }
-/* Rows are label, control, hint, and a reserved line for the error, so an error never moves its neighbours. */
-.field-grid .field { align-content: end; grid-template-rows: auto auto auto minmax(1lh, auto); }
-.field-grid .field .hint { grid-row: 3; }
-.field-grid .field .error { grid-row: 4; }
+/* Every field in a row starts at the same top; a long error flows below its own field and moves nothing beside it. */
+.field-grid { align-items: start; }
+.field-grid .field { align-content: start; }
 .levels { display: grid; gap: var(--space-xs); }
 .levels legend { margin-bottom: var(--space-2xs); }
 .tag-list { display: flex; flex-wrap: wrap; gap: 0 var(--space-md); }
@@ -310,6 +309,24 @@ a.btn { text-decoration: none; }
 .rowset th { position: relative; padding-right: var(--space-lg); white-space: normal; vertical-align: bottom; }
 .cell input { width: 7rem; min-height: 40px; padding: 0 var(--space-sm); border: var(--rule-hair) solid var(--color-muted); border-radius: var(--radius-control); background: var(--color-paper); color: var(--color-ink); font-family: var(--font-outlier); font-variant-numeric: tabular-nums slashed-zero; outline: 2px solid transparent; outline-offset: -3px; }
 .rowset__add { display: flex; }
+.rowset:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; border-radius: var(--radius-inner); }
+.chips { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-xs); }
+.chip { min-height: 32px; padding: 0 var(--space-sm); border: var(--rule-hair) solid var(--color-rule-2); border-radius: var(--radius-chip); background: transparent; color: var(--color-ink-2); font-size: var(--text-sm); cursor: pointer; position: relative; transition: background-color var(--dur-micro) var(--ease-out), border-color var(--dur-micro) var(--ease-out); }
+.chip::after { content: ""; position: absolute; inset: -6px -2px; }
+.chip:hover { background: var(--color-paper-3); border-color: var(--color-ink-2); }
+.chip:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }
+.chip:disabled { opacity: 0.55; cursor: not-allowed; }
+.blocks { display: grid; gap: var(--space-sm); list-style: none; padding: 0; margin: 0; }
+.block { display: grid; gap: var(--space-sm); padding: var(--space-sm) var(--space-md); border: var(--rule-hair) solid var(--color-rule-2); border-radius: var(--radius-inner); background: var(--color-paper); min-width: 0; }
+.block__head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-xs) var(--space-md); }
+.block__no { font-size: var(--text-sm); font-weight: 500; color: var(--color-ink); }
+.block__acts { display: flex; flex-wrap: wrap; gap: var(--space-xs); margin-left: auto; }
+.block__body { display: grid; gap: var(--space-sm); min-width: 0; }
+.match { font-size: var(--text-sm); color: var(--color-muted); }
+.match--none { font-weight: 500; color: var(--color-caution); }
+.approach, .decision { display: grid; gap: var(--space-xs); min-width: 0; border: 0; padding: 0; margin: 0; }
+.decision { padding: var(--space-md); border: var(--rule-hair) solid var(--color-rule-2); border-radius: var(--radius-inner); gap: var(--space-md); }
+.field--check { max-width: none; }
 .delete { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-sm) var(--space-md); margin-right: auto; }
 .delete__confirm { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-xs) var(--space-md); }
 .btn--harm { border-color: var(--color-harm); color: var(--color-harm); }

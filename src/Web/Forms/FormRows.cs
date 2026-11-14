@@ -4,15 +4,53 @@ using System.Text.RegularExpressions;
 namespace Web.Forms;
 
 // A list of rows inside a form: each row is a set of fields named prefix[index].field, so the rows keep their order when posted.
-// Add and Remove post the whole form to a rows route, which answers with the form drawn again from the posted fields and saves nothing.
-public sealed record RowSet(string Prefix, IReadOnlyList<string> Fields)
+// Add, Remove, and Move post the whole form to a rows route, which answers with the form drawn again from the posted fields and saves nothing.
+// A form with several lists qualifies each action with its list's prefix; a form with one keeps the short actions.
+// MultiFields are fields that post several values for one row (ticked boxes); a row holds them joined by Separator.
+public sealed record RowSet(string Prefix, IReadOnlyList<string> Fields, bool Qualified = false, IReadOnlyList<string>? MultiFields = null, string Noun = "row", IReadOnlyDictionary<string, string>? Defaults = null)
 {
-    // The posted field that says what to do: "add" or "remove:N".
+    // The posted field that says what to do: "add", "remove:N", "up:N", or "down:N" (with the prefix before N when qualified).
     public const string ActionField = "row";
+
+    public const char Separator = '\u001f';
 
     public string Name(int index, string field)
     {
         return string.Create(CultureInfo.InvariantCulture, $"{Prefix}[{index}].{field}");
+    }
+
+    // A row added by "Add": empty, except for the fields that have a starting value.
+    public Dictionary<string, string> NewRow()
+    {
+        return Fields.ToDictionary(f => f, f => Defaults?.GetValueOrDefault(f) ?? "");
+    }
+
+    public bool IsMulti(string field)
+    {
+        return MultiFields?.Contains(field) == true;
+    }
+
+    public string AddAction => Qualified ? $"add:{Prefix}" : "add";
+
+    public string Action(string verb, int index)
+    {
+        string row = index.ToString(CultureInfo.InvariantCulture);
+        return Qualified ? $"{verb}:{Prefix}:{row}" : $"{verb}:{row}";
+    }
+
+    // Element ids: the Add button, and a row's own buttons.
+    public string AddId => Qualified ? $"row-add-{Prefix}" : "row-add";
+
+    public string ButtonId(string verb, int index)
+    {
+        string row = index.ToString(CultureInfo.InvariantCulture);
+        return Qualified ? $"row-{verb}-{Prefix}-{row}" : $"row-{verb}-{row}";
+    }
+
+    // The values of a multi field in a row.
+    public static IReadOnlyList<string> Split(string value)
+    {
+        return value.Length == 0 ? [] : value.Split(Separator);
     }
 }
 
@@ -34,7 +72,8 @@ public static class FormRows
                     byIndex[index] = row;
                 }
 
-                row[match.Groups[2].Value] = field.Value;
+                string name = match.Groups[2].Value;
+                row[name] = set.IsMulti(name) && row[name].Length > 0 ? row[name] + RowSet.Separator + field.Value : field.Value;
             }
         }
 
@@ -51,27 +90,68 @@ public static class FormRows
         {
             foreach (string field in set.Fields)
             {
-                fields.Add(new KeyValuePair<string, string>(set.Name(i, field), rows[i].GetValueOrDefault(field, "")));
+                string value = rows[i].GetValueOrDefault(field, "");
+                if (set.IsMulti(field))
+                {
+                    fields.AddRange(RowSet.Split(value).Select(v => new KeyValuePair<string, string>(set.Name(i, field), v)));
+                }
+                else
+                {
+                    fields.Add(new KeyValuePair<string, string>(set.Name(i, field), value));
+                }
             }
         }
 
         return new FormValues(fields);
     }
 
-    // The posted action applied: "add" appends an empty row, "remove:N" drops row N when it exists; anything else changes nothing.
-    public static FormValues Apply(FormValues values, RowSet set)
+    // What the posted action did, for the focus: the set it acted on, the verb, and the row it left the list on (the new row, or the moved row).
+    public sealed record Applied(FormValues Values, RowSet? Set, string Verb, int Row);
+
+    // The posted action applied: "add" appends an empty row, "remove" drops a row, "up" and "down" swap a row with its neighbour;
+    // a row that is not there, a move off the end, or any other action changes nothing.
+    public static Applied Apply(FormValues values, IReadOnlyList<RowSet> sets)
     {
-        List<Dictionary<string, string>> rows = Read(values, set);
         string action = values.Get(RowSet.ActionField);
-        if (action == "add")
+        // Every list is numbered from zero first, so an action's row number is a place on the page.
+        foreach (RowSet set in sets)
         {
-            rows.Add(set.Fields.ToDictionary(f => f, _ => ""));
-        }
-        else if (action.StartsWith("remove:", StringComparison.Ordinal) && int.TryParse(action["remove:".Length..], NumberStyles.None, CultureInfo.InvariantCulture, out int index) && index < rows.Count)
-        {
-            rows.RemoveAt(index);
+            values = Write(values, set, Read(values, set));
         }
 
-        return Write(values, set, rows);
+        foreach (RowSet set in sets)
+        {
+            List<Dictionary<string, string>> rows = Read(values, set);
+            if (action == set.AddAction)
+            {
+                rows.Add(set.NewRow());
+                return new Applied(Write(values, set, rows), set, "add", rows.Count - 1);
+            }
+
+            string head = set.Qualified ? $"^(remove|up|down):{Regex.Escape(set.Prefix)}:(\\d+)$" : "^(remove|up|down):(\\d+)$";
+            Match match = Regex.Match(action, head);
+            if (!match.Success || !int.TryParse(match.Groups[2].Value, NumberStyles.None, CultureInfo.InvariantCulture, out int index) || index >= rows.Count)
+            {
+                continue;
+            }
+
+            string verb = match.Groups[1].Value;
+            if (verb == "remove")
+            {
+                rows.RemoveAt(index);
+                return new Applied(Write(values, set, rows), set, verb, index);
+            }
+
+            int to = verb == "up" ? index - 1 : index + 1;
+            if (to < 0 || to >= rows.Count)
+            {
+                break;
+            }
+
+            (rows[index], rows[to]) = (rows[to], rows[index]);
+            return new Applied(Write(values, set, rows), set, verb, to);
+        }
+
+        return new Applied(values, null, "", -1);
     }
 }

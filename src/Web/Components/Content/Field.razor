@@ -3,17 +3,17 @@
     <label for="@Id">@Label</label>
     @if (Options is not null)
     {
-        <select id="@Id" name="@Name" aria-describedby="@Described" aria-invalid="@Invalid" aria-required="@(Required ? "true" : null)" @attributes="Focus">
+        <select id="@Id" name="@Name" aria-label="@AriaLabel" aria-describedby="@Described" aria-invalid="@Invalid" aria-required="@(Required ? "true" : null)" @attributes="Focus">
             <option value="" selected="@(Value.Length == 0)">@Placeholder</option>
             @foreach (string option in Options)
             {
-                <option value="@option" selected="@(option == Value)">@option</option>
+                <option value="@option" selected="@(option == Value)">@(Labels?.GetValueOrDefault(option) ?? option)</option>
             }
         </select>
     }
     else
     {
-        <input id="@Id" name="@Name" type="text" inputmode="@(Numeric ? "numeric" : null)" value="@Value" autocomplete="off" spellcheck="false" list="@(Suggestions is null ? null : Id + "-list")" aria-describedby="@Described" aria-invalid="@Invalid" aria-required="@(Required ? "true" : null)" @attributes="Focus">
+        <input id="@Id" name="@Name" type="text" inputmode="@(Numeric ? "numeric" : null)" value="@Value" autocomplete="off" spellcheck="false" list="@(Suggestions is null ? null : Id + "-list")" aria-label="@AriaLabel" aria-describedby="@Described" aria-invalid="@Invalid" aria-required="@(Required ? "true" : null)" @attributes="Focus">
         @if (Suggestions is not null)
         {
             <datalist id="@Id-list">
@@ -64,6 +64,12 @@
     [CascadingParameter] public ItemFormView? View { get; set; }
 
     [Parameter] public string Placeholder { get; set; } = "Choose";
+
+    // What each option is called when that is not its value (a name for an id).
+    [Parameter] public IReadOnlyDictionary<string, string>? Labels { get; set; }
+
+    // The name the control is read out with, when the visible label repeats on the page (one control per row).
+    [Parameter] public string? AriaLabel { get; set; }
 
     private IReadOnlyDictionary<string, object> Focus => View?.FocusFor(Id) ?? new Dictionary<string, object>();
 

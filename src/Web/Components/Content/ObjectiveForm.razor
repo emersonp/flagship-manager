@@ -1,0 +1,15 @@
+@using Web.Forms
+<FormShell View="View">
+    <TagsField Name="tags" Label="Tags" Value="@View.Values.Get("tags")" Error="@View.Error("tags")" Suggestions="View.Choices.ObjectiveTags" />
+    <div class="field-grid">
+        <Field Name="teamSizeMin" Label="Team size, at least" Value="@View.Values.Get("teamSizeMin")" Hint="1 or more." Error="@View.Error("teamSizeMin")" Numeric="true" Narrow="true" Required="true" />
+        <Field Name="teamSizeMax" Label="Team size, at most" Value="@View.Values.Get("teamSizeMax")" Hint="Not below the least." Error="@View.Error("teamSizeMax")" Numeric="true" Narrow="true" Required="true" />
+        <Field Name="need" Label="Need" Value="@View.Values.Get("need")" Hint="1 or more." Error="@View.Error("need")" Numeric="true" Narrow="true" Required="true" />
+        <Field Name="unattended" Label="Difficulty if unattended" Value="@View.Values.Get("unattended")" Hint="Blank means none. 1 or more." Error="@View.Error("unattended")" Numeric="true" Narrow="true" />
+    </div>
+    <StageRows />
+</FormShell>
+
+@code {
+    [Parameter, EditorRequired] public ItemFormView View { get; set; } = null!;
+}

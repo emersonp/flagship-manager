@@ -82,7 +82,7 @@ public static class ContentFormEndpoints
     private static async Task<IResult> RowsAnswer(string kind, string? id, HttpContext http, ContentEditor editor, Render render, CancellationToken cancellation)
     {
         bool datastar = Sse.IsDatastar(http.Request);
-        if (KindForm.For(kind) is not { } form || FormFlow.Rows(form, editor.Read(), id, await Read(http.Request, cancellation)) is not { } view)
+        if (KindForm.For(kind) is not { } form || FormFlow.Rows(form, editor.Read(), id, await Read(http.Request, cancellation), http.Request.Query["focus"]) is not { } view)
         {
             return await NotFound(render, datastar);
         }

@@ -1,0 +1,56 @@
+@using Web.Forms
+<div class="rowset" id="@($"f-{Set.Prefix}")">
+    <h3 class="sub" id="@($"h-{Set.Prefix}")">@Title</h3>
+    @if (Hint is not null)
+    {
+        <p class="hint">@Hint</p>
+    }
+    @if (Rows.Count == 0)
+    {
+        <p class="empty">No effects. Add one.</p>
+    }
+    else
+    {
+        <ol class="blocks" aria-labelledby="@($"h-{Set.Prefix}")">
+            @for (int i = 0; i < Rows.Count; i++)
+            {
+                int row = i;
+                string which = $"{Title.ToLowerInvariant()} effect {row + 1}";
+                <li class="block" id="@($"{Set.Prefix}-{row}")">
+                    <div class="block__head">
+                        <span class="block__no">Effect @(row + 1)</span>
+                        <div class="block__acts">
+                            <RowButton Id="@Set.ButtonId("remove", row)" Value="@Set.Action("remove", row)" Aria="@($"Remove {which}")">Remove</RowButton>
+                        </div>
+                    </div>
+                    <div class="block__body">
+                        <div class="field-grid">
+                            <Field Name="@Set.Name(row, "progress")" Label="Progress" AriaLabel="@($"Progress, {which}")" Value="@Rows[row]["progress"]" Error="@View.Error(Set.Name(row, "progress"))" Hint="Whole number." Numeric="true" Narrow="true" />
+                            <Field Name="@Set.Name(row, "momentum")" Label="Momentum" AriaLabel="@($"Momentum, {which}")" Value="@Rows[row]["momentum"]" Error="@View.Error(Set.Name(row, "momentum"))" Hint="Whole number." Numeric="true" Narrow="true" />
+                            <Field Name="@Set.Name(row, "strain")" Label="Strain" AriaLabel="@($"Strain, {which}")" Value="@Rows[row]["strain"]" Error="@View.Error(Set.Name(row, "strain"))" Hint="Whole number." Numeric="true" Narrow="true" />
+                            <Field Name="@Set.Name(row, "injury")" Label="Injury roll" AriaLabel="@($"Injury roll, {which}")" Value="@Rows[row]["injury"]" Error="@View.Error(Set.Name(row, "injury"))" Options="@Severities" Placeholder="None" Narrow="true" />
+                            <CheckField Name="@Set.Name(row, "withdraw")" Label="Withdraw" AriaLabel="@($"Withdraw, {which}")" Checked="@(Rows[row]["withdraw"] == "true")" />
+                        </div>
+                    </div>
+                </li>
+            }
+        </ol>
+    }
+    <div class="rowset__add">
+        <RowButton Id="@Set.AddId" Value="@Set.AddAction">Add effect</RowButton>
+    </div>
+</div>
+
+@code {
+    [CascadingParameter] public ItemFormView View { get; set; } = null!;
+
+    [Parameter, EditorRequired] public RowSet Set { get; set; } = null!;
+
+    [Parameter, EditorRequired] public string Title { get; set; } = "";
+
+    [Parameter] public string? Hint { get; set; }
+
+    private static readonly string[] Severities = ["light", "severe"];
+
+    private List<Dictionary<string, string>> Rows => FormRows.Read(View.Values, Set);
+}

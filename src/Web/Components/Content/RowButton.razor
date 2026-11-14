@@ -1,0 +1,25 @@
+@using Web.Forms
+<button class="btn" type="button" id="@Id" name="@RowSet.ActionField" value="@Value" aria-label="@Aria" @attributes="Focus" data-indicator:_rowing data-attr:disabled="@Disabled" data-attr:aria-busy="$_rowing ? 'true' : false" data-on:click="@Post">@ChildContent</button>
+
+@code {
+    [CascadingParameter] public ItemFormView View { get; set; } = null!;
+
+    [Parameter, EditorRequired] public string Id { get; set; } = "";
+
+    // The action the rows route reads: "add", "remove:N", "up:N", or "down:N", with the list's prefix when the form has several lists.
+    [Parameter, EditorRequired] public string Value { get; set; } = "";
+
+    [Parameter] public string? Aria { get; set; }
+
+    // A move off the end of the list: always disabled.
+    [Parameter] public bool Edge { get; set; }
+
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    private string Disabled => Edge ? "true" : FormShell.Busy;
+
+    private IReadOnlyDictionary<string, object> Focus => View.FocusFor(Id);
+
+    // The click posts the whole form to the rows route; the button's own name and value say what to do.
+    private string Post => $"@post('{View.RowsUrl}', {{contentType: 'form'}})";
+}

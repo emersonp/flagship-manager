@@ -6,12 +6,12 @@ namespace Web.Forms;
 // Fields the form does not show come from the stored model, read again when the save runs.
 internal abstract class KindForm
 {
-    private static readonly KindForm[] All = [new SkillKind(), new GearKind(), new CrewKind(), new AssignmentKind()];
+    private static readonly KindForm[] All = [new SkillKind(), new GearKind(), new CrewKind(), new AssignmentKind(), new ObjectiveKind(), new EncounterKind()];
 
     public abstract ContentKind Kind { get; }
 
-    // Null when the kind has no rows.
-    public virtual RowSet? Rows => null;
+    // The lists of rows the form has; none for most kinds.
+    public virtual IReadOnlyList<RowSet> RowSets => [];
 
     // The kinds that have a form yet.
     public static KindForm? For(string segment)
@@ -190,7 +190,7 @@ internal sealed class AssignmentKind : KindForm
 
     public override ContentKind Kind => ContentKind.Assignment;
 
-    public override RowSet? Rows => Offer;
+    public override IReadOnlyList<RowSet> RowSets => [Offer];
 
     public override string? NameOf(ContentFileSet files, string id)
     {

@@ -1,0 +1,63 @@
+@using Web.Forms
+<FormShell View="View">
+    <TagsField Name="tags" Label="Tags" Value="@View.Values.Get("tags")" Error="@View.Error("tags")" Suggestions="View.Choices.EncounterTags" />
+    <CheckField Name="commsBlocked" Label="Comms blocked" Checked="@(View.Values.Get("commsBlocked") == "true")" Hint="Without comms gear on the team, this encounter's decision is never put to the player as a call." />
+    <Field Name="chain" Label="Chains to" Value="@View.Values.Get("chain")" Options="ChainOptions" Labels="ChainLabels" Placeholder="None" Hint="The encounter that follows this one. An encounter another one chains to is never drawn by a stage." Error="@View.Error("chain")" />
+    @foreach (string key in new[] { "careful", "fast" })
+    {
+        <fieldset class="approach">
+            <legend class="sub">@(key == "careful" ? "Careful approach" : "Fast approach")</legend>
+            <div class="field-grid">
+                <Field Name="@($"{key}.skill")" Label="Skill" AriaLabel="@($"Skill, {key} approach")" Value="@View.Values.Get($"{key}.skill")" Options="SkillIds" Labels="SkillLabels" Error="@View.Error($"{key}.skill")" Required="true" />
+                <Field Name="@($"{key}.difficulty")" Label="Difficulty" AriaLabel="@($"Difficulty, {key} approach")" Value="@View.Values.Get($"{key}.difficulty")" Hint="1 or more." Error="@View.Error($"{key}.difficulty")" Numeric="true" Narrow="true" Required="true" />
+                <Field Name="@($"{key}.gearTag")" Label="Gear tag" AriaLabel="@($"Gear tag, {key} approach")" Value="@View.Values.Get($"{key}.gearTag")" Options="View.Choices.GearTags" Placeholder="None" Hint="Gear with this tag helps." Error="@View.Error($"{key}.gearTag")" />
+            </div>
+        </fieldset>
+    }
+    <CheckField Name="hasDecision" Label="This encounter has a decision" Checked="HasDecision" ChangeUrl="@View.RowsUrlFocusing("f-hasDecision")" />
+    @if (HasDecision)
+    {
+        <fieldset class="decision">
+            <legend class="sub">Decision</legend>
+            @if (View.Choices.FixedDecisionId is { } fixedId)
+            {
+                <div class="field">
+                    <span class="field__label" id="decision-id-label">Decision id</span>
+                    <span class="m" aria-labelledby="decision-id-label">@fixedId</span>
+                    <p class="hint">The id is fixed once the decision exists.</p>
+                </div>
+            }
+            else
+            {
+                <Field Name="decision.id" Label="Decision id" Value="@View.Values.Get("decision.id")" Hint="@Checks.IdRule" Error="@View.Error("decision.id")" Required="true" />
+            }
+            <Field Name="decision.name" Label="Decision name" Value="@View.Values.Get("decision.name")" Hint="Optional. 1 to 80 characters." Error="@View.Error("decision.name")" />
+            <Field Name="decision.stakes" Label="Stakes" Value="@(View.Values.Has("decision.stakes") ? View.Values.Get("decision.stakes") : "1")" Hint="1 to 5." Error="@View.Error("decision.stakes")" Numeric="true" Narrow="true" Required="true" />
+            <EffectRows Set="EncounterKind.Bold" Title="Bold" Hint="What happens when the bold answer is chosen. An effect holds a value for each key it changes; leave the others blank." />
+            <EffectRows Set="EncounterKind.Safe" Title="Safe" Hint="What happens when the safe answer is chosen." />
+        </fieldset>
+    }
+    else
+    {
+        // The decision's fields are kept for turning it on again; nothing here is saved.
+        @foreach (KeyValuePair<string, string> field in View.Values.Fields.Where(f => f.Key.StartsWith("decision.", StringComparison.Ordinal) || f.Key.StartsWith("bold[", StringComparison.Ordinal) || f.Key.StartsWith("safe[", StringComparison.Ordinal)))
+        {
+            <input type="hidden" name="@field.Key" value="@field.Value">
+        }
+    }
+</FormShell>
+
+@code {
+    [Parameter, EditorRequired] public ItemFormView View { get; set; } = null!;
+
+    private bool HasDecision => View.Values.Get("hasDecision") == "true";
+
+    private IReadOnlyList<string> SkillIds => View.Choices.Skills.Select(s => s.Id).ToList();
+
+    private IReadOnlyDictionary<string, string> SkillLabels => View.Choices.Skills.Where(s => s.Name is { Length: > 0 }).ToDictionary(s => s.Id, s => $"{s.Name} ({s.Id})");
+
+    // Every other encounter; the one being edited cannot be offered as its own next.
+    private IReadOnlyList<string> ChainOptions => View.Choices.Encounters.Where(e => e.Id != View.Id).Select(e => e.Id).ToList();
+
+    private IReadOnlyDictionary<string, string> ChainLabels => View.Choices.Encounters.Where(e => e.Id != View.Id && e.Name is { Length: > 0 }).ToDictionary(e => e.Id, e => $"{e.Name} ({e.Id})");
+}

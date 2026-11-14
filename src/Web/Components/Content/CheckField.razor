@@ -1,0 +1,55 @@
+@using Web.Forms
+<div class="field field--check">
+    <label class="check" for="@Id"><span class="hit"><input type="checkbox" id="@Id" name="@Name" value="true" checked="@Checked" aria-describedby="@Described" @attributes="Attributes"></span>@Label</label>
+    @if (Hint is not null)
+    {
+        <p class="hint" id="@Id-hint">@Hint</p>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public string Name { get; set; } = "";
+
+    [Parameter, EditorRequired] public string Label { get; set; } = "";
+
+    [Parameter] public bool Checked { get; set; }
+
+    [Parameter] public string? Hint { get; set; }
+
+    // The label the box is read out with when its visible words repeat on the page (one box per row).
+    [Parameter] public string? AriaLabel { get; set; }
+
+    // When set, ticking the box posts the form here (a rows route), so the page shows or hides what the box controls; nothing is saved.
+    [Parameter] public string? ChangeUrl { get; set; }
+
+    [CascadingParameter] public ItemFormView? View { get; set; }
+
+    private string Id => FormValues.Slug(Name);
+
+    private string? Described => Hint is null ? null : Id + "-hint";
+
+    private IReadOnlyDictionary<string, object> Attributes
+    {
+        get
+        {
+            var attributes = new Dictionary<string, object>();
+            if (AriaLabel is not null)
+            {
+                attributes["aria-label"] = AriaLabel;
+            }
+
+            if (ChangeUrl is not null)
+            {
+                attributes["data-indicator:_rowing"] = true;
+                attributes["data-on:change"] = $"@post('{ChangeUrl}', {{contentType: 'form'}})";
+            }
+
+            foreach ((string key, object value) in View?.FocusFor(Id) ?? new Dictionary<string, object>())
+            {
+                attributes[key] = value;
+            }
+
+            return attributes;
+        }
+    }
+}

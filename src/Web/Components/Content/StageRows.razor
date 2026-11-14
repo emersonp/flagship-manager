@@ -1,0 +1,72 @@
+@using Web.Forms
+<div class="rowset" id="f-stages" tabindex="-1" aria-labelledby="h-stages" @attributes="StagesFocus">
+    <h3 class="sub" id="h-stages">Stages</h3>
+    <p class="hint">Stages run in order. A stage draws encounters that have every ticked tag; an encounter another one chains to is never drawn.</p>
+    @if (View.Error("stages") is { } error)
+    {
+        <p class="error" id="f-stages-error">@error</p>
+    }
+    <ol class="blocks">
+        @for (int i = 0; i < Rows.Count; i++)
+        {
+            int row = i;
+            List<string> ticked = RowSet.Split(Rows[row]["draw"]).ToList();
+            int matches = View.Choices.Matches(ticked);
+            <li class="block" id="@($"stage-{row}")">
+                <div class="block__head">
+                    <span class="block__no">Stage @(row + 1)</span>
+                    <p class="@(matches == 0 ? "match match--none" : "match")" id="@($"stage-{row}-match")" role="status">@(matches == 0 ? "No encounters match" : matches == 1 ? "1 encounter matches" : $"{matches} encounters match")</p>
+                    <div class="block__acts">
+                        <RowButton Id="@Set.ButtonId("up", row)" Value="@Set.Action("up", row)" Aria="@($"Move stage {row + 1} up")" Edge="@(row == 0)">Move up</RowButton>
+                        <RowButton Id="@Set.ButtonId("down", row)" Value="@Set.Action("down", row)" Aria="@($"Move stage {row + 1} down")" Edge="@(row == Rows.Count - 1)">Move down</RowButton>
+                        <RowButton Id="@Set.ButtonId("remove", row)" Value="@Set.Action("remove", row)" Aria="@($"Remove stage {row + 1}")">Remove</RowButton>
+                    </div>
+                </div>
+                <div class="block__body">
+                    <div class="field-grid">
+                        <Field Name="@Set.Name(row, "slot")" Label="Slot" AriaLabel="@($"Slot, stage {row + 1}")" Value="@Rows[row]["slot"]" Error="@View.Error(Set.Name(row, "slot"))" Required="true" />
+                        <Field Name="@Set.Name(row, "countMin")" Label="Count, at least" AriaLabel="@($"Count, at least, stage {row + 1}")" Value="@Rows[row]["countMin"]" Error="@View.Error(Set.Name(row, "countMin"))" Hint="1 or more." Numeric="true" Narrow="true" Required="true" />
+                        <Field Name="@Set.Name(row, "countMax")" Label="Count, at most" AriaLabel="@($"Count, at most, stage {row + 1}")" Value="@Rows[row]["countMax"]" Error="@View.Error(Set.Name(row, "countMax"))" Hint="Not below the least." Numeric="true" Narrow="true" Required="true" />
+                    </div>
+                    <fieldset class="field tags">
+                        <legend>Draw tags<span class="visually-hidden">, stage @(row + 1)</span></legend>
+                        <div class="tag-list">
+                            @for (int t = 0; t < Options(ticked).Count; t++)
+                            {
+                                string tag = Options(ticked)[t];
+                                string name = Set.Name(row, "draw");
+                                string id = FormValues.Slug(name) + "-" + t;
+                                <label class="check" for="@id"><span class="hit"><input type="checkbox" id="@id" name="@name" value="@tag" checked="@ticked.Contains(tag)" aria-describedby="@(View.Error(name) is null ? null : FormValues.Slug(name) + "-error")" aria-invalid="@(View.Error(name) is null ? null : "true")"></span>@tag</label>
+                            }
+                        </div>
+                        @if (View.Error(Set.Name(row, "draw")) is { } drawError)
+                        {
+                            <p class="error" id="@($"{FormValues.Slug(Set.Name(row, "draw"))}-error")">@drawError</p>
+                        }
+                    </fieldset>
+                    @foreach (string kept in RowSet.Split(Rows[row]["order"]))
+                    {
+                        <input type="hidden" name="@Set.Name(row, "order")" value="@kept">
+                    }
+                    <CheckField Name="@Set.Name(row, "skippable")" Label="Skippable" AriaLabel="@($"Skippable, stage {row + 1}")" Checked="@(Rows[row]["skippable"] == "true")" Hint="The team may skip this stage." />
+                </div>
+            </li>
+        }
+    </ol>
+    <div class="rowset__add">
+        <RowButton Id="@Set.AddId" Value="@Set.AddAction">Add stage</RowButton>
+    </div>
+</div>
+
+@code {
+    [CascadingParameter] public ItemFormView View { get; set; } = null!;
+
+    private IReadOnlyDictionary<string, object> StagesFocus => View.FocusFor("f-stages");
+
+    private static RowSet Set => ObjectiveKind.Stages;
+
+    private List<Dictionary<string, string>> Rows => FormRows.Read(View.Values, Set);
+
+    // The tags encounters use, and any tag a stage holds that none does (shown so it can be seen and unticked).
+    private List<string> Options(List<string> ticked) => [.. View.Choices.EncounterTags, .. ticked.Where(t => !View.Choices.EncounterTags.Contains(t))];
+}

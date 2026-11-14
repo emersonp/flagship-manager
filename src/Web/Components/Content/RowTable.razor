@@ -40,7 +40,7 @@
                                     }
                                 </td>
                             }
-                            <td class="c"><button class="btn" type="button" id="@($"row-remove-{row}")" name="@RowSet.ActionField" value="@($"remove:{row}")" aria-label="@($"Remove row {row + 1}")" data-indicator:_rowing data-attr:disabled="@FormShell.Busy" data-attr:aria-busy="$_rowing ? 'true' : false" data-on:click="@Post">Remove</button></td>
+                            <td class="c"><RowButton Id="@Set.ButtonId("remove", row)" Value="@Set.Action("remove", row)" Aria="@($"Remove {Set.Noun} {row + 1}")">Remove</RowButton></td>
                         </tr>
                     }
                 </tbody>
@@ -48,7 +48,7 @@
         </div>
     }
     <div class="rowset__add">
-        <button class="btn" type="button" id="row-add" name="@RowSet.ActionField" value="add" @attributes="AddFocus" data-indicator:_rowing data-attr:disabled="@FormShell.Busy" data-attr:aria-busy="$_rowing ? 'true' : false" data-on:click="@Post">Add a row</button>
+        <RowButton Id="@Set.AddId" Value="@Set.AddAction">Add a row</RowButton>
     </div>
 </div>
 
@@ -64,10 +64,5 @@
 
     [Parameter] public string? Hint { get; set; }
 
-    private IReadOnlyDictionary<string, object> AddFocus => View.FocusFor("row-add");
-
     private List<Dictionary<string, string>> Rows => FormRows.Read(View.Values, Set);
-
-    // The click posts the whole form to the rows route; the button's own name and value say which action and which row.
-    private string Post => $"@post('{View.RowsUrl}', {{contentType: 'form'}})";
 }

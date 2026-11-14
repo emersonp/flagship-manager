@@ -6,7 +6,29 @@ namespace Web.Forms;
 public sealed record SkillChoice(string Id, string? Name);
 
 // What a form picks from: read from the files on disk, so a skill added a moment ago is already there.
-public sealed record FormChoices(IReadOnlyList<SkillChoice> Skills, IReadOnlyList<string> GearTags, IReadOnlyList<string> ObjectiveTags, int? MaxLevel);
+public sealed record FormChoices(IReadOnlyList<SkillChoice> Skills, IReadOnlyList<string> GearTags, IReadOnlyList<string> ObjectiveTags, int? MaxLevel)
+{
+    public IReadOnlyList<EncounterChoice> Encounters { get; init; } = [];
+
+    // The tags encounters use: what an objective's stages draw by, and the suggestions for an encounter's own tags.
+    public IReadOnlyList<string> EncounterTags { get; init; } = [];
+
+    // Each decision's id and the encounter that holds it.
+    public IReadOnlyDictionary<string, string> DecisionOwners { get; init; } = new Dictionary<string, string>();
+
+    // The id of the decision the encounter already has, which cannot change; null when it has none.
+    public string? FixedDecisionId { get; init; }
+
+    // How many encounters a stage drawing by these tags can draw, as the game draws: a chain target is never drawn.
+    public int Matches(IEnumerable<string> tags)
+    {
+        List<string> wanted = tags.ToList();
+        HashSet<string> targets = Encounters.Select(e => e.Chain).OfType<string>().ToHashSet();
+        return Encounters.Count(e => !targets.Contains(e.Id) && wanted.All(e.Tags.Contains));
+    }
+}
+
+public sealed record EncounterChoice(string Id, string? Name, IReadOnlyList<string> Tags, string? Chain);
 
 // Everything a form is drawn from: the values (as text), the checks that failed, what the loader or the save refused, and the loss warning.
 public sealed record ItemFormView(
@@ -45,6 +67,12 @@ public sealed record ItemFormView(
     public string Action => IsNew ? $"/dev/content/{Segment}" : $"/dev/content/{Segment}/{Uri.EscapeDataString(Id)}";
 
     public string RowsUrl => IsNew ? $"/dev/content/{Segment}/rows" : $"{Action}/rows";
+
+    // The rows route, asking for the element with this id to take focus in the answer.
+    public string RowsUrlFocusing(string id)
+    {
+        return $"{RowsUrl}?focus={Uri.EscapeDataString(id)}";
+    }
 
     public string DeleteUrl => $"{Action}/delete";
 
