@@ -11,6 +11,9 @@ public static class ContentFormEndpoints
 {
     public static void Map(RouteGroupBuilder dev)
     {
+        // The literal segment wins over the kind routes below.
+        dev.MapGet("/content/files/{name}", OpenFile);
+        dev.MapPost("/content/files/{name}", SaveFile);
         dev.MapGet("/content/{kind}/new", New);
         dev.MapGet("/content/{kind}/{id}", Open);
         dev.MapPost("/content/{kind}", Create);
@@ -18,6 +21,34 @@ public static class ContentFormEndpoints
         dev.MapPost("/content/{kind}/{id}", Save);
         dev.MapPost("/content/{kind}/{id}/rows", Rows);
         dev.MapPost("/content/{kind}/{id}/delete", Delete);
+    }
+
+    private static async Task<IResult> OpenFile(string name, ContentEditor editor, Render render)
+    {
+        if (TextFile.Find(name) is not { } file)
+        {
+            return await NotFound(render, false);
+        }
+
+        return await Answer<TextFileForm, TextFilePage>(render, false, TextParameters(TextFileFlow.Open(file, editor.Read())), StatusCodes.Status200OK);
+    }
+
+    private static async Task<IResult> SaveFile(string name, HttpContext http, ContentEditor editor, Render render, CancellationToken cancellation)
+    {
+        bool datastar = Sse.IsDatastar(http.Request);
+        if (TextFile.Find(name) is not { } file)
+        {
+            return await NotFound(render, datastar);
+        }
+
+        // A post with no text field is an empty text, which the loader refuses.
+        (TextFileView view, bool saved) = await TextFileFlow.Save(file, editor, (await Read(http.Request, cancellation)).Get("text"), cancellation);
+        return await Answer<TextFileForm, TextFilePage>(render, datastar, TextParameters(view), saved ? StatusCodes.Status200OK : StatusCodes.Status422UnprocessableEntity);
+    }
+
+    private static Dictionary<string, object?> TextParameters(TextFileView view)
+    {
+        return new Dictionary<string, object?> { ["View"] = view };
     }
 
     private static async Task<IResult> New(string kind, ContentEditor editor, Render render)

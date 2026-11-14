@@ -1,0 +1,10 @@
+@using Web.Forms
+<Layout Title="@View.File.Title">
+    <div class="page">
+        <TextFileForm View="View" />
+    </div>
+</Layout>
+
+@code {
+    [Parameter, EditorRequired] public TextFileView View { get; set; } = null!;
+}

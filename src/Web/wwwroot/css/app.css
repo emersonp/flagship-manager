@@ -398,3 +398,10 @@ a.btn { text-decoration: none; }
 @media (prefers-reduced-motion: reduce) {
   .btn:active, .seg label:active { transform: none; }
 }
+
+/* The text file pages: one tall text area in the mono face; long lines scroll sideways inside it, never the page. */
+.textfield { display: grid; gap: var(--space-2xs); min-width: 0; }
+.textfield label { font-size: var(--text-sm); color: var(--color-muted); overflow-wrap: anywhere; }
+.textfield textarea { display: block; width: 100%; min-width: 0; height: clamp(20rem, 65vh, 48rem); padding: var(--space-sm); border: var(--rule-hair) solid var(--color-muted); border-radius: var(--radius-control); background: var(--color-paper); color: var(--color-ink); font-family: var(--font-outlier); font-size: var(--text-sm); line-height: 1.5; tab-size: 2; white-space: pre; overflow: auto; resize: vertical; outline: 2px solid transparent; outline-offset: -3px; transition: background-color var(--dur-micro) var(--ease-out); }
+.textfield textarea:hover { background: var(--color-paper-3); }
+.textfield textarea:focus-visible { outline-color: var(--color-focus); border-color: var(--color-ink-2); }

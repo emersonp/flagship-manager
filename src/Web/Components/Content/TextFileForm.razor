@@ -1,0 +1,38 @@
+@using Web.Forms
+<ContentShell Title="@View.File.Title" Subtitle="@Subtitle" ParentTitle="Content" ParentHref="/dev/content">
+    <ChildContent>
+        <form id="text-form" class="well" method="post" action="@View.File.Action" novalidate aria-labelledby="h-text" data-indicator:_saving data-on:submit="@Post">
+            <div class="well__head"><h2 id="h-text"><span class="m">@View.File.Path</span></h2></div>
+            <div class="well__body">
+                <div class="textfield">
+                    <label for="text">Text of @View.File.Path</label>
+                    @* Razor writes a line break as a character reference, which a text area keeps even straight after its tag. *@
+                    <textarea id="text" name="text" rows="28" wrap="off" spellcheck="false" autocomplete="off" aria-describedby="text-hint">@View.Text</textarea>
+                    <p class="hint" id="text-hint">Saving checks the whole pack first. If it would not load, nothing is written and the reasons are shown.</p>
+                </div>
+            </div>
+        </form>
+        <div class="actions well">
+            <div id="form-alert" class="alert" role="alert" tabindex="-1" @attributes="View.AlertFocus">
+                @if (View.Notice is not null)
+                {
+                    <p class="alert-ok">@View.Notice</p>
+                }
+                @if (View.Reasons.Count > 0)
+                {
+                    <p class="error">The change was refused. Nothing was written.</p>
+                    <ContentProblems Errors="View.Reasons" />
+                }
+            </div>
+            <button class="btn btn--primary" type="submit" form="text-form" data-attr:disabled="$_saving" data-attr:aria-busy="$_saving ? 'true' : false">Save</button>
+        </div>
+    </ChildContent>
+</ContentShell>
+
+@code {
+    [Parameter, EditorRequired] public TextFileView View { get; set; } = null!;
+
+    private string Subtitle => string.Join(" ", View.File.Notes);
+
+    private string Post => $"@post('{View.File.Action}', {{contentType: 'form'}})";
+}
