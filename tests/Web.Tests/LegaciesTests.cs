@@ -60,6 +60,41 @@ public sealed class LegaciesTests : IDisposable
         Assert.Empty(app.Game.Store.ListLegacies());
     }
 
+    public static TheoryData<string> UnreadableForms => new() { "no body", "no content type", "over-large" };
+
+    // A body that is not a readable form is a refusal on the page, not a failure.
+    [Theory]
+    [MemberData(nameof(UnreadableForms))]
+    public async Task A_post_that_is_not_a_readable_form_is_refused_with_the_page_and_a_reason(string kind)
+    {
+        HttpContent? content = kind switch
+        {
+            "no body" => null,
+            "no content type" => new StringContent("name=LEGACY_ONE"),
+            _ => Form(new string('A', 5 * 1024 * 1024)),
+        };
+        if (kind == "no content type")
+        {
+            content!.Headers.ContentType = null;
+        }
+
+        HttpResponseMessage response = await app.NewClient().PostAsync("/legacies", content);
+        string html = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Contains("<form method=\"post\" action=\"/legacies\"", html);
+        Assert.Contains("<p class=\"error\" id=\"name-error\">The form was not complete.</p>", html);
+        Assert.Empty(app.Game.Store.ListLegacies());
+    }
+
+    [Fact]
+    public async Task The_name_field_holds_at_most_sixty_characters()
+    {
+        string html = await app.NewClient().GetStringAsync("/");
+
+        Assert.Matches("<input id=\"name\" name=\"name\"[^>]* maxlength=\"60\"", html);
+    }
+
     [Theory]
     [InlineData("/legacy/00000000-0000-0000-0000-000000000001")]
     [InlineData("/legacy/not-a-guid")]

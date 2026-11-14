@@ -13,13 +13,15 @@ public sealed class LegacySession(GameServices services)
     // A test hook: runs after a run's commit, inside the lock.
     internal Action<Guid>? AfterCommit { get; set; }
 
+    internal int LockCount => locks.Count;
+
     // Runs work under the legacy's lock on a freshly loaded state, commits what it published, and returns its result.
     // Returns null when the legacy does not exist. A rejected command rolls nothing forward and is rethrown.
     public async Task<T?> Run<T>(Guid legacyId, Func<LoadedLegacy, T> work, CancellationToken cancellation = default)
         where T : class
     {
-        using IDisposable held = await Hold(legacyId, cancellation);
-        LoadedLegacy? legacy = Load(legacyId);
+        using Held held = await Hold(legacyId, cancellation);
+        LoadedLegacy? legacy = Load(held);
         if (legacy is null)
         {
             return null;
@@ -34,8 +36,8 @@ public sealed class LegacySession(GameServices services)
 
     public async Task<LoadedLegacy?> Read(Guid legacyId, CancellationToken cancellation = default)
     {
-        using IDisposable held = await Hold(legacyId, cancellation);
-        return Load(legacyId);
+        using Held held = await Hold(legacyId, cancellation);
+        return Load(held);
     }
 
     public Task<Guid> CreateLegacy(string name, CancellationToken cancellation = default)
@@ -47,20 +49,36 @@ public sealed class LegacySession(GameServices services)
     internal async Task<Guid> CreateLegacy(string name, ulong seed, CancellationToken cancellation = default)
     {
         Guid id = Guid.NewGuid();
-        using IDisposable held = await Hold(id, cancellation);
+        using Held held = await Hold(id, cancellation);
         var state = new LegacyState { LegacyId = id, Seed = seed };
         var record = new LegacyRecord(state, services.Pack.Id, services.Pack.Version, name, services.Clock.GetUtcNow());
         var legacy = new LoadedLegacy(record, services);
-        // Founded in memory, then stored with its events in one transaction: a failure leaves nothing behind.
+        // Founded in memory, then stored with its events in one transaction: a failure leaves nothing behind, not even the lock.
         legacy.Send(new FoundLegacy());
-        services.Store.Create(record, legacy.Envelopes);
+        try
+        {
+            services.Store.Create(record, legacy.Envelopes);
+        }
+        catch
+        {
+            held.Forget();
+            throw;
+        }
+
         return id;
     }
 
-    private LoadedLegacy? Load(Guid legacyId)
+    // Loads under the held lock; a legacy that does not exist leaves no lock behind.
+    private LoadedLegacy? Load(Held held)
     {
-        LegacyRecord? record = services.Store.Load(legacyId, services.Game.ModuleTypes);
-        return record is null ? null : new LoadedLegacy(record, services);
+        LegacyRecord? record = services.Store.Load(held.LegacyId, services.Game.ModuleTypes);
+        if (record is null)
+        {
+            held.Forget();
+            return null;
+        }
+
+        return new LoadedLegacy(record, services);
     }
 
     private static ulong RandomSeed()
@@ -70,15 +88,23 @@ public sealed class LegacySession(GameServices services)
         return BitConverter.ToUInt64(bytes);
     }
 
-    private async Task<IDisposable> Hold(Guid legacyId, CancellationToken cancellation)
+    private async Task<Held> Hold(Guid legacyId, CancellationToken cancellation)
     {
         SemaphoreSlim gate = locks.GetOrAdd(legacyId, _ => new SemaphoreSlim(1, 1));
         await gate.WaitAsync(cancellation);
-        return new Releaser(gate);
+        return new Held(this, legacyId, gate);
     }
 
-    private sealed class Releaser(SemaphoreSlim gate) : IDisposable
+    private sealed class Held(LegacySession owner, Guid legacyId, SemaphoreSlim gate) : IDisposable
     {
+        public Guid LegacyId { get; } = legacyId;
+
+        // Drops the table's entry for an id with nothing stored; only this exact lock is removed.
+        public void Forget()
+        {
+            owner.locks.TryRemove(new KeyValuePair<Guid, SemaphoreSlim>(LegacyId, gate));
+        }
+
         public void Dispose()
         {
             gate.Release();

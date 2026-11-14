@@ -42,22 +42,6 @@ public static class Sse
         return Write(response, text.Append('\n'));
     }
 
-    public static Task PatchSignals(HttpResponse response, string json)
-    {
-        return Write(response, new StringBuilder("event: datastar-patch-signals\ndata: signals ").Append(json).Append("\n\n"));
-    }
-
-    public static Task Redirect(HttpResponse response, string url)
-    {
-        if (!url.StartsWith('/') || url.StartsWith("//") || url.IndexOfAny(['\r', '\n', '"', '<', '>', '\\']) >= 0)
-        {
-            throw new ArgumentException("A redirect must be a server-relative path.", nameof(url));
-        }
-
-        string script = $"<script>window.location = \"{url}\"</script>";
-        return PatchElements(response, script, "body", "append");
-    }
-
     private static void RefuseLineBreak(string? value, string name)
     {
         if (value is not null && value.AsSpan().IndexOfAny('\r', '\n') >= 0)

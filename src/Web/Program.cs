@@ -67,8 +67,25 @@ app.MapGet("/", async (GameServices game, Render render) =>
 
 app.MapPost("/legacies", async Task<IResult> (HttpRequest request, GameServices game, LegacySession sessions, Render render, CancellationToken cancellation) =>
 {
+    async Task<IResult> Refused(string name, string reason)
+    {
+        string html = await render.Html<LegaciesPage>(new Dictionary<string, object?> { ["Legacies"] = game.Store.ListLegacies(), ["Name"] = name, ["Error"] = reason });
+        return Results.Content(html, "text/html; charset=utf-8", statusCode: StatusCodes.Status400BadRequest);
+    }
+
     // Read straight from the form: this is a local single-player app with no cross-site state to protect.
-    string name = (await request.ReadFormAsync())["name"].ToString();
+    IFormCollection form;
+    try
+    {
+        form = await request.ReadFormAsync(cancellation);
+    }
+    catch (Exception e) when (e is InvalidDataException or InvalidOperationException or IOException)
+    {
+        // No body, no form content type, or a body over the form limits.
+        return await Refused("", "The form was not complete.");
+    }
+
+    string name = form["name"].ToString();
     try
     {
         Guid id = await sessions.CreateLegacy(name, cancellation);
@@ -76,8 +93,7 @@ app.MapPost("/legacies", async Task<IResult> (HttpRequest request, GameServices 
     }
     catch (InvalidLegacyNameException e)
     {
-        string html = await render.Html<LegaciesPage>(new Dictionary<string, object?> { ["Legacies"] = game.Store.ListLegacies(), ["Name"] = name, ["Error"] = e.Message });
-        return Results.Content(html, "text/html; charset=utf-8", statusCode: StatusCodes.Status400BadRequest);
+        return await Refused(name, e.Message);
     }
 });
 

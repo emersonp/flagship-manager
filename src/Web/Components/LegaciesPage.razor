@@ -39,7 +39,7 @@
                     <form method="post" action="/legacies" class="start well__body">
                         <label for="name">Name</label>
                         <div class="start-row">
-                            <input id="name" name="name" type="text" value="@Name" autocomplete="off" required aria-invalid="@(Error is null ? null : "true")" aria-describedby="@(Error is null ? null : "name-error")">
+                            <input id="name" name="name" type="text" value="@Name" autocomplete="off" required maxlength="60" aria-invalid="@(Error is null ? null : "true")" aria-describedby="@(Error is null ? null : "name-error")">
                             <button class="btn btn--primary" type="submit">Start a legacy</button>
                         </div>
                         @if (Error is not null)

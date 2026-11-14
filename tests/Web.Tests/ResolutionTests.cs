@@ -799,7 +799,8 @@ public sealed class ResolutionTests : IDisposable
     [Fact]
     public async Task An_aborted_stream_leaves_the_legacy_readable_and_complete()
     {
-        using var slow = new TestApp(5000);
+        // A beat delay far longer than the wait below: the request can only end in time because the client left.
+        using var slow = new TestApp(600_000);
         HttpClient slowClient = slow.NewClient();
         Guid id = await slow.Sessions.CreateLegacy("LEGACY", 1);
         var captain = new WebCaptain(slow, slowClient, id);
@@ -810,6 +811,14 @@ public sealed class ResolutionTests : IDisposable
         form.AddRange(team.CrewIds.Select(c => new KeyValuePair<string, string>("crew", c)));
         using var request = new HttpRequestMessage(HttpMethod.Post, $"/legacy/{id}/launch") { Content = new FormUrlEncodedContent(slow.Stamped(id, form)) };
         using var cts = new CancellationTokenSource();
+        var finished = new TaskCompletionSource();
+        slow.Logs.OnEntry = e =>
+        {
+            if (e.Message.Contains("Request finished") && e.Message.Contains("/launch"))
+            {
+                finished.TrySetResult();
+            }
+        };
 
         HttpResponseMessage response = await slowClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cts.Token);
         using (Stream body = await response.Content.ReadAsStreamAsync(cts.Token))
@@ -821,15 +830,8 @@ public sealed class ResolutionTests : IDisposable
         response.Dispose();
         cts.Cancel();
 
-        // The endpoint ends well inside the 5000 ms delay it was waiting on, and says nothing about it.
-        var finished = false;
-        for (int waited = 0; waited < 2000 && !finished; waited += 50)
-        {
-            finished = slow.Logs.Entries.Any(e => e.Message.Contains("Request finished") && e.Message.Contains("/launch"));
-            await Task.Delay(50);
-        }
-
-        Assert.True(finished, "The launch request did not end after the client left.");
+        // The endpoint ends once the client has gone, and says nothing about it.
+        await finished.Task.WaitAsync(TimeSpan.FromSeconds(60));
         Assert.DoesNotContain(slow.Logs.Entries, e => e.Level >= LogLevel.Error);
         string page = await slowClient.GetStringAsync($"/legacy/{id}");
         IReadOnlyList<int> indexes = StoredBeatIndexes(slow, id);

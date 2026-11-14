@@ -100,6 +100,21 @@ public sealed class LegacySessionTests : IDisposable
         Assert.Empty(app.Game.Store.ListLegacies());
     }
 
+    // A lock is kept only for a legacy that exists, so asking after unknown ids does not grow the table.
+    [Fact]
+    public async Task No_lock_is_kept_for_an_id_that_does_not_exist()
+    {
+        Guid id = await app.Sessions.CreateLegacy("LEGACY");
+        int locks = app.Sessions.LockCount;
+
+        Assert.Null(await app.Sessions.Read(Guid.NewGuid()));
+        Assert.Null(await app.Sessions.Run<object>(Guid.NewGuid(), _ => new object()));
+        await Assert.ThrowsAsync<InvalidLegacyNameException>(() => app.Sessions.CreateLegacy(" "));
+        Assert.NotNull(await app.Sessions.Read(id));
+
+        Assert.Equal(locks, app.Sessions.LockCount);
+    }
+
     [Fact]
     public async Task A_cancelled_token_stops_the_wait_for_the_lock()
     {

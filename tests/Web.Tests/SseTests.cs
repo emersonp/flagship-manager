@@ -32,22 +32,6 @@ public sealed class SseTests
     }
 
     [Fact]
-    public async Task PatchSignals_writes_the_json_on_one_data_line()
-    {
-        string wire = await Written(r => Sse.PatchSignals(r, "{\"_open\":true}"));
-
-        Assert.Equal("event: datastar-patch-signals\ndata: signals {\"_open\":true}\n\n", wire);
-    }
-
-    [Fact]
-    public async Task Redirect_appends_a_script_to_the_body()
-    {
-        string wire = await Written(r => Sse.Redirect(r, "/legacy/x"));
-
-        Assert.Equal("event: datastar-patch-elements\ndata: selector body\ndata: mode append\ndata: elements <script>window.location = \"/legacy/x\"</script>\n\n", wire);
-    }
-
-    [Fact]
     public async Task Start_sets_the_event_stream_headers()
     {
         var context = new DefaultHttpContext();
@@ -65,18 +49,5 @@ public sealed class SseTests
     public async Task A_selector_or_mode_with_a_line_break_is_refused(string selector, string mode)
     {
         await Assert.ThrowsAsync<ArgumentException>(() => Written(r => Sse.PatchElements(r, "<p id=\"a\"></p>", selector, mode)));
-    }
-
-    [Theory]
-    [InlineData("https://example.com/")]
-    [InlineData("//example.com/")]
-    [InlineData("legacy/x")]
-    [InlineData("/a\"b")]
-    [InlineData("/a<b")]
-    [InlineData("/a>b")]
-    [InlineData("/a\nb")]
-    public async Task Redirect_refuses_a_url_that_is_not_a_server_relative_path(string url)
-    {
-        await Assert.ThrowsAsync<ArgumentException>(() => Written(r => Sse.Redirect(r, url)));
     }
 }
