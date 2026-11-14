@@ -879,6 +879,59 @@ public sealed class ContentFormsTests(RepoContentGuard guard) : IClassFixture<Re
         Assert.Equal("NAME_PLACEHOLDER_B", app.Live.Names.Skill("SKILL_B"));
     }
 
+    // DNS rebinding: a page on a foreign name that resolves to this machine sends its own host and a matching origin.
+    [Theory]
+    [InlineData("GET", "/dev/content")]
+    [InlineData("GET", "/dev/content/skills/SKILL_A")]
+    [InlineData("POST", "/dev/content/reload")]
+    [InlineData("POST", "/dev/content/skills/SKILL_A")]
+    [InlineData("POST", "/dev/content/skills")]
+    [InlineData("POST", "/dev/content/skills/rows")]
+    [InlineData("POST", "/dev/content/gear/GEAR_04/delete")]
+    [InlineData("POST", "/dev/content/assignments/ASSIGNMENT_TEMPLATE_1/rows")]
+    [InlineData("POST", "/dev/content/files/pack")]
+    public async Task A_request_to_a_foreign_host_is_refused_even_with_a_matching_origin(string method, string url)
+    {
+        using TestApp app = NewApp();
+        string before = Everything(app);
+        var request = new HttpRequestMessage(new HttpMethod(method), url);
+        if (method == "POST")
+        {
+            request.Content = new FormUrlEncodedContent(Fields("id=SKILL_E&name=NAME_PLACEHOLDER&text=id%3A%20CORE"));
+        }
+
+        request.Headers.Host = "evil.example";
+        request.Headers.Add("Origin", "http://evil.example");
+
+        HttpResponseMessage response = await app.NewClient().SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        Assert.Equal(before, Everything(app));
+    }
+
+    [Theory]
+    [InlineData("localhost")]
+    [InlineData("127.0.0.1")]
+    [InlineData("[::1]")]
+    [InlineData("localhost:5000")]
+    [InlineData("127.0.0.1:5000")]
+    [InlineData("[::1]:5000")]
+    public async Task The_loopback_host_names_are_allowed(string host)
+    {
+        using TestApp app = NewApp();
+        HttpClient client = app.NewClient();
+        var get = new HttpRequestMessage(HttpMethod.Get, "/dev/content");
+        get.Headers.Host = host;
+        var post = new HttpRequestMessage(HttpMethod.Post, "/dev/content/skills/SKILL_A") { Content = new FormUrlEncodedContent(Fields("name=NAME_PLACEHOLDER_A")) };
+        post.Headers.Host = host;
+        post.Headers.Add("Origin", $"http://{host}");
+
+        HttpResponseMessage got = await client.SendAsync(get);
+        HttpResponseMessage posted = await client.SendAsync(post);
+
+        Assert.Equal((HttpStatusCode.OK, HttpStatusCode.OK), (got.StatusCode, posted.StatusCode));
+    }
+
     [Fact]
     public async Task A_get_from_another_site_is_not_refused()
     {
