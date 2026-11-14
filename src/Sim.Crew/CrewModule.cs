@@ -59,7 +59,7 @@ public static class CrewModule
             CrewMember? member = state.Members.FirstOrDefault(m => m.Id == result.Id);
             if (member is null)
             {
-                continue;
+                throw new InvalidOperationException($"Mission {ended.MissionId} reported crew member '{result.Id}', who is not on the roster.");
             }
 
             GainExperience(tuning, member, result, context);
@@ -100,9 +100,12 @@ public static class CrewModule
             return;
         }
 
-        for (int i = 0; i < result.Injury; i++)
+        if (result.Status != MemberStatus.Dead)
         {
-            member.LightInjuriesHealAtWeek.Add(week + tuning.LightInjuryWeeks);
+            for (int i = 0; i < result.Injury; i++)
+            {
+                member.LightInjuriesHealAtWeek.Add(week + tuning.LightInjuryWeeks);
+            }
         }
 
         switch (result.Status)

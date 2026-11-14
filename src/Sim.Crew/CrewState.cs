@@ -1,4 +1,4 @@
-using System.Diagnostics.CodeAnalysis;
+using System.Text.Json.Serialization;
 
 namespace Sim.Crew;
 
@@ -42,12 +42,6 @@ public sealed class CrewMember
 
 public sealed class CrewState
 {
-    // The bus makes a module state with new(), which a required member would forbid; the constructor satisfies it.
-    [SetsRequiredMembers]
-    public CrewState()
-    {
-        Members = new List<CrewMember>();
-    }
-
-    public required List<CrewMember> Members { get; set; }
+    [JsonRequired]
+    public List<CrewMember> Members { get; set; } = new();
 }

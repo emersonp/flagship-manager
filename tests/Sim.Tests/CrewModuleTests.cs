@@ -307,4 +307,88 @@ public class CrewModuleTests
         Assert.Contains("\"Dead\"", json);
         Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<CrewState>("""{"Members":[{"Id":"X"}]}""", SimJson.Options));
     }
+
+    [Theory]
+    [InlineData("{}")]
+    [InlineData("""{"Members":null}""")]
+    public void A_stored_state_without_a_roster_is_refused(string json)
+    {
+        Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<CrewState>(json, SimJson.Options));
+    }
+
+    [Fact]
+    public void A_fresh_state_round_trips_and_the_bus_creates_it_empty()
+    {
+        string json = JsonSerializer.Serialize(new CrewState(), SimJson.Options);
+
+        Assert.Empty(JsonSerializer.Deserialize<CrewState>(json, SimJson.Options)!.Members);
+
+        var bus = new EventBus();
+        CrewModule.Register(bus, TestContent.Pack);
+        var state = new LegacyState { LegacyId = Guid.Empty, Seed = 1 };
+        Assert.Empty(bus.View<IRosterView>(state).Roster);
+    }
+
+    [Fact]
+    public void An_unknown_crew_id_in_a_result_is_a_bug_and_throws()
+    {
+        var h = new Harness();
+
+        var ex = Assert.Throws<InvalidOperationException>(() => h.End(Gained("NOBODY", 1)));
+
+        Assert.Contains("NOBODY", ex.Message);
+    }
+
+    [Fact]
+    public void A_member_who_dies_gets_no_light_injury_entries()
+    {
+        var h = new Harness();
+
+        h.End(new CrewResult("CREW_01", MemberStatus.Dead, 2, new Dictionary<string, double>(), 0));
+
+        Assert.Empty(h.Member("CREW_01").LightInjuriesHealAtWeek);
+    }
+
+    [Fact]
+    public void The_view_before_founding_is_empty_and_stores_nothing()
+    {
+        var bus = new EventBus();
+        CycleModule.Register(bus);
+        CrewModule.Register(bus, TestContent.Pack);
+        var state = new LegacyState { LegacyId = Guid.Empty, Seed = 1 };
+
+        Assert.Empty(bus.View<IRosterView>(state).Roster);
+        Assert.Empty(state.Modules);
+
+        bus.Send(state, new FoundLegacy());
+        Assert.Equal(8, bus.View<IRosterView>(state).Roster.Count);
+    }
+
+    [Fact]
+    public void Light_injuries_from_missions_in_different_weeks_heal_on_their_own_weeks()
+    {
+        var h = new Harness();
+        int level = h.Member("CREW_01").Skills["SKILL_A"].Level;
+        h.End(Hurt("CREW_01", 1));
+        h.Weeks(1);
+        h.End(Hurt("CREW_01", 1));
+        Assert.Equal(level - 2, h.View.Member("CREW_01")!.Skills["SKILL_A"]);
+
+        h.Weeks(h.Tuning.LightInjuryWeeks - 1);
+        Assert.Equal(level - 1, h.View.Member("CREW_01")!.Skills["SKILL_A"]);
+
+        h.Weeks(1);
+        Assert.Equal(level, h.View.Member("CREW_01")!.Skills["SKILL_A"]);
+    }
+
+    [Fact]
+    public void An_incapacitated_and_lightly_injured_member_is_reported_as_incapacitated_with_both_counts()
+    {
+        var h = new Harness();
+        int due = h.State.Week + h.Tuning.IncapacitatedWeeks;
+
+        IReadOnlyList<IEvent> events = h.End(new CrewResult("CREW_01", MemberStatus.Incapacitated, 2, new Dictionary<string, double>(), 0));
+
+        Assert.Equal(new[] { new CrewInjured("CREW_01", MemberStatus.Incapacitated, 2, due) }, events.OfType<CrewInjured>());
+    }
 }

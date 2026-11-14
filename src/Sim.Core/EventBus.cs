@@ -23,6 +23,7 @@ public sealed class EventBus
         guards.Sort((a, b) => a.Order != b.Order ? a.Order.CompareTo(b.Order) : string.CompareOrdinal(a.Name, b.Name));
     }
 
+    // A state type has a public parameterless constructor, no `required` on the type, and [JsonRequired] on each stored property with an empty initialiser.
     public void Module<TState>(string name)
         where TState : class, new()
     {

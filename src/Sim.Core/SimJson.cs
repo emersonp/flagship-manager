@@ -11,5 +11,6 @@ public static class SimJson
         Converters = { new JsonStringEnumConverter(namingPolicy: null, allowIntegerValues: false) },
         UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow,
         RespectRequiredConstructorParameters = true,
+        RespectNullableAnnotations = true,
     };
 }
