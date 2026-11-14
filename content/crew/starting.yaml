@@ -1,15 +1,18 @@
 # Placeholders. The author replaces these. The roster of a new legacy.
 - id: CREW_01
+  name: Steve Steverson
   seniority: 5
   skills: { SKILL_A: 6, SKILL_B: 5, SKILL_C: 4, SKILL_D: 3 }
   caution: 2
   discipline: 2
 - id: CREW_02
+  name: Sally Sallerson
   seniority: 4
   skills: { SKILL_A: 4, SKILL_B: 6, SKILL_C: 5, SKILL_D: 2 }
   caution: -2
   discipline: -1
 - id: CREW_03
+  name: Bob Boberton
   seniority: 4
   skills: { SKILL_A: 5, SKILL_B: 3, SKILL_C: 6, SKILL_D: 5 }
   caution: 0
