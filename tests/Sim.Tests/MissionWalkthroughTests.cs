@@ -39,7 +39,7 @@ public class MissionWalkthroughTests
     [Fact]
     public void The_same_weak_team_is_offered_the_abort_first_when_strain_builds_slowly()
     {
-        (_, List<Beat> beats, _) = TestContent.Play(TestContent.Team(2, 2, 7, 8), seed: 5);
+        (_, List<Beat> beats, _) = TestContent.Play(TestContent.Team(2, 2, 7, 8), seed: 1);
 
         Assert.Contains(beats.OfType<CallBeat>(), c => c.Call.DecisionId == MissionResolver.AbortDecisionId);
     }
@@ -59,7 +59,7 @@ public class MissionWalkthroughTests
     [Fact]
     public void When_the_lead_falls_the_next_most_senior_takes_over()
     {
-        (_, List<Beat> beats, _) = TestContent.Play(TestContent.Team(8, 7, 8), seed: 2);
+        (_, List<Beat> beats, _) = TestContent.Play(TestContent.Team(8, 7, 8), seed: 5);
 
         Assert.Equal("CREW_07", beats.OfType<LeadChangeBeat>().First().CrewId);
     }
@@ -117,7 +117,7 @@ public class MissionWalkthroughTests
     {
         (_, List<Beat> beats, _) = TestContent.Play(TestContent.Team(1, 1, 3, 5), seed: 1);
 
-        Assert.Equal("9116B4D40A82A3B4922D56AA92C4C2DDFA10EC3FA3A76E8998ED94A500CCEA87", Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(Json(beats)))));
+        Assert.Equal("D745D5ED80EA0F8A9ADDD0971E1B4C8C520DFA7E3870F80C341D0180AF40A074", Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(Json(beats)))));
     }
 
     private static List<Beat> Finish(MissionState state)

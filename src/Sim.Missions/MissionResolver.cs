@@ -39,6 +39,7 @@ public static class MissionResolver
 
         ulong draw = drawSeed ?? seed;
         var drawn = new HashSet<string>();
+        var chainTargets = pool.Where(e => e.Chain is not null).Select(e => e.Chain!).ToHashSet();
         for (int i = 0; i < objective.Stages.Count; i++)
         {
             StageDef stage = objective.Stages[i];
@@ -46,7 +47,7 @@ public static class MissionResolver
             for (int j = 0; j < count; j++)
             {
                 List<EncounterDef> candidates = pool
-                    .Where(e => !drawn.Contains(e.Id) && stage.DrawTags.All(e.Tags.Contains))
+                    .Where(e => !drawn.Contains(e.Id) && !chainTargets.Contains(e.Id) && stage.DrawTags.All(e.Tags.Contains))
                     .OrderBy(e => e.Id, StringComparer.Ordinal)
                     .ToList();
                 if (candidates.Count == 0)
@@ -149,7 +150,7 @@ public static class MissionResolver
                         State.Phase = MissionPhase.Strain;
                         if (Current.Encounter.Decision is { } decision && Active.Count > 0)
                         {
-                            Raise(decision.Id, decision.Stakes, decision.Bold, decision.Safe, $"dec:{State.Cursor}", alwaysCall: false);
+                            Raise(decision.Id, decision.Stakes, decision.Bold, decision.Safe, $"dec:{Current.Encounter.Id}", alwaysCall: false);
                         }
 
                         break;
@@ -162,7 +163,7 @@ public static class MissionResolver
                         else if (State.Strain >= T.AbortCallAt && !State.AbortAsked)
                         {
                             State.AbortAsked = true;
-                            Raise(AbortDecisionId, T.AbortStakes, new EffectDef(), new EffectDef(Withdraw: true), $"abort:{State.Cursor}", alwaysCall: true);
+                            Raise(AbortDecisionId, T.AbortStakes, new EffectDef(), new EffectDef(Withdraw: true), $"abort:{Current.Encounter.Id}", alwaysCall: true);
                         }
 
                         break;
@@ -177,7 +178,7 @@ public static class MissionResolver
         private void Check(EncounterDef encounter)
         {
             Parameters p = State.Parameters;
-            Approach approach = Lead.Member.Caution + p.Risk >= 0 ? Approach.Careful : Approach.Fast;
+            Approach approach = Lead.Member.Caution - p.Risk >= 0 ? Approach.Careful : Approach.Fast;
             ApproachDef def = approach == Approach.Careful ? encounter.Careful : encounter.Fast;
             int Skill(MemberState m)
             {
@@ -205,7 +206,7 @@ public static class MissionResolver
             int momentum = State.Momentum;
             int strain = State.Strain;
             int score = actorSkill + assist + gear + momentum - strain;
-            int roll = Dice($"check:{State.Cursor}").TwoD6();
+            int roll = Dice($"check:{encounter.Id}").TwoD6();
             int margin = score + roll - target;
             Tier tier = margin >= T.TierCritical ? Tier.Critical
                 : margin >= T.TierSuccess ? Tier.Success
@@ -232,14 +233,15 @@ public static class MissionResolver
             }
 
             bool mentoring = helper is not null && Skill(helper) - actorSkill >= T.MentorGap;
-            double experience = (margin >= T.TrivialAtMargin ? 0
+            double baseExperience = margin >= T.TrivialAtMargin ? 0
                 : Math.Abs(margin) <= T.CloseMargin ? T.ExperienceClose
                 : Math.Abs(margin) <= T.NearMargin ? T.ExperienceNear
-                : T.ExperienceFar) + (mentoring ? T.MentorBonus : 0);
+                : T.ExperienceFar;
+            double experience = baseExperience + (mentoring ? T.MentorBonus : 0);
             actor.Experience += experience;
             if (helper is not null)
             {
-                helper.Experience += experience * T.AssistShare;
+                helper.Experience += baseExperience * T.AssistShare;
             }
 
             Beats.Add(new CheckBeat(
@@ -248,11 +250,11 @@ public static class MissionResolver
 
             if (tier == Tier.Failure)
             {
-                InjuryRoll(actor, InjurySeverity.Light, $"checkinj:{State.Cursor}");
+                InjuryRoll(actor, InjurySeverity.Light, $"checkinj:{encounter.Id}");
             }
             else if (tier == Tier.Disaster)
             {
-                InjuryRoll(actor, InjurySeverity.Severe, $"checkinj:{State.Cursor}");
+                InjuryRoll(actor, InjurySeverity.Severe, $"checkinj:{encounter.Id}");
                 if (!State.Chained && encounter.Chain is not null && State.Chains.TryGetValue(encounter.Chain, out EncounterDef? chain))
                 {
                     State.Chained = true;

@@ -61,6 +61,77 @@ public class MissionRulesTests
     }
 
     [Fact]
+    public void Risk_is_tolerance_so_a_higher_risk_pushes_the_lead_toward_the_fast_approach()
+    {
+        Assert.Equal(
+            new[] { Approach.Careful, Approach.Careful, Approach.Fast },
+            new[] { -1, 0, 1 }.Select(r => ApproachFor(TestContent.Team(3, 3, 5), r)));
+        Assert.Equal(Approach.Careful, ApproachFor(TestContent.Team(1, 1, 3), 1));
+        Assert.Equal(Approach.Fast, ApproachFor(TestContent.Team(2, 2, 3), 0));
+    }
+
+    [Fact]
+    public void The_mentoring_bonus_goes_to_the_junior_alone_and_the_helper_gets_a_share_of_the_base()
+    {
+        MissionStep step = MissionResolver.Advance(Start(TestContent.Team(1, 1, 7), new Parameters(DevelopJuniors: true), Encounter(1)));
+
+        CheckBeat check = step.Beats.OfType<CheckBeat>().Single();
+        MissionTuning t = TestContent.Tuning;
+        Assert.True(check.Mentoring);
+        Assert.Equal(("CREW_07", "CREW_01"), (check.ActorId, check.HelperId));
+        double baseExperience = check.Experience - t.MentorBonus;
+        Assert.Equal(check.Experience, step.Result!.Crew.Single(c => c.Id == "CREW_07").Experience);
+        Assert.Equal(baseExperience * t.AssistShare, step.Result.Crew.Single(c => c.Id == "CREW_01").Experience);
+    }
+
+    [Fact]
+    public void A_chain_target_that_carries_the_drawn_tag_is_never_drawn()
+    {
+        EncounterDef chain = Encounter(5, id: "ENCOUNTER_CHAIN");
+        EncounterDef source = Encounter(5, chain: "ENCOUNTER_CHAIN");
+        for (ulong seed = 1; seed <= 50; seed++)
+        {
+            var objective = new ObjectiveDef("OBJECTIVE_TEMPLATE_1", [], 1, 4, 1, [new StageDef("stage", ["field"], 1, 1, false)]);
+            MissionState state = MissionResolver.Start(objective, [chain, source], TestContent.Team(1, 1, 3), TestContent.Gear, new Parameters(), TestContent.Tuning, seed);
+
+            Assert.Equal("ENCOUNTER_01", state.Encounters.Single().Encounter.Id);
+        }
+    }
+
+    // The pool's other encounter keeps its dice whether or not a disaster chained an extra one in before it.
+    [Fact]
+    public void A_chain_does_not_move_the_dice_of_later_encounters()
+    {
+        EncounterDef later = Encounter(5, id: "ENCOUNTER_02");
+        EncounterDef chain = Encounter(5, id: "ENCOUNTER_CHAIN", tags: ["chained"]);
+        var objective = new ObjectiveDef("OBJECTIVE_TEMPLATE_1", [], 1, 4, 1, [new StageDef("stage", ["field"], 2, 2, false)]);
+        int compared = 0;
+        for (ulong seed = 1; seed <= 20; seed++)
+        {
+            int? Roll(params EncounterDef[] pool)
+            {
+                MissionState state = MissionResolver.Start(objective, pool, TestContent.Team(1, 1, 3, 5, 7), TestContent.Gear, new Parameters(), TestContent.Tuning, seed);
+                MissionStep step = MissionResolver.Advance(state);
+                var beats = new List<Beat>(step.Beats);
+                while (step.Pending is not null)
+                {
+                    step = MissionResolver.Advance(step.State, CallAnswer.Bold);
+                    beats.AddRange(step.Beats);
+                }
+
+                return beats.OfType<CheckBeat>().FirstOrDefault(c => c.EncounterId == "ENCOUNTER_02")?.Roll;
+            }
+
+            int? chained = Roll(Encounter(40, chain: "ENCOUNTER_CHAIN"), later, chain);
+            int? plain = Roll(Encounter(40), later, chain);
+            Assert.Equal(plain, chained);
+            compared += chained is null ? 0 : 1;
+        }
+
+        Assert.True(compared > 0);
+    }
+
+    [Fact]
     public void A_success_removes_one_strain()
     {
         MissionState state = Start(TestContent.Team(1, 1, 3), new Parameters(), Encounter(1));
@@ -215,6 +286,11 @@ public class MissionRulesTests
         var team = new Team([TestContent.Member(1)], "CREW_02");
 
         Assert.Throws<ArgumentException>(() => Start(team, new Parameters(), Encounter(5)));
+    }
+
+    private static Approach ApproachFor(Team team, int risk)
+    {
+        return MissionResolver.Advance(Start(team, new Parameters(Risk: risk), Encounter(5))).Beats.OfType<CheckBeat>().Single().Approach;
     }
 
     private static EncounterDef Encounter(int difficulty, DecisionDef? decision = null, bool commsBlocked = false, string? gearTag = null, string id = "ENCOUNTER_01", string[]? tags = null, string? chain = null)

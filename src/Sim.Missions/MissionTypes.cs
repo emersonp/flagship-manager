@@ -52,7 +52,7 @@ public sealed record TeamMember(string Id, int Seniority, IReadOnlyDictionary<st
 
 public sealed record Team(IReadOnlyList<TeamMember> Members, string LeadId);
 
-// Operational parameters. Priority, risk, and autonomy run from -1 to +1.
+// Operational parameters, each from -1 to +1. Risk is risk tolerance: +1 favours the fast approach.
 public sealed record Parameters(int Priority = 0, int Risk = 0, int Autonomy = 0, bool DevelopJuniors = false);
 
 public sealed record PendingCall(
