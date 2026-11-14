@@ -22,6 +22,7 @@ Slices 1a and 1b were built on 2026-11-14 from `2026-11-14-phase-1ab-plan.md`. T
 
 From the review of the first part. None is a rule change; each is something the web layer must do or decide.
 
+- **Visual design** (the author, 2026-11-14): designed with the Hallmark skill; dark mode; the mood is Mass Effect first, with modern Star Trek and Honor Harrington second. An original design in that mood: no names, logos, or assets from any of them.
 - **Never share a legacy's state between requests.** Load, send, and commit per request, under a lock per legacy. A view flips a read-only flag on the state while it is built, so a command sent on another thread in that window would lose its write.
 - **Reading for a page must not write.** Reading a module's state outside a guard or a view creates an empty one. Pages need a read that does not create.
 - **Any exception from a command other than a refusal means discard and reload.** Map a refusal to a message beside the control, and anything else to an error page.
