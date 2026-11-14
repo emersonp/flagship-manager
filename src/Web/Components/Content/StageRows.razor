@@ -16,7 +16,6 @@
                 <div class="block__head">
                     <span class="block__no">Stage @(row + 1)</span>
                     <p class="@(matches == 0 ? "match match--none" : "match")" id="@($"stage-{row}-match")" role="status">@(matches == 0 ? "No encounters match" : matches == 1 ? "1 encounter matches" : $"{matches} encounters match")</p>
-                    <span class="note">Counted when the form was last refreshed.</span>
                     <div class="block__acts">
                         <RowButton Id="@Set.ButtonId("up", row)" Value="@Set.Action("up", row)" Aria="@($"Move stage {row + 1} up")" Edge="@(row == 0)">Move up</RowButton>
                         <RowButton Id="@Set.ButtonId("down", row)" Value="@Set.Action("down", row)" Aria="@($"Move stage {row + 1} down")" Edge="@(row == Rows.Count - 1)">Move down</RowButton>
@@ -37,7 +36,7 @@
                                 string tag = Options(ticked)[t];
                                 string name = Set.Name(row, "draw");
                                 string id = FormValues.Slug(name) + "-" + t;
-                                <label class="check" for="@id"><span class="hit"><input type="checkbox" id="@id" name="@name" value="@tag" checked="@ticked.Contains(tag)" aria-describedby="@(View.Error(name) is null ? null : FormValues.Slug(name) + "-error")" aria-invalid="@(View.Error(name) is null ? null : "true")"></span>@tag</label>
+                                <label class="check" for="@id"><span class="hit"><input type="checkbox" id="@id" name="@name" value="@tag" checked="@ticked.Contains(tag)" aria-describedby="@(View.Error(name) is null ? null : FormValues.Slug(name) + "-error")" aria-invalid="@(View.Error(name) is null ? null : "true")" @attributes="Redraw(id)"></span>@tag</label>
                             }
                         </div>
                         @if (View.Error(Set.Name(row, "draw")) is { } drawError)
@@ -65,6 +64,22 @@
     private IReadOnlyDictionary<string, object> StagesFocus => View.FocusFor("f-stages");
 
     private static RowSet Set => ObjectiveKind.Stages;
+
+    // Ticking a draw tag posts the form to the rows route, so the match count is redrawn; focus comes back to the box.
+    private IReadOnlyDictionary<string, object> Redraw(string id)
+    {
+        var attributes = new Dictionary<string, object>
+        {
+            ["data-indicator:_rowing"] = true,
+            ["data-on:change"] = $"@post('{View.RowsUrlFocusing(id)}', {{contentType: 'form'}})",
+        };
+        foreach ((string key, object value) in View.FocusFor(id))
+        {
+            attributes[key] = value;
+        }
+
+        return attributes;
+    }
 
     private List<Dictionary<string, string>> Rows => FormRows.Read(View.Values, Set);
 

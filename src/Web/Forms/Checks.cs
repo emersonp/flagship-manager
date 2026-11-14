@@ -129,6 +129,12 @@ internal static partial class Checks
         return tags.Distinct().ToList();
     }
 
+    // An option's words for a named item. A select at 400 wide shows about 14 characters, so a long pair puts the id first and the id stays in view.
+    public static string Choice(string id, string name)
+    {
+        return name.Length + id.Length <= 14 ? $"{name} ({id})" : $"{id} ({name})";
+    }
+
     public static string Text(int value)
     {
         return value.ToString(CultureInfo.InvariantCulture);

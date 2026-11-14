@@ -1,12 +1,13 @@
 <form id="delete" class="delete" method="post" action="@Url" data-signals:_confirm="false" data-indicator:_deleting data-on:submit="@Post">
-    <button class="btn" type="button" aria-controls="delete-confirm" data-attr:aria-expanded="$_confirm ? 'true' : 'false'" data-attr:disabled="@Busy" data-on:click="$_confirm = !$_confirm">Delete</button>
+    <button class="btn" type="button" id="delete-open" aria-controls="delete-confirm" data-attr:aria-expanded="$_confirm ? 'true' : 'false'" data-attr:disabled="@Busy" data-on:click="$_confirm = !$_confirm">Delete</button>
     <div id="delete-confirm" class="delete__confirm" data-show="$_confirm" style="display: none">
         <p class="note">Delete <span class="m">@Id</span> from the files?@if (Note is not null)
             {
                 @(" ")@Note
             }</p>
         <button class="btn btn--harm" type="submit" data-attr:disabled="@Busy" data-attr:aria-busy="$_deleting ? 'true' : false">Yes, delete</button>
-        <button class="btn" type="button" data-attr:disabled="@Busy" data-on:click="$_confirm = false">Keep it</button>
+        @* The confirmation hides with the focus in it, so focus goes back to the button that opened it. *@
+        <button class="btn" type="button" data-attr:disabled="@Busy" data-on:click="$_confirm = false; document.getElementById('delete-open').focus()">Keep it</button>
     </div>
 </form>
 

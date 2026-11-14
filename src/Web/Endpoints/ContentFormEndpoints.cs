@@ -166,6 +166,13 @@ public static class ContentFormEndpoints
             return await NotFound(render, datastar);
         }
 
+        // Rows move under their ids, so a morph would match a row's controls to the ones that were at its place and keep a box the
+        // author ticked there. The region is replaced instead: every control takes its state from this answer.
+        if (datastar)
+        {
+            return new PatchResult(await render.Html<ItemMain>(FormParameters(view)), "replace");
+        }
+
         return await Answer<ItemMain, ItemPage>(render, datastar, FormParameters(view), StatusCodes.Status200OK);
     }
 
@@ -255,12 +262,13 @@ public static class ContentFormEndpoints
         }
     }
 
-    private sealed class PatchResult(string html) : IResult
+    // The default patch morphs by id; "replace" swaps the element whole, keeping nothing from the one it replaces.
+    private sealed class PatchResult(string html, string? mode = null) : IResult
     {
         public async Task ExecuteAsync(HttpContext httpContext)
         {
             await Sse.Start(httpContext.Response);
-            await Sse.PatchElements(httpContext.Response, html);
+            await Sse.PatchElements(httpContext.Response, html, mode: mode);
         }
     }
 }

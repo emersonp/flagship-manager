@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # The content editor in a real browser through playwright-cli, on a scratch copy of content/ with developer mode on: rename a crew
-# member, a skill, and an encounter through the forms; start a legacy and see the names; play until the encounter's new name is in
-# the mission log; see an encounter and a text file refused with nothing written; add a stage to an objective and see it saved.
+# member, a skill, and every encounter a first stage can draw through the forms; start a legacy and see the names; play the first
+# mission and see an encounter's new name in its log; see an encounter and a text file refused with nothing written; tick boxes in
+# rows, remove and move rows, and see the saved values match the page; add a stage to an objective and see it saved.
 # Scratch database and content, a free port, and everything removed on exit. Not part of check.sh.
 set -euo pipefail
 root="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -12,8 +13,6 @@ base="http://127.0.0.1:$port"
 session="edit-$$"
 app_group=""
 browser=""
-# The most cycles played while waiting for the renamed encounter to be drawn.
-max_cycles=15
 
 cleanup() {
   if [ -n "$browser" ]; then
@@ -122,13 +121,16 @@ browser=1
 pw open "$base/dev/content" > /dev/null
 wait_for "document.querySelector('#h-crew') !== null" "the editor's index"
 
-# Rename a crew member, a skill, and an encounter through their forms.
+# Rename a crew member, a skill, and every encounter a first stage can draw (each objective's first stage draws by field), so the
+# first mission shows one of the new names whichever objective it plays.
 save_name "/dev/content/crew/CREW_01" "$crew_name"
 grep -q "name: $crew_name" "$tmp/content/crew/starting.yaml" || fail "the crew file does not hold the new name."
 save_name "/dev/content/skills/SKILL_A" "$skill_name"
 grep -q "name: $skill_name" "$tmp/content/skills/base.yaml" || fail "the skills file does not hold the new name."
-save_name "/dev/content/encounters/ENCOUNTER_01" "$encounter_name"
-grep -q "name: $encounter_name" "$tmp/content/encounters/base.yaml" || fail "the encounters file does not hold the new name."
+for n in 01 02 03 04 05 06 07 08; do
+  save_name "/dev/content/encounters/ENCOUNTER_$n" "${encounter_name}_$n"
+  grep -q "name: ${encounter_name}_$n" "$tmp/content/encounters/base.yaml" || fail "the encounters file does not hold ENCOUNTER_$n's new name."
+done
 
 # A new legacy shows both names in its briefing without a restart.
 visit "/"
@@ -140,8 +142,8 @@ wait_for "document.querySelector('#briefing') !== null" "the briefing"
 [ "$(js "document.body.textContent.includes('$crew_name')")" = "true" ] || fail "the briefing does not show the crew member's new name."
 [ "$(js "document.body.textContent.includes('$skill_name')")" = "true" ] || fail "the briefing does not show the skill's new name."
 
-# Plays one cycle from the briefing: the first objective, as many crew as it needs at least, and the first of them as lead; every call
-# is answered the first way. Stops as soon as the renamed encounter is in the log, with the mission still on screen.
+# Plays one mission from the briefing: the first objective, as many crew as it needs at least, and the first of them as lead; every
+# call is answered the first way. Stops as soon as a renamed encounter is in the log, with the mission still on screen.
 seen=""
 play_mission() {
   pw check "input[name=objective] >> nth=0" > /dev/null
@@ -174,19 +176,8 @@ play_mission() {
   fi
 }
 
-cycles=1
 play_mission
-while [ -z "$seen" ]; do
-  [ "$cycles" -lt "$max_cycles" ] || fail "the renamed encounter was not drawn in $max_cycles cycles."
-  pw click "getByRole('button', { name: 'To aftermath' })" > /dev/null
-  wait_for "document.querySelector('.verdict') !== null" "the aftermath"
-  pw click "getByRole('button', { name: 'Next cycle' })" > /dev/null
-  wait_for "document.querySelector('[aria-current=step] .phase__name').textContent === 'Orders'" "the next cycle's orders"
-  pw click "getByRole('button', { name: 'To briefing' })" > /dev/null
-  wait_for "document.querySelector('#briefing') !== null" "the briefing"
-  cycles=$((cycles + 1))
-  play_mission
-done
+[ -n "$seen" ] || fail "no renamed encounter is in the first mission's log."
 
 # Refusals write nothing. A field check: an encounter with no careful skill.
 files_before=$(sum_of "$tmp/content")
@@ -216,6 +207,41 @@ pw fill "#text" "$(printf 'id: OTHER\nversion: 1\n')" > /dev/null
 pw click "getByRole('button', { name: 'Save' })" > /dev/null
 expect_refusal "a changed pack id" "The pack's id cannot be changed here."
 [ "$(sum_of "$tmp/content")" = "$files_before" ] || fail "a refused pack save wrote to the content files."
+
+# A ticked box belongs to its row: remove the row it is in, or the row above it, and the page and the saved file follow the rows.
+effects="[...document.querySelectorAll('#f-bold li.block')].map(li => li.querySelector('[name\$=strain]').value + ',' + li.querySelector('[name\$=momentum]').value + ',' + li.querySelector('[name\$=withdraw]').checked).join('|')"
+visit "/dev/content/encounters/ENCOUNTER_06"
+pw check "#f-bold-0-withdraw" > /dev/null
+pw click "#row-remove-bold-0" > /dev/null
+wait_for "document.querySelectorAll('#f-bold li.block').length === 1" "the first bold effect to go"
+[ "$(js "$effects")" = '1,,false' ] || fail "after removing a ticked effect the one left shows $(js "$effects"), not strain 1 and no withdraw."
+pw click "#row-add-bold" > /dev/null
+wait_for "document.querySelector('#f-bold-1-momentum') !== null" "the new bold effect"
+pw fill "#f-bold-1-momentum" "2" > /dev/null
+pw check "#f-bold-1-withdraw" > /dev/null
+pw click "#row-remove-bold-0" > /dev/null
+wait_for "document.querySelectorAll('#f-bold li.block').length === 1" "the effect above the ticked one to go"
+[ "$(js "$effects")" = ',2,true' ] || fail "after removing the effect above a ticked one the page shows $(js "$effects"), not momentum 2 with withdraw."
+pw click "getByRole('button', { name: 'Save' })" > /dev/null
+wait_for "document.querySelector('#form-alert .alert-ok')?.textContent === 'Saved.'" "the encounter's save"
+grep -A14 "id: ENCOUNTER_06" "$tmp/content/encounters/base.yaml" | grep -qF "bold: [{ momentum: 2, withdraw: true }]" || fail "ENCOUNTER_06 was not saved with the one effect the page showed."
+[ "$(js "$effects")" = ',2,true' ] || fail "after the save the page shows $(js "$effects")."
+
+# The same for a stage's draw tag and Skippable: tick both on the second stage and move it up. The draw tag redraws the count at
+# once; Skippable is ticked last, so only the move's answer can carry it.
+stages="[...document.querySelectorAll('#main li.block')].map(li => li.querySelector('[name\$=slot]').value + ':' + [...li.querySelectorAll('[name\$=draw]')].filter(b => b.checked).map(b => b.value).join('+') + ':' + li.querySelector('[name\$=skippable]').checked).join('|')"
+visit "/dev/content/objectives/OBJECTIVE_TEMPLATE_2"
+pw check "input[name='stages[1].draw'][value=field]" > /dev/null
+wait_for "document.querySelector('#stage-1-match')?.textContent === '3 encounters match'" "the second stage's count after ticking field"
+[ "$(js "document.activeElement.name + '=' + document.activeElement.value")" = "stages[1].draw=field" ] || fail "focus left the draw tag box after the count was redrawn."
+pw check "#f-stages-1-skippable" > /dev/null
+pw click "#row-up-1" > /dev/null
+wait_for "document.querySelector('#f-stages-0-slot')?.value === 'objective'" "the second stage to move up"
+[ "$(js "$stages")" = 'objective:field+technical:true|approach:field+hazard:false|extraction:social:true' ] || fail "after the move the stages show $(js "$stages")."
+pw click "getByRole('button', { name: 'Save' })" > /dev/null
+wait_for "document.querySelector('#form-alert .alert-ok')?.textContent === 'Saved.'" "the objective's save after the move"
+grep -qF "{ slot: objective, draw: { tags: [technical, field] }, count: [1, 2], skippable: true }" "$tmp/content/objectives/base.yaml" || fail "the moved stage was not saved with its ticks."
+grep -qF "{ slot: approach, draw: { tags: [hazard, field] }, count: 1 }" "$tmp/content/objectives/base.yaml" || fail "the stage that moved down was saved with ticks it did not have."
 
 # Add a stage to an objective, save, and see it after a fresh load.
 visit "/dev/content/objectives/OBJECTIVE_TEMPLATE_2"

@@ -54,10 +54,10 @@
 
     private IReadOnlyList<string> SkillIds => View.Choices.Skills.Select(s => s.Id).ToList();
 
-    private IReadOnlyDictionary<string, string> SkillLabels => View.Choices.Skills.Where(s => s.Name is { Length: > 0 }).ToDictionary(s => s.Id, s => $"{s.Name} ({s.Id})");
+    private IReadOnlyDictionary<string, string> SkillLabels => View.Choices.Skills.Where(s => s.Name is { Length: > 0 }).ToDictionary(s => s.Id, s => Checks.Choice(s.Id, s.Name!));
 
     // Every other encounter; the one being edited cannot be offered as its own next.
     private IReadOnlyList<string> ChainOptions => View.Choices.Encounters.Where(e => e.Id != View.Id).Select(e => e.Id).ToList();
 
-    private IReadOnlyDictionary<string, string> ChainLabels => View.Choices.Encounters.Where(e => e.Id != View.Id && e.Name is { Length: > 0 }).ToDictionary(e => e.Id, e => $"{e.Name} ({e.Id})");
+    private IReadOnlyDictionary<string, string> ChainLabels => View.Choices.Encounters.Where(e => e.Id != View.Id && e.Name is { Length: > 0 }).ToDictionary(e => e.Id, e => Checks.Choice(e.Id, e.Name!));
 }

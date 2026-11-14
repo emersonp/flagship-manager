@@ -327,6 +327,23 @@ public sealed class ContentMissionFormsTests(RepoContentGuard guard) : IClassFix
         Assert.DoesNotContain("Legacies whose current site offers it will skip it.", encounter);
     }
 
+    // At 400 wide a select shows about 14 characters: a long name and id put the id first, so the id stays in view.
+    [Fact]
+    public async Task A_long_name_and_id_put_the_id_first_in_a_select_and_a_short_pair_keeps_the_name_first()
+    {
+        using TestApp app = NewApp();
+        HttpClient client = app.NewClient();
+        await Post(client, "/dev/content/skills/SKILL_A", "name=NAME_PLACEHOLDER_SKILL");
+        await Post(client, "/dev/content/skills/SKILL_C", "name=AB");
+        await Post(client, "/dev/content/encounters/ENCOUNTER_CHAIN", Merge(EncounterNone, "name=NAME_PLACEHOLDER_CHAIN&tags=chained"));
+
+        (_, string body) = await Get(client, "/dev/content/encounters/ENCOUNTER_01");
+
+        Assert.Contains(">SKILL_A (NAME_PLACEHOLDER_SKILL)</option>", body);
+        Assert.Contains(">AB (SKILL_C)</option>", body);
+        Assert.Contains(">ENCOUNTER_CHAIN (NAME_PLACEHOLDER_CHAIN)</option>", body);
+    }
+
     // --- Field checks ---
 
     public static TheoryData<string, string, string, string> FieldCases => new()
@@ -566,15 +583,22 @@ public sealed class ContentMissionFormsTests(RepoContentGuard guard) : IClassFix
         Assert.Contains("id=\"stage-4-match\" role=\"status\">8 encounters match</p>", any);
     }
 
-    // The count is drawn when the form is, so the page says so beside each stage.
+    // Ticking a draw tag posts the form to the rows route, keeping focus on the box, so the count is always current.
     [Fact]
-    public async Task Each_stage_says_when_its_match_count_was_taken()
+    public async Task A_draw_tag_box_redraws_the_match_count_and_keeps_its_focus()
     {
         using TestApp app = NewApp();
+        HttpClient client = app.NewClient();
 
-        (_, string body) = await Get(app.NewClient(), "/dev/content/objectives/OBJECTIVE_TEMPLATE_1");
+        (_, string body) = await Get(client, "/dev/content/objectives/OBJECTIVE_TEMPLATE_1");
+        string box = Regex.Match(body, "<input[^>]*id=\"f-stages-0-draw-1\"[^>]*>").Value;
+        (_, string rows) = await Post(client, "/dev/content/objectives/OBJECTIVE_TEMPLATE_1/rows?focus=f-stages-0-draw-1", Merge(Objective1, "stages[0].draw=field&stages[0].draw=hazard"), datastar: true);
 
-        Assert.Equal(4, Regex.Matches(body, "Counted when the form was last refreshed\\.").Count);
+        Assert.DoesNotContain("Counted when the form was last refreshed.", body);
+        Assert.Contains("data-on:change=\"@post(&#x27;/dev/content/objectives/OBJECTIVE_TEMPLATE_1/rows?focus=f-stages-0-draw-1&#x27;, {contentType: &#x27;form&#x27;})\"", box);
+        Assert.Contains("data-indicator:_rowing", box);
+        Assert.Contains("id=\"stage-0-match\" role=\"status\">3 encounters match</p>", rows);
+        Assert.Equal(["f-stages-0-draw-1"], Focused(rows));
     }
 
     [Fact]
@@ -781,6 +805,36 @@ public sealed class ContentMissionFormsTests(RepoContentGuard guard) : IClassFix
             string id = Regex.Match(field.Value, "\\bid=\"([^\"]*)\"").Groups[1].Value;
             Assert.True(Regex.IsMatch(field.Value, "aria-label=\"") || Regex.IsMatch(form, $"<label[^>]*for=\"{Regex.Escape(id)}\""), $"{id} has no label");
         }
+    }
+
+    // After a row action every control takes its state from this answer: the region is replaced, not morphed, so no box the
+    // author ticked is kept at its old place on the page.
+    [Theory]
+    [InlineData("/dev/content/encounters/ENCOUNTER_01/rows", "row=remove:bold:0")]
+    [InlineData("/dev/content/encounters/ENCOUNTER_01/rows?focus=f-hasDecision", "hasDecision=")]
+    [InlineData("/dev/content/objectives/OBJECTIVE_TEMPLATE_1/rows", "row=down:0")]
+    [InlineData("/dev/content/objectives/rows", "row=add")]
+    [InlineData("/dev/content/assignments/ASSIGNMENT_TEMPLATE_1/rows", "row=remove:0")]
+    public async Task A_rows_answer_replaces_the_main_region_instead_of_morphing_it(string url, string action)
+    {
+        using TestApp app = NewApp();
+        string fields = url.Contains("encounters", StringComparison.Ordinal) ? Merge(Encounter1, action) : url.Contains("objectives", StringComparison.Ordinal) ? Merge(Objective1, action) : action + "&offer[0].count=1&offer[0].weight=1";
+
+        (_, string body) = await Post(app.NewClient(), url, fields, datastar: true);
+
+        Assert.Contains("data: mode replace\n", body);
+        Assert.Contains("data: elements <main id=\"main\">", body);
+    }
+
+    // A save answers by morphing as before: nothing on the page has moved.
+    [Fact]
+    public async Task A_save_answer_still_morphs()
+    {
+        using TestApp app = NewApp();
+
+        (_, string body) = await Post(app.NewClient(), "/dev/content/encounters/ENCOUNTER_01", Encounter1, datastar: true);
+
+        Assert.DoesNotContain("data: mode", body);
     }
 
     [Fact]

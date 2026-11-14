@@ -892,6 +892,8 @@ public sealed class ContentFormsTests(RepoContentGuard guard) : IClassFixture<Re
         string body = (await Get(app.NewClient(), "/dev/content/gear/GEAR_04")).Body;
 
         Assert.Contains("data-signals:_confirm=\"false\"", body);
+        Assert.Matches("<button[^>]*id=\"delete-open\"[^>]*>Delete</button>", body);
+        Assert.Matches("<button[^>]*data-on:click=\"\\$_confirm = false; document.getElementById\\(&#x27;delete-open&#x27;\\).focus\\(\\)\"[^>]*>Keep it</button>", body);
         Assert.Contains("data-show=\"$_confirm\"", body);
         Assert.Contains("@post('/dev/content/gear/GEAR_04/delete', {contentType: 'form'})", WebUtility.HtmlDecode(body));
         Assert.DoesNotContain("/dev/content/gear/new/delete", body);
