@@ -21,7 +21,7 @@ public sealed record SiteView(string AssignmentId, IReadOnlyList<ObjectiveView> 
     public string AssignmentShown => AssignmentName ?? AssignmentId;
 }
 
-public sealed record ObjectiveView(string Id, string TemplateId, IReadOnlyList<string> PossibleSkills, int TeamSizeMin, int TeamSizeMax, int? UnattendedDifficulty, bool HasTeam, string? Name = null, IReadOnlyList<string>? PossibleSkillNames = null)
+public sealed record ObjectiveView(string Id, string TemplateId, IReadOnlyList<string> PossibleSkills, int TeamSizeMin, int TeamSizeMax, int? UnattendedDifficulty, bool HasTeam, string? Name = null, IReadOnlyList<string>? PossibleSkillNames = null, bool Missing = false)
 {
     // The template's name; Id is the objective's own id and TemplateId the template's.
     public string Shown => Name ?? TemplateId;

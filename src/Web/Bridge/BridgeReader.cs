@@ -127,7 +127,8 @@ public static class BridgeReader
             template?.UnattendedDifficulty,
             site.Briefing?.ObjectiveId == objective.Id,
             names.Objective(objective.TemplateId),
-            skills.Select(names.Skill).ToList());
+            skills.Select(names.Skill).ToList(),
+            template is null);
     }
 
     private static BriefingView Briefing(ContentPack pack, Names names, SiteState site, IReadOnlyList<ObjectiveView> objectives, IReadOnlyList<CrewRow> roster)

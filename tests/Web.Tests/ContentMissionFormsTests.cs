@@ -314,6 +314,19 @@ public sealed class ContentMissionFormsTests(RepoContentGuard guard) : IClassFix
         Assert.Equal(before, Everything(app));
     }
 
+    // A legacy whose site offers the template keeps playing without it, and the confirmation says so before the delete.
+    [Fact]
+    public async Task The_objective_delete_confirmation_says_legacies_will_skip_it()
+    {
+        using TestApp app = NewApp();
+
+        (_, string objective) = await Get(app.NewClient(), "/dev/content/objectives/OBJECTIVE_TEMPLATE_1");
+        (_, string encounter) = await Get(app.NewClient(), "/dev/content/encounters/ENCOUNTER_01");
+
+        Assert.Contains("Legacies whose current site offers it will skip it.", objective);
+        Assert.DoesNotContain("Legacies whose current site offers it will skip it.", encounter);
+    }
+
     // --- Field checks ---
 
     public static TheoryData<string, string, string, string> FieldCases => new()

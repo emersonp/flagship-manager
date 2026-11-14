@@ -30,6 +30,36 @@ public sealed class ComponentTests : IDisposable
         return new CrewRow(id, 1, status, status == "Active", [new SkillCell("SKILL_A", level, Math.Max(0, level - injuries))], Enumerable.Repeat(9, injuries).ToList(), null, 50, 1);
     }
 
+    // A template the editor deleted while the site offers it: the row says so and offers no radio to launch with.
+    [Fact]
+    public async Task A_briefing_objective_whose_template_is_gone_says_so_and_is_not_offered()
+    {
+        var kept = new ObjectiveView("o_1_1", "OBJECTIVE_TEMPLATE_1", ["SKILL_A"], 2, 4, 3, false);
+        var gone = new ObjectiveView("o_1_2", "OBJECTIVE_LOST", [], 0, 0, null, false, Missing: true);
+        var briefing = new BriefingView([kept, gone], [Crew("CREW_01", "Active", 3, 0)], [], 2);
+
+        string html = await Html<BriefingScreen>(new() { ["LegacyId"] = Guid.NewGuid(), ["Bar"] = Bar with { Phase = CyclePhase.Briefing }, ["Briefing"] = briefing });
+
+        Assert.Contains("id=\"objective-o_1_1\"", html, StringComparison.Ordinal);
+        Assert.DoesNotContain("id=\"objective-o_1_2\"", html, StringComparison.Ordinal);
+        Assert.Contains("No longer in the content", html, StringComparison.Ordinal);
+        Assert.DoesNotContain("data-skills=\"\"", html, StringComparison.Ordinal);
+    }
+
+    // With one objective left to launch, it is chosen at the start, even beside a gone one.
+    [Fact]
+    public async Task The_only_objective_still_in_the_content_is_chosen_at_the_start()
+    {
+        var kept = new ObjectiveView("o_1_1", "OBJECTIVE_TEMPLATE_1", ["SKILL_A"], 2, 4, 3, false);
+        var gone = new ObjectiveView("o_1_2", "OBJECTIVE_LOST", [], 0, 0, null, false, Missing: true);
+        var briefing = new BriefingView([kept, gone], [Crew("CREW_01", "Active", 3, 0)], [], 2);
+
+        string html = await Html<BriefingScreen>(new() { ["LegacyId"] = Guid.NewGuid(), ["Bar"] = Bar with { Phase = CyclePhase.Briefing }, ["Briefing"] = briefing });
+
+        Assert.Matches("<input[^>]*id=\"objective-o_1_1\"[^>]*checked", html);
+        Assert.Contains("data-signals:_min=\"2\"", html, StringComparison.Ordinal);
+    }
+
     [Fact]
     public async Task The_route_reads_each_stop_from_the_stage_lines_data_not_its_text()
     {

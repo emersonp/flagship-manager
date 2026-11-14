@@ -76,6 +76,9 @@ public sealed record ItemFormView(
 
     public string DeleteUrl => $"{Action}/delete";
 
+    // What else the delete does, said in its confirmation; null when nothing.
+    public string? DeleteNote { get; init; }
+
     public string Heading => IsNew ? $"New {Noun}" : Name is { Length: > 0 } ? Name : Id;
 
     public string? Error(string name)

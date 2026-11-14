@@ -16,9 +16,19 @@
                         <tbody>
                             @foreach (ObjectiveView objective in Briefing.Objectives)
                             {
+                                @if (objective.Missing)
+                                {
+                                    // The editor deleted its template: shown so the site's offer is complete, never launched.
+                                    <tr class="is-off">
+                                        <td class="lg"><span class="obj obj--gone">@objective.Shown</span></td>
+                                        <td class="oid">@objective.Id</td>
+                                        <td colspan="3">No longer in the content</td>
+                                    </tr>
+                                    continue;
+                                }
                                 <tr>
                                     <td class="lg">
-                                        <label class="obj" for="objective-@objective.Id"><span class="hit"><input type="radio" id="objective-@objective.Id" name="objective" value="@objective.Id" required checked="@(Briefing.Objectives.Count == 1)" data-min="@objective.TeamSizeMin" data-max="@objective.TeamSizeMax" data-skills="@string.Join(' ', objective.PossibleSkills)" data-on:change="@Range"></span>@objective.Shown<span class="visually-hidden">, @objective.Id, team @objective.TeamSizeMin to @objective.TeamSizeMax</span></label>
+                                        <label class="obj" for="objective-@objective.Id"><span class="hit"><input type="radio" id="objective-@objective.Id" name="objective" value="@objective.Id" required checked="@(Launchable.Count == 1)" data-min="@objective.TeamSizeMin" data-max="@objective.TeamSizeMax" data-skills="@string.Join(' ', objective.PossibleSkills)" data-on:change="@Range"></span>@objective.Shown<span class="visually-hidden">, @objective.Id, team @objective.TeamSizeMin to @objective.TeamSizeMax</span></label>
                                     </td>
                                     <td class="oid">@objective.Id</td>
                                     <td class="skills">@Figures.Items(objective.SkillsShown)</td>
@@ -131,10 +141,13 @@
     [Parameter] public string? Reason { get; set; }
 
     // Display only: the chosen objective's own range, held in local signals; 0 means none chosen.
-    private (int Min, int Max) Initial => Briefing.Objectives.Count == 1 ? (Briefing.Objectives[0].TeamSizeMin, Briefing.Objectives[0].TeamSizeMax) : (0, 0);
+    private (int Min, int Max) Initial => Launchable.Count == 1 ? (Launchable[0].TeamSizeMin, Launchable[0].TeamSizeMax) : (0, 0);
 
     // Display only: the chosen objective's possible skills pick the skill columns; empty shows every site skill.
-    private string InitialSkills => $"'{(Briefing.Objectives.Count == 1 ? string.Join(' ', Briefing.Objectives[0].PossibleSkills) : string.Empty)}'";
+    private string InitialSkills => $"'{(Launchable.Count == 1 ? string.Join(' ', Launchable[0].PossibleSkills) : string.Empty)}'";
+
+    // The objectives a team can be sent to: those whose template is still in the content.
+    private List<ObjectiveView> Launchable => Briefing.Objectives.Where(o => !o.Missing).ToList();
 
     private List<string> Skills => Briefing.Objectives.SelectMany(o => o.PossibleSkills).Distinct().ToList();
 

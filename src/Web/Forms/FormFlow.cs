@@ -143,7 +143,13 @@ internal static class FormFlow
         IReadOnlyList<string> shown = reasons.Count > 0 ? [] : warnings;
         // Focus goes to the first field that failed its check, or to the alert for what the loader or the save said.
         string? focus = errors.Count > 0 ? FieldId(form.Kind, errors.Keys.First()) : reasons.Count > 0 ? "form-alert" : null;
-        return new ItemFormView(form.Kind, isNew, id, name, values, errors, reasons, notice, lead, shown, choices, focus);
+        return new ItemFormView(form.Kind, isNew, id, name, values, errors, reasons, notice, lead, shown, choices, focus) { DeleteNote = isNew ? null : DeleteNote(form.Kind) };
+    }
+
+    private static string? DeleteNote(ContentKind kind)
+    {
+        // The missions module skips an objective whose template is gone, so a legacy keeps playing.
+        return kind == ContentKind.Objective ? "Legacies whose current site offers it will skip it." : null;
     }
 
     // An assignment's tags are boxes numbered in the page; every other field's id comes from its name.

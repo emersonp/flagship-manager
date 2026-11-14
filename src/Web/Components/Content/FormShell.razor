@@ -39,7 +39,7 @@
     </div>
     @if (!View.IsNew)
     {
-        <DeleteControl Url="@View.DeleteUrl" Id="@View.Id" Busy="@Busy" />
+        <DeleteControl Url="@View.DeleteUrl" Id="@View.Id" Busy="@Busy" Note="@View.DeleteNote" />
     }
     <button class="btn btn--primary" type="submit" form="item-form" data-attr:disabled="@Busy" data-attr:aria-busy="$_saving ? 'true' : false">Save</button>
 </div>

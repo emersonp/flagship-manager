@@ -222,6 +222,7 @@ input:disabled { opacity: 0.55; cursor: not-allowed; }
 .pick tr.is-off .hit { cursor: not-allowed; }
 .obj { display: flex; align-items: center; gap: var(--space-2xs); margin-left: calc(-1 * var(--space-sm)); font-size: var(--text-md); font-weight: 500; color: var(--color-ink); cursor: pointer; white-space: nowrap; }
 .obj .note { font-weight: 400; margin-left: var(--space-2xs); }
+.obj--gone { margin-left: 0; color: var(--color-muted); cursor: default; }
 .unatt { padding: var(--space-sm) var(--space-lg) var(--space-md); }
 .brief-pair { display: grid; gap: var(--space-lg); grid-template-columns: minmax(0, 1fr); }
 @container (min-width: 42rem) { .brief-pair { grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); } }

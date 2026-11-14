@@ -11,25 +11,31 @@ public class MissionsModuleTests
 {
     private static readonly EventTypeRegistry Registry = EventTypeRegistry.FromAssemblies(typeof(LegacyState).Assembly, typeof(CrewModule).Assembly, typeof(MissionsModule).Assembly);
 
-    private static EventBus NewBus()
+    private static EventBus NewBus(ContentPack? pack = null)
     {
         var bus = new EventBus();
         CycleModule.Register(bus);
-        CrewModule.Register(bus, TestContent.Pack);
-        MissionsModule.Register(bus, TestContent.Pack);
+        CrewModule.Register(bus, pack ?? TestContent.Pack);
+        MissionsModule.Register(bus, pack ?? TestContent.Pack);
         return bus;
     }
 
     private sealed class Harness
     {
-        public Harness(ulong seed = 1)
+        public Harness(ulong seed = 1, ContentPack? pack = null)
         {
-            Bus = NewBus();
+            Bus = NewBus(pack);
             State = new LegacyState { LegacyId = Guid.Empty, Seed = seed };
             Events.AddRange(Bus.Send(State, new FoundLegacy()));
         }
 
-        public EventBus Bus { get; }
+        public EventBus Bus { get; private set; }
+
+        // The editor swapped the live pack: later commands run on a game built from this one.
+        public void Swap(ContentPack pack)
+        {
+            Bus = NewBus(pack);
+        }
 
         public LegacyState State { get; }
 
@@ -143,6 +149,99 @@ public class MissionsModuleTests
     private static List<string> Types(IEnumerable<PublishedEvent> events)
     {
         return events.Select(e => Registry.ToEnvelope(e).Type).ToList();
+    }
+
+    private const string LostTemplate = "OBJECTIVE_LOST";
+
+    // A pack with one more template, which the repository's pack then lacks; the extra one has an authored difficulty.
+    private static readonly ContentPack Wider = TestContent.Pack with { Objectives = [.. TestContent.Pack.Objectives, TestContent.Objective with { Id = LostTemplate, UnattendedDifficulty = 3 }] };
+
+    // A legacy in the briefing whose site offers the extra template, on the wider pack.
+    private static Harness OfferingLost()
+    {
+        for (ulong seed = 1; seed < 500; seed++)
+        {
+            var h = new Harness(seed, Wider);
+            h.GoTo(CyclePhase.Briefing);
+            if (h.Site.Objectives.Any(o => o.TemplateId == LostTemplate))
+            {
+                return h;
+            }
+        }
+
+        throw new InvalidOperationException("No seed in range offers the extra template.");
+    }
+
+    private static void ToNextCycle(Harness h)
+    {
+        int cycle = h.State.Cycle;
+        while (h.State.Cycle == cycle || h.State.Phase != CyclePhase.Orders)
+        {
+            h.Send(new AdvancePhase());
+        }
+    }
+
+    // The editor deleted a template the site offers: the launch is refused in words, and sending nobody still reaches the next cycle.
+    [Fact]
+    public void A_template_lost_from_the_pack_is_refused_on_launch_and_skipped_unattended()
+    {
+        Harness h = OfferingLost();
+        string lost = h.Site.Objectives.First(o => o.TemplateId == LostTemplate).Id;
+        h.Swap(TestContent.Pack);
+
+        CommandRejectedException refusal = h.Refused(h.Assign(Pair, objectiveId: lost));
+        int before = h.Events.Count;
+        ToNextCycle(h);
+
+        Assert.Equal($"Objective template '{LostTemplate}' is no longer in the content.", refusal.Message);
+        Assert.DoesNotContain(h.Events.Skip(before).Select(e => e.Event).OfType<ObjectiveUnattended>(), r => r.ObjectiveId == lost);
+        Assert.Equal(CyclePhase.Orders, h.State.Phase);
+        Assert.DoesNotContain(h.Site.Objectives, o => o.TemplateId == LostTemplate);
+    }
+
+    // The template went between the launch and the mission's start: no mission runs, and the cycle still ends.
+    [Fact]
+    public void A_template_lost_after_the_team_is_assigned_starts_no_mission()
+    {
+        Harness h = OfferingLost();
+        string lost = h.Site.Objectives.First(o => o.TemplateId == LostTemplate).Id;
+        h.Send(h.Assign(Pair, objectiveId: lost));
+        h.Swap(TestContent.Pack);
+
+        h.GoTo(CyclePhase.Resolution);
+        Assert.Null(h.Mission);
+        ToNextCycle(h);
+
+        Assert.Equal(CyclePhase.Orders, h.State.Phase);
+    }
+
+    // Gear chosen in the briefing and then deleted from the pack: the mission starts without it.
+    [Fact]
+    public void Gear_lost_after_the_team_is_assigned_is_left_behind()
+    {
+        Harness h = ToBriefing();
+        h.Send(h.Assign(Pair, ["GEAR_01"]));
+        h.Swap(TestContent.Pack with { Gear = TestContent.Pack.Gear.Where(g => g.Id != "GEAR_01").ToList() });
+
+        h.GoTo(CyclePhase.Resolution);
+
+        Assert.NotNull(h.Mission);
+        Assert.Contains(h.Events.Select(e => e.Event), e => e is MissionStarted);
+    }
+
+    // The site's assignment was deleted: a launch is refused in words, and sending nobody reaches the next cycle.
+    [Fact]
+    public void An_assignment_lost_from_the_pack_refuses_a_launch_and_lets_the_cycle_end()
+    {
+        Harness h = ToBriefing();
+        AssignmentDef kept = TestContent.Pack.Assignments[0] with { Id = "ASSIGNMENT_OTHER" };
+        h.Swap(TestContent.Pack with { Assignments = [kept] });
+
+        CommandRejectedException refusal = h.Refused(h.Assign(Pair));
+        ToNextCycle(h);
+
+        Assert.Equal($"Assignment '{TestContent.Pack.Assignments[0].Id}' is no longer in the content.", refusal.Message);
+        Assert.Equal("ASSIGNMENT_OTHER", h.Site.AssignmentId);
     }
 
     [Fact]

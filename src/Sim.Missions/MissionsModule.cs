@@ -99,7 +99,12 @@ public static class MissionsModule
             }
         }
 
-        ObjectiveDef template = pack.Objectives.Single(o => o.Id == objective.TemplateId);
+        // The editor may have deleted a template the site still offers.
+        if (pack.Objectives.FirstOrDefault(o => o.Id == objective.TemplateId) is not { } template)
+        {
+            return $"Objective template '{objective.TemplateId}' is no longer in the content.";
+        }
+
         int size = command.CrewIds.Count;
         if (size < template.TeamSizeMin || size > template.TeamSizeMax)
         {
@@ -136,7 +141,12 @@ public static class MissionsModule
 
     private static string? CheckGear(ContentPack pack, SiteState site, AssignTeam command)
     {
-        int limit = pack.Assignments.Single(a => a.Id == site.AssignmentId).LoadoutLimit;
+        if (pack.Assignments.FirstOrDefault(a => a.Id == site.AssignmentId) is not { } assignment)
+        {
+            return $"Assignment '{site.AssignmentId}' is no longer in the content.";
+        }
+
+        int limit = assignment.LoadoutLimit;
         var seen = new HashSet<string>();
         foreach (string id in command.GearIds)
         {
@@ -255,13 +265,18 @@ public static class MissionsModule
         }
 
         string id = $"m_{cycle}_1";
-        SiteObjective objective = site.Objectives.Single(o => o.Id == briefing.ObjectiveId);
-        ObjectiveDef template = pack.Objectives.Single(o => o.Id == objective.TemplateId);
+        // A template deleted between the launch and this phase: no mission runs, as if nobody had been sent.
+        if (site.Objectives.FirstOrDefault(o => o.Id == briefing.ObjectiveId) is not { } objective || pack.Objectives.FirstOrDefault(o => o.Id == objective.TemplateId) is not { } template)
+        {
+            return;
+        }
+
         IRosterView roster = context.View<IRosterView>();
         List<TeamMember> members = briefing.CrewIds
             .Select(c => roster.Member(c) ?? throw new InvalidOperationException($"Crew member '{c}' is no longer available for mission {id}."))
             .ToList();
-        List<string> gearTags = briefing.GearIds.Select(g => pack.Gear.Single(d => d.Id == g).Tag).ToList();
+        // Gear deleted since the launch stays behind.
+        List<string> gearTags = briefing.GearIds.Select(g => pack.Gear.FirstOrDefault(d => d.Id == g)?.Tag).OfType<string>().ToList();
         ulong seed = context.Rng($"mission:{id}").NextUInt64();
 
         context.Publish(new MissionStarted(id, objective.Id, template.Id, briefing.CrewIds, briefing.LeadId));
@@ -294,7 +309,8 @@ public static class MissionsModule
 
         foreach (SiteObjective objective in site.Objectives.Where(o => site.Briefing?.ObjectiveId != o.Id))
         {
-            if (pack.Objectives.Single(o => o.Id == objective.TemplateId).UnattendedDifficulty is not { } difficulty)
+            // No authored difficulty, or a template the pack no longer has: no roll.
+            if (pack.Objectives.FirstOrDefault(o => o.Id == objective.TemplateId)?.UnattendedDifficulty is not { } difficulty)
             {
                 continue;
             }

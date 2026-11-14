@@ -478,6 +478,7 @@ public class BridgeReaderTests
             Assert.NotNull(view.Site);
             Assert.All(view.Site.Objectives, o =>
             {
+                Assert.True(o.Missing);
                 Assert.Empty(o.PossibleSkills);
                 Assert.Equal(0, o.TeamSizeMin);
                 Assert.Equal(0, o.TeamSizeMax);
