@@ -85,7 +85,7 @@ public class ContentNamesTests
     // Empty, blank, over-long, and multi-line names are each refused, naming the file and the id.
     [Theory]
     [MemberData(nameof(Kinds))]
-    public void A_bad_name_is_refused_with_its_file_and_id(string _, string file, string anchor, string indent, string id)
+    public void A_bad_name_is_refused_with_its_file_and_id(string kind, string file, string anchor, string indent, string id)
     {
         foreach (string bad in new[] { "\"\"", "\"   \"", $"\"{new string('N', 81)}\"", "\"NAME_PLACEHOLDER_1\\nNAME_PLACEHOLDER_2\"", "\"NAME_PLACEHOLDER_1\\r\\nX\"" })
         {
@@ -94,7 +94,32 @@ public class ContentNamesTests
             Assert.Null(result.Pack);
             ContentError error = Assert.Single(result.Errors);
             Assert.Equal(file, error.File);
-            Assert.Equal($"{id}: {BadName}", error.Message);
+            Assert.Equal(kind == "decision" ? $"ENCOUNTER_01 decision {id}: {BadName}" : $"{id}: {BadName}", error.Message);
+        }
+    }
+
+    [Theory]
+    [MemberData(nameof(Kinds))]
+    public void A_name_written_as_a_number_loads_as_its_text(string kind, string file, string anchor, string indent, string id)
+    {
+        ContentLoadResult result = Load(file, anchor, indent, "42");
+
+        Assert.Empty(result.Errors);
+        Assert.Equal("42", NameOf(result.Pack!, kind, id));
+    }
+
+    // A list or a map is a mistyped field, refused like any other.
+    [Theory]
+    [MemberData(nameof(Kinds))]
+    public void A_name_written_as_a_list_or_a_map_is_an_error_naming_the_file(string _, string file, string anchor, string indent, string id)
+    {
+        Assert.NotEmpty(id);
+        foreach (string bad in new[] { "[A, B]", "{ a: b }" })
+        {
+            ContentLoadResult result = Load(file, anchor, indent, bad);
+
+            Assert.Null(result.Pack);
+            Assert.Contains(result.Errors, e => e.File == file);
         }
     }
 }

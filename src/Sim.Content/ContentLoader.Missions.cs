@@ -59,7 +59,7 @@ public static partial class ContentLoader
                     Error("The decision's stakes must be 1 to 5.");
                 }
 
-                string? decisionName = dto.Decision.Id is null ? null : CheckName(file, dto.Decision.Id, dto.Decision.Name, errors);
+                string? decisionName = dto.Decision.Id is null ? null : CheckName(file, $"{dto.Id} decision {dto.Decision.Id}", dto.Decision.Name, errors);
                 decision = new DecisionDef(dto.Decision.Id ?? "", dto.Decision.Stakes, Effects(dto.Decision.Bold, Error), Effects(dto.Decision.Safe, Error), decisionName);
             }
 

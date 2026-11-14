@@ -35,6 +35,24 @@ public static class BridgeReader
             showAftermath ? Aftermath(site!, state, cycleEvents, names) : null);
     }
 
+    // Rows in view that share a shown name also show their ids; a row shown by its id never repeats it.
+    private static List<CrewRow> MarkShared(List<CrewRow> rows)
+    {
+        HashSet<string> shared = Shared(rows.Select(r => r.Shown));
+        return rows.Select(r => r with { Disambiguate = r.Name is not null && r.Name != r.Id && shared.Contains(r.Shown) }).ToList();
+    }
+
+    private static List<GearChoice> MarkShared(List<GearChoice> gear)
+    {
+        HashSet<string> shared = Shared(gear.Select(g => g.Shown));
+        return gear.Select(g => g with { Disambiguate = g.Name is not null && g.Name != g.Id && shared.Contains(g.Shown) }).ToList();
+    }
+
+    private static HashSet<string> Shared(IEnumerable<string> shown)
+    {
+        return shown.GroupBy(n => n).Where(g => g.Count() > 1).Select(g => g.Key).ToHashSet();
+    }
+
     // The away team's living rows, with the lead flagged; everyone else unmarked. Used for a lead other than the stored one too.
     public static IReadOnlyList<CrewRow> MarkAway(IReadOnlyList<CrewRow> roster, IReadOnlyList<string> team, string leadId)
     {
@@ -61,7 +79,7 @@ public static class BridgeReader
         }
 
         // Stable sort: the dead go last, the rest keep roster order.
-        return crew.Members.OrderBy(m => m.Status == CrewStatus.Dead).Select(m => Row(m, names)).ToList();
+        return MarkShared(crew.Members.OrderBy(m => m.Status == CrewStatus.Dead).Select(m => Row(m, names)).ToList());
     }
 
     private static CrewRow Row(CrewMember member, Names names)
@@ -112,8 +130,8 @@ public static class BridgeReader
         AssignmentDef? assignment = pack.Assignments.FirstOrDefault(a => a.Id == site.AssignmentId);
         return new BriefingView(
             objectives,
-            roster.Where(c => c.Status != nameof(CrewStatus.Dead)).ToList(),
-            pack.Gear.Select(g => new GearChoice(g.Id, g.Tag, names.Gear(g.Id))).ToList(),
+            MarkShared(roster.Where(c => c.Status != nameof(CrewStatus.Dead)).ToList()),
+            MarkShared(pack.Gear.Select(g => new GearChoice(g.Id, g.Tag, names.Gear(g.Id))).ToList()),
             assignment?.LoadoutLimit ?? 0);
     }
 

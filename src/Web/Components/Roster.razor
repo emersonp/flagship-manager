@@ -19,7 +19,10 @@
                 @foreach (CrewRow row in Rows)
                 {
                     <tr data-crew="@row.Id" class="@RowClass(row)">
-                        <td class="who">@row.Shown@if (row.IsAway)
+                        <td class="who">@row.Shown@if (row.Disambiguate)
+                            {
+                                @(" ")<span class="quiet">@row.Id</span>
+                            }@if (row.IsAway)
                             {
                                 <span class="away-tag tag">@(row.IsLead ? "Away team, lead" : "Away team")</span>
                             }</td>

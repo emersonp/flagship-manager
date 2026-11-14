@@ -135,4 +135,42 @@ public class BridgeNamesTests
 
         Assert.Equal(plain.Events.Select(plain.Game.Events.ToEnvelope), named.Events.Select(named.Game.Events.ToEnvelope));
     }
+
+    private static ContentPack Shared()
+    {
+        return Named with
+        {
+            Crew = Named.Crew.Select((c, i) => c with { Name = i < 2 ? "NAME_PLACEHOLDER_SAME" : c.Name }).ToList(),
+            Gear = Named.Gear.Select((g, i) => g with { Name = i < 2 ? "NAME_PLACEHOLDER_SAME" : g.Name }).ToList(),
+        };
+    }
+
+    // Two items of one kind with one name each also show their ids; a unique name does not.
+    [Fact]
+    public void Items_that_share_a_name_are_marked_to_show_their_ids()
+    {
+        Played played = Until(Shared(), p => p.State.Phase == CyclePhase.Briefing);
+
+        BridgeView view = Read(played);
+
+        Assert.Equal([true, true], view.Roster.Take(2).Select(r => r.Disambiguate));
+        Assert.All(view.Roster.Skip(2), r => Assert.False(r.Disambiguate));
+        Assert.Equal([true, true], view.Briefing!.Crew.Take(2).Select(r => r.Disambiguate));
+        Assert.All(view.Briefing.Crew.Skip(2), r => Assert.False(r.Disambiguate));
+        Assert.Equal([true, true, false, false], view.Briefing.Gear.Select(g => g.Disambiguate));
+    }
+
+    [Fact]
+    public void With_no_names_or_unique_names_nothing_is_marked()
+    {
+        foreach (ContentPack pack in new[] { Plain, Named })
+        {
+            Played played = Until(pack, p => p.State.Phase == CyclePhase.Briefing);
+
+            BridgeView view = Read(played);
+
+            Assert.All(view.Roster, r => Assert.False(r.Disambiguate));
+            Assert.All(view.Briefing!.Gear, g => Assert.False(g.Disambiguate));
+        }
+    }
 }

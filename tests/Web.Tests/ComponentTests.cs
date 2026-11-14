@@ -195,4 +195,24 @@ public sealed class ComponentTests : IDisposable
         Assert.Contains($"<p>{Encoded}, rolled", html);
         Assert.DoesNotContain("<b>", html);
     }
+
+    [Fact]
+    public async Task Rows_marked_to_disambiguate_show_their_id_in_the_roster_and_the_briefing_and_in_the_labels()
+    {
+        CrewRow[] crew = [Crew("CREW_01", "Active", 5, 0) with { Name = "SAME", Disambiguate = true }, Crew("CREW_02", "Active", 5, 0) with { Name = "SAME", Disambiguate = true }, Crew("CREW_03", "Active", 5, 0) with { Name = "UNIQUE" }];
+        GearChoice[] gear = [new("GEAR_01", "scanner", "SAME", true), new("GEAR_02", "tools", "SAME", true), new("GEAR_03", "comms", "UNIQUE")];
+        var briefing = new BriefingView([], crew, gear, 2);
+
+        string roster = await Html<Roster>(new() { ["Rows"] = crew });
+        string page = await Html<BriefingScreen>(new() { ["LegacyId"] = Guid.NewGuid(), ["Bar"] = Bar, ["Briefing"] = briefing });
+
+        Assert.Contains("<td class=\"who\">SAME <span class=\"quiet\">CREW_02</span></td>", roster);
+        Assert.Contains("<td class=\"who\">UNIQUE</td>", roster);
+        Assert.Contains("<td class=\"who\">SAME <span class=\"quiet\">CREW_01</span></td>", page);
+        Assert.Contains("aria-label=\"Team SAME (CREW_02)\"", page);
+        Assert.Contains("aria-label=\"Lead SAME (CREW_01)\"", page);
+        Assert.Contains("aria-label=\"Team UNIQUE\"", page);
+        Assert.Contains("<span class=\"gear__id\">SAME <span class=\"quiet\">GEAR_02</span></span>", page);
+        Assert.Contains("<span class=\"gear__id\">UNIQUE</span>", page);
+    }
 }

@@ -53,7 +53,10 @@
                         @foreach (CrewRow row in Briefing.Crew)
                         {
                             <tr class="@(row.Fit ? null : "is-off")">
-                                <td class="who">@row.Shown</td>
+                                <td class="who">@row.Shown@if (row.Disambiguate)
+                                    {
+                                        @(" ")<span class="quiet">@row.Id</span>
+                                    }</td>
                                 <td class="status"><CrewStatusText Row="row" /></td>
                                 @foreach (string skill in Skills)
                                 {
@@ -75,7 +78,10 @@
                 <ul class="gear well__body">
                     @foreach (GearChoice gear in Briefing.Gear)
                     {
-                        <li><label for="gear-@gear.Id"><span class="hit"><input type="checkbox" id="gear-@gear.Id" name="gear" value="@gear.Id" data-on:change="@GearCount" data-attr:disabled="@GearFull"></span><span class="gear__id">@gear.Shown</span><span class="gear__kind">@gear.Tag</span></label></li>
+                        <li><label for="gear-@gear.Id"><span class="hit"><input type="checkbox" id="gear-@gear.Id" name="gear" value="@gear.Id" data-on:change="@GearCount" data-attr:disabled="@GearFull"></span><span class="gear__id">@gear.Shown@if (gear.Disambiguate)
+                            {
+                                @(" ")<span class="quiet">@gear.Id</span>
+                            }</span><span class="gear__kind">@gear.Tag</span></label></li>
                     }
                 </ul>
             </fieldset>
@@ -154,7 +160,8 @@
 
     private static string Named(string control, CrewRow row)
     {
-        return row.Fit ? $"{control} {row.Shown}" : $"{control} {row.Shown}, unavailable while {row.Status.ToLowerInvariant()}";
+        string who = row.Disambiguate ? $"{row.Shown} ({row.Id})" : row.Shown;
+        return row.Fit ? $"{control} {who}" : $"{control} {who}, unavailable while {row.Status.ToLowerInvariant()}";
     }
 
     // The values stay -1, 0, and 1; the words follow the rules: risk is tolerance, autonomy is how readily the lead calls,

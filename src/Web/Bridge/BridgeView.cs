@@ -7,8 +7,9 @@ public sealed record BridgeView(TopBarView TopBar, IReadOnlyList<CrewRow> Roster
 
 public sealed record TopBarView(string LegacyName, int Week, int Cycle, CyclePhase Phase, string? PackWarning);
 
-public sealed record CrewRow(string Id, int Seniority, string Status, bool Fit, IReadOnlyList<SkillCell> Skills, IReadOnlyList<int> LightInjuryHealWeeks, int? ReturnsAtWeek, int Loyalty, int AwayMissions, bool IsAway = false, bool IsLead = false, string? Name = null)
+public sealed record CrewRow(string Id, int Seniority, string Status, bool Fit, IReadOnlyList<SkillCell> Skills, IReadOnlyList<int> LightInjuryHealWeeks, int? ReturnsAtWeek, int Loyalty, int AwayMissions, bool IsAway = false, bool IsLead = false, string? Name = null, bool Disambiguate = false)
 {
+    // Disambiguate: another row in view shows the same name, so this one also shows its id.
     // The crew member's display name; the id stays the key.
     public string Shown => Name ?? Id;
 }
@@ -30,7 +31,7 @@ public sealed record ObjectiveView(string Id, string TemplateId, IReadOnlyList<s
 
 public sealed record BriefingView(IReadOnlyList<ObjectiveView> Objectives, IReadOnlyList<CrewRow> Crew, IReadOnlyList<GearChoice> Gear, int LoadoutLimit);
 
-public sealed record GearChoice(string Id, string Tag, string? Name = null)
+public sealed record GearChoice(string Id, string Tag, string? Name = null, bool Disambiguate = false)
 {
     public string Shown => Name ?? Id;
 }
