@@ -1,5 +1,6 @@
-# Placeholders. The author replaces these.
+# Generated fiction (2026-11-15). The id and every number are the placeholders' own.
 - id: ASSIGNMENT_TEMPLATE_1
+  name: Meridian Drift survey
   objectives: { tags: [] }        # every objective template whose tags include all of these
   offer: { 1: 6, 2: 3 }           # how many objectives a site offers, by weight. One is the rule
   loadoutLimit: 2

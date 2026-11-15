@@ -107,12 +107,41 @@ internal static class FormFlow
             return null;
         }
 
+        // "Write one for here": a line of the item's own for that beat, started from what plays there now.
+        string action = posted.Get(RowSet.ActionField);
+        if (action.StartsWith(OwnedText.WritePrefix, StringComparison.Ordinal) && form.RowSets.Contains(OwnedText.Lines))
+        {
+            string beat = action[OwnedText.WritePrefix.Length..];
+            List<Dictionary<string, string>> lines = FormRows.Read(posted, OwnedText.Lines);
+            Dictionary<string, string> line = OwnedText.Lines.NewRow();
+            line["beat"] = beat;
+            line["text"] = Plays.FallbackText(form.Kind, files, id ?? "", posted, choices, beat);
+            lines.Add(line);
+            FormValues written = FormRows.Write(posted, OwnedText.Lines, lines);
+            return Build(form, files, choices, isNew ? posted.Get("id") : id!, isNew, written, new Dictionary<string, string>(), [], null) with { FocusId = FormValues.Slug(OwnedText.Lines.Name(lines.Count - 1, "text")) };
+        }
+
         FormRows.Applied applied = FormRows.Apply(posted, form.RowSets);
         // Add: the new row's first field. Move: the moved row's first field, so the author sees where it went. Remove: that list's Add button.
         string? focus = applied.Set is not { } set
             ? SafeFocus(focusId)
             : applied.Verb == "remove" ? set.AddId : FormValues.Slug(set.Name(applied.Row, set.Fields[0]));
         return Build(form, files, choices, isNew ? posted.Get("id") : id!, isNew, applied.Values, new Dictionary<string, string>(), [], null) with { FocusId = focus };
+    }
+
+    // The form as posted, for its panel's previews; sample, when given, is the sample to show. Null for an unknown id or a kind with no panel.
+    public static ItemFormView? Previews(KindForm form, ContentFileSet files, string? id, FormValues posted, string? sample)
+    {
+        bool isNew = id is null;
+        FormChoices choices = isNew ? FormChoicesReader.Read(files) : form.Widen(FormChoicesReader.Read(files), files, id!);
+        if (!isNew && form.Load(files, id!, choices) is null)
+        {
+            return null;
+        }
+
+        FormValues values = sample is { Length: > 0 and <= 4 } && sample.All(char.IsAsciiDigit) ? posted.With("sample", sample) : posted;
+        ItemFormView view = Build(form, files, choices, isNew ? posted.Get("id") : id!, isNew, values, new Dictionary<string, string>(), [], null);
+        return view.Plays is null ? null : view;
     }
 
     // An element id as the editor makes them; anything else is no focus.
@@ -150,6 +179,7 @@ internal static class FormFlow
         {
             DeleteNote = isNew ? null : DeleteNote(files, form.Kind, id),
             Preview = form.Kind == ContentKind.Line ? LinePreview.Of(files, id, values) : null,
+            Plays = Plays.Of(form.Kind, files, id, values, choices),
         };
     }
 

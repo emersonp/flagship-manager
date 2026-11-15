@@ -1,0 +1,13 @@
+@using Web.Forms
+@* What the preview route answers with: the sample control and every preview, each patched by its id, so no box the author is typing in is touched. *@
+<PlaysSample Plays="Plays" Url="@Url" />
+@foreach (PlaysPreview preview in Plays.Previews)
+{
+    <PlaysPreviewBox Preview="preview" />
+}
+
+@code {
+    [Parameter, EditorRequired] public PlaysView Plays { get; set; } = null!;
+
+    [Parameter, EditorRequired] public string Url { get; set; } = "";
+}

@@ -1,6 +1,6 @@
 # Starship Sim: Game Design Document v1
 
-Status: draft v1.13, 2026-11-15, revised after the author's reviews (section 15), the mission prototype (section 4.7), and the author's notes on skills and narrative structure after slice 1c (section 15, items 18 to 21). Vocabulary follows `GLOSSARY.md`; the games and shows the design draws on are listed in `docs/touchstones.md`. Creative content is placeholder throughout (`SPECIES_A`, `OBJECTIVE_TEMPLATE_1`, `SKILL_A`); numbers are starting points for the balance simulator, not commitments.
+Status: draft v1.14, 2026-11-15, revised after the author's reviews (section 15), the mission prototype (section 4.7), and the author's notes on skills and narrative structure after slice 1c (section 15, items 18 to 21). Vocabulary follows `GLOSSARY.md`; the games and shows the design draws on are listed in `docs/touchstones.md`. Creative content is placeholder throughout this document (`SPECIES_A`, `OBJECTIVE_TEMPLATE_1`, `SKILL_A`); the game's own pack in `content/` holds generated fiction, by the author's one-time exception (section 15, item 23); numbers are starting points for the balance simulator, not commitments.
 
 ## 1. Summary
 
@@ -192,7 +192,8 @@ approaches:
     skill: SKILL_A
     difficulty: 5
     gearTags: [scanner]
-    text:                                 # what the log says for this check, by tier
+    text:                                 # what is said before this check, and what the log says after, by tier
+      attempt: ENCOUNTER_07_CAREFUL_ATTEMPT_TEXT
       success: ENCOUNTER_07_CAREFUL_SUCCESS_TEXT
       disaster: ENCOUNTER_07_CAREFUL_DISASTER_TEXT
   - id: fast
@@ -202,6 +203,8 @@ approaches:
 decision:                     # optional
   stakes: 3
   prompt: DECISION_PROMPT_1
+  text: { call: DECISION_PROMPT_1_CALL_SCRIPT }    # what the team says on the call: a script (section 6)
+  labels: { bold: DECISION_PROMPT_1_BOLD_LABEL }   # what the call's answer buttons say
   options:
     - id: press_on
       leadPrefers: "lead.caution <= -1"
@@ -220,7 +223,7 @@ lines:                                    # any other line that holds only here,
     text: ENCOUNTER_07_DEATH_TEXT
 ```
 
-An encounter carries its own narrative. Its `text` gives the words for its own beats (arriving, each approach by tier, and its decision), and its `lines` are ordinary lines (section 6) that hold only at this encounter. Nothing about an encounter is written in the shared lines; those hold what belongs to no encounter, and the fallbacks.
+An encounter carries its own narrative. Its `text` gives the words for its own beats (arriving, each approach before its check and by tier, and its decision, whose `labels` name the call's answer buttons), and its `lines` are ordinary lines (section 6) that hold only at this encounter. Nothing about an encounter is written in the shared lines; those hold what belongs to no encounter, and the fallbacks.
 
 ### 3.6 Gear (content)
 
@@ -501,7 +504,8 @@ Built in slice 1d (`Sim.Narrative`; design and plan in `docs/plans/2026-11-14-ph
 - **Situations.** Each beat becomes a situation: a flat set of facts (the encounter and its tags, the stage, momentum, strain, and the beat's own facts, such as a check's tier and margin) and the people in it by role (`actor`, `helper`, `lead`, `crew`), with their stats as facts (`actor.caution`). `Sim.Core` lists the facts of every beat kind; the loader, the editor, and the mapping in `Sim.Missions` all read that one catalogue. `Sim.Narrative` knows nothing of missions, so vignettes and the chronicle can build situations of their own.
 - **Lines** have a beat, criteria, and text. A criterion is a value, any of several values, or a range (`actor.caution: { min: 1 }`). The most specific line whose criteria all hold wins; a line already used in the mission loses to an equally specific fresh one; ties break by a stable hash of the legacy seed, the mission, and the beat.
 - **Where lines live** (revised after slice 1d, on the author's note that an encounter's narrative belongs in the encounter). There is one pool and one rule of selection, but two places to write. A line about one encounter or one objective is written inside that item: as `text` for its own beats (an encounter's arrival, each approach by tier, a decision's call, notice, and the effects of each choice; an objective's result by outcome), or as an entry in its `lines` for any other beat, with criteria of its own. The item is an implied criterion, so its own words outrank a shared line that tests the same things. The shared lines (`content/lines/`) hold only what belongs to no one item (injuries, the lead, the captain's answers, words keyed to personality) and the general fallbacks.
-- **One sentence, two places.** There is no separate report line. The log and the report show the same sentence for a beat, so lines are written in the past tense, as a ship's log is.
+- **Scripts** (slice 1d authoring, `docs/plans/2026-11-15-phase-1d-authoring-design.md`). A line's text is one sentence or a script, one entry to a line: `lead: words` is speech, `> words` a system note, anything else narration, and a last line `= sentence` is what the report says. A speaker is one of the beat's people, `captain`, or `best SKILL_ID`: whoever still standing is best at that skill, the lead aside. An entry whose speaker is not there is left out and the rest plays. A text of `-` alone says nothing. An approach's `attempt` text is said before its check's result is shown. A call's script is shown on the call itself, and the decision's `labels` name its answer buttons.
+- **The log and the report.** There is no separate report line. A one-sentence line is its own report sentence, so it is written in the past tense, as a ship's log is. A script gives the report its `=` sentence; one that gives none leaves the report to the shared line for that beat.
 - **Text**: `#symbol#`, names by role (`#actor#`, `#encounter#`), pronouns (`#actor.they#`, `.them`, `.their`, `.theirs`, `.themself`), a verb after a pronoun (`#actor.they# #actor:checks|check#`), `.capitalize`, and `##` for a `#`. **Symbols** (`content/symbols/`) give one of their options; **pronoun sets** (`content/pronouns/`) ship as she, he, and they, and a crew member names one (they by default).
 - **Never stored, never random.** Text is regenerated on every view from the beats and the current pack, so a grammar edit shows at once, even in old missions. It draws from no RNG stream: the event log is identical with or without lines.
 - **Fallback.** A beat no authored line holds for shows the structural systems line, so a pack with no lines still plays. The loader refuses criteria and text that can never hold for their beat kind.
@@ -515,12 +519,12 @@ A guide for the author. The rules above say what the engine does; this says how 
 
 **What a line is.** A mission is a string of moments: the team reaches a place, someone attempts something, someone gets hurt, the lead calls in, the mission ends. Each moment is a beat. A line is a sentence written for one kind of beat, with a note on when it fits. Every time the game shows a beat, it looks through the lines, finds the ones that fit, and picks the best.
 
-A line is shown in two places, and written once. **The live log**, which the captain watches as the mission plays, shows a line for every beat. **The aftermath report**, the short account afterwards, repeats the lines of the beats that mattered. Both show the same sentence, so write in the past tense, as a ship's log does: "CREW_02 was lightly injured at ENCOUNTER_03."
+A line is shown in two places, and written once. **The live log**, which the captain watches as the mission plays, shows a line for every beat. **The aftermath report**, the short account afterwards, has one sentence for each beat that mattered. A one-sentence line gives both the same sentence, so write it in the past tense, as a ship's log does: "CREW_02 was lightly injured at ENCOUNTER_03." A line can also be a script, several lines of speech and notes, which says in its last line what the report should say (see "Scripts" below).
 
 **Where to write a line.** Ask what the line is about.
 
-- **About one encounter:** write it in that encounter. The encounter form has a box for the team arriving, a box for each approach at each tier, and boxes for its decision (the lead calling it in, the lead deciding alone, and each choice taking effect). Anything else that happens there (someone killed at this encounter, the lead changing here) goes in the encounter's **Lines of its own**, each with a beat and any further criteria.
-- **About one objective:** write it in that objective, which has a box for each way a mission can end and lines of its own.
+- **About one encounter:** write it in that encounter. Its form ends with **What plays here**, which lists every beat the encounter can produce in the order a mission meets them: the team arriving, each approach (before the check, then each tier), effects, injuries, a change of lead, its decision (the lead calling it in, the lead deciding alone, each choice taking effect, and the call's button labels), and the rarer ones. A box you leave blank shows, in grey, the line that plays there now; write over it to give the encounter its own words. A beat with no box shows what plays there and a **Write one for here** button, which starts a line of the encounter's own from that sentence, to rewrite and to narrow with criteria.
+- **About one objective:** write it in that objective, whose panel has a box for each way a mission can end and the same lines of its own for every other beat.
 - **About neither:** write it on the Lines page. These are the shared lines: what any encounter falls back on, and what belongs to none of them, such as an injury, the lead taking over, the captain's answer, or a cautious person failing anywhere.
 
 So "CREW_02 was injured" is a shared line, "CREW_02 was gravely injured" is a shared line with the criterion `severity: severe`, and the death that can only happen at ENCOUNTER_07 is written in ENCOUNTER_07. Nothing about an encounter has to be searched for anywhere else.
@@ -566,7 +570,7 @@ Words written inside an encounter or an objective are chosen the same way, and w
 
 Two tie-breakers sit underneath. **Freshness:** between equally specific lines, one not yet used in this mission wins, so five checks do not read the same five times. **A fixed coin toss:** if it is still a tie, the game picks, but always the same way for the same beat, so a reload shows the same words while another mission may get the other line. If no line fits, the log shows the structural line, numbers and all, so nothing is ever blank; the report leaves that beat out.
 
-**Writing criteria.** A criterion is a fact and a value, one row each on the line form. In an item's lines of its own they share one box, as `fact: value` with `;` between them (`outcome: dead; crew.caution: 1..`), and the item itself is never written: it is implied. A value is written one of three ways:
+**Writing criteria.** A criterion is a fact and a value, one row each, on the line form and in an item's lines of its own alike. A line written inside an item shows the item as its first criterion, greyed out and fixed: it always holds there, and it counts. Fill the blank row to add a criterion; clear a row to drop it. A value is written one of three ways:
 
 - One value: `failure`.
 - Any of several: `failure, disaster`, true when the fact is either.
@@ -574,11 +578,12 @@ Two tie-breakers sit underneath. **Freshness:** between equally specific lines, 
 
 Some facts are lists, such as an encounter's tags, and for those the criterion asks whether the list holds the value: `encounterTags` with `hazard` means the encounter is tagged hazard, and `hazard, social` means it has either. Yes-or-no facts take `true` or `false`.
 
-**The facts to test.** Every beat has the objective and its tags (`objective`, `objectiveTags`), the encounter in play and its tags (`encounter`, `encounterTags`), the `stage` number, the team's `momentum` and `strain`, `commsBlocked`, and the `lead`. Each kind of beat adds its own:
+**The facts to test.** Every beat has the objective and its tags (`objective`, `objectiveTags`), the encounter in play and its tags (`encounter`, `encounterTags`), the `stage` number, the team's `momentum` and `strain`, `commsBlocked`, `teamStanding` (how many of the team can still act; on an injury beat, counted after the injury), and the `lead`. Each kind of beat adds its own:
 
 | Beat | When it happens | Its own facts | People |
 |---|---|---|---|
 | stage | The team arrives at a new stage | `slot`, the stage's role, such as approach or extraction | lead |
+| attempt | The moment before a check's result is known | `approach`, `skill`, `helped`, `supervised`, `mentoring` | actor, helper (when there is one), lead |
 | check | Someone attempts something | `approach` (careful or fast), `skill`, `tier` (critical, success, partial, failure, or disaster), `margin`, `helped`, `supervised`, `mentoring` | actor, helper (when there is one), lead |
 | injury | Someone rolls against injury | `severity` (light or severe), `outcome` (unharmed, lightInjury, incapacitated, or dead) | crew, lead |
 | call | The lead asks the captain | `decision`, `stakes` (1 to 5), `prefers` (bold, safe, or withdraw) | lead |
@@ -599,18 +604,41 @@ Every person in a beat also has stats to test: `id`, `caution`, `discipline`, `s
 - **Capitals.** `.capitalize` on any placeholder raises its first letter, for a pronoun opening a sentence: `#actor.they.capitalize# steadies the line.`
 - **A literal #** is written `##`.
 
+**Scripts: more than one sentence.** A text can be a short script, one entry to a line:
+
+```yaml
+text:
+  call: |-
+    lead: Captain, we're here, and it is worse than the survey said.
+    best SKILL_MEDICINE: I'm not detecting any life signs.
+    captain: #captainAsk#
+    lead: We go in, or we wait for the storm to pass. Your call.
+    > Signal strength falling.
+    = #lead# called in from #encounter#.
+```
+
+- **Speech** starts with who is speaking and a colon. The speaker is one of the beat's people (`lead`, and for a check `actor` and `helper`, for an injury `crew`), `captain`, or `best` and a skill id, which is whoever still standing is best at that skill, not counting the lead. If nobody fits (no helper, nobody left with the skill), that entry is left out and the rest of the script plays.
+- **A system note** starts with `>`: the ship's instruments talking.
+- **Narration** is any other line.
+- **The report's sentence** is a last line starting with `=`. Without one, the report uses the shared line for that beat.
+- **Saying nothing:** a text of `-` alone lets the beat pass in silence, where a blank box would fall back to a shared line.
+
+Where scripts show: an approach's **Before the check** box is said before the result, so "I'm going to try to climb it" comes first and the outcome after. The text of a decision's call is shown on the call itself, above the answers, and the decision's button labels replace Bold, Safe, and Withdraw. In the log the newest beat's entries arrive one after another.
+
+The cliff, as three small pieces in one encounter: the fast approach's Before the check box is `actor: Captain, there's a sheer face here. I'm going to try to climb it.`; its Disaster box is `> Carrier signal lost.`; and a line of the encounter's own for the injury beat, with `outcome: dead`, is `> No life signs detected.` A second line for the attempt beat with `teamStanding: 1` gives the last survivor different words.
+
 **Symbols: variety without more lines.** A symbol is a named list of options. A symbol `hesitates` with three options drops one of them wherever a line says `#hesitates#`. One check line with two or three symbols reads differently from beat to beat without a dozen near-identical lines. Options may hold placeholders and other symbols. A symbol's id is lower case, because it is typed in text, and its choice follows the same fixed coin toss: varied across beats, steady for any one beat.
 
 **The numbers take care of themselves.** No line needs figures. Every log line ends with small tags for what changed (the check's tier and margin, a momentum or strain change, an injury outcome), and the full roll is one click away under "Roll". Sentences can stay purely narrative.
 
-**What the report uses.** In mission order: always injuries that hurt someone, deaths, calls, notices, the captain's answers, a collapse, critical and disastrous checks, and the result; then failed checks and changes of lead while there is room, up to eight sentences; then arrivals at stages to make at least three. It repeats what the log said for those beats. Plain successes and partials never reach the report.
+**What the report uses.** In mission order: always injuries that hurt someone, deaths, calls, notices, the captain's answers, a collapse, critical and disastrous checks, and the result; then failed checks and changes of lead while there is room, up to eight sentences; then arrivals at stages to make at least three. For each it uses the line's report sentence: the sentence itself for a one-sentence line, the `=` line for a script. Plain successes and partials never reach the report.
 
 **A sensible way to work.**
 
 1. Keep the shared lines few. One general line for each beat kind is enough to keep the structural text out of the log, and the placeholder lines do this already; replace their words with yours.
-2. Write each encounter in the encounter. Fill in the boxes that matter (the arrival, the tiers worth telling apart) and leave the rest blank: a blank box falls back to a shared line.
+2. Write each encounter in the encounter, in **What plays here**. Fill in the boxes that matter (the arrival, the tiers worth telling apart, the call) and leave the rest blank: a blank box falls back to the line shown in grey. The lists of encounters and objectives say how many boxes each has written.
 3. Add a shared line only for something that is true across encounters: a grave injury, a death, a cautious lead calling in over something small.
-4. Use **Preview** on a shared line while writing. It runs the line as typed, before saving, against a set of sample missions on the starting crew, shows it filled in, and says beat by beat whether it wins or which line beats it. An encounter's own words have no preview yet.
+4. Read the previews. In an encounter or an objective, every box and line shows what the log would say, a moment after you stop typing and before anything is saved, and says which line that is. The samples are built for the item from the starting crew; **Next sample** turns to other people, which catches a wrong pronoun. A line with criteria is shown against a sample made to satisfy them, and one that can never hold at this item says so. The chips above each group insert the speakers, names, and symbols that beat allows. On the Lines page, **Preview** runs a shared line against the sample missions and says beat by beat whether it wins or which line beats it.
 5. Check the **lint** on the Lines page now and then. It lists shared lines that never won in the samples, beats that met no line at all, and which of those the report wanted. The samples are a small fixed set of missions, so a rare situation (a supervised check, a skip on momentum) may never come up, and a line flagged as never chosen may simply be waiting for its moment.
 
 **Worth knowing.**
@@ -684,7 +712,7 @@ Built in slice 1c (`src/Web`, run with `./run.sh`):
 - **Beat lines are prose** (slice 1d): an authored line, then its tags in the mono figure style, then a disclosure ("Roll" on a check) with the structural line: `CREW_02 checks SKILL_B at ENCOUNTER_01, helped by CREW_05: 6 + 3 against 15, failure (−6).` A stage line keeps its "Stage N:" head before the prose. The aftermath opens with the report. A refused call answer says what happened in plain words.
 - **A legacy played through the browser has exactly the simulator's event log** for the same seed and choices; a test holds the two together.
 - **Everything authored has a display name** (slice 1c-editor): skills, crew, gear, objective templates, encounters, decisions, and assignments. Ids stay the keys in saves, events, and references; the screens and the log show the name and fall back to the id. Two items that share a name show their ids beside it.
-- **The content editor** (slice 1c-editor, `/dev/content`, developer mode only; `run.sh` turns it on): a form for each kind of content, and the tuning and pack files as text. Slice 1d adds lines (with a preview that expands the line as typed against fixed sample missions on the starting crew, and says whether it wins each beat or which line beats it), symbols, pronoun sets, the crew's pronoun pick, and a lint on the lines page that names lines no sample chooses and beats with no line. A save builds the whole pack as it would be, runs the loader on it, and only then writes one file and swaps the pack in the running game; a save the loader refuses writes nothing and shows the reasons. A file holding anything the editor cannot keep faithfully is never rewritten. Names and gear reach games in progress at once; a legacy's crew keep the levels they started with. Git stays the record.
+- **The content editor** (slice 1c-editor, `/dev/content`, developer mode only; `run.sh` turns it on): a form for each kind of content, and the tuning and pack files as text. Slice 1d adds lines (with a preview that expands the line as typed against fixed sample missions on the starting crew, and says whether it wins each beat or which line beats it), symbols, pronoun sets, the crew's pronoun pick, and a lint on the lines page that names lines no sample chooses and beats with no line. A save builds the whole pack as it would be, runs the loader on it, and only then writes one file and swaps the pack in the running game; a save the loader refuses writes nothing and shows the reasons. The encounter and objective forms end with "What plays here" (slice 1d authoring): the item's beats in mission order, each with a box for its own words or the line that plays there now, lines of the item's own under their beat with their criteria as rows, live previews of the unsaved form against samples built for the item, and chips that insert what a beat can name. A file holding anything the editor cannot keep faithfully is never rewritten. Names and gear reach games in progress at once; a legacy's crew keep the levels they started with. Git stays the record.
 - **The look** is recorded in `docs/design/` (the mock-up, the tokens, and the component recipes): a blue-slate ground, one azure signal, a serif for headings over a technical grotesk, monospaced figures, and the mission log as one numbered trail that runs into the call. Screens are in `docs/screens/1c/`.
 
 ## 8. Engine recommendation
@@ -821,6 +849,7 @@ What has been built, slice by slice. A phase is cut into slices when it is plann
 | 1. Thinnest game | 1c, part two. The cycle in the browser | Legacy selection, orders, briefing, resolution with paced beats and calls, aftermath, and the visual design | Done 2026-11-14 |
 | 1. Thinnest game | 1c-editor. Content editor | Developer-mode pages that write the content files, validated on save; display names for crew, skills, gear, objectives, encounters, and assignments | Done 2026-11-14 |
 | 1. Thinnest game | 1d. Reports | The grammar engine, lines chosen by salience, the log as prose with tags, the aftermath report, and lines, symbols, and pronoun sets in the editor | Done 2026-11-14 |
+| 1. Thinnest game | 1d-authoring. Writing in place | Scripts (speech, notes, a report sentence, an attempt before a check, call scripts and button labels), the "What plays here" panel with live previews, and generated fiction in the game's pack | Done 2026-11-15 |
 | 1. Thinnest game | 1e. Life aboard | Quality-gated, salience-ranked storylets, vignettes (some with a small choice), morale, captain's time, the inbox and crew file, and the chronicle list | Next |
 | 1. Thinnest game | 1f. Tuning in play | The mission bench and the tuning page in the browser | Later |
 | 1. Thinnest game | Playtest | Three legacies of 20 to 30 cycles against the checklist below | Later |
@@ -912,6 +941,8 @@ Notes from the author on 2026-11-14, after slice 1c:
 19. **Vignettes may have a choice**, small in scope: see 5.2.
 20. **Narrative structures.** Quality-based and salience-based, each where it fits: see section 5, 5.3, and section 6. Salience arrives first, choosing report lines in slice 1d. Waypoint narrative was a third structure here until v1.13, when the author dropped it: its distance score was a data model nobody had defined, and qualities with salience give storylines and conversations the same behaviour. After 1d the author added: the narrative of an encounter, an objective, or any other storylet is written inside it, and only what belongs to none of them is a shared line; selection is unchanged (section 6, "Where lines live").
 21. **A hybrid model.** Skills and the other Football Manager numbers are proper stats; story state is qualities: see 3.8.
+22. **Writing is a first-class part of the game's tools** (after slice 1d). The browser editor is where narrative is written; the files stay readable. An item's narrative is written in the item, on one list of its beats, with previews as the author types. A line's text can be a script, so a call can be an exchange and a check can be an intention, a silence, and an outcome. Built as slice 1d authoring; the reusable parts are meant for every later storylet kind.
+23. **Generated fiction in the game's pack, once.** To see lines in use, the author authorised a one-time exception to the placeholder rule on 2026-11-15: `content/` now holds generated names and words (an original setting in the spirit of starship exploration drama), on the placeholders' ids and numbers. The rule stands everywhere else: this document, the test fixture, and anything the systems ship. The author will critique and replace it.
 
 ## 16. Open questions
 
@@ -941,3 +972,11 @@ Recommend (b) until Phase 5, then decide with the bench.
 What happens when the cycle advances before the player answers a vignette's choice.
 (a) The default option, authored per vignette and usually the quiet one (b) The vignette lapses with no effect
 Recommend (a): every vignette changes something (5.2), and the default keeps that true.
+
+6. **Generated characters in the editor**
+Crew will be generated from sources, but the editor's previews cast the starting crew, and a script can only name a person by role or by skill.
+No options yet: to be worked out when crew generation is designed.
+
+7. **A long speech in a script**
+A script entry is one line, so one speaker cannot yet say two paragraphs.
+No options yet: the author needs a mark or a method for the rare case, and deferred it.

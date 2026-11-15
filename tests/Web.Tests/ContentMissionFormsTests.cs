@@ -226,18 +226,21 @@ public sealed class ContentMissionFormsTests(RepoContentGuard guard) : IClassFix
     {
         using TestApp app = NewApp();
         HttpClient client = app.NewClient();
-        string words = "text.arrive=#lead# reached #encounter#.&careful.text.failure=#actor# slipped.&decision.text.bold=The bold choice held."
-            + "&lines[0].beat=injury&lines[0].when=outcome: dead; crew.caution: 1..&lines[0].text=#crew# was run through at #encounter#.";
+        string words = "text.arrive=lead: We are at #encounter#.\r\n\r\n  > Signal weak.  \r\n&careful.text.attempt=actor: Slowly now.&careful.text.failure=#actor# slipped.&decision.text.bold=The bold choice held."
+            + "&decision.label.bold=Send them in"
+            + "&lines[0].beat=injury&lines[0].f0=outcome&lines[0].v0=dead&lines[0].f2=crew.caution&lines[0].v2=1..&lines[0].text=#crew# was run through at #encounter#.";
 
         (HttpStatusCode status, string saved) = await Post(client, "/dev/content/encounters/ENCOUNTER_01", Merge(Encounter1, words));
 
         Assert.Equal(HttpStatusCode.OK, status);
         string disk = Disk(app, "encounters/base.yaml");
-        Assert.Contains("  text:\n    arrive: \"#lead# reached #encounter#.\"\n  approaches:\n    careful:\n      skill: SKILL_A\n      difficulty: 5\n      gearTag: scanner\n      text:\n        failure: \"#actor# slipped.\"\n    fast: { skill: SKILL_C, difficulty: 6 }\n", disk, StringComparison.Ordinal);
-        Assert.Contains("    text:\n      bold: The bold choice held.\n  lines:\n    - when: { beat: injury, outcome: dead, crew.caution: { min: 1 } }\n      text: \"#crew# was run through at #encounter#.\"\n", disk, StringComparison.Ordinal);
+        // A script is kept one entry to a line, trimmed, with blank lines dropped, and is written as a block so the file reads as it was typed.
+        Assert.Contains("  text:\n    arrive: |-\n      lead: We are at #encounter#.\n      > Signal weak.\n  approaches:\n    careful:\n      skill: SKILL_A\n      difficulty: 5\n      gearTag: scanner\n      text:\n        attempt: \"actor: Slowly now.\"\n        failure: \"#actor# slipped.\"\n    fast: { skill: SKILL_C, difficulty: 6 }\n", disk, StringComparison.Ordinal);
+        Assert.Contains("    text:\n      bold: The bold choice held.\n    labels:\n      bold: Send them in\n  lines:\n    - when: { beat: injury, outcome: dead, crew.caution: { min: 1 } }\n      text: \"#crew# was run through at #encounter#.\"\n", disk, StringComparison.Ordinal);
         Assert.Equal(
-            ["ENCOUNTER_01.lines[1]", "ENCOUNTER_01.arrive", "ENCOUNTER_01.careful.failure", "ENCOUNTER_01.decision.bold"],
+            ["ENCOUNTER_01.lines[1]", "ENCOUNTER_01.arrive", "ENCOUNTER_01.careful.attempt", "ENCOUNTER_01.careful.failure", "ENCOUNTER_01.decision.bold"],
             app.Live.Pack.Lines.Where(l => l.Owner == "ENCOUNTER_01").Select(l => l.Id));
+        Assert.Equal("Send them in", app.Live.Pack.ChoiceLabels["DECISION_PROMPT_1"]["bold"]);
 
         (_, string body) = await Get(client, "/dev/content/encounters/ENCOUNTER_01");
         (HttpStatusCode again, _) = await Post(client, "/dev/content/encounters/ENCOUNTER_01", FormFields(body));
@@ -253,11 +256,100 @@ public sealed class ContentMissionFormsTests(RepoContentGuard guard) : IClassFix
         using TestApp app = NewApp();
         string before = Everything(app);
 
-        (HttpStatusCode status, string body) = await Post(app.NewClient(), "/dev/content/encounters/ENCOUNTER_01", Merge(Encounter1, "lines[0].beat=injury&lines[0].when=encounter: ENCOUNTER_02&lines[0].text=x"));
+        (HttpStatusCode status, string body) = await Post(app.NewClient(), "/dev/content/encounters/ENCOUNTER_01", Merge(Encounter1, "lines[0].beat=injury&lines[0].f0=encounter&lines[0].v0=ENCOUNTER_02&lines[0].text=x"));
 
         Assert.Equal(HttpStatusCode.UnprocessableEntity, status);
         Assert.Contains("The line already holds only for this encounter.", body, StringComparison.Ordinal);
         Assert.Equal(before, Everything(app));
+    }
+
+    // --- What plays here ---
+
+    // The panel lists the encounter's beats in mission order; a blank box shows the line that plays there now, and a beat with no box shows it with the way to write one.
+    [Fact]
+    public async Task The_panel_shows_what_plays_at_each_beat_and_the_fallback_in_a_blank_box()
+    {
+        using TestApp app = NewApp();
+
+        string body = Text((await Get(app.NewClient(), "/dev/content/encounters/ENCOUNTER_01")).Body);
+
+        Assert.Contains("<section class=\"plays\" id=\"plays\"", body, StringComparison.Ordinal);
+        int[] order = new[] { "plays-arrive", "plays-careful", "plays-fast", "plays-checks", "plays-effects", "plays-injury", "plays-lead", "plays-decision", "plays-answer", "plays-skip", "plays-chain", "plays-collapse" }
+            .Select(id => body.IndexOf($"id=\"{id}\"", StringComparison.Ordinal)).ToArray();
+        Assert.All(order, at => Assert.True(at > 0));
+        Assert.Equal(order.Order(), order);
+        Assert.Matches("<textarea id=\"f-text-arrive\" name=\"text.arrive\"[^>]*placeholder=\"The team reached #encounter#.\"", body);
+        Assert.Matches("(?s)<div class=\"plays__preview\" id=\"pv-f-text-arrive\">.*?The team reached ENCOUNTER_01\\..*?Shared line LINE_STAGE\\.", body);
+        Assert.Matches("(?s)id=\"pv-any-injury-injury\">.*?was lightly injured at ENCOUNTER_01\\..*?Shared line LINE_INJURY_LIGHT\\.", body);
+        Assert.Contains("id=\"row-write-injury-injury\" name=\"row\" value=\"write:injury\"", body, StringComparison.Ordinal);
+        Assert.Contains("name=\"sample\" value=\"0\"", body, StringComparison.Ordinal);
+        Assert.Contains("Sample 1: CREW_01 leads, CREW_02 acts.", body, StringComparison.Ordinal);
+        Assert.Contains("data-insert=\"lead: \"", body, StringComparison.Ordinal);
+        Assert.Contains("data-insert=\"#encounter#\"", body, StringComparison.Ordinal);
+    }
+
+    // Typing asks for the previews only: each is patched by its id, no box is sent back, and nothing is saved.
+    [Fact]
+    public async Task The_preview_route_shows_the_forms_unsaved_words_and_touches_no_box()
+    {
+        using TestApp app = NewApp();
+        string before = Everything(app);
+        string words = "text.arrive=lead: We are at #encounter#.\n> Signal weak.&careful.text.failure=#nobody# slipped.&careful.text.disaster=-"
+            + "&lines[0].beat=injury&lines[0].f0=outcome&lines[0].v0=dead&lines[0].text=#crew# was run through at #encounter#."
+            + "&lines[1].beat=check&lines[1].f0=skill&lines[1].v0=SKILL_D&lines[1].text=Never.";
+
+        (HttpStatusCode status, string raw) = await Post(app.NewClient(), "/dev/content/encounters/ENCOUNTER_01/plays?sample=1", Merge(Encounter1, words), datastar: true);
+
+        Assert.Equal(HttpStatusCode.OK, status);
+        string body = Text(raw);
+        Assert.DoesNotContain("<textarea", body, StringComparison.Ordinal);
+        Assert.DoesNotContain("mode replace", body, StringComparison.Ordinal);
+        Assert.Contains("name=\"sample\" value=\"1\"", body, StringComparison.Ordinal);
+        Assert.Contains("Sample 2: CREW_02 leads, CREW_03 acts.", body, StringComparison.Ordinal);
+        Assert.Contains("?sample=2'", body, StringComparison.Ordinal);
+        Assert.Matches("(?s)id=\"pv-f-text-arrive\">.*?<span class=\"script__who\">CREW_02</span>.*?We are at ENCOUNTER_01\\..*?script__line--note.*?Signal weak\\..*?Its own words\\.", body);
+        Assert.Matches("(?s)id=\"pv-f-careful-text-failure\">.*?<p class=\"error\">#nobody# names nothing", body);
+        Assert.Matches("(?s)id=\"pv-f-careful-text-disaster\">.*?Nothing is said\\..*?Its own words\\.", body);
+        // A line with criteria is shown against a sample made to satisfy them, and one that can never hold here says so.
+        Assert.Matches("(?s)id=\"pv-line-0\">.*?CREW_03 was run through at ENCOUNTER_01\\..*?This line wins in this sample\\.", body);
+        Assert.Matches("(?s)id=\"pv-line-1\">.*?This cannot happen here: the checks at this encounter are on SKILL_A and SKILL_C\\.", body);
+        Assert.Equal(before, Everything(app));
+    }
+
+    // "Write one for here" starts a line of the encounter's own from what plays at that beat now; its fixed criterion is shown, locked.
+    [Fact]
+    public async Task Write_one_for_here_starts_a_line_from_the_shared_one_with_the_encounter_shown_as_fixed()
+    {
+        using TestApp app = NewApp();
+        string before = Everything(app);
+
+        (HttpStatusCode status, string raw) = await Post(app.NewClient(), "/dev/content/encounters/ENCOUNTER_01/rows", Merge(Encounter1, "row=write:injury"), datastar: true);
+
+        Assert.Equal(HttpStatusCode.OK, status);
+        string body = Text(raw);
+        Assert.Contains("<input type=\"hidden\" name=\"lines[0].beat\" value=\"injury\" />", body, StringComparison.Ordinal);
+        Assert.Matches("<textarea id=\"f-lines-0-text\" name=\"lines\\[0\\].text\"[^>]*data-init=\"el.focus\\(\\);[^>]*>#crew# was lightly injured at #encounter#.</textarea>", body);
+        Assert.Matches("(?s)<tr class=\"criteria__locked\">.*?value=\"encounter\" disabled.*?value=\"ENCOUNTER_01\" disabled.*?Always, because the line is written here\\.", body);
+        Assert.Contains("name=\"lines[0].f0\"", body, StringComparison.Ordinal);
+        Assert.Contains("list=\"facts-injury\"", body, StringComparison.Ordinal);
+        Assert.Contains("id=\"row-remove-lines-0\"", body, StringComparison.Ordinal);
+        Assert.Equal(before, Everything(app));
+    }
+
+    [Fact]
+    public async Task The_lists_say_how_much_of_each_item_is_written()
+    {
+        using TestApp app = NewApp();
+        HttpClient client = app.NewClient();
+        await Post(client, "/dev/content/encounters/ENCOUNTER_01", Merge(Encounter1, "text.arrive=Here.&lines[0].beat=injury&lines[0].text=Hurt."));
+
+        string encounters = Text((await Get(client, "/dev/content/encounters")).Body);
+        string objectives = Text((await Get(client, "/dev/content/objectives")).Body);
+
+        Assert.Contains("<th scope=\"col\">Words written</th>", encounters, StringComparison.Ordinal);
+        Assert.Contains(">1 of 17, 1 line</td>", encounters, StringComparison.Ordinal);
+        Assert.Contains(">0 of 13</td>", encounters, StringComparison.Ordinal);
+        Assert.Contains(">0 of 5</td>", objectives, StringComparison.Ordinal);
     }
 
     // --- Saving, creating, deleting ---

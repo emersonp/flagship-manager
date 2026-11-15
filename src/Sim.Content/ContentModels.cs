@@ -57,7 +57,7 @@ public sealed record ApproachModel(string Skill, int Difficulty, string? GearTag
 // One entry of a bold or safe list. The loader adds the entries together, so the list's order and split are kept as written.
 public sealed record EffectModel(int? Progress, int? Momentum, int? Strain, string? InjuryRoll, bool Withdraw = false);
 
-public sealed record DecisionModel(string Id, string? Name, int Stakes, IReadOnlyList<EffectModel> Bold, IReadOnlyList<EffectModel> Safe, IReadOnlyDictionary<string, string>? Text = null);
+public sealed record DecisionModel(string Id, string? Name, int Stakes, IReadOnlyList<EffectModel> Bold, IReadOnlyList<EffectModel> Safe, IReadOnlyDictionary<string, string>? Text = null, IReadOnlyDictionary<string, string>? Labels = null);
 
 // One criterion as written: a value, a list of values, or a range. Values keep the text as written; IsList keeps [a] apart from a.
 public sealed record CriterionModel(string Fact, IReadOnlyList<string> Values, bool IsList = false, int? Min = null, int? Max = null)

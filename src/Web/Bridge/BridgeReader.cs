@@ -149,9 +149,19 @@ public static class BridgeReader
     private static MissionView Mission(MissionInFlight mission, Briefing? briefing, IReadOnlyList<IEvent> cycleEvents, Names names, List<MissionBeat> beats, Prose prose)
     {
         MissionState state = mission.State;
-        CallView? call = state.Pending is { } pending
-            ? new CallView(pending.CallId, pending.DecisionId, pending.Stakes, pending.Options.Select(o => o.ToString()).ToList(), pending.LeadPrefers.ToString(), pending.LeadId, names.Decision(pending.DecisionId), names.Crew(pending.LeadId))
-            : null;
+        List<LogLine> log = Lines(beats, names, prose);
+        CallView? call = null;
+        if (state.Pending is { } pending)
+        {
+            // The call's own words are its beat's script; the log shows them too.
+            int at = beats.FindLastIndex(b => b.Beat is CallBeat c && c.Call.CallId == pending.CallId);
+            call = new CallView(pending.CallId, pending.DecisionId, pending.Stakes, pending.Options.Select(o => o.ToString()).ToList(), pending.LeadPrefers.ToString(), pending.LeadId, names.Decision(pending.DecisionId), names.Crew(pending.LeadId))
+            {
+                Script = at >= 0 && log[at].Authored ? log[at].Script : null,
+                Labels = prose.ChoiceLabels(pending.DecisionId),
+            };
+        }
+
         List<string> team = state.Team.Select(m => m.Member.Id).ToList();
         IReadOnlyList<string> gear = Gear(mission, briefing, cycleEvents);
         return new MissionView(
@@ -161,7 +171,7 @@ public static class BridgeReader
             state.LeadId,
             state.Momentum,
             state.Strain,
-            Lines(beats, names, prose),
+            log,
             call,
             state.Result?.Outcome.ToString(),
             gear,
@@ -184,7 +194,7 @@ public static class BridgeReader
         }
 
         IReadOnlyList<BeatProse> texts = prose.Log(i => lines[i].Segments);
-        return lines.Select((line, i) => line with { Prose = texts[i].Parts, Tags = BeatLines.Tags(beats[i].Beat), Authored = texts[i].Authored }).ToList();
+        return lines.Select((line, i) => line with { Prose = texts[i].Parts, Tags = BeatLines.Tags(beats[i].Beat), Authored = texts[i].Authored, Script = texts[i].Entries }).ToList();
     }
 
     // The lead the team was sent with: a later lead change is in the log, not here.

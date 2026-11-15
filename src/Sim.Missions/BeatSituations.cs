@@ -50,6 +50,9 @@ public static class BeatSituations
         string lead = frame.StartLeadId;
         string? decision = null;
         string? chose = null;
+        // Who can no longer act: an incapacitating or fatal injury takes its crew member out from that beat on.
+        var down = new HashSet<string>(StringComparer.Ordinal);
+        List<string> skills = mission.Team.SelectMany(m => m.Member.Skills.Keys).Distinct().Order(StringComparer.Ordinal).ToList();
         var situations = new List<Situation>();
         foreach (Beat beat in beats)
         {
@@ -86,6 +89,11 @@ public static class BeatSituations
                     break;
                 case InjuryBeat b:
                     encounter = b.EncounterId;
+                    if (b.Outcome is InjuryOutcome.Incapacitated or InjuryOutcome.Dead)
+                    {
+                        down.Add(b.CrewId);
+                    }
+
                     break;
                 case LeadChangeBeat b:
                     lead = b.CrewId;
@@ -117,7 +125,20 @@ public static class BeatSituations
             facts["momentum"] = FactValue.Of(momentum);
             facts["strain"] = FactValue.Of(strain);
             facts["commsBlocked"] = FactValue.Of(blocked);
+            facts["teamStanding"] = FactValue.Of(mission.Team.Count(m => !down.Contains(m.Member.Id)));
             Add("lead", lead);
+            // A script's "best SKILL" speaker: whoever still standing is best at the skill, the lead aside, who speaks as the lead.
+            foreach (string skill in skills)
+            {
+                TeamMember? best = mission.Team.Select(m => m.Member)
+                    .Where(m => m.Id != lead && !down.Contains(m.Id) && m.Skills.GetValueOrDefault(skill) > 0)
+                    .OrderByDescending(m => m.Skills[skill])
+                    .FirstOrDefault();
+                if (best is not null)
+                {
+                    people[Scripts.BestPrefix + skill] = frame.Person(best.Id);
+                }
+            }
 
             switch (beat)
             {
@@ -202,6 +223,12 @@ public static class BeatSituations
         }
 
         return situations;
+    }
+
+    // The moment before a check's result is known: the check's situation without its tier and margin.
+    public static Situation Attempt(Situation check)
+    {
+        return new Situation("attempt", check.Facts.Where(f => f.Key is not ("tier" or "margin")).ToDictionary(f => f.Key, f => f.Value), check.People, check.Words);
     }
 
     // Enum names as the catalogue writes them: FullSuccess is fullSuccess.

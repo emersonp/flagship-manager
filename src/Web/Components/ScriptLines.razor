@@ -1,0 +1,24 @@
+@using Sim.Core.Narrative
+@* A script as it reads: narration, speech with its speaker, and system notes, each on its own line. Reveal brings the lines in one after another. *@
+<div class="@(Reveal ? "script script--reveal" : "script")">
+    @foreach (ProseEntry entry in Entries)
+    {
+        <p class="@Css(entry)">@if (entry.Speaker is not null)
+            {
+                <span class="script__who">@entry.Speaker</span>@(" ")
+            }<span class="script__words"><Words Parts="entry.Parts" /></span></p>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public IReadOnlyList<ProseEntry> Entries { get; set; } = null!;
+
+    [Parameter] public bool Reveal { get; set; }
+
+    private static string Css(ProseEntry entry) => entry.Kind switch
+    {
+        EntryKind.Speech => "script__line script__line--speech",
+        EntryKind.Note => "script__line script__line--note",
+        _ => "script__line",
+    };
+}

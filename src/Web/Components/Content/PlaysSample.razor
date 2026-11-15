@@ -1,0 +1,18 @@
+@using Web.Forms
+@* Which sample the previews show, and the way to the next one. It carries the sample number in the form, so a row change keeps it. *@
+<div class="plays__sample" id="plays-sample">
+    <input type="hidden" name="sample" value="@Number(Plays.Sample)">
+    <span class="hint">@Plays.Cast</span>
+    <button class="btn" type="button" id="plays-next" data-attr:disabled="@FormShell.Busy" data-on:click="@Next">Next sample</button>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public PlaysView Plays { get; set; } = null!;
+
+    // The item's preview route, without a query.
+    [Parameter, EditorRequired] public string Url { get; set; } = "";
+
+    private string Next => $"@post('{Url}?sample={Number(Plays.Sample + 1)}', {{contentType: 'form'}})";
+
+    private static string Number(int value) => value.ToString(System.Globalization.CultureInfo.InvariantCulture);
+}

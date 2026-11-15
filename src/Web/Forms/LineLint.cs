@@ -26,6 +26,12 @@ public sealed record LineLint(IReadOnlyList<string> NeverChosen, IReadOnlyList<s
                 continue;
             }
 
+            // Nothing need be said before a check, so an attempt with no line is not a gap.
+            if (sample.Situation.Beat == "attempt")
+            {
+                continue;
+            }
+
             without.Add(sample.Situation.Beat);
             if (Web.Bridge.Report.Reports(sample.Situation))
             {

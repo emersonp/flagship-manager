@@ -32,6 +32,9 @@ public static class NarrativeFacts
     // "arrive" is its stage beat; an approach has a text per tier; a decision's "call" and "notice" are those beats and its "bold"
     // and "safe" the effects beat that follows the choice; an objective has a text per outcome.
     public static readonly IReadOnlyList<string> EncounterTexts = ["arrive"];
+
+    // An approach's "attempt" is said before the check's result is known, and its tier texts after.
+    public static readonly IReadOnlyList<string> ApproachTexts = ["attempt", .. Tiers];
     public static readonly IReadOnlyList<string> DecisionTexts = ["call", "notice", "bold", "safe"];
 
     // Every person in a situation also has these facts, as "role.stat".
@@ -57,6 +60,8 @@ public static class NarrativeFacts
         new("momentum", FactType.Number),
         new("strain", FactType.Number),
         new("commsBlocked", FactType.Flag),
+        // How many of the team can still act; on an injury beat, counted after the injury.
+        new("teamStanding", FactType.Number),
     ];
 
     public static readonly IReadOnlyDictionary<string, BeatSpec> Beats = new[]
@@ -64,6 +69,18 @@ public static class NarrativeFacts
         Beat("stage", [new("slot", FactType.Text)], []),
         Beat("skip", [], []),
         Beat("chain", [], []),
+        // What is said before a check's result is known; it holds what the check holds, without the tier and the margin.
+        Beat(
+            "attempt",
+            [
+                new("approach", FactType.Text, FactDomain.Words, Approaches),
+                new("skill", FactType.Text, FactDomain.Skill),
+                new("supervised", FactType.Flag),
+                new("helped", FactType.Flag),
+                new("mentoring", FactType.Flag),
+            ],
+            ["actor", "helper"],
+            ["skill"]),
         Beat(
             "check",
             [

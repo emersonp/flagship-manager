@@ -68,7 +68,14 @@ public static class NarrativeSamples
                     for (int i = 0; i < situations.Count; i++)
                     {
                         string where = string.Create(CultureInfo.InvariantCulture, $"{names.Objective(objective.Id)}, {label} team, seed {seed}, beat {i + 1}");
-                        samples.Add(new SampleBeat(situations[i], string.Create(CultureInfo.InvariantCulture, $"sample|{objective.Id}|{label}|{seed}|{i}"), where));
+                        string key = string.Create(CultureInfo.InvariantCulture, $"sample|{objective.Id}|{label}|{seed}|{i}");
+                        // A check is also the moment before its result, which an "attempt" line speaks for.
+                        if (situations[i].Beat == "check")
+                        {
+                            samples.Add(new SampleBeat(BeatSituations.Attempt(situations[i]), key + "|attempt", where + ", before the result"));
+                        }
+
+                        samples.Add(new SampleBeat(situations[i], key, where));
                     }
                 }
             }
@@ -78,7 +85,8 @@ public static class NarrativeSamples
     }
 }
 
-public sealed record PreviewItem(string Where, string Text, bool Wins, string? BeatenBy);
+// Entries is the line as the log would show it; null when it cannot be expanded, and Text then says why.
+public sealed record PreviewItem(string Where, string Text, bool Wins, string? BeatenBy, IReadOnlyList<ProseEntry>? Entries = null);
 
 // The line form's preview: the line as posted, expanded against up to five sample beats it holds for, and whether it wins each.
 public sealed record LinePreview(string? Message, IReadOnlyList<PreviewItem> Items, int Matches)
@@ -93,7 +101,7 @@ public sealed record LinePreview(string? Message, IReadOnlyList<PreviewItem> Ite
         }
 
         string beat = values.Get("beat");
-        string text = values.Get("text").Trim();
+        string text = OwnedText.Clean(values.Get("text"));
         if (!NarrativeFacts.Beats.ContainsKey(beat) || text.Length == 0)
         {
             return new LinePreview("Choose a beat and write the text to see a preview.", [], 0);
@@ -124,22 +132,36 @@ public sealed record LinePreview(string? Message, IReadOnlyList<PreviewItem> Ite
                 continue;
             }
 
-            string expanded;
-            try
-            {
-                expanded = string.Concat(Expander.Expand(text, sample.Situation, symbols, sample.Key).Select(p => p.Text));
-            }
-            catch (ExpansionException e)
-            {
-                expanded = e.Message;
-            }
-
+            // The line alone, as the log would show it; a text that cannot be expanded says why instead.
+            BeatProse? alone = Prose.Render([line], [], symbols, sample.Situation, sample.Key, []);
+            string expanded = alone is null ? Why(text, sample.Situation, symbols, sample.Key) : string.Concat(alone.Parts.Select(p => p.Text));
             LineDef? winner = LineSelector.Select(lines, sample.Situation, new HashSet<string>(), sample.Key);
-            items.Add(new PreviewItem(sample.Where, expanded, winner?.Id == lineId, winner?.Id == lineId ? null : winner?.Id));
+            items.Add(new PreviewItem(sample.Where, expanded, winner?.Id == lineId, winner?.Id == lineId ? null : winner?.Id, alone?.Entries));
         }
 
         return matches == 0
             ? new LinePreview("No sample beat matches this line's beat and criteria.", [], 0)
             : new LinePreview(null, items, matches);
+    }
+
+    private static string Why(string text, Situation situation, Dictionary<string, SymbolDef> symbols, string key)
+    {
+        try
+        {
+            foreach (ScriptEntry entry in Scripts.Parse(text).Entries)
+            {
+                Expander.Expand(entry.Text, situation, symbols, key);
+            }
+
+            return "The text cannot be shown against this beat.";
+        }
+        catch (NarrativeFormatException e)
+        {
+            return e.Message;
+        }
+        catch (ExpansionException e)
+        {
+            return e.Message;
+        }
     }
 }

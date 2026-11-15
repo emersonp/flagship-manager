@@ -194,8 +194,15 @@ _Avoid_: Dashboard, HUD, main screen
 **Report**:
 The narrative account of a finished mission, generated from its beats.
 
+**Script**:
+A line's text when it is more than one sentence: entries of speech (with a speaker), system notes, and narration, and optionally the sentence the report uses in their place.
+_Avoid_: Dialogue tree, conversation (a script has no choices in it)
+
+**Attempt**:
+The moment before a check's result is known, which an approach can give words of its own.
+
 **Line**:
-An authored sentence for one kind of beat, with criteria that say when it fits. The most specific line whose criteria hold is the one shown, in the log and in the report alike. A line about one encounter or objective is written inside it and holds only there; a **shared line** belongs to none and is written on its own.
+An authored sentence or script for one kind of beat, with criteria that say when it fits. The most specific line whose criteria hold is the one shown, in the log and in the report alike. A line about one encounter or objective is written inside it and holds only there; a **shared line** belongs to none and is written on its own.
 _Avoid_: Template, string, message
 
 **Symbol**:

@@ -51,14 +51,14 @@ internal sealed partial class LineKind : KindForm
             errors["beat"] = "Choose a beat.";
         }
 
-        string text = values.Get("text").Trim();
+        string text = OwnedText.Clean(values.Get("text"));
         if (text.Length == 0)
         {
             errors["text"] = "Enter the line's text.";
         }
-        else if (text.IndexOfAny(['\r', '\n']) >= 0)
+        else if (OwnedText.Problem(text) is { } unreadable)
         {
-            errors["text"] = "A line is one paragraph with no line break.";
+            errors["text"] = unreadable;
         }
 
         var criteria = new List<CriterionModel>();

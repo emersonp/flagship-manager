@@ -173,6 +173,7 @@ internal sealed class EncounterKind : KindForm
             AddEffects(fields, Bold, decision.Bold);
             AddEffects(fields, Safe, decision.Safe);
             OwnedText.Add(fields, "decision.", NarrativeFacts.DecisionTexts, decision.Text);
+            OwnedText.AddLabels(fields, decision.Labels);
         }
 
         OwnedText.AddLines(fields, encounter.Lines);
@@ -213,6 +214,7 @@ internal sealed class EncounterKind : KindForm
         List<EffectModel> bold = [];
         List<EffectModel> safe = [];
         IReadOnlyDictionary<string, string>? decisionText = null;
+        IReadOnlyDictionary<string, string>? labels = null;
         if (hasDecision)
         {
             if (choices.FixedDecisionId is null)
@@ -226,6 +228,7 @@ internal sealed class EncounterKind : KindForm
             bold = BindEffects(values, Bold, errors);
             safe = BindEffects(values, Safe, errors);
             decisionText = OwnedText.Bind(values, "decision.", NarrativeFacts.DecisionTexts, errors);
+            labels = OwnedText.BindLabels(values, errors);
         }
 
         if (errors.Count > 0)
@@ -245,7 +248,7 @@ internal sealed class EncounterKind : KindForm
                     throw new ChangeRefusedException($"That id is already used by {owner}.");
                 }
 
-                decision = new DecisionModel(decisionId, decisionName, stakes, bold, safe, decisionText);
+                decision = new DecisionModel(decisionId, decisionName, stakes, bold, safe, decisionText, labels);
             }
 
             return new EncounterModel(id, name, tags, commsBlocked, chain.Length == 0 ? null : chain, careful!, fast!, decision, text, lines);
@@ -257,7 +260,7 @@ internal sealed class EncounterKind : KindForm
         fields.Add(new($"{key}.skill", approach.Skill));
         fields.Add(new($"{key}.difficulty", Checks.Text(approach.Difficulty)));
         fields.Add(new($"{key}.gearTag", approach.GearTag ?? ""));
-        OwnedText.Add(fields, $"{key}.", NarrativeFacts.Tiers, approach.Text);
+        OwnedText.Add(fields, $"{key}.", NarrativeFacts.ApproachTexts, approach.Text);
     }
 
     private static void AddEffects(List<KeyValuePair<string, string>> fields, RowSet set, IReadOnlyList<EffectModel> effects)
@@ -295,7 +298,7 @@ internal sealed class EncounterKind : KindForm
             errors[$"{key}.gearTag"] = "Unknown gear tag.";
         }
 
-        return new ApproachModel(skill, difficulty, gearTag.Length == 0 ? null : gearTag, OwnedText.Bind(values, $"{key}.", NarrativeFacts.Tiers, errors));
+        return new ApproachModel(skill, difficulty, gearTag.Length == 0 ? null : gearTag, OwnedText.Bind(values, $"{key}.", NarrativeFacts.ApproachTexts, errors));
     }
 
     // One row is one entry: a field per key, blank meaning the key is absent.

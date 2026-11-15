@@ -1,5 +1,6 @@
-# Placeholders. The author replaces these.
+# Generated fiction (2026-11-15). The ids and every number are the placeholders' own.
 - id: OBJECTIVE_TEMPLATE_1
+  name: Waystation survey
   tags: [science]
   teamSize: [2, 4]
   need: 4
@@ -9,7 +10,28 @@
     - { slot: complication, draw: { tags: [field] }, count: 2 }
     - { slot: objective, draw: { tags: [field] }, count: 1 }
     - { slot: extraction, draw: { tags: [field] }, count: 1, skippable: true }
+  text:
+    fullSuccess: |-
+      lead: Captain, the survey is complete. The Cartographers left more here than anyone guessed.
+      captain: Good work. Bring it home.
+      = #lead# completed the #objective#: the waystation gave up everything it held.
+    partialSuccess: |-
+      lead: Captain, we have part of it. The rest is out of our reach.
+      = #lead# brought back part of what the waystation held.
+    incomplete: "The team left the waystation with the #objective# unfinished."
+    withdrawal: |-
+      lead: Coming home, Captain. The waystation will keep.
+      = #lead# withdrew the team from the waystation.
+    loss: |-
+      > No carrier. No telemetry.
+      = The #objective# ended in silence. Nobody reported in.
+  lines:
+    - when: { beat: lead }
+      text: |-
+        crew: This is #crew#. I have the team. The survey goes on.
+        = #crew# took over the survey team.
 - id: OBJECTIVE_TEMPLATE_2
+  name: Relay restoration
   tags: [repair]
   teamSize: [2, 3]
   need: 3
@@ -18,3 +40,13 @@
     - { slot: approach, draw: { tags: [hazard, field] }, count: 1 }
     - { slot: objective, draw: { tags: [technical] }, count: [1, 2] }
     - { slot: extraction, draw: { tags: [social] }, count: 1, skippable: true }
+  text:
+    fullSuccess: |-
+      > Lattice relay online. Handshake confirmed.
+      lead: Captain, the relay is talking to its neighbours again.
+      = #lead# completed the #objective#: the relay rejoined the Lattice.
+    partialSuccess: "The relay came back at reduced power; #lead# judged it would hold until a yard crew arrived."
+    withdrawal: "#lead# pulled the team off the relay with the work unfinished."
+    loss: |-
+      > Relay dark. No carrier.
+      = The #objective# was lost, and the team with it.

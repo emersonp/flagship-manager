@@ -1,66 +1,113 @@
-# Placeholders. The author replaces these. These are the shared lines: what an encounter falls back on when it has no words of
-# its own, and what belongs to no encounter (injuries, the lead, the captain's answers). An encounter's or an objective's own
-# words are written in that item, not here. Past tense: the log and the report use the same sentence.
+# Generated fiction (2026-11-15), by the author's one-time exception to the placeholder rule. These are the shared lines: what an
+# encounter falls back on when it has no words of its own, and what belongs to no encounter (injuries, the lead, the captain's
+# answers). An encounter's or an objective's own words are written in that item, not here. Past tense where the report reads it.
 - id: LINE_STAGE
   when: { beat: stage }
-  text: "The team reached #encounter#."
+  text: "#lead# brought the team to the #encounter#."
 - id: LINE_SKIP
   when: { beat: skip }
-  text: "#encounter# was skipped on momentum."
+  text: "The team was moving well, and passed the #encounter# without stopping."
 - id: LINE_CHAIN
   when: { beat: chain }
-  text: "The disaster led to #encounter#."
+  text: "#wentWrong# What followed was the #encounter#."
 - id: LINE_CHECK
   when: { beat: check }
-  text: "#actor# checked #skill# at #encounter#."
+  text: "#actor# worked the problem at the #encounter# #steadily#."
 - id: LINE_CHECK_HELPED
   when: { beat: check, helped: true }
-  text: "#actor# checked #skill# at #encounter#, helped by #helper#."
+  text: "#actor# worked the problem at the #encounter#, with #helper# at #actor.their# shoulder."
 - id: LINE_CHECK_SUPERVISED
   when: { beat: check, supervised: true }
-  text: "#actor# checked #skill# at #encounter#, supervised by #helper#."
+  text: "#actor# took the #encounter# under #helper#'s eye."
 - id: LINE_CHECK_CRITICAL
   when: { beat: check, tier: critical }
-  text: "At #encounter#, #actor# excelled at #skill#."
+  text: "#actor# made short work of the #encounter#. #wentRight#"
 - id: LINE_CHECK_BAD
   when: { beat: check, tier: [failure, disaster] }
-  text: "At #encounter#, #actor# failed at #skill#."
+  text: "#actor#'s #skill# fell short at the #encounter#. #wentWrong#"
+- id: LINE_CHECK_CAUTIOUS_BAD
+  name: A cautious actor fails
+  when: { beat: check, tier: [failure, disaster], actor.caution: { min: 1 } }
+  text: "#actor# had checked everything twice at the #encounter#, and it failed anyway."
+- id: LINE_CHECK_RECKLESS_BAD
+  name: A reckless actor fails
+  when: { beat: check, tier: [failure, disaster], actor.caution: { max: -1 } }
+  text: "#actor# went at the #encounter# without waiting, and paid for it."
 - id: LINE_EFFECTS
   when: { beat: effects }
-  text: The decision took effect.
+  text: The choice played out.
 - id: LINE_INJURY_UNHARMED
   when: { beat: injury, outcome: unharmed }
-  text: "#crew# came through unharmed."
+  text: "#crew# came through it unharmed."
 - id: LINE_INJURY_LIGHT
   when: { beat: injury, outcome: lightInjury }
-  text: "#crew# was lightly injured at #encounter#."
+  text: "#crew# was hurt at the #encounter#, but stayed on #crew.their# feet."
 - id: LINE_INJURY_INCAPACITATED
   when: { beat: injury, outcome: incapacitated }
-  text: "#crew# was incapacitated at #encounter#."
+  text: |-
+    lead: #crew# is down. Breathing, but down.
+    = #crew# was badly hurt at the #encounter# and could not go on.
 - id: LINE_INJURY_DEAD
   when: { beat: injury, outcome: dead }
-  text: "#crew# was killed at #encounter#."
+  text: |-
+    > One life sign lost.
+    lead: Captain... #crew# is gone.
+    = #crew# was killed at the #encounter#.
+- id: LINE_INJURY_LAST
+  name: The last of the team dies
+  when: { beat: injury, outcome: dead, teamStanding: 0 }
+  text: |-
+    > No life signs detected.
+    = #crew# was the last of the team, and died at the #encounter#.
 - id: LINE_LEAD
   when: { beat: lead }
-  text: "#crew# took the lead."
+  text: |-
+    crew: This is #crew#. I have the team.
+    = #crew# took command of the team.
 - id: LINE_CALL
   when: { beat: call }
-  text: "#lead# called in: #decision#."
+  text: |-
+    lead: Captain, I need a decision. #decision#.
+    captain: #captainAsk#
+    = #lead# called in for a decision: #decision#.
+- id: LINE_CALL_ABORT
+  name: The lead asks whether to pull out
+  when: { beat: call, decision: DECISION_ABORT }
+  text: |-
+    lead: Captain, we're coming apart down here. I can keep them going, but I won't pretend it's safe.
+    captain: #captainAsk#
+    lead: We push on, or you bring us home.
+    = #lead# called in to ask whether the team should be pulled out.
 - id: LINE_NOTICE
   when: { beat: notice }
-  text: "#lead# decided #decision# without calling."
+  text: "#lead# made the call alone: #decision#."
 - id: LINE_ANSWER_BOLD
   when: { beat: answer, answer: bold }
-  text: The captain ordered the team on.
+  text: |-
+    captain: #captainBold#
+    = The captain ordered the team on.
 - id: LINE_ANSWER_SAFE
   when: { beat: answer, answer: safe }
-  text: The captain ordered caution.
+  text: |-
+    captain: #captainSafe#
+    = The captain ordered caution.
 - id: LINE_ANSWER_WITHDRAW
   when: { beat: answer, answer: withdraw }
-  text: The captain ordered the team out.
+  text: |-
+    captain: #captainHome#
+    = The captain ordered the team out.
+- id: LINE_ANSWER_OVERRULED
+  name: The captain overrules the lead
+  when: { beat: answer, standing: overruled }
+  text: |-
+    captain: I hear you, #lead#. My answer is no.
+    lead: Understood, Captain.
+    = The captain overruled #lead#.
 - id: LINE_COLLAPSE
   when: { beat: collapse }
-  text: The team collapsed.
+  text: |-
+    > Team cohesion lost.
+    = The team came apart, and the mission with it.
 - id: LINE_RESULT
   when: { beat: result }
   text: The mission ended.

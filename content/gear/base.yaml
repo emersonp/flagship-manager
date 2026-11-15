@@ -1,5 +1,5 @@
-# Placeholders. The author replaces these.
-- { id: GEAR_01, tag: scanner }
-- { id: GEAR_02, tag: tools }
-- { id: GEAR_03, tag: comms }
-- { id: GEAR_04, tag: medical }
+# Generated fiction (2026-11-15). The ids are the placeholders' own.
+- { id: GEAR_01, name: Multiband survey scanner, tag: scanner }
+- { id: GEAR_02, name: Field engineering kit, tag: tools }
+- { id: GEAR_03, name: Lattice relay beacon, tag: comms }
+- { id: GEAR_04, name: Trauma kit, tag: medical }

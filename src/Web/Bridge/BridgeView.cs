@@ -50,14 +50,20 @@ public readonly record struct LinePart(bool IsName, string Text);
 // A stage line also carries its encounter, blocked flag, and figures as data; every other line has them null.
 // Parts is the structural line cut into names and text; Text is always their join. Prose is what the captain reads: an authored
 // line when Authored, otherwise the structural parts again. Tags are the figures the beat changed.
-public sealed record LogLine(int Index, string Kind, string Text, string? EncounterId = null, bool? CommsBlocked = null, int? Momentum = null, int? Strain = null, IReadOnlyList<LinePart>? Parts = null, string? EncounterName = null, IReadOnlyList<LinePart>? Prose = null, IReadOnlyList<string>? Tags = null, bool Authored = false)
+public sealed record LogLine(int Index, string Kind, string Text, string? EncounterId = null, bool? CommsBlocked = null, int? Momentum = null, int? Strain = null, IReadOnlyList<LinePart>? Parts = null, string? EncounterName = null, IReadOnlyList<LinePart>? Prose = null, IReadOnlyList<string>? Tags = null, bool Authored = false, IReadOnlyList<ProseEntry>? Script = null)
 {
+    // True when the authored prose is more than one sentence of narration, so it is shown as a script: speech, notes, and narration each on a line.
+    public bool IsScript => Authored && Script is not null && Script is not [{ Kind: Sim.Core.Narrative.EntryKind.Narration }];
+
     public IReadOnlyList<LinePart> Segments => Parts ?? [new LinePart(false, Text)];
 }
 
-// CallId is the resolver's string id; Options and LeadPrefers are CallAnswer names.
-public sealed record CallView(string CallId, string DecisionId, int Stakes, IReadOnlyList<string> Options, string LeadPrefers, string LeadId, string? DecisionName = null, string? LeadName = null)
+// CallId is the resolver's string id; Options and LeadPrefers are CallAnswer names. Script is what the team says on the call, when a
+// line gives it, and Labels what each answer's button says, by answer word ("bold"); an answer with no label shows its name.
+public sealed record CallView(string CallId, string DecisionId, int Stakes, IReadOnlyList<string> Options, string LeadPrefers, string LeadId, string? DecisionName = null, string? LeadName = null, IReadOnlyList<ProseEntry>? Script = null, IReadOnlyDictionary<string, string>? Labels = null)
 {
+    public string Label(string option) => Labels?.GetValueOrDefault(char.ToLowerInvariant(option[0]) + option[1..]) ?? option;
+
     public string DecisionShown => DecisionName ?? DecisionId;
 
     public string LeadShown => LeadName ?? LeadId;

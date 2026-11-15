@@ -1,85 +1,431 @@
-# Placeholders. The author replaces these. Fast is authored one harder than careful.
+# Generated fiction, by the author's one-time exception to the placeholder rule (2026-11-15): a setting of the author's asking,
+# in the spirit of starship exploration drama. The ids and every number are the placeholders' own; only names and words are new.
+# Each encounter carries its own words: text for its own beats, and lines for anything else that happens there.
+# Fast is authored one harder than careful.
 - id: ENCOUNTER_01
+  name: Debris Shoal
   tags: [field, hazard]
   chain: ENCOUNTER_CHAIN
+  text:
+    arrive: |-
+      lead: Captain, we're at the edge of the shoal. Wreckage as far as the scanner reaches, and all of it moving.
+      best SKILL_A: Some of this hull plate is older than the Concord. Older than us.
+      = #lead# brought the team to the edge of the #encounter#.
   approaches:
-    careful: { skill: SKILL_A, difficulty: 5, gearTag: scanner }
-    fast: { skill: SKILL_C, difficulty: 6 }
+    careful:
+      skill: SKILL_A
+      difficulty: 5
+      gearTag: scanner
+      text:
+        attempt: "actor: Plotting the drift. Give me a minute and I'll find us a lane."
+        critical: |-
+          actor: There. A clean lane, and it stays open for six minutes.
+          = #actor# charted a clean lane through the #encounter#.
+        success: "#actor# plotted the drift, and the team crossed the #encounter# untouched."
+        partial: "#actor# found a lane through the #encounter#, but it closed faster than the plot allowed."
+        failure: |-
+          actor: The plot's wrong. Something big just shifted the whole field.
+          = #actor# misjudged the drift in the #encounter#.
+        disaster: |-
+          actor: Brace! Brace!
+          > Proximity alarm. Multiple impacts.
+          = #actor# led the team into the worst of the #encounter#.
+    fast:
+      skill: SKILL_C
+      difficulty: 6
+      text:
+        attempt: "actor: No time to chart it. Stay on my thrusters and do exactly what I do."
+        success: "#actor# took the team through the #encounter# on instinct and nerve."
+        failure: "#actor# clipped a spar in the #encounter#, and the team came through spinning."
   decision:
     id: DECISION_PROMPT_1
+    name: Shortcut through the shoal
     stakes: 1
     bold: [{ momentum: 1 }, { strain: 1 }]
     safe: []
+    text:
+      call: |-
+        lead: Captain, there's a gap in the dense band. It would save us most of an hour.
+        best SKILL_C: It's tight. I'd want everyone's hands steady.
+        captain: #captainAsk#
+        lead: We thread it, or we go around the long way. Your call.
+        = #lead# called in from the #encounter# about a shortcut through the dense band.
+      notice: "#lead# weighed the gap in the dense band and made the call without raising the ship."
+      bold: The team threaded the gap, faster for it and a little more worn.
+      safe: The team went around the dense band and lost nothing but time.
+    labels:
+      bold: Thread the gap
+      safe: Go around
+      withdraw: Bring them home
+  lines:
+    - when: { beat: injury, outcome: dead }
+      text: |-
+        > Suit breach. Pressure zero.
+        lead: #crew#, respond. #crew#!
+        = #crew# was lost to the #encounter#.
 - id: ENCOUNTER_02
+  name: Salvagers' Picket
   tags: [field, social]
   chain: ENCOUNTER_CHAIN
+  text:
+    arrive: |-
+      > Unregistered transponders. Three skiffs, weapons cold.
+      lead: Captain, we have company. Salvagers, and they got here first.
+      = #lead# found a salvagers' picket barring the way.
   approaches:
-    careful: { skill: SKILL_D, difficulty: 5 }
-    fast: { skill: SKILL_B, difficulty: 6 }
+    careful:
+      skill: SKILL_D
+      difficulty: 5
+      text:
+        attempt: "actor: Let me talk to them. Nobody out here wants a fight they have to pay for."
+        critical: |-
+          actor: They'll stand aside. They've even offered us their charts.
+          = #actor# talked the salvagers into standing aside, and into sharing their charts.
+        success: "#actor# talked the salvagers into standing aside."
+        partial: "#actor# bought passage from the salvagers, at a price in time and patience."
+        failure: |-
+          actor: They're not listening, Captain. They think we're here to take their claim.
+          = #actor# could not talk the salvagers down.
+    fast:
+      skill: SKILL_B
+      difficulty: 6
+      text:
+        attempt: "actor: Their lockout is forty years out of date. I can be through it before they finish arguing."
+        success: "#actor# slipped the salvagers' lockout while they were still arguing."
+        disaster: |-
+          > Lockout tripped. Skiff weapons warming.
+          actor: That's on me. They saw it.
+          = #actor# tripped the salvagers' lockout, and they took it as an attack.
   decision:
     id: DECISION_PROMPT_2
+    name: Salvagers' standoff
     stakes: 2
     bold: [{ progress: 1 }, { injuryRoll: light }]
     safe: [{ strain: -1 }]
+    text:
+      call: |-
+        lead: Captain, they've drawn a line and they're standing on it.
+        best SKILL_D: They're frightened, not hostile. Push them and that changes.
+        captain: #captainAsk#
+        lead: We walk through and dare them to stop us, or we sit down and wait them out.
+        = #lead# called in a standoff with the salvagers.
+      notice: "#lead# settled the standoff with the salvagers without calling it in."
+      bold: The team walked through the picket, and someone on the other side threw the first punch.
+      safe: The team waited the salvagers out, and tempers cooled on both sides.
+    labels:
+      bold: Walk through
+      safe: Wait them out
+      withdraw: Pull back to the ship
 - id: ENCOUNTER_03
+  name: Sealed Vault
   tags: [field, technical]
   chain: ENCOUNTER_CHAIN
+  text:
+    arrive: |-
+      lead: Captain, we've found a door. Cartographer work, and it has not opened in a very long time.
+      = #lead# reached the #encounter#.
   approaches:
-    careful: { skill: SKILL_B, difficulty: 6, gearTag: tools }
-    fast: { skill: SKILL_A, difficulty: 7 }
+    careful:
+      skill: SKILL_B
+      difficulty: 6
+      gearTag: tools
+      text:
+        attempt: "actor: The mechanism still has power. I'll work the seals one at a time."
+        critical: |-
+          > Seal released.
+          actor: It wanted to open. It only needed asking properly.
+          = #actor# opened the #encounter# without leaving a mark on it.
+        success: "#actor# worked the seals of the #encounter# one at a time until it opened."
+        failure: |-
+          actor: It's cycling. I've lost it. It's locking itself down again.
+          = The #encounter# locked itself down under #actor.their# hands.
+    fast:
+      skill: SKILL_A
+      difficulty: 7
+      text:
+        attempt: "actor: There's a pattern in the hum. If I'm right, I can skip the whole sequence."
+        success: "#actor# read the pattern in the #encounter# and skipped the sequence entirely."
   decision:
     id: DECISION_PROMPT_3
+    name: Forcing the vault seal
     stakes: 3
     bold: [{ progress: 1 }, { strain: 2 }]
     safe: [{ momentum: -1 }]
+    text:
+      call: |-
+        lead: Captain, the last seal won't release. We can cut it.
+        best SKILL_B: Cutting it wakes whatever this door is wired to. I can't tell you what that is.
+        captain: #captainAsk#
+        lead: Cut it and take what comes, or keep working it and lose our momentum.
+        = #lead# called in from the #encounter#: the last seal would not release.
+      notice: "#lead# decided how to deal with the last seal of the #encounter# without calling."
+      bold: |-
+        > Seal cut. Unknown systems responding.
+        = The team cut the last seal, and the station noticed.
+      safe: The team kept working the last seal by hand, and the hours went with it.
+    labels:
+      bold: Cut the seal
+      safe: Keep working it
+      withdraw: Leave it sealed
+  lines:
+    - when: { beat: check, helped: true, tier: [critical, success] }
+      text: "#actor# and #helper# worked the #encounter# together, one calling the sequence and the other turning it."
 - id: ENCOUNTER_04
+  name: Collapsed Gallery
   tags: [field, hazard]
   chain: ENCOUNTER_CHAIN
+  text:
+    arrive: |-
+      lead: Captain, the deck's gone. The whole gallery fell in, and what's left is a sheer face.
+      = #lead# found the way barred by the #encounter#.
   approaches:
-    careful: { skill: SKILL_C, difficulty: 5 }
-    fast: { skill: SKILL_C, difficulty: 6 }
+    careful:
+      skill: SKILL_C
+      difficulty: 5
+      text:
+        attempt: "actor: I'll set anchors as I go. Slow, but nobody falls."
+        success: "#actor# set a line up the #encounter#, anchor by anchor, and the team followed."
+        partial: "#actor# got a line up the #encounter#, though two anchors pulled on the way."
+        failure: |-
+          actor: Anchor's gone. I'm all right. I'm all right.
+          = An anchor tore out under #actor# in the #encounter#.
+    fast:
+      skill: SKILL_C
+      difficulty: 6
+      text:
+        attempt: "actor: Captain, there's a sheer face here. I'm going to try to climb it."
+        critical: |-
+          actor: I'm up. Line's secure. That was almost fun.
+          = #actor# free-climbed the #encounter# and had a line down before anyone could object.
+        success: "#actor# climbed the #encounter# on bare handholds and dropped a line for the rest."
+        failure: "#actor# lost #actor.their# grip on the #encounter# and came down hard."
+        disaster: |-
+          > Carrier signal lost.
+          = #actor# fell from the face of the #encounter#.
+  lines:
+    - when: { beat: attempt, approach: fast, teamStanding: 1 }
+      text: "actor: Captain... it's only me now. There's a sheer face ahead. I'm going to try to climb it."
+    - when: { beat: injury, outcome: dead }
+      text: |-
+        > No life signs detected.
+        = #crew# died in the fall at the #encounter#.
+    - when: { beat: injury, outcome: unharmed }
+      text: |-
+        crew: Still here. Tell the captain I'm still here.
+        = #crew# walked away from the fall at the #encounter#.
 - id: ENCOUNTER_05
+  name: Waking Core
   tags: [field, technical]
   chain: ENCOUNTER_CHAIN
+  text:
+    arrive: |-
+      > Energy signature rising. Source below.
+      lead: Captain, the core isn't dead. It's been asleep, and we just woke it.
+      = #lead# reached the #encounter# as it came back to life.
   approaches:
-    careful: { skill: SKILL_A, difficulty: 6, gearTag: scanner }
-    fast: { skill: SKILL_B, difficulty: 7 }
+    careful:
+      skill: SKILL_A
+      difficulty: 6
+      gearTag: scanner
+      text:
+        attempt: "actor: I want a full spectrum before anyone touches anything."
+        critical: |-
+          actor: Captain, it's not a reactor. It's a record. All of it, still intact.
+          = #actor# read the #encounter# for what it was: a record, intact.
+        success: "#actor# mapped the #encounter#'s output and found the safe margins."
+        failure: "#actor# could not make sense of the readings from the #encounter#."
+        disaster: |-
+          > Discharge. Scanner offline.
+          actor: It read me back. It read me back!
+          = The #encounter# discharged through #actor.their# scanner.
+    fast:
+      skill: SKILL_B
+      difficulty: 7
+      text:
+        attempt: "actor: I'm not going to study it. I'm going to clamp a regulator on it and hope the Cartographers built to code."
+        success: "#actor# clamped a regulator onto the #encounter# and it held."
+        failure: "#actor#'s regulator burned out against the #encounter# in under a minute."
   decision:
     id: DECISION_PROMPT_4
+    name: Live tap on the core
     stakes: 4
     bold: [{ progress: 2 }, { injuryRoll: severe }]
     safe: [{ strain: -1 }, { momentum: -2 }]
+    text:
+      call: |-
+        lead: Captain, we can pull everything it holds in one pass, if we tap it live.
+        best SKILL_A: Nothing I've measured says it will tolerate that.
+        best SKILL_B: And nothing says it won't. We don't get a second look at this.
+        captain: #captainAsk#
+        lead: Tap it live and risk whoever is holding the line, or shut it down first and take what's left. I need your word, Captain.
+        = #lead# called in from the #encounter#: a live tap would take everything it held, at a risk.
+      notice: "#lead# made the decision about the live tap alone, with no time to ask."
+      bold: |-
+        > Tap engaged. Surge.
+        = The team tapped the #encounter# live and took everything it held.
+      safe: The team shut the core down first and took what was left, hours behind.
+    labels:
+      bold: Tap it live
+      safe: Shut it down first
+      withdraw: Get them out of there
+  lines:
+    - when: { beat: injury, severity: severe, outcome: [incapacitated, dead] }
+      text: |-
+        > Surge. One contact down.
+        lead: Captain, #crew# was on the line when it went.
+        = The surge from the #encounter# caught #crew# on the line.
 - id: ENCOUNTER_06
+  name: Static Deep
   tags: [field, hazard]
   commsBlocked: true
   chain: ENCOUNTER_CHAIN
+  text:
+    arrive: |-
+      > Carrier degraded. Signal intermittent.
+      lead: Capt... we're losing y... something down here is...
+      = #lead# took the team into the #encounter#, and the ship lost them.
   approaches:
-    careful: { skill: SKILL_C, difficulty: 6 }
-    fast: { skill: SKILL_D, difficulty: 7 }
+    careful:
+      skill: SKILL_C
+      difficulty: 6
+      text:
+        attempt: "actor: Hand signals from here. Stay in sight of the one ahead of you."
+        success: "#actor# led the team through the #encounter# on hand signals and patience."
+        failure: "#actor# lost the route in the #encounter#, and the team spent an hour finding each other."
+    fast:
+      skill: SKILL_D
+      difficulty: 7
+      text:
+        attempt: "actor: It's not interference. It's a voice. Let me answer it."
+        critical: |-
+          actor: It's a caretaker. It has been waiting for someone to report to.
+          = #actor# spoke with the caretaker of the #encounter#, and it showed them the way through.
+        success: "#actor# answered the voice in the #encounter#, and the static parted for the team."
+        failure: "#actor# answered the voice in the #encounter#, and it did not like the answer."
   decision:
     id: DECISION_PROMPT_5
+    name: Caretaker's route
     stakes: 3
     bold: [{ progress: 1 }, { strain: 1 }]
     safe: []
+    text:
+      call: |-
+        > Carrier restored. Signal weak.
+        lead: Captain, there's a machine down here offering to guide us. A caretaker. It has been alone a long time.
+        best SKILL_D: It isn't lying. I don't think it knows how. But it may not know what we can survive.
+        captain: #captainAsk#
+        lead: Follow its route, or trust our own.
+        = #lead# called in from the #encounter#: an old caretaker had offered the team a route.
+      notice: |-
+        > No carrier.
+        = Out of contact in the #encounter#, #lead# decided alone whether to trust the caretaker.
+      bold: The team followed the caretaker's route, deeper and faster than they would have dared alone.
+      safe: The team thanked the caretaker and kept to their own route.
+    labels:
+      bold: Follow the caretaker
+      safe: Keep our own route
+      withdraw: Come back up
 - id: ENCOUNTER_07
+  name: Pilgrim Camp
   tags: [field, social]
   chain: ENCOUNTER_CHAIN
+  text:
+    arrive: |-
+      lead: Captain, there are people living here. Pilgrims. They call the Cartographers the First Hands.
+      = #lead# came upon the #encounter#.
   approaches:
-    careful: { skill: SKILL_D, difficulty: 6 }
-    fast: { skill: SKILL_D, difficulty: 7 }
+    careful:
+      skill: SKILL_D
+      difficulty: 6
+      text:
+        attempt: "actor: We listen first. Whatever they believe, they've kept this place alive."
+        critical: |-
+          actor: They've asked us to stay for the evening rite. I think we should.
+          = #actor# earned the pilgrims' trust at the #encounter#, and their blessing on the work.
+        success: "#actor# listened to the pilgrims' elders, and they let the team pass."
+        partial: "#actor# won passage through the #encounter#, on the condition that nothing be removed."
+        failure: "#actor# gave offence at the #encounter# without understanding how."
+    fast:
+      skill: SKILL_D
+      difficulty: 7
+      text:
+        attempt: "actor: I'll tell them the truth. We're on a clock, and we mean them no harm."
+        success: "#actor# was plain with the pilgrims, and plainness was enough."
+        disaster: |-
+          actor: Captain, they've closed the camp to us. I pushed too hard.
+          = #actor# pushed the pilgrims too hard, and the #encounter# closed to the team.
 - id: ENCOUNTER_08
+  name: Dead Lift
   tags: [field, technical]
   chain: ENCOUNTER_CHAIN
+  text:
+    arrive: |-
+      lead: Captain, the only way down is a lift shaft. The car's here. The power isn't.
+      = #lead# reached the #encounter#.
   approaches:
-    careful: { skill: SKILL_B, difficulty: 5, gearTag: tools }
-    fast: { skill: SKILL_C, difficulty: 6 }
+    careful:
+      skill: SKILL_B
+      difficulty: 5
+      gearTag: tools
+      text:
+        attempt: "actor: I can run it off a suit cell. Give me time to rig a governor."
+        success: "#actor# rigged the #encounter# to a suit cell, and it carried the team down at a walk."
+        failure: "#actor#'s rig on the #encounter# held for nine metres and then did not."
+    fast:
+      skill: SKILL_C
+      difficulty: 6
+      text:
+        attempt: "actor: Forget the car. We rope down the shaft."
+        success: "#actor# took the team down the shaft of the #encounter# on ropes."
+        failure: "#actor# ran out of rope in the shaft of the #encounter#, short of the bottom."
   decision:
     id: DECISION_PROMPT_6
+    name: Unpowered descent
     stakes: 2
     bold: [{ momentum: 2 }, { injuryRoll: light }]
     safe: []
+    text:
+      call: |-
+        lead: Captain, the brakes on this car are mechanical. We could release them and ride it down.
+        best SKILL_B: They're mechanical and ten thousand years old.
+        captain: #captainAsk#
+        lead: Ride it down, or take the slow way.
+        = #lead# called in from the #encounter# about riding the car down unpowered.
+      notice: "#lead# decided about the unpowered descent without calling."
+      bold: The team rode the car down unpowered, and the brakes caught late.
+      safe: The team took the slow way down.
+    labels:
+      bold: Ride it down
+      safe: Take the slow way
+      withdraw: Back to the surface
 - id: ENCOUNTER_CHAIN
+  name: Sudden Breach
   tags: [chained, hazard]
+  text:
+    arrive: |-
+      > Structural failure. Atmosphere venting.
+      lead: Everyone move! Move!
+      = The structure gave way around the team.
   approaches:
-    careful: { skill: SKILL_C, difficulty: 6 }
-    fast: { skill: SKILL_A, difficulty: 7 }
+    careful:
+      skill: SKILL_C
+      difficulty: 6
+      text:
+        attempt: "actor: Seal your suits and follow the wall. Do not run."
+        success: "#actor# got the team clear of the breach in good order."
+        failure: "#actor# got the team clear of the breach, but not together and not unhurt."
+    fast:
+      skill: SKILL_A
+      difficulty: 7
+      text:
+        attempt: "actor: The venting has a pattern. Go when I say go."
+        success: "#actor# timed the venting, and the team crossed the breach between breaths."
+        disaster: |-
+          actor: Go! No, wait...
+          > Decompression.
+          = #actor# mistimed the venting at the breach.
+  lines:
+    - when: { beat: injury, outcome: dead }
+      text: |-
+        > One suit telemetry feed ended.
+        = #crew# did not make it out of the breach.

@@ -185,6 +185,96 @@ public sealed class ProseTests : IDisposable
         Assert.DoesNotContain(own.Id, Web.Forms.LineLint.Of(Pack with { Lines = [own] }).NeverChosen);
     }
 
+    // A script is shown entry by entry with its speakers; the report says its sentence after "=", never the dialogue.
+    [Fact]
+    public void A_script_plays_in_the_log_by_speaker_and_the_report_says_its_own_sentence()
+    {
+        Played plain = Ended(Pack);
+        string encounter = plain.CycleEvents().OfType<MissionBeat>().Select(b => b.Beat).OfType<StageBeat>().First().EncounterId;
+        LineDef own = new($"{encounter}.arrive", "stage", [new CriterionDef("encounter", [encounter])], "lead: We are at #encounter#.\ncaptain: Go on.\nactor: Nobody is acting yet.\n> Signal falling.\n= SUMMARY #lead#.", null, encounter);
+        LineDef result = new("LINE_RESULT_SCRIPT", "result", [new CriterionDef("outcome", Sim.Core.Narrative.NarrativeFacts.Outcomes)], "lead: It is over.\ncaptain: Go on home.\n= SUMMARY #lead#.");
+        Played played = Ended(Pack with { Lines = [.. Pack.Lines, own, result] }, p => p.CycleEvents().OfType<MissionBeat>().Any(b => b.Beat is StageBeat s && s.EncounterId == encounter));
+        List<MissionBeat> beats = Beats(played);
+
+        BridgeView view = Read(played);
+
+        LogLine line = view.Mission!.Log[beats.FindIndex(b => b.Beat is StageBeat s && s.EncounterId == encounter)];
+        Assert.True(line.IsScript);
+        // The actor has no part in a stage beat, so that entry is left out and the rest plays.
+        Assert.Equal([Sim.Core.Narrative.EntryKind.Speech, Sim.Core.Narrative.EntryKind.Speech, Sim.Core.Narrative.EntryKind.Note], line.Script!.Select(e => e.Kind));
+        Assert.Equal(Prose.CaptainName, line.Script![1].Speaker);
+        Assert.NotNull(line.Script[0].Speaker);
+        Assert.Null(line.Script[2].Speaker);
+        Assert.Equal("Signal falling.", Join(line.Script[2].Parts));
+        List<string> report = view.Aftermath!.Report!.Sentences.Select(Join).ToList();
+        Assert.StartsWith("SUMMARY ", report[^1], StringComparison.Ordinal);
+        Assert.DoesNotContain(report, s => s.Contains("Go on", StringComparison.Ordinal));
+    }
+
+    // A script with no sentence for the report leaves the beat to the shared line, so the report still has it.
+    [Fact]
+    public void A_script_with_no_report_sentence_leaves_the_report_to_the_shared_line()
+    {
+        LineDef script = new("LINE_RESULT_SCRIPT", "result", [new CriterionDef("outcome", Sim.Core.Narrative.NarrativeFacts.Outcomes)], "lead: It is over.\ncaptain: Come home.");
+        Played played = Ended(Pack with { Lines = [.. Pack.Lines, script] });
+
+        BridgeView view = Read(played);
+
+        Assert.True(view.Mission!.Log[^1].IsScript);
+        string shared = Join(Read(Ended(Pack)).Aftermath!.Report!.Sentences[^1]);
+        Assert.Equal(shared, Join(view.Aftermath!.Report!.Sentences[^1]));
+    }
+
+    // What an approach says before its check is shown first, then what the check's own line says.
+    [Fact]
+    public void An_attempt_is_said_before_the_checks_result()
+    {
+        LineDef attempt = new("LINE_ATTEMPT", "attempt", [], "actor: ATTEMPT.");
+        Played played = Ended(Pack with { Lines = [.. Pack.Lines, attempt] });
+        List<MissionBeat> beats = Beats(played);
+
+        IReadOnlyList<LogLine> log = Read(played).Mission!.Log;
+
+        for (int i = 0; i < log.Count; i++)
+        {
+            if (beats[i].Beat is CheckBeat)
+            {
+                Assert.Equal(2, log[i].Script!.Count);
+                Assert.Equal("ATTEMPT.", Join(log[i].Script![0].Parts));
+                Assert.Equal(Sim.Core.Narrative.EntryKind.Narration, log[i].Script![1].Kind);
+            }
+            else
+            {
+                Assert.False(log[i].IsScript);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task The_log_and_the_call_show_a_script_and_the_call_its_own_button_labels()
+    {
+        List<ProseEntry> script = [new(Sim.Core.Narrative.EntryKind.Speech, "NAME_A", [new(false, "We are here.")]), new(Sim.Core.Narrative.EntryKind.Note, null, [new(false, "Signal <falling>.")])];
+        var line = new LogLine(2, "call", "NAME_A calls: DECISION_A. Stakes 2.", Prose: [new(false, "x")], Authored: true, Script: script);
+        var call = new CallView("CALL_1", "DECISION_A", 2, ["Bold", "Safe", "Withdraw"], "Safe", "CREW_01") { Script = script, Labels = new Dictionary<string, string> { ["bold"] = "Send them in", ["safe"] = "Hold here" } };
+        Render render = app.Services.GetRequiredService<Render>();
+
+        string log = await render.Html<MissionLog>(new Dictionary<string, object?> { ["Lines"] = new List<LogLine> { line } });
+        string panel = await render.Html<CallPanel>(new Dictionary<string, object?> { ["LegacyId"] = Guid.NewGuid(), ["MissionId"] = "MISSION_1", ["Bar"] = new TopBarView("LEGACY", 1, 1, CyclePhase.Resolution, null), ["Call"] = call });
+
+        foreach (string html in new[] { log, panel })
+        {
+            Assert.Contains("<span class=\"script__who\">NAME_A</span>", html, StringComparison.Ordinal);
+            Assert.Contains("script__line--note", html, StringComparison.Ordinal);
+            Assert.Contains("Signal &lt;falling&gt;.", html, StringComparison.Ordinal);
+        }
+
+        Assert.DoesNotContain("beat__prose", log, StringComparison.Ordinal);
+        Assert.Contains(">Send them in</button>", panel, StringComparison.Ordinal);
+        Assert.Contains(">Hold here</button>", panel, StringComparison.Ordinal);
+        Assert.Contains(">Withdraw</button>", panel, StringComparison.Ordinal);
+        Assert.Contains("The lead prefers: Hold here", panel, StringComparison.Ordinal);
+    }
+
     // The lint asks for report lines only where the report would use one, so the two rules must agree.
     [Fact]
     public void The_report_rule_reads_the_same_from_a_beat_and_from_its_situation()

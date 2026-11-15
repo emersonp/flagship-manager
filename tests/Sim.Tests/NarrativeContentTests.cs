@@ -158,7 +158,7 @@ public class NarrativeContentTests
     [Theory]
     [InlineData("  text:\n    leave: x\n  approaches:\n    careful: { skill: SKILL_A, difficulty: 5 }\n    fast: { skill: SKILL_C, difficulty: 6 }\n", "ENCOUNTER_01: text.leave is not a text this can have; it must be one of arrive.")]
     [InlineData("  text:\n    arrive: \"#actor# arrived.\"\n  approaches:\n    careful: { skill: SKILL_A, difficulty: 5 }\n    fast: { skill: SKILL_C, difficulty: 6 }\n", "ENCOUNTER_01: text.arrive cannot be used: #actor# names 'actor', which a stage beat does not have.")]
-    [InlineData("  approaches:\n    careful:\n      skill: SKILL_A\n      difficulty: 5\n      text:\n        fine: x\n    fast: { skill: SKILL_C, difficulty: 6 }\n", "ENCOUNTER_01: careful.text.fine is not a text this can have; it must be one of critical, success, partial, failure, disaster.")]
+    [InlineData("  approaches:\n    careful:\n      skill: SKILL_A\n      difficulty: 5\n      text:\n        fine: x\n    fast: { skill: SKILL_C, difficulty: 6 }\n", "ENCOUNTER_01: careful.text.fine is not a text this can have; it must be one of attempt, critical, success, partial, failure, disaster.")]
     [InlineData("  approaches:\n    careful: { skill: SKILL_A, difficulty: 5 }\n    fast:\n      skill: SKILL_C\n      difficulty: 6\n      text:\n        failure: \"\"\n", "ENCOUNTER_01: fast.text.failure must not be empty.")]
     [InlineData("  approaches:\n    careful: { skill: SKILL_A, difficulty: 5 }\n    fast: { skill: SKILL_C, difficulty: 6 }\n  decision:\n    id: DECISION_PROMPT_1\n    stakes: 1\n    bold: []\n    safe: []\n    text:\n      bold: \"An open # mark.\"\n", "ENCOUNTER_01: decision.text.bold cannot be read: A # at character 9 is never closed.")]
     public void Own_text_that_can_never_work_is_refused_where_it_sits(string body, string message)
@@ -270,7 +270,8 @@ public class NarrativeContentTests
                 foreach (Situation s in situations)
                 {
                     BeatSpec spec = NarrativeFacts.Beats[s.Beat];
-                    Assert.All(s.People.Keys, role => Assert.Contains(role, spec.People));
+                    // "best SKILL" is a speaker a script can name, not a role of the beat.
+                    Assert.All(s.People.Keys.Where(r => !r.StartsWith(Scripts.BestPrefix, StringComparison.Ordinal)), role => Assert.Contains(role, spec.People));
                     Assert.All(s.Words.Keys, thing => Assert.Contains(thing, spec.Things));
                     foreach ((string fact, FactValue value) in s.Facts)
                     {
@@ -285,7 +286,7 @@ public class NarrativeContentTests
 
                     HashSet<string> kind = seen.TryGetValue(s.Beat, out HashSet<string>? found) ? found : seen[s.Beat] = [];
                     kind.UnionWith(s.Facts.Keys.Where(k => !k.Contains('.', StringComparison.Ordinal)));
-                    kind.UnionWith(s.People.Keys.Select(p => "person:" + p));
+                    kind.UnionWith(s.People.Keys.Where(r => !r.StartsWith(Scripts.BestPrefix, StringComparison.Ordinal)).Select(p => "person:" + p));
                 }
             }
         }

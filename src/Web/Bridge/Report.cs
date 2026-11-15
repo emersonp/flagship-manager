@@ -12,8 +12,9 @@ public static class Report
     public const int Most = 8;
 
     // Which beats make the report (slice 1d design, section 3). Rank 1, the result included, always goes in; rank 2 fills to Most; rank 3 (stage openers)
-    // fills to Fewest. The sentences are the log's own, so the report reads as the log did; a beat with no authored line is left
-    // out rather than shown as systems text.
+    // fills to Fewest. Each sentence is the report's sentence of the beat's line: a one-sentence line is its own, a script gives
+    // one after "=", and a script that gives none leaves the beat to the shared line. A beat with no sentence is left out rather
+    // than shown as systems text.
     public static ReportView Build(IReadOnlyList<MissionBeat> beats, IReadOnlyList<BeatProse> log, Names names)
     {
         var ranked = new List<(int Position, int Rank)>();
@@ -55,7 +56,7 @@ public static class Report
             chosen = kept;
         }
 
-        List<IReadOnlyList<LinePart>> sentences = chosen.Order().Where(p => log[p].Authored).Select(p => log[p].Parts).ToList();
+        List<IReadOnlyList<LinePart>> sentences = chosen.Order().Where(p => log[p].Report is not null).Select(p => log[p].Report!).ToList();
 
         return new ReportView(sentences, Decisions(beats, names));
     }

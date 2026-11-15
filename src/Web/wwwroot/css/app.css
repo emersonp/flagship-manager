@@ -434,3 +434,48 @@ a.btn { text-decoration: none; }
 .preview__list li + li { margin-top: var(--space-sm); }
 .preview__text { margin: 0; color: var(--color-ink); }
 .preview__list .hint { margin-top: var(--space-2xs); }
+
+/* A script: what a line says when it is more than one sentence. Speech names its speaker; a note is the ship's instruments talking. */
+.script { display: grid; gap: var(--space-2xs); margin: 0 0 var(--space-2xs); }
+.script__line { margin: 0; }
+.script__who { font-weight: 500; color: var(--color-ink); }
+.script__who::after { content: ":"; }
+.script__line--note { font-family: var(--font-outlier); font-size: var(--text-sm); color: var(--color-muted); }
+.script__line--note::before { content: "< "; }
+.script__line--note::after { content: " >"; }
+@media (prefers-reduced-motion: no-preference) {
+  .script--reveal .script__line { animation: script-in 0.3s ease-out both; }
+  .script--reveal .script__line:nth-child(2) { animation-delay: 0.7s; }
+  .script--reveal .script__line:nth-child(3) { animation-delay: 1.4s; }
+  .script--reveal .script__line:nth-child(4) { animation-delay: 2.1s; }
+  .script--reveal .script__line:nth-child(5) { animation-delay: 2.8s; }
+  .script--reveal .script__line:nth-child(6) { animation-delay: 3.5s; }
+  .script--reveal .script__line:nth-child(n + 7) { animation-delay: 4.2s; }
+}
+@keyframes script-in { from { opacity: 0; transform: translateY(0.25em); } to { opacity: 1; transform: none; } }
+
+/* "What plays here": an item's beats in mission order, each with its own words or the line that plays there now. */
+.plays { display: grid; gap: var(--space-sm); min-width: 0; margin-top: var(--space-md); }
+.plays__head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: var(--space-xs) var(--space-md); }
+.plays__head .sub { margin-top: 0; }
+.plays__sample { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-xs) var(--space-sm); }
+.plays__group { min-width: 0; padding-block: var(--space-xs); border-top: var(--rule-hair) solid var(--color-rule, var(--color-muted)); }
+.plays__group summary { cursor: pointer; width: fit-content; min-height: 2rem; display: flex; align-items: center; gap: var(--space-xs); border-radius: var(--radius-inner); font-weight: 500; color: var(--color-ink); }
+.plays__group summary .words__count { font-weight: 400; font-size: var(--text-sm); }
+.plays__group[open] { display: grid; gap: var(--space-sm); }
+.plays__row { min-width: 0; }
+.plays__row textarea::placeholder { color: var(--color-muted); opacity: 1; }
+.plays__preview { min-width: 0; padding-left: var(--space-sm); border-left: 2px solid var(--color-muted); }
+.plays__preview .script { margin: 0; }
+.plays__preview .hint { margin: var(--space-2xs) 0 0; }
+.plays__silent { margin: 0; color: var(--color-muted); font-style: italic; }
+.plays__fallback { display: grid; gap: var(--space-2xs); justify-items: start; }
+.plays__fallback .plays__preview { justify-self: stretch; }
+.plays__line { display: grid; gap: var(--space-xs); min-width: 0; margin: 0; padding: var(--space-sm); border: var(--rule-hair) solid var(--color-muted); border-radius: var(--radius-control); }
+.plays__line legend { margin: 0; padding-inline: var(--space-2xs); }
+.criteria .cell input { width: 14rem; max-width: 100%; }
+.criteria__locked input { color: var(--color-muted); background: var(--color-paper-3); }
+.chips { display: flex; flex-wrap: wrap; gap: var(--space-2xs); }
+.chip { min-height: 1.75rem; padding: 0 var(--space-xs); border: var(--rule-hair) solid var(--color-muted); border-radius: var(--radius-inner); background: var(--color-paper); color: var(--color-ink-2); font-family: var(--font-outlier); font-size: var(--text-xs); cursor: pointer; }
+.chip:hover { background: var(--color-paper-3); }
+.chip:focus-visible { outline-color: var(--color-focus); }

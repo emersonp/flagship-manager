@@ -22,6 +22,9 @@ public sealed record ContentPack(
 
     public IReadOnlyList<PronounSet> Pronouns { get; init; } = [];
 
+    // What a call's answer buttons say, by decision id and then by answer ("bold", "safe", "withdraw"); an answer with no label shows its own word.
+    public IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>> ChoiceLabels { get; init; } = new Dictionary<string, IReadOnlyDictionary<string, string>>();
+
     // The crew member's pronoun set: the one named, else the pack's "they", else the built-in one.
     public PronounSet PronounsOf(CrewDef? crew)
     {

@@ -33,7 +33,14 @@
                     @foreach (PreviewItem item in preview.Items)
                     {
                         <li>
-                            <p class="preview__text">@item.Text</p>
+                            @if (item.Entries is { } entries && entries is not [{ Kind: EntryKind.Narration }])
+                            {
+                                <div class="preview__text"><ScriptLines Entries="entries" /></div>
+                            }
+                            else
+                            {
+                                <p class="preview__text">@item.Text</p>
+                            }
                             <p class="hint">@item.Where. @(item.Wins ? "This line wins." : item.BeatenBy is null ? "No line wins." : $"{item.BeatenBy} wins instead.")</p>
                         </li>
                     }
@@ -61,7 +68,7 @@
         {
             string people = NarrativeFacts.Beats.TryGetValue(Beat, out BeatSpec? spec) ? string.Join(", ", spec.People.Concat(spec.Things).Select(r => $"#{r}#")) : "#lead#, #encounter#";
             string symbols = View.Choices.Symbols.Count > 0 ? $" Symbols: {string.Join(", ", View.Choices.Symbols.Select(s => $"#{s}#"))}." : "";
-            return $"Names: {people}. Pronouns: #actor.they#, .them, .their, .theirs, .themself. A verb after a pronoun: #actor:checks|check#. Add .capitalize to any of them; write ## for a #.{symbols}";
+            return $"One sentence, or a script with one entry on each line: \"lead: words\" for speech (also captain, best SKILL_ID, and the beat's other people), \"> words\" for a system note, anything else for narration, and a last line \"= sentence\" for what the report says. Names: {people}. Pronouns: #actor.they#, .them, .their, .theirs, .themself. A verb after a pronoun: #actor:checks|check#. Add .capitalize to any of them; write ## for a #.{symbols}";
         }
     }
 

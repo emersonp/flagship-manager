@@ -21,6 +21,8 @@ public static class ContentFormEndpoints
         dev.MapGet("/content/{kind}/{id}", Open);
         dev.MapPost("/content/{kind}", Create);
         dev.MapPost("/content/{kind}/rows", NewRows);
+        dev.MapPost("/content/{kind}/plays", (string kind, HttpContext http, ContentEditor editor, Render render, CancellationToken cancellation) => PlaysAnswer(kind, null, http, editor, render, cancellation));
+        dev.MapPost("/content/{kind}/{id}/plays", PlaysAnswer);
         dev.MapPost("/content/{kind}/{id}", Save);
         dev.MapPost("/content/{kind}/{id}/rows", Rows);
         dev.MapPost("/content/{kind}/{id}/delete", Delete);
@@ -174,6 +176,21 @@ public static class ContentFormEndpoints
         }
 
         return await Answer<ItemMain, ItemPage>(render, datastar, FormParameters(view), StatusCodes.Status200OK);
+    }
+
+    // The previews of the "What plays here" panel for the form as posted. Only the previews and the sample control are sent, each
+    // patched by its id, so the boxes the author is typing in are left alone. Nothing is saved.
+    private static async Task<IResult> PlaysAnswer(string kind, string? id, HttpContext http, ContentEditor editor, Render render, CancellationToken cancellation)
+    {
+        bool datastar = Sse.IsDatastar(http.Request);
+        FormValues posted = await Read(http.Request, cancellation);
+        if (KindForm.For(kind) is not { } form || FormFlow.Previews(form, editor.Read(), id, posted, http.Request.Query["sample"]) is not { } view)
+        {
+            return await NotFound(render, datastar);
+        }
+
+        string html = await render.Html<PlaysPreviews>(new Dictionary<string, object?> { ["Plays"] = view.Plays, ["Url"] = view.PlaysUrl });
+        return datastar ? new PatchResult(html) : Results.Content(html, "text/html; charset=utf-8");
     }
 
     private static async Task<IResult> Delete(string kind, string id, HttpContext http, ContentEditor editor, Render render, CancellationToken cancellation)

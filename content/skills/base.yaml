@@ -1,4 +1,9 @@
+# Generated fiction (2026-11-15). The ids are the placeholders' own.
 - id: SKILL_A
+  name: Survey
 - id: SKILL_B
+  name: Engineering
 - id: SKILL_C
+  name: Fieldcraft
 - id: SKILL_D
+  name: Diplomacy

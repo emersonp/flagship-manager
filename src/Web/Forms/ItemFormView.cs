@@ -95,6 +95,12 @@ public sealed record ItemFormView(
     // The line form's preview against sample beats; null for other kinds.
     public LinePreview? Preview { get; init; }
 
+    // The "What plays here" panel of an encounter or an objective; null for other kinds.
+    public PlaysView? Plays { get; init; }
+
+    // The route that answers with the panel's previews for the form as posted, saving nothing.
+    public string PlaysUrl => IsNew ? $"/dev/content/{Segment}/plays" : $"{Action}/plays";
+
     // Symbols and pronoun sets are named in text, so their ids are lower case.
     public string IdRule => Checks.LowerCase(Kind) ? Checks.LowerIdRule : Checks.IdRule;
 }

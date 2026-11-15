@@ -1,0 +1,24 @@
+@using Web.Forms
+@* One preview of the panel: what the log would say there, which line that is, and what is wrong with the author's own text. The preview route patches it by its id. *@
+<div class="plays__preview" id="@Preview.Id">
+    @if (Preview.Problem is not null)
+    {
+        <p class="error">@Preview.Problem</p>
+    }
+    @if (Preview.Entries is { Count: > 0 } entries)
+    {
+        <ScriptLines Entries="entries" />
+    }
+    else if (Preview.Entries is not null && Preview.Problem is null)
+    {
+        <p class="plays__silent">Nothing is said.</p>
+    }
+    @if (Preview.Note.Length > 0)
+    {
+        <p class="hint">@Preview.Note</p>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public PlaysPreview Preview { get; set; } = null!;
+}

@@ -125,6 +125,7 @@ public static partial class ContentLoader
         List<ContentError> errors)
     {
         Dictionary<string, SymbolDef> symbolsById = symbols.ToDictionary(s => s.Id);
+        HashSet<string> skillIds = skills.Select(s => s.Id).ToHashSet();
         var domains = new Dictionary<FactDomain, HashSet<string>>
         {
             [FactDomain.Skill] = skills.Select(s => s.Id).ToHashSet(),
@@ -194,13 +195,9 @@ public static partial class ContentLoader
             {
                 Error("text must not be empty.");
             }
-            else if (Tokens(dto.Text, out string? problem) is not { } tokens)
+            else
             {
-                Error(problem!);
-            }
-            else if (beat is not null)
-            {
-                CheckTokens(tokens, NarrativeFacts.Beats[beat], symbolsById, null, [], Error);
+                CheckScript(dto.Text, beat is null ? null : NarrativeFacts.Beats[beat], symbolsById, skillIds, Error, Error);
             }
 
             string? name = owner is null ? CheckName(file, id, dto.Name, errors) : null;
@@ -211,7 +208,7 @@ public static partial class ContentLoader
 
             if (errors.Count == before)
             {
-                lines.Add(new LineDef(id, beat!, criteria, dto.Text!, name, owner));
+                lines.Add(new LineDef(id, beat!, criteria, dto.Text!.ReplaceLineEndings("\n"), name, owner));
             }
         }
 
@@ -256,9 +253,11 @@ public static partial class ContentLoader
         List<(string File, EncounterDto Dto)> encounters,
         List<(string File, ObjectiveDto Dto)> objectives,
         List<SymbolDef> symbols,
+        List<SkillDef> skills,
         List<ContentError> errors)
     {
         Dictionary<string, SymbolDef> symbolsById = symbols.ToDictionary(s => s.Id);
+        HashSet<string> skillIds = skills.Select(s => s.Id).ToHashSet();
         var lines = new List<LineDef>();
         void Add(string file, string owner, string where, Dictionary<string, string?>? texts, IReadOnlyList<string> keys, string beat, Func<string, CriterionDef[]> when)
         {
@@ -279,17 +278,13 @@ public static partial class ContentLoader
                 {
                     Error("must not be empty.");
                 }
-                else if (Tokens(text, out string? problem) is not { } tokens)
-                {
-                    Error($"cannot be read: {problem}");
-                }
                 else
                 {
-                    string kind = key is "call" or "notice" ? key : beat;
-                    CheckTokens(tokens, NarrativeFacts.Beats[kind], symbolsById, null, [], m => Error($"cannot be used: {m}"));
+                    string kind = key is "call" or "notice" or "attempt" ? key : beat;
+                    CheckScript(text, NarrativeFacts.Beats[kind], symbolsById, skillIds, m => Error($"cannot be read: {m}"), m => Error($"cannot be used: {m}"));
                     if (errors.Count == before)
                     {
-                        lines.Add(new LineDef($"{owner}.{where}{key}", kind, when(key), text, null, owner));
+                        lines.Add(new LineDef($"{owner}.{where}{key}", kind, when(key), text.ReplaceLineEndings("\n"), null, owner));
                     }
                 }
             }
@@ -302,7 +297,9 @@ public static partial class ContentLoader
             Add(file, id, "", dto.Text, NarrativeFacts.EncounterTexts, "stage", _ => [here]);
             foreach ((string approach, ApproachDto? def) in new[] { ("careful", dto.Approaches?.Careful), ("fast", dto.Approaches?.Fast) })
             {
-                Add(file, id, approach + ".", def?.Text, NarrativeFacts.Tiers, "check", tier => [here, new CriterionDef("approach", [approach]), new CriterionDef("tier", [tier])]);
+                Add(file, id, approach + ".", def?.Text, NarrativeFacts.ApproachTexts, "check", key => key == "attempt"
+                    ? [here, new CriterionDef("approach", [approach])]
+                    : [here, new CriterionDef("approach", [approach]), new CriterionDef("tier", [key])]);
             }
 
             if (dto.Decision is { Id: { } decision })
@@ -319,6 +316,90 @@ public static partial class ContentLoader
         }
 
         return lines;
+    }
+
+    // What each decision's answer buttons say. A label is plain text: no tokens, one line, 1 to 40 characters.
+    private static Dictionary<string, IReadOnlyDictionary<string, string>> BuildChoiceLabels(List<(string File, EncounterDto Dto)> encounters, List<ContentError> errors)
+    {
+        var labels = new Dictionary<string, IReadOnlyDictionary<string, string>>();
+        foreach ((string file, EncounterDto dto) in encounters)
+        {
+            if (dto.Decision is not { Id: { } decision, Labels: { Count: > 0 } written })
+            {
+                continue;
+            }
+
+            var own = new Dictionary<string, string>();
+            foreach ((string key, string? label) in written)
+            {
+                if (!NarrativeFacts.Answers.Contains(key))
+                {
+                    errors.Add(new ContentError(file, $"{dto.Id}: decision.labels.{key} is not an answer; it must be one of {string.Join(", ", NarrativeFacts.Answers)}."));
+                }
+                else if (string.IsNullOrWhiteSpace(label) || label.Trim() != label || label.Length > 40 || label.IndexOfAny(['\r', '\n']) >= 0)
+                {
+                    errors.Add(new ContentError(file, $"{dto.Id}: decision.labels.{key} must be 1 to 40 characters on one line, with no spaces at either end."));
+                }
+                else
+                {
+                    own[key] = label;
+                }
+            }
+
+            labels[decision] = own;
+        }
+
+        return labels;
+    }
+
+    // A line's text is a script (Scripts): every entry and the report's sentence must parse, name only what the beat has, and be
+    // spoken by someone the beat has, the captain, or the best at a skill the pack has. beat is null when the beat is already refused.
+    private static void CheckScript(string text, BeatSpec? beat, Dictionary<string, SymbolDef> symbols, HashSet<string> skills, Action<string> unreadable, Action<string> unusable)
+    {
+        Script script;
+        try
+        {
+            script = Scripts.Parse(text.ReplaceLineEndings("\n"));
+        }
+        catch (NarrativeFormatException e)
+        {
+            unreadable(e.Message);
+            return;
+        }
+
+        void Check(string part)
+        {
+            if (Tokens(part, out string? problem) is not { } tokens)
+            {
+                unreadable(problem!);
+            }
+            else if (beat is not null)
+            {
+                CheckTokens(tokens, beat, symbols, null, [], unusable);
+            }
+        }
+
+        foreach (ScriptEntry entry in script.Entries)
+        {
+            if (entry.Speaker is { } speaker && Scripts.BestSkill(speaker) is { } skill)
+            {
+                if (!skills.Contains(skill))
+                {
+                    unusable($"speaker '{speaker}' names '{skill}', a skill the pack does not have.");
+                }
+            }
+            else if (entry.Speaker is { } role && role != Scripts.Captain && beat is not null && !beat.People.Contains(role))
+            {
+                unusable($"speaker '{role}' is not in a {beat.Kind} beat, which has {string.Join(", ", beat.People)}.");
+            }
+
+            Check(entry.Text);
+        }
+
+        if (script.Summary is { } summary)
+        {
+            Check(summary);
+        }
     }
 
     // A value as written: one value, a list of values (any of), or a range { min, max } on a number.

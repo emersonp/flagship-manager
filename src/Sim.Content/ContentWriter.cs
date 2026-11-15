@@ -136,7 +136,7 @@ public static class ContentWriter
                 break;
             case LineModel line:
                 f.Add(When(line.Beat, line.When));
-                f.Add($"text: {Quote(line.Text)}");
+                f.AddRange(Scalar("text:", line.Text));
                 break;
             case SymbolModel symbol:
                 if (symbol.Options.Count == 0)
@@ -215,6 +215,7 @@ public static class ContentWriter
                     f.Add($"  bold: {Effects(decision.Bold)}");
                     f.Add($"  safe: {Effects(decision.Safe)}");
                     f.AddRange(Texts(decision.Text, Sim.Core.Narrative.NarrativeFacts.DecisionTexts).Select(l => "  " + l));
+                    f.AddRange(Texts(decision.Labels, Sim.Core.Narrative.NarrativeFacts.Answers, "labels").Select(l => "  " + l));
                 }
 
                 f.AddRange(OwnLines(encounter.Lines));
@@ -244,7 +245,7 @@ public static class ContentWriter
         foreach (OwnLineModel line in lines)
         {
             f.Add($"  - {When(line.Beat, line.When)}");
-            f.Add($"    text: {Quote(line.Text)}");
+            f.AddRange(Scalar("    text:", line.Text));
         }
 
         return f;
@@ -316,21 +317,36 @@ public static class ContentWriter
             lines.Add($"  gearTag: {Quote(approach.GearTag)}");
         }
 
-        lines.AddRange(Texts(approach.Text, Sim.Core.Narrative.NarrativeFacts.Tiers).Select(l => "  " + l));
+        lines.AddRange(Texts(approach.Text, Sim.Core.Narrative.NarrativeFacts.ApproachTexts).Select(l => "  " + l));
         return lines;
     }
 
     // An item's own words: one key to a line, the known keys in their fixed order and then any others as they were read. Nothing when there are none.
-    private static List<string> Texts(IReadOnlyDictionary<string, string>? texts, IReadOnlyList<string> order)
+    private static List<string> Texts(IReadOnlyDictionary<string, string>? texts, IReadOnlyList<string> order, string under = "text")
     {
         if (texts is not { Count: > 0 })
         {
             return [];
         }
 
-        var lines = new List<string> { "text:" };
-        lines.AddRange(order.Where(texts.ContainsKey).Concat(texts.Keys.Where(k => !order.Contains(k))).Select(k => $"  {Quote(k)}: {Quote(texts[k])}"));
+        var lines = new List<string> { $"{under}:" };
+        lines.AddRange(order.Where(texts.ContainsKey).Concat(texts.Keys.Where(k => !order.Contains(k))).SelectMany(k => Scalar($"  {Quote(k)}:", texts[k])));
         return lines;
+    }
+
+    // A text after its key. A script of several lines is written as a block, one script line per file line, so it reads in the
+    // file as it was typed; anything a block cannot hold exactly is quoted on one line instead.
+    private static List<string> Scalar(string key, string value)
+    {
+        string[] rows = value.Split('\n');
+        bool block = rows.Length > 1 && rows.All(r => r.Length > 0 && r.Trim() == r && !r.Any(char.IsControl));
+        if (!block)
+        {
+            return [$"{key} {Quote(value)}"];
+        }
+
+        string indent = new string(' ', key.Length - key.TrimStart().Length + 2);
+        return [$"{key} |-", .. rows.Select(r => indent + r)];
     }
 
     private static string Effects(IReadOnlyList<EffectModel> effects)

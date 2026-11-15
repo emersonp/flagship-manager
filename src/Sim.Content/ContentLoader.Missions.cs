@@ -274,6 +274,8 @@ public static partial class ContentLoader
         public List<Dictionary<string, string>?>? Safe { get; set; }
 
         public Dictionary<string, string?>? Text { get; set; }
+
+        public Dictionary<string, string?>? Labels { get; set; }
     }
 
     private sealed class ObjectiveDto
