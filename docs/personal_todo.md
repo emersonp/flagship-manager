@@ -1,3 +1,4 @@
 - [ ] Mission log newest first, prompt on top
 - [ ] Discussion with Claude on front end overhaul
-  - Add planets and sector map to roadmap
+  - Add planets and sector map to roadmap for art, in addition to paper dolls
+- [ ] Inquire about Seniority
