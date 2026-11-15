@@ -1,1 +1,3 @@
 - [ ] Mission log newest first, prompt on top
+- [ ] Discussion with Claude on front end overhaul
+  - Add planets and sector map to roadmap
