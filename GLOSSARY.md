@@ -84,7 +84,15 @@ A directed tie from one crew member to another with a kind and a strength. Exist
 Who reports to whom aboard. Always visible to the player.
 
 **Insight**:
-How clearly the player can see a crew member's personality, morale, and relationships: hidden, rough, or clear.
+How clearly the player can see a crew member's skills, grades, personality, morale, and relationships: hidden, rough, or clear.
+
+**Attribute**:
+A broad capacity, such as fitness or presence, that groups skills across departments. Most skills belong to one department and one attribute.
+_Avoid_: Stat (that is wider), ability
+
+**Grade**:
+A crew member's standing in a department or attribute, computed from the skills under it. It has a height and a shape (good across the board, or one standout skill), and insight decides how much of it shows.
+_Avoid_: Rating, score
 _Avoid_: Visibility, fog, scouting
 
 **Personal renown**:
@@ -199,8 +207,12 @@ _Avoid_: Simulator (that plays whole cycles), test harness
 **Quality**:
 Any readable fact about the legacy that content can test: a skill level, a relationship strength, a chronicle fact, or a story flag.
 
+**Stat**:
+A typed, simulated number owned by a system: a skill, a grade, a personality axis, morale, loyalty, renown, or standing. A quality content can read, but changes only through commands.
+_Avoid_: Attribute (that is a grouping of skills)
+
 **Story flag**:
-A free-form quality that exists only to track storyline progress.
+A free-form numeric quality named by content, stored generically: a mark or a counter that tracks story state.
 
 **Storylet**:
 A unit of narrative content with requirements, a cast, and mechanical effects.
@@ -209,11 +221,14 @@ A unit of narrative content with requirements, a cast, and mechanical effects.
 A storylet that requires a choice and costs captain's time.
 
 **Vignette**:
-A short storylet with no choice. It carries information.
+A short, free storylet that carries information. Usually it has no choice; sometimes it offers one small one, with a default if unanswered.
 _Avoid_: Flavour event
 
 **Storyline**:
-A chain of storylets linked by story flags. It advances whether or not the captain attends to it.
+Storylets heading for authored waypoints by whatever path the state allows. It advances whether or not the captain attends to it.
+
+**Waypoint**:
+An authored storylet a storyline or conversation steers towards. A target, never a rail: the path varies, and the captain can divert it.
 
 **Captain's time**:
 The per-cycle budget the captain spends on captain storylets and discretionary actions. Does not carry over.
@@ -222,7 +237,7 @@ The per-cycle budget the captain spends on captain storylets and discretionary a
 The per-cycle summary of what department heads resolved without the captain.
 
 **Salience**:
-The measure of how much a piece of content deserves the player's attention this cycle.
+How well a piece of content fits the moment. Among eligible storylets it decides what reaches the player this cycle; among report lines, the line whose criteria match most specifically wins.
 
 **Developer mode**:
 A setting of the running game that adds the content editor and, later, the bench and tuning pages. Off in normal play.

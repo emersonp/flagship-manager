@@ -1,6 +1,6 @@
 # Starship Sim: Game Design Document v1
 
-Status: draft v1.4, 2026-11-13, revised after the author's review (section 15) and the mission prototype (section 4.7). Vocabulary follows `GLOSSARY.md`. Creative content is placeholder throughout (`SPECIES_A`, `OBJECTIVE_TEMPLATE_1`, `SKILL_A`); numbers are starting points for the balance simulator, not commitments.
+Status: draft v1.9, 2026-11-14, revised after the author's reviews (section 15), the mission prototype (section 4.7), and the author's notes on skills and narrative structure after slice 1c (section 15, items 18 to 21). Vocabulary follows `GLOSSARY.md`; the games and shows the design draws on are listed in `docs/touchstones.md`. Creative content is placeholder throughout (`SPECIES_A`, `OBJECTIVE_TEMPLATE_1`, `SKILL_A`); numbers are starting points for the balance simulator, not commitments.
 
 ## 1. Summary
 
@@ -250,7 +250,13 @@ ifIgnored:
 
 ### 3.8 Quality
 
-Not stored. A quality is anything the expression language can read: `a.skills.SKILL_A`, `rel(a, b).strength`, `ship.renown`, `chronicle.count('death', dept: a.departmentId, within: 20)`, or `flag('x')`. Only story flags are stored generically:
+The game is a hybrid: part stats model, part quality-based narrative (section 5).
+
+- **Stats** are typed, numeric, and simulated: skills and their grades (3.10), personality axes, morale, loyalty, renown, and standing. They are the Football Manager half. The rules compute with them, the player sees them in bands, and only the systems that own them change them (content changes them through effect commands).
+- **Story flags** are open-ended: named by content, numeric, and stored generically. They are the Fallen London half. A flag can be a mark (`rivalry.escalated: 1`) or a counter (`owes_the_captain: 3`), and content invents new ones with no code change.
+- **Traits and tags** stay typed content (3.2). Testing for one (`a.has('TRAIT_A')`) reads like any other quality.
+
+A **quality** is anything the expression language can read through the read-only quality view, stat or flag alike: `a.skills.SKILL_A`, `a.grade.ATTRIBUTE_A`, `rel(a, b).strength`, `ship.renown`, `chronicle.count('death', dept: a.departmentId, within: 20)`, or `flag('x')`. Only story flags are stored generically:
 
 ```yaml
 legacyId: legacy_01
@@ -283,6 +289,23 @@ sourceSeq: [88213, 88214]
 ```
 
 Chronicle text is rendered once and stored, so later grammar edits never rewrite history.
+
+### 3.10 Skills, departments, and attributes (content)
+
+Phase 1 has one small flat set of skills, which is enough for prototyping. In the long run skills are finer, and each one is grouped:
+
+```yaml
+id: SKILL_A
+name: SKILL_A_NAME
+department: DEPT_A            # a department, such as command or engineering
+attribute: ATTRIBUTE_A        # a broad capacity, such as fitness or presence
+```
+
+- Every skill belongs to a department, an attribute, or both; most belong to one of each. Departments and attributes are content, named by the author.
+- A crew member's **grade** in a department or attribute comes from the levels of the skills under it. It is computed, never stored, and is a stat like any other (3.8).
+- A grade has a shape as well as a height. Being moderately good at every skill under an attribute and being average with one exceptional skill can give the same grade, and the difference is not normally obvious. Good insight shows the shape (5.6).
+- Checks still name a skill. Whether an approach may name a department or attribute grade instead is open (section 16).
+- Built with Phase 5 (departments and insight). Until then a skill has neither field; the loader starts requiring at least one when grades are built.
 
 ## 4. Mission resolution
 
@@ -373,6 +396,16 @@ The numbers in this section were set on the throwaway prototype's bench (2,000 m
 
 ## 5. Storylet system
 
+The game uses three narrative structures, named as in Emily Short's survey ("Beyond Branching: Quality-Based and Salience-Based Narrative Structures", 2016), each where it fits:
+
+| Structure | How the next piece is chosen | Used for |
+|---|---|---|
+| Quality-based | A piece becomes available when the qualities it requires hold | Which storylets are eligible, who can be cast (5.1), and which options a storylet offers |
+| Salience-based | Of everything eligible, the piece that fits the situation most specifically wins; ties break by seed | Report and vignette lines (section 6), and which storylets reach the inbox (5.1) |
+| Waypoint | Content steers towards an authored waypoint by whatever path the current state allows, avoiding paths already used; the player can divert it | Storylines (5.3) and the captain's conversations (5.4) |
+
+One selection engine serves all three: requirements gate (quality-based), a score ranks (salience), and distance to the next waypoint is one term of that score. Each structure's known weakness has a counter here. A thin early library is covered by generic fallbacks. Content that sequences itself at a bad moment is checked by stakes, cooldowns, and the simulator's fire counts. Waypoints are targets, never rails.
+
 ### 5.1 Selection each cycle
 
 1. **Index.** Storylets are indexed by the tags and quality kinds they test, so only plausible candidates are evaluated.
@@ -389,7 +422,7 @@ The head's threshold uses the same formula as the away-team call rule. One rule,
 
 | | Captain storylet | Vignette |
 |---|---|---|
-| Choice | Yes, two to four options | None |
+| Choice | Yes, two to four options | Usually none; sometimes one small one |
 | Cost | One to three captain's time | Free |
 | Length | A short paragraph plus options | One to three sentences |
 | Purpose | A ruling with lasting effects | A signal about who needs attention |
@@ -397,14 +430,18 @@ The head's threshold uses the same formula as the away-team call rule. One rule,
 
 A vignette always changes something or reveals something true about the state. If it does neither, it is cut.
 
+A vignette may offer one small, free choice where a moment of attention should be possible: in a ride in the turbolift, say something or say nothing. Its scope stays small (a nudge, a flag, a little insight), and it never becomes a ruling. If the cycle advances without an answer, the vignette's default option applies, usually the quiet one.
+
 ### 5.3 Storylines
 
 A storyline is storylets chained by story flags. Every captain storylet that reaches the inbox has an `ifIgnored` clause: after its expiry, effects apply and the next storylet in the chain becomes eligible. Ignoring is a choice with an outcome, and not always the worst one.
 
+Storylines are waypoint narratives. A storyline names its **waypoints**, the authored storylets it is heading for (a confrontation, a reconciliation, a departure), and its other storylets are the paths between them. Selection favours storylets that move the cast's qualities towards the next waypoint and disfavours paths already used, so one storyline plays out differently each time and recovers after the captain intervenes. The captain's choices can divert a storyline towards another waypoint or end it. A chain of flags, as above, is the simplest case: a storyline with one path. Built in Phase 4.
+
 ### 5.4 Captain's time
 
 - Budget per cycle: three to six, set by the captain's traits.
-- Spent on inbox captain storylets and on **discretionary actions**: player-initiated storylets such as a ready-room talk with a chosen crew member, a promotion review, or a social evening. These are ordinary storylets whose cast the player picks.
+- Spent on inbox captain storylets and on **discretionary actions**: player-initiated storylets such as a ready-room talk with a chosen crew member, a promotion review, or a social evening. These are ordinary storylets whose cast the player picks. A ready-room talk is a waypoint conversation (Phase 4): the crew member has something they mean to raise, and the talk steers towards it unless the captain changes the subject.
 - Does not carry over.
 - Transit cycles get a larger fixed budget. It does not scale with the number of weeks.
 - The inbox should usually hold more than the budget can cover. If the simulator shows the budget routinely covering everything, the economy is broken.
@@ -423,6 +460,7 @@ The org chart is always visible: who reports to whom, by department and post. Wh
 - Each crew member has an insight level: hidden, rough, or clear. It controls how many bands are shown and how fine they are.
 - The captain's direct reports are always clear.
 - For everyone else, insight comes from the people responsible for them. Department heads and trainers give insight into skills and potential. Counsellors give insight into personality, morale, and relationships. The better they are at it, the clearer the picture and the sooner it arrives.
+- Skill grades (3.10) are seen through the department head or trainer responsible for the person. With poor insight a grade is a word ("High"); with better insight it is a grade ("B+"); with the best, it is the grade and its shape ("B+, excelling in SKILL_A"). The shape is the hard part to see. Someone strong across a whole attribute and someone average with one exceptional skill look alike to a poor observer. How many insight levels this needs is open (section 16).
 - Vignettes and missions raise insight for the crew they feature.
 - Insight is never wrong at first, only vague: poor staff mean wide bands. Later, traits can distort it, both in the person observed (someone hiding something) and in the observer (a counsellor biased against `SPECIES_A` reads them badly).
 
@@ -432,7 +470,7 @@ Staffing the insight roles well is therefore how a captain of 500 sees the ship 
 
 - **Input**: beats. A beat is `{ kind, actors, encounterId, variant, approach, tier, tags, context }`.
 - **Engine**: a Tracery-style grammar, expanded with a seed derived from the legacy, mission, and beat index. The same input always gives the same text.
-- **Selection**: for each beat the engine looks for the most specific matching symbol, falling back in order: encounter + variant + tier, then encounter + tier, then tags + tier, then tier alone. The author can start with a handful of generic lines and add specific ones where it matters.
+- **Selection by salience**: every line carries criteria over its beat and the qualities of the people in it: encounter, variant, approach, tier, tags, and context, and later personality, traits, and relationships. Of the lines whose criteria all hold, the one with the most criteria wins; ties break by the seed and the repetition memory. This is the rule-matching approach of Elan Ruskin's dialogue system for Left 4 Dead (section 5). The fixed fallback chain first proposed here (encounter + variant + tier, then encounter + tier, then tags + tier, then tier alone) is a special case of it. The author can start with a handful of generic lines and add specific ones where they matter, and a specific line never needs a change to the generic ones.
 - **Modifiers**: name, rank, pronoun, and species forms; personality-keyed word choices (`#actor.manner#`); relationship-aware inserts when two actors with a strong edge share a beat.
 - **Assembly**: a report is a header (mission, teams, result), three to eight beat sentences, the decisions (calls and notices, marked differently), and a plain table of consequences.
 - **Repetition control**: the engine keeps a short memory per legacy of recently used expansions and avoids them.
@@ -616,8 +654,8 @@ Each phase ends with something playable, a simulator run, and a short list of wh
 | 1. Thinnest game | 8 crew, 1 skill set, 1 single-cycle assignment template, 2 objective templates, 1 team, 6 encounters, checks with tiers, momentum and strain, 1 decision with the call rule, text report; mission bench (command line, then developer page) with the tuning file and tuning page; morale; 5 vignettes and 2 captain storylets; captain's time; inbox and crew file; chronicle list | A full cycle of both layers in the browser |
 | 2. Growth and loss | Experience, mentoring, injuries, death, memorials, several objectives at some sites, unattended objectives, mandates | The central trade-off exists |
 | 3. Who you send | Personality-driven calls and notices, operational parameters, gear and requisition | Team choice changes what you are asked |
-| 4. Life aboard | Relationships, storylines with `ifIgnored`, vignette budget, discretionary actions | Ignored problems get worse |
-| 5. Roster | Departments, org chart, duty roster, shipboard training, department heads, digest, insight | Football Manager's weekday |
+| 4. Life aboard | Relationships, storylines with `ifIgnored` and waypoints, waypoint conversations, vignette budget, discretionary actions | Ignored problems get worse |
+| 5. Roster | Departments, org chart, duty roster, shipboard training, department heads, digest, insight; finer skills grouped by department and attribute, with grades seen through insight | Football Manager's weekday |
 | 6. Careers | Ageing, ranks and promotion, ambitions, poaching, personal and ship renown, Admiralty standing | Rosters turn over |
 | 7. Split teams and long assignments | Two to three missions at once on an interleaved timeline; assignments of several cycles with carried state; transit cycles | One strong team or two thin ones |
 | 8. Succession | Hull loss and succession, captain succession and pool, chronicle screen | A legacy survives its first disaster |
@@ -641,14 +679,14 @@ What has been built, slice by slice. A phase is cut into slices when it is plann
 | 1. Thinnest game | 1c, part one. A whole cycle, headless | Crew that grow, are hurt, heal, and die; missions on the event bus; module state stored; the simulator plays real cycles | Done 2026-11-14 |
 | 1. Thinnest game | 1c, part two. The cycle in the browser | Legacy selection, orders, briefing, resolution with paced beats and calls, aftermath, and the visual design | Done 2026-11-14 |
 | 1. Thinnest game | 1c-editor. Content editor | Developer-mode pages that write the content files, validated on save; display names for crew, skills, gear, objectives, encounters, and assignments | Done 2026-11-14 |
-| 1. Thinnest game | 1d. Reports | The grammar engine and the narrative report built from beats | Next |
-| 1. Thinnest game | 1e. Life aboard | Storylets, morale, captain's time, the inbox and crew file, and the chronicle list | Later |
+| 1. Thinnest game | 1d. Reports | The grammar engine, lines chosen by salience, and the narrative report built from beats | Next |
+| 1. Thinnest game | 1e. Life aboard | Quality-gated, salience-ranked storylets, vignettes (some with a small choice), morale, captain's time, the inbox and crew file, and the chronicle list | Later |
 | 1. Thinnest game | 1f. Tuning in play | The mission bench and the tuning page in the browser | Later |
 | 1. Thinnest game | Playtest | Three legacies of 20 to 30 cycles against the checklist below | Later |
 | 2. Growth and loss | Not yet cut | Mentoring, memorials, several objectives at some sites, and mandates (experience, injuries, death, and unattended objectives arrived early, in 1c) | Not started |
 | 3. Who you send | Not yet cut | Gear and requisition (personality-driven calls and operational parameters arrived early, in 1a) | Not started |
-| 4. Life aboard | Not yet cut | Relationships, storylines, the vignette budget, and discretionary actions | Not started |
-| 5. Roster | Not yet cut | Departments, org chart, duty roster, training, department heads, digest, and insight | Not started |
+| 4. Life aboard | Not yet cut | Relationships, waypoint storylines and conversations, the vignette budget, and discretionary actions | Not started |
+| 5. Roster | Not yet cut | Departments, org chart, duty roster, training, department heads, digest, and insight; finer skills with department and attribute grades | Not started |
 | 6. Careers | Not yet cut | Ageing, ranks and promotion, ambitions, poaching, renown, and Admiralty standing | Not started |
 | 7. Split teams and long assignments | Not yet cut | Several missions at once, assignments of several cycles, and transit | Not started |
 | 8. Succession | Not yet cut | Hull loss and succession, captain succession, and the chronicle screen | Not started |
@@ -727,6 +765,38 @@ Answered by the author on 2026-11-13.
 16. **Captain's time in transit.** A larger fixed budget, not scaled by weeks.
 17. **The cost of a faster transit.** The crew pays: less training and recovery time, and lower morale. Hull wear is added when dry dock exists.
 
+Notes from the author on 2026-11-14, after slice 1c:
+
+18. **Skills.** Basic skills stay for prototyping. Later, skills are finer, each belongs to a department, an attribute, or (usually) both, and the skills under one give a grade that department heads see with varying insight: see 3.10 and 5.6. Built in Phase 5.
+19. **Vignettes may have a choice**, small in scope: see 5.2.
+20. **Narrative structures.** Quality-based, salience-based, and waypoint, each where it fits: see section 5, 5.3, and section 6. Salience arrives first, choosing report lines in slice 1d.
+21. **A hybrid model.** Skills and the other Football Manager numbers are proper stats; story state is qualities: see 3.8.
+
 ## 16. Open questions
 
-None at present. New ones are added here as they arise.
+Cheap to settle later; none blocks slice 1d.
+
+1. **How grades are shown**
+At each insight level, a department or attribute grade can be shown as a word, a letter, or both.
+(a) Words at the lower insight levels, letters at the higher (b) Letters throughout, with a word only when insight is poor (c) Words throughout, with the shape added at the best level
+Recommend (a): this matches the examples in 5.6 ("High", then "B+", then "B+, excelling in SKILL_A").
+
+2. **How a grade is computed**
+A grade can be the mean of the skills under it, the mean of the best few, or a weighted mean.
+(a) The plain mean, with the shape reported separately (b) The mean of the best three (c) A weighted mean set in the tuning file
+Recommend (a): it keeps "good across the board" and "one standout" at the same grade, which is what makes the shape worth seeing.
+
+3. **How many insight levels**
+Skill grades show three things (a word, a grade, and the grade with its shape), and today there are three levels including hidden.
+(a) Four levels: hidden, rough, clear, and keen (b) Keep three; at clear, the observer's own skill decides whether the shape shows (c) Keep three; clear shows the shape
+Recommend (a): one more level is simpler to read than a hidden dependency on the observer.
+
+4. **Checks against a grade**
+Whether an approach can test a department or attribute grade instead of one skill.
+(a) Yes, for broad checks (b) No; checks always name a skill
+Recommend (b) until Phase 5, then decide with the bench.
+
+5. **A vignette nobody answers**
+What happens when the cycle advances before the player answers a vignette's choice.
+(a) The default option, authored per vignette and usually the quiet one (b) The vignette lapses with no effect
+Recommend (a): every vignette changes something (5.2), and the default keeps that true.
