@@ -271,7 +271,7 @@ public static class MissionResolver
 
             Beats.Add(new CheckBeat(
                 encounter.Id, approach, def.Skill, actor.Member.Id, helper?.Member.Id, supervised,
-                actorSkill, assist, gear, momentum, strain, score, roll, target, margin, tier, experience, mentoring, helperExperience));
+                actorSkill, assist, gear, momentum, strain, score, roll, target, margin, tier, experience, mentoring, helperExperience, State.Momentum, State.Strain));
 
             if (tier == Tier.Failure)
             {

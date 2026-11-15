@@ -165,11 +165,12 @@ public class SimulationTests
     }
 
     // Golden seed: this hash changes only when behaviour changes. If the change is intended, update it in the same commit and say why.
+    // Re-pinned in slice 1d: check beats gained MomentumAfter and StrainAfter (additive; no rule changed).
     [Fact]
     public void Golden_seed_1_matches_the_accepted_log()
     {
         SimSummary summary = Simulation.Run(new SimOptions(Legacies: 1, Cycles: 10, Seed: 1), Pack);
 
-        Assert.Equal("3667772DD3C459AFDEDE74ECF55F4F1F21C3E6396AAA962C8CDFD54220544E82", summary.Legacies[0].LogHash);
+        Assert.Equal("41E42F6CDF37221E3CE22D4543A5C2A29969E5B72E19AA20FE126052F50E7170", summary.Legacies[0].LogHash);
     }
 }

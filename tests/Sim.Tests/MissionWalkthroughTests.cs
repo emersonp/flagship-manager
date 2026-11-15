@@ -113,12 +113,13 @@ public class MissionWalkthroughTests
     }
 
     // Golden mission: this hash changes only when the resolver's behaviour changes. If the change is intended, update it in the same commit and say why.
+    // Re-pinned in slice 1d: check beats gained MomentumAfter and StrainAfter (additive; no rule changed).
     [Fact]
     public void Golden_mission_matches_the_accepted_beats()
     {
         (_, List<Beat> beats, _) = TestContent.Play(TestContent.Team(1, 1, 3, 5), seed: 1);
 
-        Assert.Equal("D8D80EFB120D8EE099C45061FE72B4875952305FCEF84FAC3005239EBAF233C3", Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(Json(beats)))));
+        Assert.Equal("8C5AD4514A406C097614B4F5B1AAD5B246DC0628AF68B13C54B8B0CF8E89A802", Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(Json(beats)))));
     }
 
     // Replays injuries from the beats to find the score the senior would have had acting as best qualified.

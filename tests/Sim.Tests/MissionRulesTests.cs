@@ -40,6 +40,47 @@ public class MissionRulesTests
         }
     }
 
+    // A check states the momentum and strain its tier left, so a report can cite them without a copy of the rules.
+    [Fact]
+    public void Every_check_states_the_momentum_and_strain_its_tier_left()
+    {
+        MissionTuning t = TestContent.Tuning;
+        int Clamp(int value) => Math.Clamp(value, 0, t.Cap);
+        var seen = new HashSet<Tier>();
+        for (ulong seed = 1; seed <= 300; seed++)
+        {
+            foreach (CheckBeat check in TestContent.Play(TestContent.Team(2, 2, 7, 8), seed).Beats.OfType<CheckBeat>())
+            {
+                seen.Add(check.Tier);
+                (int momentum, int strain) = check.Tier switch
+                {
+                    Tier.Critical or Tier.Success => (Clamp(check.Momentum + (check.Tier == Tier.Critical ? t.MomentumCritical : 0) + (check.Approach == Approach.Fast ? t.MomentumFastSuccess : 0)), Clamp(check.Strain - t.StrainReliefOnSuccess)),
+                    Tier.Partial => (check.Momentum, Clamp(check.Strain + t.StrainPartial)),
+                    Tier.Failure => (check.Momentum, Clamp(check.Strain + t.StrainFailure)),
+                    _ => (check.Momentum, Clamp(check.Strain + t.StrainDisaster)),
+                };
+                Assert.Equal((momentum, strain), (check.MomentumAfter, check.StrainAfter));
+            }
+        }
+
+        Assert.Equal(Enum.GetValues<Tier>().Length, seen.Count);
+    }
+
+    // Beats stored before slice 1d have no after-values; they must still read, with none.
+    [Fact]
+    public void A_check_stored_without_after_values_reads_with_none()
+    {
+        var registry = EventTypeRegistry.FromAssemblies(typeof(MissionBeat).Assembly);
+        CheckBeat check = TestContent.Play(TestContent.Team(1, 1, 3), seed: 1).Beats.OfType<CheckBeat>().First();
+        EventEnvelope envelope = registry.ToEnvelope(new PublishedEvent(1, 1, new MissionBeat("MISSION_1", 0, check)));
+        string old = System.Text.RegularExpressions.Regex.Replace(envelope.Payload, @",""(MomentumAfter|StrainAfter)"":\d+", "");
+        Assert.DoesNotContain("After", old, StringComparison.Ordinal);
+
+        var read = (MissionBeat)registry.FromEnvelope(envelope with { Payload = old });
+
+        Assert.Equal(check with { MomentumAfter = null, StrainAfter = null }, read.Beat);
+    }
+
     // Skill A: CREW_03 has 5, CREW_06 has 3, and CREW_05 has 2.
     [Fact]
     public void Develop_juniors_puts_the_junior_forward_when_the_check_is_within_reach()

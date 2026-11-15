@@ -42,7 +42,11 @@ public sealed record CheckBeat(
     Tier Tier,
     double Experience,
     bool Mentoring,
-    double HelperExperience) : Beat;
+    double HelperExperience,
+    int? MomentumAfter = null,
+    int? StrainAfter = null) : Beat;
+
+// MomentumAfter and StrainAfter are the team's state after the tier's effects; null in beats stored before slice 1d.
 
 public sealed record EffectsBeat(EffectDef Effects) : Beat;
 
