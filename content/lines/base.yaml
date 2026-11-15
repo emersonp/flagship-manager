@@ -76,6 +76,10 @@
   use: report
   when: { beat: injury, outcome: dead }
   text: "#crew# was killed at #encounter#."
+- id: LINE_REPORT_LEAD
+  use: report
+  when: { beat: lead }
+  text: "#crew# took the lead."
 - id: LINE_REPORT_CALL
   use: report
   when: { beat: call }

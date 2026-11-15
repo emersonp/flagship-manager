@@ -14,7 +14,8 @@ namespace Web.Forms;
 public sealed record SampleBeat(Situation Situation, string Key, string Where);
 
 // The same fixed missions every time, so the preview and the lint see the same beats: each objective template on four seeds,
-// sent with the starting crew from the senior end and from the junior end, every call answered as the lead prefers.
+// sent with the starting crew from the senior end and from the junior end, developing juniors on the last two seeds, and the
+// calls answered with each option in turn, so every answer turns up.
 public static class NarrativeSamples
 {
     private static readonly ConditionalWeakTable<ContentPack, IReadOnlyList<SampleBeat>> Cache = new();
@@ -39,12 +40,14 @@ public static class NarrativeSamples
             {
                 for (ulong seed = 1; seed <= 4; seed++)
                 {
-                    MissionState start = MissionResolver.Start(objective, pack.Encounters, new Team(team, team[0].Id), [], new Parameters(), pack.Tuning, seed);
+                    MissionState start = MissionResolver.Start(objective, pack.Encounters, new Team(team, team[0].Id), [], new Parameters(DevelopJuniors: seed >= 3), pack.Tuning, seed);
                     MissionStep step = MissionResolver.Advance(start);
                     var beats = new List<Beat>(step.Beats);
+                    int calls = 0;
                     while (step.Pending is { } call)
                     {
-                        step = MissionResolver.Advance(step.State, new CallReply(call.CallId, call.LeadPrefers));
+                        CallAnswer answer = call.Options[(int)((seed + (ulong)calls++) % (ulong)call.Options.Count)];
+                        step = MissionResolver.Advance(step.State, new CallReply(call.CallId, answer));
                         beats.AddRange(step.Beats);
                     }
 
