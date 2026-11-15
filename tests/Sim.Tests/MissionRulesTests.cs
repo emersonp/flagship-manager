@@ -201,7 +201,7 @@ public class MissionRulesTests
     }
 
     [Fact]
-    public void A_cautious_lead_calls_where_a_reckless_one_sends_a_notice()
+    public void A_cautious_lead_calls_where_a_reckless_one_takes_the_initiative()
     {
         MissionStep cautious = MissionResolver.Advance(Start(TestContent.Team(1, 1, 3), new Parameters(), Encounter(1, Stakes2)));
         MissionStep reckless = MissionResolver.Advance(Start(TestContent.Team(2, 2, 3), new Parameters(), Encounter(1, Stakes2)));
@@ -209,20 +209,20 @@ public class MissionRulesTests
         Assert.Equal("DECISION_PROMPT_1", cautious.Pending!.DecisionId);
         Assert.Equal(new[] { CallAnswer.Bold, CallAnswer.Safe }, cautious.Pending.Options);
         Assert.Null(reckless.Pending);
-        NoticeBeat notice = reckless.Beats.OfType<NoticeBeat>().Single();
-        Assert.Equal((CallAnswer.Bold, false), (notice.Chose, notice.Blocked));
-        Assert.Equal((0, 1), (reckless.Result!.Calls, reckless.Result.Notices));
+        InitiativeBeat initiative = reckless.Beats.OfType<InitiativeBeat>().Single();
+        Assert.Equal((CallAnswer.Bold, false), (initiative.Chose, initiative.Blocked));
+        Assert.Equal((0, 1), (reckless.Result!.Calls, reckless.Result.Initiatives));
     }
 
     [Fact]
-    public void Blocked_comms_force_a_notice_unless_the_team_carries_comms_gear()
+    public void Blocked_comms_force_an_initiative_unless_the_team_carries_comms_gear()
     {
         EncounterDef blocked = Encounter(1, Stakes2, commsBlocked: true);
 
         MissionStep without = MissionResolver.Advance(Start(TestContent.Team(1, 1, 3), new Parameters(), blocked));
         MissionStep with = MissionResolver.Advance(Start(TestContent.Team(1, 1, 3), new Parameters(), ["comms"], blocked));
 
-        Assert.True(without.Beats.OfType<NoticeBeat>().Single().Blocked);
+        Assert.True(without.Beats.OfType<InitiativeBeat>().Single().Blocked);
         Assert.NotNull(with.Pending);
     }
 
@@ -274,9 +274,9 @@ public class MissionRulesTests
 
         MissionStep step = MissionResolver.Advance(state);
 
-        NoticeBeat notice = step.Beats.OfType<NoticeBeat>().Single();
-        Assert.Equal((DecisionIds.Abort, CallAnswer.Bold, true), (notice.DecisionId, notice.Chose, notice.Blocked));
-        Assert.Equal((0, 1), (step.Result!.Calls, step.Result.Notices));
+        InitiativeBeat initiative = step.Beats.OfType<InitiativeBeat>().Single();
+        Assert.Equal((DecisionIds.Abort, CallAnswer.Bold, true), (initiative.DecisionId, initiative.Chose, initiative.Blocked));
+        Assert.Equal((0, 1), (step.Result!.Calls, step.Result.Initiatives));
     }
 
     [Fact]

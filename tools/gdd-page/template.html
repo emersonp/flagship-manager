@@ -140,7 +140,7 @@ fieldset.q legend { font-weight: 600; padding: 0; display: flex; gap: .6rem; ali
     var thr = 3 - c - d / 2 + a, calls = 0, h = '';
     for (var s = 1; s <= 5; s++) {
       var isCall = s >= thr; if (isCall) calls++;
-      h += '<div class="' + (isCall ? 'call' : '') + '">Stakes<b>' + s + '</b>' + (isCall ? 'Call' : 'Notice') + '</div>';
+      h += '<div class="' + (isCall ? 'call' : '') + '">Stakes<b>' + s + '</b>' + (isCall ? 'Call' : 'Initiative') + '</div>';
     }
     $('k-thr').textContent = 'Ask threshold ' + thr + '. This lead calls on ' + calls + ' of 5 stakes levels.';
     $('k-stakes').innerHTML = h;

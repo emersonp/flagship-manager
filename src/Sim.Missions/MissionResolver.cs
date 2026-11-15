@@ -45,7 +45,7 @@ public static class MissionResolver
             AbortAsked = false,
             Chained = false,
             Calls = 0,
-            Notices = 0,
+            Initiatives = 0,
         };
 
         ulong draw = drawSeed ?? seed;
@@ -289,7 +289,7 @@ public static class MissionResolver
             }
         }
 
-        // A decision becomes a call or a notice (GDD 4.4).
+        // A decision becomes a call or an initiative (GDD 4.4).
         private void Raise(string decisionId, int stakes, EffectDef bold, EffectDef safe, string callId, bool alwaysCall)
         {
             TeamMember lead = Lead.Member;
@@ -310,8 +310,8 @@ public static class MissionResolver
             }
             else
             {
-                State.Notices++;
-                Beats.Add(new NoticeBeat(decisionId, stakes, threshold, lead.Id, prefers, blocked));
+                State.Initiatives++;
+                Beats.Add(new InitiativeBeat(decisionId, stakes, threshold, lead.Id, prefers, blocked));
                 Apply(prefers == CallAnswer.Bold ? bold : safe, callId);
             }
         }
@@ -412,7 +412,7 @@ public static class MissionResolver
         private void Finish(MissionOutcome outcome)
         {
             State.Result = new MissionResult(
-                outcome, State.Progress, State.Need, State.Calls, State.Notices,
+                outcome, State.Progress, State.Need, State.Calls, State.Initiatives,
                 State.Team.Select(m => new CrewResult(m.Member.Id, m.Status, m.Injury, new Dictionary<string, double>(m.Experience), m.Loyalty)).ToList());
             Beats.Add(new ResultBeat(outcome));
         }

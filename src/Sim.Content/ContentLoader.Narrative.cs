@@ -246,7 +246,7 @@ public static partial class ContentLoader
     }
 
     // The words written inside an encounter or an objective, as lines whose criteria are implied by where they sit: an encounter's
-    // arrival holds for its stage beat, an approach's tier text for that check, a decision's texts for its call, its notice, and
+    // arrival holds for its stage beat, an approach's tier text for that check, a decision's texts for its call, its initiative, and
     // the effects of each choice, and an objective's texts for its result. They join the shared pool, so salience ranks them with
     // the lines of lines/, and their implied criteria count like written ones.
     private static List<LineDef> BuildOwnedLines(
@@ -280,7 +280,7 @@ public static partial class ContentLoader
                 }
                 else
                 {
-                    string kind = key is "call" or "notice" or "attempt" ? key : beat;
+                    string kind = key is "call" or "initiative" or "attempt" ? key : beat;
                     CheckScript(text, NarrativeFacts.Beats[kind], symbolsById, skillIds, m => Error($"cannot be read: {m}"), m => Error($"cannot be used: {m}"));
                     if (errors.Count == before)
                     {
@@ -305,7 +305,7 @@ public static partial class ContentLoader
             if (dto.Decision is { Id: { } decision })
             {
                 var that = new CriterionDef("decision", [decision]);
-                Add(file, id, "decision.", dto.Decision.Text, NarrativeFacts.DecisionTexts, "effects", key => key is "call" or "notice" ? [that] : [that, new CriterionDef("chose", [key])]);
+                Add(file, id, "decision.", dto.Decision.Text, NarrativeFacts.DecisionTexts, "effects", key => key is "call" or "initiative" ? [that] : [that, new CriterionDef("chose", [key])]);
             }
         }
 

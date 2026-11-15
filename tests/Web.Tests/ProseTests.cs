@@ -146,7 +146,7 @@ public sealed class ProseTests : IDisposable
         List<string> sentences = report.Sentences.Select(Join).ToList();
         Assert.Contains(sentences, s => s.Contains(" called in: ", StringComparison.Ordinal));
         Assert.Contains(sentences, s => s.Contains(" injured at ", StringComparison.Ordinal) || s.Contains(" was incapacitated at ", StringComparison.Ordinal) || s.Contains(" was killed at ", StringComparison.Ordinal));
-        Assert.Equal(beats.Count(b => b.Beat is CallBeat) + beats.Count(b => b.Beat is NoticeBeat), report.Decisions.Count);
+        Assert.Equal(beats.Count(b => b.Beat is CallBeat) + beats.Count(b => b.Beat is InitiativeBeat), report.Decisions.Count);
         Assert.Contains(report.Decisions.Select(Join), d => d.Contains("; the captain answered ", StringComparison.Ordinal));
     }
 

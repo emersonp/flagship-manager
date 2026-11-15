@@ -130,7 +130,7 @@ h2 { font-size: var(--text-xl); line-height: 1.12; max-width: 30ch; }
 .beat__detail summary { cursor: pointer; width: fit-content; min-height: 1.75rem; display: flex; align-items: center; border-radius: var(--radius-inner); }
 .beat__detail p { margin: var(--space-2xs) 0 0; }
 .beat--injury .beat__kind, .beat--collapse .beat__kind, .beat--collapse .beat__text { color: var(--color-harm); }
-.beat--notice .beat__text { color: var(--color-muted); }
+.beat--initiative .beat__text { color: var(--color-muted); }
 .beat--result .beat__text { font-weight: 500; color: var(--color-ink); }
 .beat--stage { margin-top: var(--space-sm); padding-top: var(--space-md); border-top: var(--rule-hair) solid var(--color-rule); }
 .beat--stage:first-child { margin-top: 0; border-top: 0; padding-top: var(--space-xs); }

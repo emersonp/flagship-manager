@@ -64,7 +64,7 @@ public static class Report
     private static int? Rank(Beat beat) => beat switch
     {
         InjuryBeat b => b.Outcome == InjuryOutcome.Unharmed ? null : 1,
-        CallBeat or NoticeBeat or AnswerBeat or CollapseBeat or ResultBeat => 1,
+        CallBeat or InitiativeBeat or AnswerBeat or CollapseBeat or ResultBeat => 1,
         CheckBeat { Tier: Tier.Critical or Tier.Disaster } => 1,
         CheckBeat { Tier: Tier.Failure } or LeadChangeBeat => 2,
         StageBeat => 3,
@@ -79,14 +79,14 @@ public static class Report
         {
             "injury" => Text("outcome") != "unharmed",
             "check" => Text("tier") is "critical" or "disaster" or "failure",
-            "call" or "notice" or "answer" or "collapse" or "result" or "lead" or "stage" => true,
+            "call" or "initiative" or "answer" or "collapse" or "result" or "lead" or "stage" => true,
             _ => false,
         };
     }
 
     public static bool Reports(Beat beat) => Rank(beat) is not null;
 
-    // Each call with the captain's answer, and each notice with what the lead chose, in systems words.
+    // Each call with the captain's answer, and each initiative with what the lead chose, in systems words.
     private static List<IReadOnlyList<LinePart>> Decisions(IReadOnlyList<MissionBeat> beats, Names names)
     {
         var decisions = new List<IReadOnlyList<LinePart>>();
@@ -102,8 +102,8 @@ public static class Report
                     decisions.Add(BeatLines.Compose($"{new BeatLines.Nm(names.Decision(open.Call.DecisionId))}: called in by {new BeatLines.Nm(names.Crew(open.Call.LeadId))}; the captain answered {BeatLines.Words(answer.Answer)} ({BeatLines.Words(answer.Standing)})."));
                     open = null;
                     break;
-                case NoticeBeat notice:
-                    decisions.Add(BeatLines.Compose($"{new BeatLines.Nm(names.Decision(notice.DecisionId))}: {new BeatLines.Nm(names.Crew(notice.LeadId))} chose {BeatLines.Words(notice.Chose)} without calling{(notice.Blocked ? ", comms blocked" : string.Empty)}."));
+                case InitiativeBeat initiative:
+                    decisions.Add(BeatLines.Compose($"{new BeatLines.Nm(names.Decision(initiative.DecisionId))}: {new BeatLines.Nm(names.Crew(initiative.LeadId))} chose {BeatLines.Words(initiative.Chose)} without calling{(initiative.Blocked ? ", comms blocked" : string.Empty)}."));
                     break;
             }
         }

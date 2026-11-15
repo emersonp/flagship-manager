@@ -13,7 +13,7 @@ namespace Sim.Missions;
 [JsonDerivedType(typeof(LeadChangeBeat), "leadChange")]
 [JsonDerivedType(typeof(ChainBeat), "chain")]
 [JsonDerivedType(typeof(CallBeat), "call")]
-[JsonDerivedType(typeof(NoticeBeat), "notice")]
+[JsonDerivedType(typeof(InitiativeBeat), "initiative")]
 [JsonDerivedType(typeof(AnswerBeat), "answer")]
 [JsonDerivedType(typeof(CollapseBeat), "collapse")]
 [JsonDerivedType(typeof(ResultBeat), "result")]
@@ -58,7 +58,7 @@ public sealed record ChainBeat(string EncounterId) : Beat;
 
 public sealed record CallBeat(PendingCall Call) : Beat;
 
-public sealed record NoticeBeat(string DecisionId, int Stakes, double Threshold, string LeadId, CallAnswer Chose, bool Blocked) : Beat;
+public sealed record InitiativeBeat(string DecisionId, int Stakes, double Threshold, string LeadId, CallAnswer Chose, bool Blocked) : Beat;
 
 public sealed record AnswerBeat(CallAnswer Answer, CallStanding Standing, string LeadId) : Beat;
 

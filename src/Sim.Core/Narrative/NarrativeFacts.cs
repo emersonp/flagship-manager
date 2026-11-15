@@ -29,13 +29,13 @@ public static class NarrativeFacts
     public static readonly IReadOnlyList<string> Outcomes = ["fullSuccess", "partialSuccess", "withdrawal", "loss", "incomplete"];
 
     // The text an encounter, an approach, a decision, and an objective may carry for their own beats, by key. An encounter's
-    // "arrive" is its stage beat; an approach has a text per tier; a decision's "call" and "notice" are those beats and its "bold"
+    // "arrive" is its stage beat; an approach has a text per tier; a decision's "call" and "initiative" are those beats and its "bold"
     // and "safe" the effects beat that follows the choice; an objective has a text per outcome.
     public static readonly IReadOnlyList<string> EncounterTexts = ["arrive"];
 
     // An approach's "attempt" is said before the check's result is known, and its tier texts after.
     public static readonly IReadOnlyList<string> ApproachTexts = ["attempt", .. Tiers];
-    public static readonly IReadOnlyList<string> DecisionTexts = ["call", "notice", "bold", "safe"];
+    public static readonly IReadOnlyList<string> DecisionTexts = ["call", "initiative", "bold", "safe"];
 
     // Every person in a situation also has these facts, as "role.stat".
     public static readonly IReadOnlyList<FactSpec> PersonStats =
@@ -115,7 +115,7 @@ public static class NarrativeFacts
             [],
             ["decision"]),
         Beat(
-            "notice",
+            "initiative",
             [new("decision", FactType.Text, FactDomain.Decision), new("stakes", FactType.Number), new("chose", FactType.Text, FactDomain.Words, Answers), new("blocked", FactType.Flag)],
             [],
             ["decision"]),

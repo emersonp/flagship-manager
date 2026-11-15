@@ -78,8 +78,8 @@
     captain: #captainAsk#
     lead: We push on, or you bring us home.
     = #lead# called in to ask whether the team should be pulled out.
-- id: LINE_NOTICE
-  when: { beat: notice }
+- id: LINE_INITIATIVE
+  when: { beat: initiative }
   text: "#lead# made the call alone: #decision#."
 - id: LINE_ANSWER_BOLD
   when: { beat: answer, answer: bold }

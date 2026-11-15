@@ -45,7 +45,7 @@ public static partial class BeatLines
             LeadChangeBeat b => ("lead", Compose($"{Crew(b.CrewId)} becomes lead.")),
             ChainBeat b => ("chain", Compose($"Chain to {Encounter(b.EncounterId)}.")),
             CallBeat b => ("call", Compose($"{Crew(b.Call.LeadId)} calls: {Decision(b.Call.DecisionId)}. Stakes {b.Call.Stakes}.")),
-            NoticeBeat b => ("notice", Compose($"{Crew(b.LeadId)} decided {Decision(b.DecisionId)} without calling: chose {b.Chose}. Stakes {b.Stakes}.{(b.Blocked ? " Comms blocked." : string.Empty)}")),
+            InitiativeBeat b => ("initiative", Compose($"{Crew(b.LeadId)} decided {Decision(b.DecisionId)} without calling: chose {b.Chose}. Stakes {b.Stakes}.{(b.Blocked ? " Comms blocked." : string.Empty)}")),
             AnswerBeat b => ("answer", Compose($"Captain answers {b.Answer}: {Words(b.Standing)}.")),
             CollapseBeat => ("collapse", Compose($"Team collapse.")),
             ResultBeat b => ("result", Compose($"Result: {Words(b.Outcome)}.")),
@@ -109,7 +109,7 @@ public static partial class BeatLines
             case CallBeat b:
                 tags.Add($"stakes {b.Call.Stakes}");
                 break;
-            case NoticeBeat b:
+            case InitiativeBeat b:
                 tags.Add($"stakes {b.Stakes}");
                 tags.Add($"chose {Words(b.Chose)}");
                 break;

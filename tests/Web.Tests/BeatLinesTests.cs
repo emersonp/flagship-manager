@@ -21,7 +21,7 @@ public class BeatLinesTests
         new LeadChangeBeat("CREW_03"),
         new ChainBeat("ENCOUNTER_05"),
         new CallBeat(SampleCall),
-        new NoticeBeat("DECISION_2", 1, 2.5, "CREW_01", CallAnswer.Bold, true),
+        new InitiativeBeat("DECISION_2", 1, 2.5, "CREW_01", CallAnswer.Bold, true),
         new AnswerBeat(CallAnswer.Withdraw, CallStanding.Neutral, "CREW_01"),
         new CollapseBeat(),
         new ResultBeat(MissionOutcome.PartialSuccess),
@@ -49,7 +49,7 @@ public class BeatLinesTests
 
         Assert.Equal(kinds.Count, kinds.Distinct().Count());
         Assert.All(kinds, k => Assert.Matches("^[a-z]+$", k));
-        Assert.Equal(["stage", "skip", "check", "effects", "injury", "lead", "chain", "call", "notice", "answer", "collapse", "result"], kinds);
+        Assert.Equal(["stage", "skip", "check", "effects", "injury", "lead", "chain", "call", "initiative", "answer", "collapse", "result"], kinds);
     }
 
     private static CheckBeat Check(string? helper, bool supervised, Approach approach, int margin, Tier tier)
@@ -127,9 +127,9 @@ public class BeatLinesTests
     }
 
     [Fact]
-    public void A_notice_that_was_not_blocked_ends_after_the_stakes()
+    public void An_initiative_that_was_not_blocked_ends_after_the_stakes()
     {
-        Assert.Equal("CREW_01 decided DECISION_2 without calling: chose Safe. Stakes 2.", BeatLines.Line(0, new NoticeBeat("DECISION_2", 2, 1.5, "CREW_01", CallAnswer.Safe, false)).Text);
+        Assert.Equal("CREW_01 decided DECISION_2 without calling: chose Safe. Stakes 2.", BeatLines.Line(0, new InitiativeBeat("DECISION_2", 2, 1.5, "CREW_01", CallAnswer.Safe, false)).Text);
     }
 
     [Fact]

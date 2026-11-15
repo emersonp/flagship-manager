@@ -27,7 +27,7 @@ public static class BeatSituations
         InjuryBeat => "injury",
         LeadChangeBeat => "lead",
         CallBeat => "call",
-        NoticeBeat => "notice",
+        InitiativeBeat => "initiative",
         AnswerBeat => "answer",
         CollapseBeat => "collapse",
         ResultBeat => "result",
@@ -105,7 +105,7 @@ public static class BeatSituations
                 case CallBeat b:
                     decision = b.Call.DecisionId;
                     break;
-                case NoticeBeat b:
+                case InitiativeBeat b:
                     decision = b.DecisionId;
                     chose = Word(b.Chose);
                     break;
@@ -170,7 +170,7 @@ public static class BeatSituations
                     }
 
                     facts["withdraw"] = FactValue.Of(b.Effects.Withdraw);
-                    // Effects follow a notice or an answer, so the decision and what was chosen are the ones just seen.
+                    // Effects follow an initiative or an answer, so the decision and what was chosen are the ones just seen.
                     if (decision is not null && chose is not null)
                     {
                         Decision(decision);
@@ -193,7 +193,7 @@ public static class BeatSituations
                     facts["stakes"] = FactValue.Of(b.Call.Stakes);
                     facts["prefers"] = FactValue.Of(Word(b.Call.LeadPrefers));
                     break;
-                case NoticeBeat b:
+                case InitiativeBeat b:
                     Decision(b.DecisionId);
                     facts["stakes"] = FactValue.Of(b.Stakes);
                     facts["chose"] = FactValue.Of(Word(b.Chose));

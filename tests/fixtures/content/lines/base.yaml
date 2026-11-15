@@ -46,8 +46,8 @@
 - id: LINE_CALL
   when: { beat: call }
   text: "#lead# called in: #decision#."
-- id: LINE_NOTICE
-  when: { beat: notice }
+- id: LINE_INITIATIVE
+  when: { beat: initiative }
   text: "#lead# decided #decision# without calling."
 - id: LINE_ANSWER_BOLD
   when: { beat: answer, answer: bold }

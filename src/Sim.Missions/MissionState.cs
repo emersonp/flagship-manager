@@ -71,7 +71,7 @@ public sealed class MissionState
 
     public required int Calls { get; set; }
 
-    public required int Notices { get; set; }
+    public required int Initiatives { get; set; }
 }
 
 public static class MissionJson

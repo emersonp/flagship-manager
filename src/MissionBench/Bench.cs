@@ -13,7 +13,7 @@ public static class Bench
         var experience = new SortedDictionary<string, double>(StringComparer.Ordinal);
         var encounters = new SortedDictionary<string, EncounterTally>(StringComparer.Ordinal);
         var stages = new List<StageTally>();
-        int crewMissions = 0, deaths = 0, incapacitated = 0, calls = 0, notices = 0, worst = -1;
+        int crewMissions = 0, deaths = 0, incapacitated = 0, calls = 0, initiatives = 0, worst = -1;
         ulong worstSeed = options.Seed;
 
         for (int i = 0; i < options.Runs; i++)
@@ -21,7 +21,7 @@ public static class Bench
             MissionTrace trace = Replay(pack, tuning, options, options.Seed + (ulong)i);
             outcomes[trace.Result.Outcome]++;
             calls += trace.Result.Calls;
-            notices += trace.Result.Notices;
+            initiatives += trace.Result.Initiatives;
             crewMissions += trace.Result.Crew.Count;
             int harm = 0;
             foreach (CrewResult crew in trace.Result.Crew)
@@ -77,7 +77,7 @@ public static class Bench
             deaths,
             incapacitated,
             calls,
-            notices,
+            initiatives,
             experience.ToDictionary(e => e.Key, e => e.Value / options.Runs),
             encounters.Select(e => new EncounterFigures(e.Key, e.Value.Checks, e.Value.Careful, e.Value.Checks - e.Value.Careful, e.Value.Tiers, e.Value.Deaths, e.Value.Incapacitated)).ToList(),
             stages.Select((s, i) => new StageFigures(i + 1, s.Reached, s.Momentum / s.Reached, s.Strain / s.Reached)).ToList(),

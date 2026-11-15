@@ -139,7 +139,7 @@ The crew members sent on one mission, with a loadout and operational parameters.
 _Avoid_: Squad, party
 
 **Team lead**:
-The away team member whose personality decides whether a decision becomes a call or a notice.
+The away team member whose personality decides whether a decision becomes a call or an initiative.
 
 **Operational parameters**:
 The captain's standing instructions to an away team: priority, risk tolerance, and how readily to call in.
@@ -167,15 +167,15 @@ The running advantage a team carries forward from good outcomes within a mission
 The running burden a team carries forward from bad outcomes within a mission.
 
 **Decision**:
-A choice arising in an encounter. It becomes either a call or a notice.
+A choice arising in an encounter. It becomes either a call or an initiative.
 
 **Call**:
 A decision the team lead refers to the captain. The mission waits for the answer.
 _Avoid_: Callback, interrupt
 
-**Notice**:
+**Initiative**:
 A decision the team lead made alone and reported afterwards.
-_Avoid_: FYI, report-after
+_Avoid_: Notice, FYI, report-after
 
 **Stakes**:
 The graded weight of a decision or storylet. Compared against a threshold to decide who resolves it.

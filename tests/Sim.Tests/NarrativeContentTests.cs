@@ -95,6 +95,17 @@ public class NarrativeContentTests
         return ContentLoader.Load(files);
     }
 
+    // The old key must fail loudly, not be dropped: an author's words would vanish otherwise.
+    [Fact]
+    public void A_decision_text_keyed_notice_is_refused()
+    {
+        ContentLoadResult result = LoadEncounter1(
+            "  approaches:\n    careful: { skill: SKILL_A, difficulty: 5 }\n    fast: { skill: SKILL_C, difficulty: 6 }\n"
+            + "  decision:\n    id: DECISION_PROMPT_1\n    stakes: 1\n    bold: [{ momentum: 1 }]\n    safe: []\n    text:\n      notice: \"TEXT\"\n");
+
+        Assert.Contains(result.Errors, e => e.Message.Contains("notice", StringComparison.Ordinal));
+    }
+
     // An encounter's own words become lines whose criteria are where they sit, so they outrank the shared lines for their beats.
     [Fact]
     public void An_encounters_own_text_becomes_lines_for_its_beats()
@@ -102,14 +113,14 @@ public class NarrativeContentTests
         ContentLoadResult result = LoadEncounter1(
             "  text:\n    arrive: \"#lead# reached #encounter#.\"\n"
             + "  approaches:\n    careful:\n      skill: SKILL_A\n      difficulty: 5\n      text:\n        failure: \"#actor# slipped, and #actor.they# #actor:knows|know# it.\"\n    fast: { skill: SKILL_C, difficulty: 6 }\n"
-            + "  decision:\n    id: DECISION_PROMPT_1\n    stakes: 1\n    bold: [{ momentum: 1 }]\n    safe: []\n    text:\n      call: \"#lead# asked about #decision#.\"\n      notice: \"#lead# settled #decision#.\"\n      bold: The bold choice held.\n      safe: The safe choice held.\n");
+            + "  decision:\n    id: DECISION_PROMPT_1\n    stakes: 1\n    bold: [{ momentum: 1 }]\n    safe: []\n    text:\n      call: \"#lead# asked about #decision#.\"\n      initiative: \"#lead# settled #decision#.\"\n      bold: The bold choice held.\n      safe: The safe choice held.\n");
 
         Assert.Empty(result.Errors);
         List<LineDef> owned = result.Pack!.Lines.Where(l => l.Owner == "ENCOUNTER_01").ToList();
         Assert.Equal(
-            ["ENCOUNTER_01.arrive", "ENCOUNTER_01.careful.failure", "ENCOUNTER_01.decision.call", "ENCOUNTER_01.decision.notice", "ENCOUNTER_01.decision.bold", "ENCOUNTER_01.decision.safe"],
+            ["ENCOUNTER_01.arrive", "ENCOUNTER_01.careful.failure", "ENCOUNTER_01.decision.call", "ENCOUNTER_01.decision.initiative", "ENCOUNTER_01.decision.bold", "ENCOUNTER_01.decision.safe"],
             owned.Select(l => l.Id));
-        Assert.Equal(["stage", "check", "call", "notice", "effects", "effects"], owned.Select(l => l.Beat));
+        Assert.Equal(["stage", "check", "call", "initiative", "effects", "effects"], owned.Select(l => l.Beat));
         Assert.Equal(["encounter=ENCOUNTER_01", "approach=careful", "tier=failure"], owned[1].When.Select(c => $"{c.Fact}={c.Values.Single()}"));
         Assert.Equal(["decision=DECISION_PROMPT_1", "chose=bold"], owned[4].When.Select(c => $"{c.Fact}={c.Values.Single()}"));
         Assert.Equal(4, owned[1].Specificity);

@@ -177,13 +177,13 @@ public class SimulationTests
         Assert.Equal(with_.Legacies.Select(l => l.LogHash), without.Legacies.Select(l => l.LogHash));
     }
 
-    // Golden seed: this hash changes only when behaviour changes. If the change is intended, update it in the same commit and say why.
+    // Golden seed: this hash changes only when behaviour changes. If the change is intended, update it in the same commit and say why. Re-pinned: the notice beat is named initiative.
     // Re-pinned in slice 1d: check beats gained MomentumAfter and StrainAfter (additive; no rule changed).
     [Fact]
     public void Golden_seed_1_matches_the_accepted_log()
     {
         SimSummary summary = Simulation.Run(new SimOptions(Legacies: 1, Cycles: 10, Seed: 1), Pack);
 
-        Assert.Equal("41E42F6CDF37221E3CE22D4543A5C2A29969E5B72E19AA20FE126052F50E7170", summary.Legacies[0].LogHash);
+        Assert.Equal("C47700744A81CEF1DB0AB8E3FC90D5E0B64E86D7448C4CDB7196A044D677C92E", summary.Legacies[0].LogHash);
     }
 }

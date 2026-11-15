@@ -41,7 +41,7 @@ One cycle has five strict phases. The **duty roster** sits outside them and can 
 
 1. **Orders.** The inbox shows the current site and its objectives. Between assignments it shows the assignments on offer, or the mandate. Declining a mandate needs enough Admiralty standing, and costs some of it.
 2. **Briefing.** The player chooses which objectives to attempt and builds one away team for each, up to three. For each team they name the lead, choose a loadout from requisition, and set **operational parameters**.
-3. **Resolution.** Missions advance encounter by encounter on one interleaved timeline. **Calls** pause a mission until answered; **notices** arrive as they happen. Unattended objectives resolve at the end.
+3. **Resolution.** Missions advance encounter by encounter on one interleaved timeline. **Calls** pause a mission until answered; **initiatives** arrive as they happen. Unattended objectives resolve at the end.
 4. **Aftermath.** Reports, injuries, and growth land. Storylets fire. The player spends **captain's time**. Department heads resolve what falls below their threshold and file a **digest**.
 5. **Advance.** Unattended storylines progress, time moves on by the cycle's length, offers expire, and the event log is committed.
 
@@ -357,20 +357,20 @@ Momentum and strain are the "dungeon" memory. Both carry between encounters and 
 
 A mission ends in one of five results: full success, partial success, incomplete, withdrawal, or loss. Incomplete means the team played every stage and achieved too little; withdrawal means only that someone chose to pull out. Withdrawing when the lead preferred the safe option does not count as overruling them. Death comes only from a failed severe injury roll: on a disaster, on a bold option that risks one, or in a collapse.
 
-### 4.4 Decisions: call or notice
+### 4.4 Decisions: call or initiative
 
 When an encounter has a decision:
 
 ```
 askThreshold = 3 − (lead.caution / 2) − (lead.discipline / 4) + parameters.autonomy
 if decision.stakes >= askThreshold  → call (mission waits for the captain)
-else                                → notice (lead picks the option their personality prefers)
+else                                → initiative (lead picks the option their personality prefers)
 ```
 
 - The player names each team's lead, defaulting to the highest rank. Choosing the lead is choosing what you will be asked.
 - `parameters.autonomy` runs from −1 ("check in often") to +1 ("use your judgement"). This is the player's lever on how many calls they get.
-- A cautious, disciplined lead calls about most things. A reckless one mostly sends notices, some of which the captain would not have chosen. Lead and autonomy weigh about equally: on the prototype's bench a cautious lead makes 3.1, 2.5, or 1.2 calls per mission across the three autonomy settings, and a reckless one 0.8, 0.2, or 0.2.
-- Some encounters set `commsBlocked`, forcing a notice whatever the lead is like. Who you sent matters most then.
+- A cautious, disciplined lead calls about most things. A reckless one mostly takes initiatives, some of which the captain would not have chosen. Lead and autonomy weigh about equally: on the prototype's bench a cautious lead makes 3.1, 2.5, or 1.2 calls per mission across the three autonomy settings, and a reckless one 0.8, 0.2, or 0.2.
+- Some encounters set `commsBlocked`, forcing an initiative whatever the lead is like. Who you sent matters most then.
 - Overruling a lead's stated preference on a call costs a little of their loyalty; backing them raises it.
 
 Expected volume: most missions produce zero to two calls. A site worked by three teams produces more in total, by design.
@@ -492,7 +492,7 @@ Staffing the insight roles well is therefore how a captain of 500 sees the ship 
 - **Engine**: a Tracery-style grammar, expanded with a seed derived from the legacy, mission, and beat index. The same input always gives the same text.
 - **Selection by salience**: every line carries criteria over its beat and the qualities of the people in it: encounter, variant, approach, tier, tags, and context, and later personality, traits, and relationships. Of the lines whose criteria all hold, the one with the most criteria wins; ties break by the seed and the repetition memory. This is the rule-matching approach of Elan Ruskin's dialogue system for Left 4 Dead (section 5). The fixed fallback chain first proposed here (encounter + variant + tier, then encounter + tier, then tags + tier, then tier alone) is a special case of it. The author can start with a handful of generic lines and add specific ones where they matter, and a specific line never needs a change to the generic ones.
 - **Modifiers**: name, rank, pronoun, and species forms; personality-keyed word choices (`#actor.manner#`); relationship-aware inserts when two actors with a strong edge share a beat.
-- **Assembly**: a report is a header (mission, teams, result), three to eight beat sentences, the decisions (calls and notices, marked differently), and a plain table of consequences.
+- **Assembly**: a report is a header (mission, teams, result), three to eight beat sentences, the decisions (calls and initiatives, marked differently), and a plain table of consequences.
 - **Repetition control**: the engine keeps a short memory per legacy of recently used expansions and avoids them.
 - **One engine, three uses**: mission reports, vignette text, and chronicle entries.
 - **Lint**: a content check expands every symbol against generated beats and fails on missing symbols, unbound variables, and unreachable lines.
@@ -503,14 +503,14 @@ Built in slice 1d (`Sim.Narrative`; design and plan in `docs/plans/2026-11-14-ph
 
 - **Situations.** Each beat becomes a situation: a flat set of facts (the encounter and its tags, the stage, momentum, strain, and the beat's own facts, such as a check's tier and margin) and the people in it by role (`actor`, `helper`, `lead`, `crew`), with their stats as facts (`actor.caution`). `Sim.Core` lists the facts of every beat kind; the loader, the editor, and the mapping in `Sim.Missions` all read that one catalogue. `Sim.Narrative` knows nothing of missions, so vignettes and the chronicle can build situations of their own.
 - **Lines** have a beat, criteria, and text. A criterion is a value, any of several values, or a range (`actor.caution: { min: 1 }`). The most specific line whose criteria all hold wins; a line already used in the mission loses to an equally specific fresh one; ties break by a stable hash of the legacy seed, the mission, and the beat.
-- **Where lines live** (revised after slice 1d, on the author's note that an encounter's narrative belongs in the encounter). There is one pool and one rule of selection, but two places to write. A line about one encounter or one objective is written inside that item: as `text` for its own beats (an encounter's arrival, each approach by tier, a decision's call, notice, and the effects of each choice; an objective's result by outcome), or as an entry in its `lines` for any other beat, with criteria of its own. The item is an implied criterion, so its own words outrank a shared line that tests the same things. The shared lines (`content/lines/`) hold only what belongs to no one item (injuries, the lead, the captain's answers, words keyed to personality) and the general fallbacks.
+- **Where lines live** (revised after slice 1d, on the author's note that an encounter's narrative belongs in the encounter). There is one pool and one rule of selection, but two places to write. A line about one encounter or one objective is written inside that item: as `text` for its own beats (an encounter's arrival, each approach by tier, a decision's call, initiative, and the effects of each choice; an objective's result by outcome), or as an entry in its `lines` for any other beat, with criteria of its own. The item is an implied criterion, so its own words outrank a shared line that tests the same things. The shared lines (`content/lines/`) hold only what belongs to no one item (injuries, the lead, the captain's answers, words keyed to personality) and the general fallbacks.
 - **Scripts** (slice 1d authoring, `docs/plans/2026-11-15-phase-1d-authoring-design.md`). A line's text is one sentence or a script, one entry to a line: `lead: words` is speech, `> words` a system note, anything else narration, and a last line `= sentence` is what the report says. A speaker is one of the beat's people, `captain`, or `best SKILL_ID`: whoever still standing is best at that skill, the lead aside. An entry whose speaker is not there is left out and the rest plays. A text of `-` alone says nothing. An approach's `attempt` text is said before its check's result is shown. A call's script is shown on the call itself, and the decision's `labels` name its answer buttons.
 - **The log and the report.** There is no separate report line. A one-sentence line is its own report sentence, so it is written in the past tense, as a ship's log is. A script gives the report its `=` sentence; one that gives none leaves the report to the shared line for that beat.
 - **Text**: `#symbol#`, names by role (`#actor#`, `#encounter#`), pronouns (`#actor.they#`, `.them`, `.their`, `.theirs`, `.themself`), a verb after a pronoun (`#actor.they# #actor:checks|check#`), `.capitalize`, and `##` for a `#`. **Symbols** (`content/symbols/`) give one of their options; **pronoun sets** (`content/pronouns/`) ship as she, he, and they, and a crew member names one (they by default).
 - **Never stored, never random.** Text is regenerated on every view from the beats and the current pack, so a grammar edit shows at once, even in old missions. It draws from no RNG stream: the event log is identical with or without lines.
 - **Fallback.** A beat no authored line holds for shows the structural systems line, so a pack with no lines still plays. The loader refuses criteria and text that can never hold for their beat kind.
 - **Tags.** Every log line ends with generated figures for what its beat changed (a check's tier and margin, and its momentum and strain changes, from two members the check beat gained in this slice). Lines never author them, so every line cites what changed (risk 2).
-- **The report** in the aftermath: three to eight of the log's sentences, in order, chosen from the beats that mattered (injuries and deaths, calls, notices, answers, the collapse, and the result always; then failures and lead changes; then stage openers to make three), and each call and notice with its answer.
+- **The report** in the aftermath: three to eight of the log's sentences, in order, chosen from the beats that mattered (injuries and deaths, calls, initiatives, answers, the collapse, and the result always; then failures and lead changes; then stage openers to make three), and each call and initiative with its answer.
 - **Not yet**: encounter variants and assignment contexts as criteria, relationship-aware inserts, species forms, repetition memory across missions, and the expression language as a criterion (slice 1e).
 
 ### 6.1 Writing lines
@@ -587,7 +587,7 @@ Some facts are lists, such as an encounter's tags, and for those the criterion a
 | check | Someone attempts something | `approach` (careful or fast), `skill`, `tier` (critical, success, partial, failure, or disaster), `margin`, `helped`, `supervised`, `mentoring` | actor, helper (when there is one), lead |
 | injury | Someone rolls against injury | `severity` (light or severe), `outcome` (unharmed, lightInjury, incapacitated, or dead) | crew, lead |
 | call | The lead asks the captain | `decision`, `stakes` (1 to 5), `prefers` (bold, safe, or withdraw) | lead |
-| notice | The lead decided alone | `decision`, `stakes`, `chose`, `blocked` (comms were down) | lead |
+| initiative | The lead decided alone | `decision`, `stakes`, `chose`, `blocked` (comms were down) | lead |
 | answer | The captain replies | `decision`, `answer`, `standing` (backed, overruled, or neutral) | lead |
 | effects | A decision takes effect | `decision`, `chose` (bold, safe, or withdraw), `progress`, `momentumChange`, `strainChange`, `injuryRoll`, `withdraw` | lead |
 | lead | Someone takes over as lead | | crew (the new lead), lead |
@@ -631,7 +631,7 @@ The cliff, as three small pieces in one encounter: the fast approach's Before th
 
 **The numbers take care of themselves.** No line needs figures. Every log line ends with small tags for what changed (the check's tier and margin, a momentum or strain change, an injury outcome), and the full roll is one click away under "Roll". Sentences can stay purely narrative.
 
-**What the report uses.** In mission order: always injuries that hurt someone, deaths, calls, notices, the captain's answers, a collapse, critical and disastrous checks, and the result; then failed checks and changes of lead while there is room, up to eight sentences; then arrivals at stages to make at least three. For each it uses the line's report sentence: the sentence itself for a one-sentence line, the `=` line for a script. Plain successes and partials never reach the report.
+**What the report uses.** In mission order: always injuries that hurt someone, deaths, calls, initiatives, the captain's answers, a collapse, critical and disastrous checks, and the result; then failed checks and changes of lead while there is room, up to eight sentences; then arrivals at stages to make at least three. For each it uses the line's report sentence: the sentence itself for a one-sentence line, the `=` line for a script. Plain successes and partials never reach the report.
 
 **A sensible way to work.**
 
@@ -748,7 +748,7 @@ How content multiplies, using the example sizes of 10 objective templates, 20 en
 
 That headline number flatters the design. Players do not perceive skeletons; they perceive situations. The useful measure is distinct beats:
 
-`20 encounters × 4 variants × about 3 approaches × 5 tiers × about 3 lead dispositions (call, notice in line with the captain, notice against) ≈ 3,600 distinct beats from 80 authored encounter variants.`
+`20 encounters × 4 variants × about 3 approaches × 5 tiers × about 3 lead dispositions (call, initiative in line with the captain, initiative against) ≈ 3,600 distinct beats from 80 authored encounter variants.`
 
 Each addition's yield:
 
@@ -774,7 +774,7 @@ Built in Phase 0 and run on every change.
   - How often a site offers only one objective, and how unattended objectives turn out.
   - Deaths and severe injuries per 100 crew-missions.
   - Skill growth curves by policy.
-  - Calls and notices per mission, and per cycle.
+  - Calls and initiatives per mission, and per cycle.
   - Captain's time demanded against budget.
   - Morale distribution, departures, and poaching rate.
   - Usage and win-rate lift of each gear item, trait, and approach.
@@ -804,7 +804,7 @@ A second simulator mode that answers one question: is this mission balanced? It 
 - **Output**:
   - Result distribution (full success, partial, incomplete, withdrawal, or loss).
   - Deaths and severe injuries per run, and which encounter caused them.
-  - Calls and notices per run.
+  - Calls and initiatives per run.
   - Experience earned per team member.
   - Per-encounter tier distribution, and how often each approach was chosen.
   - Momentum and strain at each stage, to show where runs are won or lost.
@@ -822,7 +822,7 @@ Each phase ends with something playable, a simulator run, and a short list of wh
 | 0. Skeleton | Core, bus, event log, content loader and validator, RNG streams, `SimRunner` running an empty cycle | Nothing to play; a green simulator run |
 | 1. Thinnest game | 8 crew, 1 skill set, 1 single-cycle assignment template, 2 objective templates, 1 team, 6 encounters, checks with tiers, momentum and strain, 1 decision with the call rule, text report; mission bench (command line, then developer page) with the tuning file and tuning page; morale; 5 vignettes and 2 captain storylets; captain's time; inbox and crew file; chronicle list | A full cycle of both layers in the browser |
 | 2. Growth and loss | Experience, mentoring, injuries, death, memorials, several objectives at some sites, unattended objectives, mandates | The central trade-off exists |
-| 3. Who you send | Personality-driven calls and notices, operational parameters, gear and requisition | Team choice changes what you are asked |
+| 3. Who you send | Personality-driven calls and initiatives, operational parameters, gear and requisition | Team choice changes what you are asked |
 | 4. Life aboard | Relationships, storylines with `ifIgnored` and progress flags, ready-room talks, vignette budget, discretionary actions | Ignored problems get worse |
 | 5. Roster | Departments, org chart, duty roster, shipboard training, department heads, digest, insight; finer skills grouped by department and attribute, with grades seen through insight | Football Manager's weekday |
 | 6. Careers | Ageing, ranks and promotion, ambitions, poaching, personal and ship renown, Admiralty standing | Rosters turn over |

@@ -15,7 +15,7 @@ public sealed record BenchFigures(
     int Deaths,
     int Incapacitated,
     int Calls,
-    int Notices,
+    int Initiatives,
     IReadOnlyDictionary<string, double> ExperienceByMember,
     IReadOnlyList<EncounterFigures> Encounters,
     IReadOnlyList<StageFigures> Stages,

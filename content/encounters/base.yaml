@@ -50,7 +50,7 @@
         captain: #captainAsk#
         lead: We thread it, or we go around the long way. Your call.
         = #lead# called in from the #encounter# about a shortcut through the dense band.
-      notice: "#lead# weighed the gap in the dense band and made the call without raising the ship."
+      initiative: "#lead# weighed the gap in the dense band and made the call without raising the ship."
       bold: The team threaded the gap, faster for it and a little more worn.
       safe: The team went around the dense band and lost nothing but time.
     labels:
@@ -109,7 +109,7 @@
         captain: #captainAsk#
         lead: We walk through and dare them to stop us, or we sit down and wait them out.
         = #lead# called in a standoff with the salvagers.
-      notice: "#lead# settled the standoff with the salvagers without calling it in."
+      initiative: "#lead# settled the standoff with the salvagers without calling it in."
       bold: The team walked through the picket, and someone on the other side threw the first punch.
       safe: The team waited the salvagers out, and tempers cooled on both sides.
     labels:
@@ -158,7 +158,7 @@
         captain: #captainAsk#
         lead: Cut it and take what comes, or keep working it and lose our momentum.
         = #lead# called in from the #encounter#: the last seal would not release.
-      notice: "#lead# decided how to deal with the last seal of the #encounter# without calling."
+      initiative: "#lead# decided how to deal with the last seal of the #encounter# without calling."
       bold: |-
         > Seal cut. Unknown systems responding.
         = The team cut the last seal, and the station noticed.
@@ -259,7 +259,7 @@
         captain: #captainAsk#
         lead: Tap it live and risk whoever is holding the line, or shut it down first and take what's left. I need your word, Captain.
         = #lead# called in from the #encounter#: a live tap would take everything it held, at a risk.
-      notice: "#lead# made the decision about the live tap alone, with no time to ask."
+      initiative: "#lead# made the decision about the live tap alone, with no time to ask."
       bold: |-
         > Tap engaged. Surge.
         = The team tapped the #encounter# live and took everything it held.
@@ -316,7 +316,7 @@
         captain: #captainAsk#
         lead: Follow its route, or trust our own.
         = #lead# called in from the #encounter#: an old caretaker had offered the team a route.
-      notice: |-
+      initiative: |-
         > No carrier.
         = Out of contact in the #encounter#, #lead# decided alone whether to trust the caretaker.
       bold: The team followed the caretaker's route, deeper and faster than they would have dared alone.
@@ -391,7 +391,7 @@
         captain: #captainAsk#
         lead: Ride it down, or take the slow way.
         = #lead# called in from the #encounter# about riding the car down unpowered.
-      notice: "#lead# decided about the unpowered descent without calling."
+      initiative: "#lead# decided about the unpowered descent without calling."
       bold: The team rode the car down unpowered, and the brakes caught late.
       safe: The team took the slow way down.
     labels:

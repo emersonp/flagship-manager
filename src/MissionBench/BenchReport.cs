@@ -21,7 +21,7 @@ public static class BenchReport
             ("Deaths per 100 crew-missions", f => 100.0 * f.Deaths / f.CrewMissions, "0.0"),
             ("Incapacitated per 100 crew-missions", f => 100.0 * f.Incapacitated / f.CrewMissions, "0.0"),
             ("Calls per mission", f => (double)f.Calls / f.Runs, "0.00"),
-            ("Notices per mission", f => (double)f.Notices / f.Runs, "0.00"),
+            ("Initiatives per mission", f => (double)f.Initiatives / f.Runs, "0.00"),
         };
         foreach (string member in columns.SelectMany(c => c.Figures.ExperienceByMember.Keys).Distinct().Order(StringComparer.Ordinal))
         {
@@ -106,7 +106,7 @@ public static class BenchReport
             LeadChangeBeat b => Inv($"  {b.CrewId} takes the lead."),
             ChainBeat b => Inv($"  The disaster adds {b.EncounterId}."),
             CallBeat b => Inv($"  CALL {b.Call.DecisionId} (stakes {b.Call.Stakes}, threshold {b.Call.Threshold:0.00}): {b.Call.LeadId} prefers {b.Call.LeadPrefers}."),
-            NoticeBeat b => Inv($"  Notice {b.DecisionId} (stakes {b.Stakes}, threshold {b.Threshold:0.00}): {b.LeadId} chose {b.Chose}{(b.Blocked ? ", comms blocked" : "")}."),
+            InitiativeBeat b => Inv($"  Initiative {b.DecisionId} (stakes {b.Stakes}, threshold {b.Threshold:0.00}): {b.LeadId} chose {b.Chose}{(b.Blocked ? ", comms blocked" : "")}."),
             AnswerBeat b => Inv($"  The captain answers {b.Answer}{Standing(b.Standing)}."),
             CollapseBeat => "  The mission collapses under strain.",
             ResultBeat b => Inv($"Result: {b.Outcome}."),

@@ -25,7 +25,7 @@ public class MissionWalkthroughTests
     {
         (_, List<Beat> beats, _) = TestContent.Play(TestContent.Team(1, 1, 3, 5), seed: 1);
 
-        Assert.Contains(beats.OfType<NoticeBeat>(), n => n.Blocked && n.Stakes >= n.Threshold);
+        Assert.Contains(beats.OfType<InitiativeBeat>(), n => n.Blocked && n.Stakes >= n.Threshold);
     }
 
     [Fact]
@@ -112,14 +112,14 @@ public class MissionWalkthroughTests
         Assert.All(MissionResolver.Advance(restored).Beats.OfType<CheckBeat>(), c => Assert.True(c.Target >= 25));
     }
 
-    // Golden mission: this hash changes only when the resolver's behaviour changes. If the change is intended, update it in the same commit and say why.
+    // Golden mission: this hash changes only when the resolver's behaviour changes. If the change is intended, update it in the same commit and say why. Re-pinned: the notice beat is named initiative.
     // Re-pinned in slice 1d: check beats gained MomentumAfter and StrainAfter (additive; no rule changed).
     [Fact]
     public void Golden_mission_matches_the_accepted_beats()
     {
         (_, List<Beat> beats, _) = TestContent.Play(TestContent.Team(1, 1, 3, 5), seed: 1);
 
-        Assert.Equal("8C5AD4514A406C097614B4F5B1AAD5B246DC0628AF68B13C54B8B0CF8E89A802", Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(Json(beats)))));
+        Assert.Equal("CC6FBF7EEDADF1079502E66794A1EC19EF85133AA83D98E844330F6CC9B426F1", Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(Json(beats)))));
     }
 
     // Replays injuries from the beats to find the score the senior would have had acting as best qualified.

@@ -27,7 +27,7 @@ CHECK = '''<div class="widget" id="check-calc"><p class="wlabel">Try it: the che
 <p class="wout" id="c-score"></p>
 <div class="bar" id="c-bar" role="img" aria-label="Outcome probabilities"></div>
 <ul class="legend" id="c-legend"></ul></div>'''
-CALL = '''<div class="widget" id="call-calc"><p class="wlabel">Try it: call or notice</p>
+CALL = '''<div class="widget" id="call-calc"><p class="wlabel">Try it: call or initiative</p>
 <div class="wgrid">
 <label>Lead caution <input type="range" id="k-caution" min="-2" max="2" step="1" value="1"><output id="k-caution-o"></output></label>
 <label>Lead discipline <input type="range" id="k-disc" min="-2" max="2" step="1" value="0"><output id="k-disc-o"></output></label>

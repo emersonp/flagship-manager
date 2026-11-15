@@ -60,7 +60,7 @@ internal static class Plays
         ["injury"] = "Injury",
         ["lead"] = "Lead change",
         ["call"] = "The lead calls in",
-        ["notice"] = "The lead decides alone",
+        ["initiative"] = "The lead decides alone",
         ["answer"] = "The captain answers",
         ["collapse"] = "Team collapse",
         ["result"] = "Result",
@@ -297,11 +297,11 @@ internal static class Plays
                 true,
                 [
                     new Slot("decision.text.call", "The lead calls it in", $"{item.Id}.decision.call", "call", [that]),
-                    new Slot("decision.text.notice", "The lead decides alone", $"{item.Id}.decision.notice", "notice", [that]),
+                    new Slot("decision.text.initiative", "The lead decides alone", $"{item.Id}.decision.initiative", "initiative", [that]),
                     new Slot("decision.text.bold", "The bold choice takes effect", $"{item.Id}.decision.bold", "effects", [that, new CriterionDef("chose", ["bold"])]),
                     new Slot("decision.text.safe", "The safe choice takes effect", $"{item.Id}.decision.safe", "effects", [that, new CriterionDef("chose", ["safe"])]),
                 ],
-                ["call", "notice"],
+                ["call", "initiative"],
                 Labels: true));
             groups.Add(new Group("answer", "The captain answers", null, false, [], ["answer"]));
         }
@@ -319,7 +319,7 @@ internal static class Plays
         var groups = new List<Group> { new("result", "Result", "What the log and the report say when a mission for this objective ends, by outcome.", true, results, ["result"]) };
         groups.Add(new Group("stage", "Arrival at an encounter", "Lines here hold at every encounter of a mission for this objective.", false, [], ["stage"]));
         groups.Add(new Group("checks", "Checks", null, false, [], ["attempt", "check"]));
-        foreach (string beat in new[] { "effects", "injury", "lead", "call", "notice", "answer", "skip", "chain", "collapse" })
+        foreach (string beat in new[] { "effects", "injury", "lead", "call", "initiative", "answer", "skip", "chain", "collapse" })
         {
             groups.Add(new Group(beat, Title(beat), null, beat == "injury", [], [beat]));
         }
@@ -471,7 +471,7 @@ internal static class Plays
                 facts["prefers"] = FactValue.Of("safe");
                 words["decision"] = DecisionName(item, names, decision);
                 break;
-            case "notice":
+            case "initiative":
                 facts["decision"] = FactValue.Of(decision);
                 facts["stakes"] = FactValue.Of(item.Stakes);
                 facts["chose"] = FactValue.Of("safe");
