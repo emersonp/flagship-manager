@@ -1,0 +1,183 @@
+using Microsoft.AspNetCore.Components;
+using Microsoft.Extensions.DependencyInjection;
+using Sim.Core;
+using Sim.Core.Content;
+using Sim.Missions;
+using Web.Bridge;
+using Web.Components;
+
+namespace Web.Tests;
+
+// The mission as prose (slice 1d): authored lines with tags in the log, the structural line as detail, and the aftermath report.
+public sealed class ProseTests : IDisposable
+{
+    private static readonly ContentPack Pack = BridgePack.Wide(BridgePack.Load());
+
+    private readonly TestApp app = new();
+
+    public void Dispose()
+    {
+        app.Dispose();
+    }
+
+    private static Played Ended(ContentPack pack, Func<Played, bool>? also = null)
+    {
+        for (ulong seed = 1; seed <= 80; seed++)
+        {
+            var played = new Played(pack, seed);
+            if (played.StepUntil(() => played.State.Phase == CyclePhase.Aftermath && played.Mission?.State.Result is not null && (also?.Invoke(played) ?? true)))
+            {
+                return played;
+            }
+        }
+
+        throw new InvalidOperationException("No seed reached the wanted state.");
+    }
+
+    private static BridgeView Read(Played played) => BridgeReader.Read(played.Record(), played.Pack, played.CycleEvents());
+
+    private static List<MissionBeat> Beats(Played played) => played.CycleEvents().OfType<MissionBeat>().Where(b => b.MissionId == played.Mission!.Id).OrderBy(b => b.Index).ToList();
+
+    private static string Join(IReadOnlyList<LinePart> parts) => string.Concat(parts.Select(p => p.Text));
+
+    [Fact]
+    public void Every_log_line_has_authored_prose_and_keeps_its_structural_text()
+    {
+        Played played = Ended(Pack);
+        List<MissionBeat> beats = Beats(played);
+
+        IReadOnlyList<LogLine> log = Read(played).Mission!.Log;
+
+        Assert.Equal(beats.Count, log.Count);
+        for (int i = 0; i < log.Count; i++)
+        {
+            Assert.True(log[i].Authored, $"Beat {i} ({log[i].Kind}) fell back to the systems line.");
+            Assert.Equal(BeatLines.Line(beats[i].Index, beats[i].Beat, log.Take(i + 1).Count(l => l.Kind == "stage"), new Names(Pack)).Text, log[i].Text);
+            Assert.NotEqual(log[i].Text, Join(log[i].Prose!));
+        }
+    }
+
+    [Fact]
+    public void A_check_line_names_its_actor_and_tags_its_tier_margin_and_changes()
+    {
+        Played played = Ended(Pack);
+        var names = new Names(Pack);
+        List<MissionBeat> beats = Beats(played);
+        IReadOnlyList<LogLine> log = Read(played).Mission!.Log;
+
+        for (int i = 0; i < log.Count; i++)
+        {
+            if (beats[i].Beat is not CheckBeat check)
+            {
+                continue;
+            }
+
+            Assert.Contains(log[i].Prose!, p => p.IsName && p.Text == names.Crew(check.ActorId));
+            Assert.Equal($"{BeatLines.Words(check.Tier)} {check.Margin.ToString("+0;-0;0", System.Globalization.CultureInfo.InvariantCulture).Replace('-', '−')}", log[i].Tags![0]);
+            Assert.Equal(check.MomentumAfter != check.Momentum, log[i].Tags!.Any(t => t.StartsWith("momentum ", StringComparison.Ordinal)));
+            Assert.Equal(check.StrainAfter != check.Strain, log[i].Tags!.Any(t => t.StartsWith("strain ", StringComparison.Ordinal)));
+        }
+    }
+
+    [Fact]
+    public void With_no_lines_every_line_is_the_systems_line_and_the_report_is_empty()
+    {
+        Played played = Ended(Pack with { Lines = [] });
+
+        BridgeView view = Read(played);
+
+        Assert.All(view.Mission!.Log, l =>
+        {
+            Assert.False(l.Authored);
+            Assert.Equal(l.Text, Join(l.Prose!));
+        });
+        Assert.Empty(view.Aftermath!.Report!.Sentences);
+    }
+
+    [Fact]
+    public void The_same_view_reads_the_same_every_time()
+    {
+        Played played = Ended(Pack);
+
+        Assert.Equal(Read(played).Mission!.Log.Select(l => Join(l.Prose!)), Read(played).Mission!.Log.Select(l => Join(l.Prose!)));
+    }
+
+    [Fact]
+    public void A_line_is_chosen_by_salience_so_a_more_specific_one_wins_where_it_holds()
+    {
+        LineDef specific = new("LINE_CHECK_PLACE", "log", "check", [new CriterionDef("tier", ["critical", "success", "partial", "failure", "disaster"]), new CriterionDef("helped", ["true", "false"])], "SPECIFIC #actor#.");
+        Played played = Ended(Pack with { Lines = [.. Pack.Lines, specific] });
+
+        IReadOnlyList<LogLine> log = Read(played).Mission!.Log;
+
+        Assert.All(log.Where(l => l.Kind == "check"), l => Assert.StartsWith("SPECIFIC ", Join(l.Prose!), StringComparison.Ordinal));
+        Assert.Contains(log, l => l.Kind == "check");
+    }
+
+    [Fact]
+    public void A_line_whose_text_cannot_expand_falls_back_to_the_systems_line()
+    {
+        // The loader would refuse this; a pack built in code shows the fallback instead of failing the page.
+        LineDef broken = new("LINE_CHECK_BROKEN", "log", "check", [new CriterionDef("helped", ["true", "false"]), new CriterionDef("supervised", ["true", "false"])], "#nobody# acts.");
+        Played played = Ended(Pack with { Lines = [.. Pack.Lines, broken] });
+
+        Assert.All(Read(played).Mission!.Log.Where(l => l.Kind == "check"), l => Assert.False(l.Authored));
+    }
+
+    [Fact]
+    public void The_report_keeps_the_beats_order_ends_with_the_result_and_stays_within_bounds()
+    {
+        Played played = Ended(Pack);
+
+        ReportView report = Read(played).Aftermath!.Report!;
+
+        Assert.InRange(report.Sentences.Count, Report.Fewest, Report.Most);
+        Assert.Equal("The mission ended.", Join(report.Sentences[^1]));
+    }
+
+    [Fact]
+    public void Injuries_and_calls_always_make_the_report_and_calls_are_listed_with_their_answers()
+    {
+        Played played = Ended(Pack, p => p.CycleEvents().OfType<MissionBeat>().Any(b => b.Beat is CallBeat) && p.CycleEvents().OfType<MissionBeat>().Any(b => b.Beat is InjuryBeat { Outcome: not InjuryOutcome.Unharmed }));
+        List<MissionBeat> beats = Beats(played);
+
+        ReportView report = Read(played).Aftermath!.Report!;
+
+        List<string> sentences = report.Sentences.Select(Join).ToList();
+        Assert.Contains(sentences, s => s.Contains(" called in: ", StringComparison.Ordinal));
+        Assert.Contains(sentences, s => s.Contains(" was hurt at ", StringComparison.Ordinal) || s.Contains(" was killed at ", StringComparison.Ordinal));
+        Assert.Equal(beats.Count(b => b.Beat is CallBeat) + beats.Count(b => b.Beat is NoticeBeat), report.Decisions.Count);
+        Assert.Contains(report.Decisions.Select(Join), d => d.Contains("; the captain answered ", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task The_log_shows_prose_then_tags_and_the_roll_on_request()
+    {
+        var check = new LogLine(3, "check", "NAME_A checks SKILL_A at PLACE_A: 6 + 3 against 15, failure (−6).", Parts: [new(true, "NAME_A"), new(false, " checks SKILL_A at PLACE_A: 6 + 3 against 15, failure (−6).")], Prose: [new(true, "NAME_A <b>"), new(false, " slips.")], Tags: ["failure −6", "strain +2"], Authored: true);
+        var plain = new LogLine(4, "result", "Result: loss.", Prose: [new(false, "Result: loss.")], Tags: ["loss"]);
+
+        string html = await app.Services.GetRequiredService<Render>().Html<MissionLog>(new Dictionary<string, object?> { ["Lines"] = new List<LogLine> { check, plain } });
+
+        Assert.Contains("<span class=\"beat__prose\">NAME_A &lt;b&gt; slips.</span>", html, StringComparison.Ordinal);
+        html = System.Net.WebUtility.HtmlDecode(html);
+        Assert.Contains("<span class=\"fig-tag\">failure −6</span>", html, StringComparison.Ordinal);
+        Assert.Contains("<span class=\"fig-tag\">strain +2</span>", html, StringComparison.Ordinal);
+        Assert.Contains("<details class=\"beat__detail\"><summary>Roll</summary>", html, StringComparison.Ordinal);
+        Assert.Contains("6 + 3 against 15", System.Text.RegularExpressions.Regex.Replace(html, "<[^>]+>", ""), StringComparison.Ordinal);
+        // The systems line is shown as it is, with no disclosure repeating it.
+        Assert.Single(System.Text.RegularExpressions.Regex.Matches(html, "<details"));
+        Assert.Contains("Result: loss.", html, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task The_aftermath_shows_the_report_and_its_decisions()
+    {
+        var report = new ReportView([[new(false, "SENTENCE_A.")], [new(true, "NAME_A"), new(false, " SENTENCE_B.")]], [[new(false, "DECISION_A: answered.")]]);
+        var aftermath = new AftermathView("Loss", [], [], report);
+
+        string html = await app.Services.GetRequiredService<Render>().Html<AftermathScreen>(new Dictionary<string, object?> { ["LegacyId"] = Guid.NewGuid(), ["Bar"] = new TopBarView("LEGACY", 1, 1, CyclePhase.Aftermath, null), ["Aftermath"] = aftermath });
+
+        Assert.Contains("<p class=\"report__text\">SENTENCE_A. NAME_A SENTENCE_B.</p>", html, StringComparison.Ordinal);
+        Assert.Contains("DECISION_A: answered.", html, StringComparison.Ordinal);
+    }
+}

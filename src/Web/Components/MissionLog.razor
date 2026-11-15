@@ -5,21 +5,37 @@
     {
         LogLine line = Lines[i];
         bool newest = i == Lines.Count - 1;
-        <li id="beat-@line.Index" data-kind="@line.Kind" class="@Css(line, newest)" aria-current="@(newest ? "true" : null)"><span class="beat__no">@((line.Index + 1).ToString("00", System.Globalization.CultureInfo.InvariantCulture))</span> <span class="beat__kind">@line.Kind</span> <p class="beat__text">@if (line.Kind == "stage" && line.Text.LastIndexOf(" Momentum ", StringComparison.Ordinal) is int split and > 0)
+        <li id="beat-@line.Index" data-kind="@line.Kind" class="@Css(line, newest)" aria-current="@(newest ? "true" : null)"><span class="beat__no">@((line.Index + 1).ToString("00", System.Globalization.CultureInfo.InvariantCulture))</span> <span class="beat__kind">@line.Kind</span> <div class="beat__text"><p class="beat__line">@if (line.Kind == "stage" && line.Text.LastIndexOf(" Momentum ", StringComparison.Ordinal) is int split and > 0)
             {
-                <span class="stage-title">@line.Text[..split]</span> <span class="stage-read">@line.Text[(split + 1)..]</span>@if (newest)
-                {
-                    <span class="tag">Newest</span>
-                }
+                <span class="stage-title">@if (line.Authored)
+                    {
+                        @(line.Text[..(line.Text.IndexOf(':', StringComparison.Ordinal) + 1)])@(" ")<Words Parts="line.Prose!" />
+                    }
+                    else
+                    {
+                        @line.Text[..split]
+                    }</span> <span class="stage-read">@line.Text[(split + 1)..]</span>
             }
-            else if (newest)
+            else if (line.Authored)
             {
-                <span>@Body(line)</span><span class="tag">Newest</span>
+                <span class="beat__prose"><Words Parts="line.Prose!" /></span>@if ((line.Tags ?? []).Count > 0)
+                {
+                    <span class="beat__tags">@foreach (string tag in line.Tags!)
+                        {
+                            <span class="fig-tag">@tag</span>
+                        }</span>
+                }
             }
             else
             {
-                @Body(line)
-            }</p></li>
+                <span>@Body(line)</span>
+            }@if (newest)
+            {
+                <span class="tag">Newest</span>
+            }</p>@if (line.Authored && line.Kind != "stage")
+            {
+                <details class="beat__detail"><summary>@(line.Kind == "check" ? "Roll" : "Detail")</summary><p>@Body(line)</p></details>
+            }</div></li>
     }
 </ol>
 </section>

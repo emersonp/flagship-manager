@@ -10,40 +10,40 @@
   text: "The disaster leads to #encounter#."
 - id: LINE_CHECK
   when: { beat: check }
-  text: "#actor# #actor:checks|check# #skill# at #encounter#."
+  text: "#actor# checks #skill# at #encounter#."
 - id: LINE_CHECK_HELPED
   when: { beat: check, helped: true }
-  text: "#actor# #actor:checks|check# #skill# at #encounter#, helped by #helper#."
+  text: "#actor# checks #skill# at #encounter#, helped by #helper#."
 - id: LINE_CHECK_SUPERVISED
   when: { beat: check, supervised: true }
-  text: "#actor# #actor:checks|check# #skill# at #encounter#, supervised by #helper#."
+  text: "#actor# checks #skill# at #encounter#, supervised by #helper#."
 - id: LINE_EFFECTS
   when: { beat: effects }
   text: "The decision takes effect."
 - id: LINE_INJURY
   when: { beat: injury }
-  text: "#crew# #crew:takes|take# an injury roll at #encounter#."
+  text: "#crew# takes an injury roll at #encounter#."
 - id: LINE_INJURY_UNHARMED
   when: { beat: injury, outcome: unharmed }
-  text: "#crew# #crew:comes|come# through unharmed."
+  text: "#crew# comes through unharmed."
 - id: LINE_INJURY_LIGHT
   when: { beat: injury, outcome: lightInjury }
-  text: "#crew# #crew:is|are# lightly injured."
+  text: "#crew# is lightly injured."
 - id: LINE_INJURY_INCAPACITATED
   when: { beat: injury, outcome: incapacitated }
-  text: "#crew# #crew:is|are# incapacitated."
+  text: "#crew# is incapacitated."
 - id: LINE_INJURY_DEAD
   when: { beat: injury, outcome: dead }
-  text: "#crew# #crew:is|are# killed."
+  text: "#crew# is killed."
 - id: LINE_LEAD
   when: { beat: lead }
-  text: "#crew# #crew:takes|take# the lead."
+  text: "#crew# takes the lead."
 - id: LINE_CALL
   when: { beat: call }
-  text: "#lead# #lead:calls|call# in: #decision#."
+  text: "#lead# calls in: #decision#."
 - id: LINE_NOTICE
   when: { beat: notice }
-  text: "#lead# #lead:decides|decide# #decision# without calling."
+  text: "#lead# decides #decision# without calling."
 - id: LINE_ANSWER_BOLD
   when: { beat: answer, answer: bold }
   text: "The captain orders the team on."

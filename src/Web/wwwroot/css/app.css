@@ -121,6 +121,14 @@ h2 { font-size: var(--text-xl); line-height: 1.12; max-width: 30ch; }
 .beat__no { grid-column: 1; font-family: var(--font-outlier); font-variant-numeric: tabular-nums slashed-zero; font-size: var(--text-xs); color: var(--color-muted); text-align: right; }
 .beat__kind { grid-column: 3; font-size: var(--text-sm); color: var(--color-muted); }
 .beat__text { grid-column: 4; min-width: 0; overflow-wrap: break-word; }
+.beat__line { margin: 0; }
+/* Prose first, then the figures it changed, then the structural line on request (slice 1d). */
+.beat__tags { display: inline-flex; flex-wrap: wrap; gap: var(--space-2xs); margin-left: var(--space-xs); vertical-align: baseline; }
+.fig-tag { font-family: var(--font-outlier); font-variant-numeric: tabular-nums slashed-zero; font-size: var(--text-xs); color: var(--color-muted); white-space: nowrap; }
+.fig-tag + .fig-tag::before { content: "· "; color: var(--color-rule-2); }
+.beat__detail { margin-top: var(--space-2xs); font-size: var(--text-sm); color: var(--color-muted); }
+.beat__detail summary { cursor: pointer; width: fit-content; min-height: 1.75rem; display: flex; align-items: center; border-radius: var(--radius-inner); }
+.beat__detail p { margin: var(--space-2xs) 0 0; }
 .beat--injury .beat__kind, .beat--collapse .beat__kind, .beat--collapse .beat__text { color: var(--color-harm); }
 .beat--notice .beat__text { color: var(--color-muted); }
 .beat--result .beat__text { font-weight: 500; color: var(--color-ink); }
@@ -128,7 +136,7 @@ h2 { font-size: var(--text-xl); line-height: 1.12; max-width: 30ch; }
 .beat--stage:first-child { margin-top: 0; border-top: 0; padding-top: var(--space-xs); }
 .beat--stage::before { width: 9px; height: 9px; border-radius: 2px; left: calc(var(--no) + var(--gap) + (var(--node) / 2) - 4.5px); top: calc(var(--space-md) + 0.6em); background: var(--color-ink-2); border-color: var(--color-ink-2); }
 .beat--stage:first-child::before { top: calc(var(--space-xs) + 0.6em); }
-.beat--stage .beat__text { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: var(--space-2xs) var(--space-md); }
+.beat--stage .beat__line { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: var(--space-2xs) var(--space-md); }
 .stage-title { font-size: var(--text-lg); line-height: 1.2; }
 .stage-read { font-family: var(--font-outlier); font-variant-numeric: tabular-nums slashed-zero; font-size: var(--text-sm); color: var(--color-ink-2); white-space: nowrap; }
 /* The newest beat. Paced streams replace #log whole, so the last line always carries it. */
@@ -136,7 +144,7 @@ h2 { font-size: var(--text-xl); line-height: 1.12; max-width: 30ch; }
 .beat--newest.beat--stage { margin-top: var(--space-sm); border-top-color: transparent; }
 .beat--newest::before { width: 11px; height: 11px; border-radius: 50%; left: calc(var(--no) + var(--gap) + (var(--node) / 2) - 5.5px); top: calc(var(--space-sm) + 0.45em); background: var(--color-accent); border-color: var(--color-accent); }
 .beat--newest .beat__kind { color: var(--color-ink); font-weight: 500; }
-.beat--newest .beat__text { display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--space-2xs) var(--space-md); }
+.beat--newest .beat__line { display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--space-2xs) var(--space-md); }
 .tag { display: inline-flex; align-items: center; padding: 0 var(--space-xs); border: var(--rule-hair) solid var(--color-rule-2); border-radius: var(--radius-chip); font-family: var(--font-body); font-size: var(--text-xs); line-height: 1.7; color: var(--color-ink-2); white-space: nowrap; font-weight: 400; }
 
 /* The call: its own well; the trail runs on into it. */
@@ -301,6 +309,11 @@ a.btn { text-decoration: none; }
 .field-grid .field { align-content: start; }
 .levels { display: grid; gap: var(--space-xs); }
 .levels legend { margin-bottom: var(--space-2xs); }
+/* The aftermath report reads as a short log entry above the tables (slice 1d). */
+.report { margin-bottom: var(--space-md); }
+.report__text { max-width: 68ch; margin: 0; color: var(--color-ink); }
+.report__decisions { margin: var(--space-2xs) 0 0; padding-left: var(--space-md); color: var(--color-ink-2); }
+.report__decisions li + li { margin-top: var(--space-2xs); }
 .tag-list { display: flex; flex-wrap: wrap; gap: 0 var(--space-md); }
 .check { display: inline-flex; align-items: center; margin-left: calc(-1 * var(--space-sm)); font-size: var(--text-md); color: var(--color-ink); cursor: pointer; }
 .rowset { display: grid; gap: var(--space-xs); }

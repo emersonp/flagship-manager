@@ -180,15 +180,15 @@ public static class MissionsModule
 
         if (mission.Id != command.MissionId)
         {
-            return $"The waiting mission is '{mission.Id}', not '{command.MissionId}'.";
+            return "That mission is no longer waiting for an answer.";
         }
 
         if (pending.CallId != command.CallId)
         {
-            return $"The pending call is '{pending.CallId}', not '{command.CallId}'.";
+            return "That call has already been answered.";
         }
 
-        return pending.Options.Contains(command.Answer) ? null : $"'{command.Answer}' is not an option for {pending.DecisionId}.";
+        return pending.Options.Contains(command.Answer) ? null : "That answer is not one of this call's options.";
     }
 
     private static void OnAnswer(AnswerCall command, IBusContext context)

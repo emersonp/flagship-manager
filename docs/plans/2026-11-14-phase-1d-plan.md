@@ -18,7 +18,7 @@ The 1c-editor plan's constraints carry over: braces on every body, terse comment
 ## Settled syntax (the design's open points)
 
 - **Criteria** (`when`): `fact: value` for equality, where a set fact (`encounterTags`, `objectiveTags`) means "contains"; `fact: [a, b]` for any of; `fact: { min: 1, max: 3 }` for a whole-number range (either end may be left out). `beat` is required and is a single value. Specificity is the number of criteria, `beat` included.
-- **Text**: `#symbol#`; `#role#` gives a person's or thing's display name (`actor`, `helper`, `lead`, `crew`, `encounter`, `skill`, `objective`, and `decision`); `#role.they#`, `.them`, `.their`, `.theirs`, and `.themself` give pronouns; `#role:checks|check#` gives the singular or plural form by the person's pronoun set; `.capitalize` may end any token; `##` is a literal `#`. Nesting is capped at 8.
+- **Text**: `#symbol#`; `#role#` gives a person's or thing's display name (`actor`, `helper`, `lead`, `crew`, `encounter`, `skill`, `objective`, and `decision`); `#role.they#`, `.them`, `.their`, `.theirs`, and `.themself` give pronouns; `#role:checks|check#` gives the singular or plural form by the person's pronoun set, for a verb whose subject is that pronoun (`#actor.they# #actor:checks|check#`; after a name, write the singular); `.capitalize` may end any token; `##` is a literal `#`. Nesting is capped at 8.
 - **Tags** are generated from the beat, never authored: a check gives its tier and margin, and its momentum and strain changes; an injury gives its outcome; a call or notice gives its stakes; effects give their changes.
 
 ## Tasks

@@ -487,7 +487,7 @@ public sealed class ResolutionTests : IDisposable
         // The page is redrawn from the stored state, with the reason in the call panel when a call waits, else in the bar.
         List<string> patches = Patches(second);
         Assert.Equal(3, patches.Count);
-        Assert.Matches(callWaits ? "<p id=\"call-refusal\" role=\"alert\">The pending call is" : "<p id=\"refusal\" role=\"alert\">No mission is waiting for an answer", patches[1]);
+        Assert.Matches(callWaits ? "<p id=\"call-refusal\" role=\"alert\">That call has already been answered" :"<p id=\"refusal\" role=\"alert\">No mission is waiting for an answer", patches[1]);
         Assert.Equal(stored, app.Game.Store.ReadEvents(id).Count);
     }
 
@@ -504,8 +504,10 @@ public sealed class ResolutionTests : IDisposable
         string numeric = await captain.Post("answer", [new("mission", mission), new("call", call), new("answer", "1")]);
         string missing = await captain.Post("answer", [new("mission", mission), new("call", call)]);
 
-        Assert.Contains("The pending call is", wrongCall);
-        Assert.Contains("The waiting mission is", wrongMission);
+        // Plain words, with no resolver ids (slice 1d).
+        Assert.Contains("That call has already been answered.", wrongCall);
+        Assert.Contains("That mission is no longer waiting for an answer.", wrongMission);
+        Assert.DoesNotContain("nope", wrongCall + wrongMission);
         Assert.Contains("The form was not complete.", notAnOption);
         Assert.Contains("The form was not complete.", numeric);
         Assert.Contains("The form was not complete.", missing);
@@ -736,7 +738,7 @@ public sealed class ResolutionTests : IDisposable
             Assert.StartsWith("<main id=\"main\"", patches[1]);
             Assert.StartsWith("<aside id=\"roster\"", patches[2]);
             Assert.Contains($"name=\"call\" value=\"{newCall}\"", Entity(patches[1]));
-            Assert.Matches("<p id=\"call-refusal\" role=\"alert\">The pending call is [^<]+</p>", Entity(patches[1]));
+            Assert.Matches("<p id=\"call-refusal\" role=\"alert\">That call has already been answered\\.</p>", Entity(patches[1]));
             Assert.Contains("<p id=\"refusal\" role=\"alert\"></p>", patches[1]);
             Assert.Equal(stored, app.Game.Store.ReadEvents(id).Count);
 

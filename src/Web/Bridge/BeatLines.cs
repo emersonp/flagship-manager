@@ -57,6 +57,74 @@ public static partial class BeatLines
             : new LogLine(index, kind, text, Parts: parts);
     }
 
+    // What a beat changed, as short figures beside its prose (GDD risk 2): generated, never authored, so every line cites them.
+    public static IReadOnlyList<string> Tags(Beat beat)
+    {
+        var tags = new List<string>();
+        switch (beat)
+        {
+            case CheckBeat b:
+                tags.Add($"{Words(b.Tier)} {Signed(b.Margin)}");
+                if (b.MomentumAfter is { } momentum && momentum != b.Momentum)
+                {
+                    tags.Add($"momentum {Signed(momentum - b.Momentum)}");
+                }
+
+                if (b.StrainAfter is { } strain && strain != b.Strain)
+                {
+                    tags.Add($"strain {Signed(strain - b.Strain)}");
+                }
+
+                break;
+            case EffectsBeat b:
+                if (b.Effects.Progress != 0)
+                {
+                    tags.Add($"progress {Signed(b.Effects.Progress)}");
+                }
+
+                if (b.Effects.Momentum != 0)
+                {
+                    tags.Add($"momentum {Signed(b.Effects.Momentum)}");
+                }
+
+                if (b.Effects.Strain != 0)
+                {
+                    tags.Add($"strain {Signed(b.Effects.Strain)}");
+                }
+
+                if (b.Effects.InjuryRoll is { } roll)
+                {
+                    tags.Add($"{Words(roll)} injury roll");
+                }
+
+                if (b.Effects.Withdraw)
+                {
+                    tags.Add("withdraw");
+                }
+
+                break;
+            case InjuryBeat b:
+                tags.Add(Words(b.Outcome));
+                break;
+            case CallBeat b:
+                tags.Add($"stakes {b.Call.Stakes}");
+                break;
+            case NoticeBeat b:
+                tags.Add($"stakes {b.Stakes}");
+                tags.Add($"chose {Words(b.Chose)}");
+                break;
+            case AnswerBeat b:
+                tags.Add(Words(b.Answer));
+                tags.Add(Words(b.Standing));
+                break;
+            case ResultBeat b:
+                tags.Add(Words(b.Outcome));
+                break;
+        }
+
+        return tags;
+    }
+
     // PascalCase enum name as lower-case words.
     internal static string Words<T>(T value)
         where T : struct, Enum

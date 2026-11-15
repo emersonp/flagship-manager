@@ -475,8 +475,8 @@ public class MissionsModuleTests
         string missionId = h.Mission.Id;
 
         Assert.Equal("A call is waiting for an answer.", h.Refused(new AdvancePhase()).Message);
-        Assert.Contains("m_9_9", h.Refused(new AnswerCall("m_9_9", call.CallId, call.LeadPrefers)).Message, StringComparison.Ordinal);
-        Assert.Contains("CALL_X", h.Refused(new AnswerCall(missionId, "CALL_X", call.LeadPrefers)).Message, StringComparison.Ordinal);
+        Assert.Equal("That mission is no longer waiting for an answer.", h.Refused(new AnswerCall("m_9_9", call.CallId, call.LeadPrefers)).Message);
+        Assert.Equal("That call has already been answered.", h.Refused(new AnswerCall(missionId, "CALL_X", call.LeadPrefers)).Message);
         int before = h.Events.Count;
         h.Finish();
 
@@ -495,7 +495,7 @@ public class MissionsModuleTests
 
         string message = h.Refused(new AnswerCall(h.Mission.Id, call.CallId, CallAnswer.Withdraw)).Message;
 
-        Assert.Equal($"'Withdraw' is not an option for {call.DecisionId}.", message);
+        Assert.Equal("That answer is not one of this call's options.", message);
     }
 
     [Fact]

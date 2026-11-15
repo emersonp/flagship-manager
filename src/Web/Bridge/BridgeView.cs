@@ -48,8 +48,9 @@ public sealed record MissionView(string MissionId, string ObjectiveId, IReadOnly
 public readonly record struct LinePart(bool IsName, string Text);
 
 // A stage line also carries its encounter, blocked flag, and figures as data; every other line has them null.
-// Parts is the line cut into names and text; Text is always their join.
-public sealed record LogLine(int Index, string Kind, string Text, string? EncounterId = null, bool? CommsBlocked = null, int? Momentum = null, int? Strain = null, IReadOnlyList<LinePart>? Parts = null, string? EncounterName = null)
+// Parts is the structural line cut into names and text; Text is always their join. Prose is what the captain reads: an authored
+// line when Authored, otherwise the structural parts again. Tags are the figures the beat changed.
+public sealed record LogLine(int Index, string Kind, string Text, string? EncounterId = null, bool? CommsBlocked = null, int? Momentum = null, int? Strain = null, IReadOnlyList<LinePart>? Parts = null, string? EncounterName = null, IReadOnlyList<LinePart>? Prose = null, IReadOnlyList<string>? Tags = null, bool Authored = false)
 {
     public IReadOnlyList<LinePart> Segments => Parts ?? [new LinePart(false, Text)];
 }
@@ -62,7 +63,8 @@ public sealed record CallView(string CallId, string DecisionId, int Stakes, IRea
     public string LeadShown => LeadName ?? LeadId;
 }
 
-public sealed record AftermathView(string? Outcome, IReadOnlyList<CrewChange> Changes, IReadOnlyList<UnattendedView> Unattended);
+// Report is null when no team was sent.
+public sealed record AftermathView(string? Outcome, IReadOnlyList<CrewChange> Changes, IReadOnlyList<UnattendedView> Unattended, ReportView? Report = null);
 
 // Kind is skill, injury, death, recovery, or loyalty.
 public sealed record CrewChange(string CrewId, string Kind, string Text, IReadOnlyList<LinePart>? Parts = null)

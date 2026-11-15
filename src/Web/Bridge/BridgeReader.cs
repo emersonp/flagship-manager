@@ -29,7 +29,12 @@ public static class BridgeReader
         bool showAftermath = site is not null && phase is CyclePhase.Aftermath or CyclePhase.Advance;
 
         List<ObjectiveView> objectives = site is null ? [] : site.Objectives.Select(o => Objective(pack, names, site, o)).ToList();
-        MissionView? mission = showMission ? Mission(site!.Mission!, site.Briefing, cycleEvents, names) : null;
+        MissionInFlight? inFlight = site?.Mission;
+        List<MissionBeat> beats = inFlight is null ? [] : cycleEvents.OfType<MissionBeat>().Where(b => b.MissionId == inFlight.Id).OrderBy(b => b.Index).ToList();
+        Prose? prose = inFlight is not null && (showMission || showAftermath)
+            ? new Prose(pack, names, state.Seed, inFlight, beats, StartLead(inFlight, site!.Briefing, cycleEvents) ?? inFlight.State.LeadId)
+            : null;
+        MissionView? mission = showMission ? Mission(inFlight!, site!.Briefing, cycleEvents, names, beats, prose!) : null;
         return new BridgeView(
             TopBar(record, pack),
             // Only while the mission plays: the aftermath names the team in its head instead.
@@ -37,7 +42,7 @@ public static class BridgeReader
             showSite ? new SiteView(site!.AssignmentId, objectives, names.Assignment(site.AssignmentId)) : null,
             showBriefing ? Briefing(pack, names, site!, objectives, roster) : null,
             mission,
-            showAftermath ? Aftermath(site!, state, cycleEvents, names) : null);
+            showAftermath ? Aftermath(site!, state, cycleEvents, names) with { Report = prose is null ? null : Report.Build(beats, prose, names) } : null);
     }
 
     // Rows in view that share a shown name also show their ids; a row shown by its id never repeats it.
@@ -141,10 +146,9 @@ public static class BridgeReader
             assignment?.LoadoutLimit ?? 0);
     }
 
-    private static MissionView Mission(MissionInFlight mission, Briefing? briefing, IReadOnlyList<IEvent> cycleEvents, Names names)
+    private static MissionView Mission(MissionInFlight mission, Briefing? briefing, IReadOnlyList<IEvent> cycleEvents, Names names, List<MissionBeat> beats, Prose prose)
     {
         MissionState state = mission.State;
-        List<MissionBeat> beats = cycleEvents.OfType<MissionBeat>().Where(b => b.MissionId == mission.Id).OrderBy(b => b.Index).ToList();
         CallView? call = state.Pending is { } pending
             ? new CallView(pending.CallId, pending.DecisionId, pending.Stakes, pending.Options.Select(o => o.ToString()).ToList(), pending.LeadPrefers.ToString(), pending.LeadId, names.Decision(pending.DecisionId), names.Crew(pending.LeadId))
             : null;
@@ -157,7 +161,7 @@ public static class BridgeReader
             state.LeadId,
             state.Momentum,
             state.Strain,
-            Lines(beats, names),
+            Lines(beats, names, prose),
             call,
             state.Result?.Outcome.ToString(),
             gear,
@@ -167,8 +171,9 @@ public static class BridgeReader
             gear.Select(names.Gear).ToList());
     }
 
-    // The log's stage beats are numbered from 1 in order; the beat's own cursor also counts skipped slots.
-    private static List<LogLine> Lines(IReadOnlyList<MissionBeat> beats, Names names)
+    // The log's stage beats are numbered from 1 in order; the beat's own cursor also counts skipped slots. Each line carries its
+    // prose and tags beside the structural text, which stays the line's detail.
+    private static List<LogLine> Lines(IReadOnlyList<MissionBeat> beats, Names names, Prose prose)
     {
         int stage = 0;
         var lines = new List<LogLine>();
@@ -178,7 +183,8 @@ public static class BridgeReader
             lines.Add(BeatLines.Line(b.Index, b.Beat, stage, names));
         }
 
-        return lines;
+        IReadOnlyList<BeatProse> texts = prose.Log(i => lines[i].Segments);
+        return lines.Select((line, i) => line with { Prose = texts[i].Parts, Tags = BeatLines.Tags(beats[i].Beat), Authored = texts[i].Authored }).ToList();
     }
 
     // The lead the team was sent with: a later lead change is in the log, not here.

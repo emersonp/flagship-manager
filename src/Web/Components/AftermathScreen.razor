@@ -3,6 +3,35 @@
         <h1>@(Aftermath?.Outcome is { } outcome ? Figures.Words(outcome) : "No team was sent")</h1>
         <p>@(ObjectiveName is null ? "Outcome: none, so every objective resolved unattended." : $"Outcome of {ObjectiveName}{Team}")</p>
     </div>
+    @if (Aftermath?.Report is { } report)
+    {
+        <section class="well report" aria-labelledby="report-head">
+            <div class="well__head"><h2 id="report-head">Report</h2></div>
+            <div class="well__body" id="report">
+                @if (report.Sentences.Count == 0)
+                {
+                    <p class="empty-state">No report line matches this mission yet.</p>
+                }
+                else
+                {
+                    <p class="report__text">@for (int i = 0; i < report.Sentences.Count; i++)
+                        {
+                            @(i > 0 ? " " : null)<Words Parts="report.Sentences[i]" />
+                        }</p>
+                }
+                @if (report.Decisions.Count > 0)
+                {
+                    <h3 class="sub">Decisions</h3>
+                    <ul class="report__decisions">
+                        @foreach (IReadOnlyList<LinePart> decision in report.Decisions)
+                        {
+                            <li>@Figures.Mono(decision)</li>
+                        }
+                    </ul>
+                }
+            </div>
+        </section>
+    }
     <div class="after-pair">
         <section class="well" aria-labelledby="changes-head">
             <div class="well__head"><h2 id="changes-head">Crew changes</h2></div>

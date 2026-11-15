@@ -1,0 +1,9 @@
+@* Prose parts as plain, encoded text: names and words alike, with no figure styling. *@
+@foreach (LinePart part in Parts)
+{
+    @part.Text
+}
+
+@code {
+    [Parameter, EditorRequired] public IReadOnlyList<LinePart> Parts { get; set; } = null!;
+}

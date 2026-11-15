@@ -164,6 +164,19 @@ public class SimulationTests
         Assert.Equal(plain.Legacies[0].LogHash, withNames.Legacies[0].LogHash);
     }
 
+    // Text is never stored and draws no randomness (slice 1d), so a pack's lines cannot change what a legacy does.
+    [Fact]
+    public void Lines_and_symbols_never_change_the_event_log()
+    {
+        var options = new SimOptions(Legacies: 2, Cycles: 6, Seed: 3);
+
+        SimSummary with_ = Simulation.Run(options, Pack);
+        SimSummary without = Simulation.Run(options, Pack with { Lines = [], Symbols = [] });
+
+        Assert.NotEmpty(Pack.Lines);
+        Assert.Equal(with_.Legacies.Select(l => l.LogHash), without.Legacies.Select(l => l.LogHash));
+    }
+
     // Golden seed: this hash changes only when behaviour changes. If the change is intended, update it in the same commit and say why.
     // Re-pinned in slice 1d: check beats gained MomentumAfter and StrainAfter (additive; no rule changed).
     [Fact]
