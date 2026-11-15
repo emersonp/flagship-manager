@@ -151,7 +151,8 @@ public class BenchTests
         var options = new BenchOptions("OBJECTIVE_TEMPLATE_1") { Runs = 100 };
         BenchFigures figures = Bench.Run(Pack, Pack.Tuning, options);
 
-        string same = BenchReport.Summary([("before", figures), ("after", figures)], showChange: true);
+        // The report ends lines with Environment.NewLine (CRLF on Windows); compare by line, not by "\n".
+        string same = BenchReport.Summary([("before", figures), ("after", figures)], showChange: true).ReplaceLineEndings("\n");
 
         Assert.Contains("before", same.Split('\n')[0], StringComparison.Ordinal);
         Assert.Contains("change", same.Split('\n')[0], StringComparison.Ordinal);
