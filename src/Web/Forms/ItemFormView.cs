@@ -16,6 +16,12 @@ public sealed record FormChoices(IReadOnlyList<SkillChoice> Skills, IReadOnlyLis
     // Each decision's id and the encounter that holds it.
     public IReadOnlyDictionary<string, string> DecisionOwners { get; init; } = new Dictionary<string, string>();
 
+    // The pack's pronoun sets, for the crew form's pick (slice 1d).
+    public IReadOnlyList<SkillChoice> Pronouns { get; init; } = [];
+
+    // The symbols lines may use, for the line form's help.
+    public IReadOnlyList<string> Symbols { get; init; } = [];
+
     // The id of the decision the encounter already has, which cannot change; null when it has none.
     public string? FixedDecisionId { get; init; }
 
@@ -85,4 +91,10 @@ public sealed record ItemFormView(
     {
         return Errors.GetValueOrDefault(name);
     }
+
+    // The line form's preview against sample beats; null for other kinds.
+    public LinePreview? Preview { get; init; }
+
+    // Symbols and pronoun sets are named in text, so their ids are lower case.
+    public string IdRule => Checks.LowerCase(Kind) ? Checks.LowerIdRule : Checks.IdRule;
 }

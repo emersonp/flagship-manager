@@ -1,0 +1,14 @@
+@using Web.Forms
+<FormShell View="View">
+    @if (View.Error("options") is { } error)
+    {
+        <p class="error" id="f-options-error">@error</p>
+    }
+    <RowTable View="View" Set="Options" Headers="@(["Option"])" Title="Options" Numeric="false" AddLabel="Add an option" Hint="A line that names the symbol (#id#) gets one option, picked the same way every time for the same beat. An option may name people, things, and other symbols." />
+</FormShell>
+
+@code {
+    [Parameter, EditorRequired] public ItemFormView View { get; set; } = null!;
+
+    private static RowSet Options => SymbolKind.Options;
+}

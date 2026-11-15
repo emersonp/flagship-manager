@@ -4,6 +4,7 @@
         <Field Name="seniority" Label="Seniority" Value="@View.Values.Get("seniority")" Hint="1 or more." Error="@View.Error("seniority")" Numeric="true" Narrow="true" Required="true" />
         <Field Name="caution" Label="Caution" Value="@View.Values.Get("caution")" Hint="-2 to 2." Error="@View.Error("caution")" Numeric="true" Narrow="true" Required="true" />
         <Field Name="discipline" Label="Discipline" Value="@View.Values.Get("discipline")" Hint="-2 to 2." Error="@View.Error("discipline")" Numeric="true" Narrow="true" Required="true" />
+        <Field Name="pronouns" Label="Pronouns" Value="@View.Values.Get("pronouns")" Options="@View.Choices.Pronouns.Where(p => p.Id != "they").Select(p => p.Id).ToList()" Labels="@View.Choices.Pronouns.Where(p => p.Name is not null).ToDictionary(p => p.Id, p => p.Name!)" Placeholder="they (the default)" Hint="Used in report lines. Add other sets under Pronoun sets." Error="@View.Error("pronouns")" Narrow="true" />
     </div>
     <fieldset class="levels">
         <legend class="sub">Skill levels</legend>

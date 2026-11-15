@@ -128,6 +128,42 @@ public static class ContentWriter
                 f.Add($"skills: {Map(crew.Skills.Select(s => (Quote(s.Key), Num(s.Value))))}");
                 f.Add($"caution: {Num(crew.Caution)}");
                 f.Add($"discipline: {Num(crew.Discipline)}");
+                if (crew.Pronouns is not null)
+                {
+                    f.Add($"pronouns: {Quote(crew.Pronouns)}");
+                }
+
+                break;
+            case LineModel line:
+                if (line.Use is not null)
+                {
+                    f.Add($"use: {Quote(line.Use)}");
+                }
+
+                f.Add($"when: {Map(line.When.Select(c => (Quote(c.Fact), Criterion(c))).Prepend(("beat", Quote(line.Beat))))}");
+                f.Add($"text: {Quote(line.Text)}");
+                break;
+            case SymbolModel symbol:
+                if (symbol.Options.Count == 0)
+                {
+                    f.Add("options: []");
+                    break;
+                }
+
+                f.Add("options:");
+                f.AddRange(symbol.Options.Select(o => $"  - {Quote(o)}"));
+                break;
+            case PronounModel set:
+                f.Add($"subject: {Quote(set.Subject)}");
+                f.Add($"object: {Quote(set.Object)}");
+                f.Add($"possessive: {Quote(set.Possessive)}");
+                f.Add($"possessivePronoun: {Quote(set.PossessivePronoun)}");
+                f.Add($"reflexive: {Quote(set.Reflexive)}");
+                if (set.Plural)
+                {
+                    f.Add("plural: true");
+                }
+
                 break;
             case AssignmentModel assignment:
                 f.Add($"objectives: {{ tags: {List(assignment.ObjectiveTags)} }}");
@@ -197,6 +233,40 @@ public static class ContentWriter
     }
 
     private static string Num(int value) => value.ToString(CultureInfo.InvariantCulture);
+
+    // A value, a list of values, or a range, as the criterion was written.
+    private static string Criterion(CriterionModel criterion)
+    {
+        if (criterion.IsRange)
+        {
+            var ends = new List<(string, string)>();
+            if (criterion.Min is { } min)
+            {
+                ends.Add(("min", Num(min)));
+            }
+
+            if (criterion.Max is { } max)
+            {
+                ends.Add(("max", Num(max)));
+            }
+
+            return Map(ends);
+        }
+
+        if (criterion.IsList || criterion.Values.Count != 1)
+        {
+            string[] values = criterion.Values.Select(CriterionValue).ToArray();
+            return values.Length == 0 ? "[]" : $"[{string.Join(", ", values)}]";
+        }
+
+        return CriterionValue(criterion.Values[0]);
+    }
+
+    // A flag or a whole number is written bare, as an author would; the loader reads either way, and anything else is quoted as usual.
+    private static string CriterionValue(string value)
+    {
+        return value is "true" or "false" || System.Text.RegularExpressions.Regex.IsMatch(value, "^-?[0-9]+$") ? value : Quote(value);
+    }
 
     private static string List(IEnumerable<string> values)
     {

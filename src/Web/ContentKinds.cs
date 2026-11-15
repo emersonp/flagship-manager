@@ -15,6 +15,9 @@ public static class ContentKinds
         (ContentKind.Assignment, "assignments", "Assignments"),
         (ContentKind.Objective, "objectives", "Objectives"),
         (ContentKind.Encounter, "encounters", "Encounters"),
+        (ContentKind.Line, "lines", "Lines"),
+        (ContentKind.Symbol, "symbols", "Symbols"),
+        (ContentKind.Pronoun, "pronouns", "Pronoun sets"),
     ];
 
     public static IEnumerable<ContentKind> Kinds => All.Select(k => k.Kind);
@@ -53,6 +56,9 @@ public static class ContentKinds
             ContentKind.Crew => "crew member",
             ContentKind.Assignment => "assignment",
             ContentKind.Objective => "objective",
+            ContentKind.Line => "line",
+            ContentKind.Symbol => "symbol",
+            ContentKind.Pronoun => "pronoun set",
             _ => "encounter",
         };
     }
@@ -74,6 +80,9 @@ public static class ContentKinds
             ContentKind.Assignment => [new("Objective tags"), new("Loadout limit", true)],
             ContentKind.Objective => [new("Tags"), new("Team size", true), new("Need", true), new("Stages", true)],
             ContentKind.Encounter => [new("Tags"), new("Careful"), new("Fast"), new("Chain"), new("Decision")],
+            ContentKind.Line => [new("Use"), new("Beat"), new("Criteria", true), new("Text")],
+            ContentKind.Symbol => [new("Options", true), new("First option")],
+            ContentKind.Pronoun => [new("Forms"), new("Plural")],
             _ => [],
         };
     }
@@ -97,9 +106,21 @@ public static class ContentKinds
                 return [List(objective.Tags), objective.TeamSizeMin == objective.TeamSizeMax ? Number(objective.TeamSizeMin) : $"{Number(objective.TeamSizeMin)} to {Number(objective.TeamSizeMax)}", Number(objective.Need), Number(objective.Stages.Count)];
             case ContentKind.Encounter when ContentEdits.Get<EncounterModel>(files, item.Kind, item.Id) is { } encounter:
                 return [List(encounter.Tags), Approach(encounter.Careful), Approach(encounter.Fast), encounter.Chain ?? "", encounter.Decision?.Id ?? ""];
+            case ContentKind.Line when ContentEdits.Get<LineModel>(files, item.Kind, item.Id) is { } line:
+                return [line.Use ?? "log", line.Beat, Number(line.When.Count + 1), Clip(line.Text)];
+            case ContentKind.Symbol when ContentEdits.Get<SymbolModel>(files, item.Kind, item.Id) is { } symbol:
+                return [Number(symbol.Options.Count), symbol.Options.Count > 0 ? Clip(symbol.Options[0]) : ""];
+            case ContentKind.Pronoun when ContentEdits.Get<PronounModel>(files, item.Kind, item.Id) is { } set:
+                return [$"{set.Subject}, {set.Object}, {set.Possessive}, {set.PossessivePronoun}, {set.Reflexive}", set.Plural ? "Yes" : "No"];
             default:
                 return blank;
         }
+    }
+
+    // The start of a long text, for a table cell.
+    private static string Clip(string text)
+    {
+        return text.Length <= 60 ? text : text[..59] + "\u2026";
     }
 
     private static string List(IReadOnlyList<string> values)

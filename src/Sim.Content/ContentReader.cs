@@ -81,7 +81,7 @@ internal static class ContentReader
                     skills[key] = Int(value) ?? 0;
                 }
 
-                return new CrewModel(id, name, Int(Get(m, "seniority")) ?? 0, skills, Int(Get(m, "caution")) ?? 0, Int(Get(m, "discipline")) ?? 0);
+                return new CrewModel(id, name, Int(Get(m, "seniority")) ?? 0, skills, Int(Get(m, "caution")) ?? 0, Int(Get(m, "discipline")) ?? 0, Str(Get(m, "pronouns")));
             case ContentKind.Assignment:
                 var offer = new Dictionary<int, int>();
                 foreach ((string key, YamlNode value) in Map(Get(m, "offer")))
@@ -114,9 +114,38 @@ internal static class ContentReader
                 }
 
                 return new EncounterModel(id, name, Strings(Get(m, "tags")), YamlBool(Str(Get(m, "commsBlocked"))), Str(Get(m, "chain")), Approach(Get(approaches, "careful")), Approach(Get(approaches, "fast")), decision);
+            case ContentKind.Line:
+                Dictionary<string, YamlNode> when = Map(Get(m, "when"));
+                var criteria = new List<CriterionModel>();
+                foreach ((string fact, YamlNode value) in when.Where(w => w.Key != "beat"))
+                {
+                    criteria.Add(Criterion(fact, value));
+                }
+
+                return new LineModel(id, name, Str(Get(m, "use")), Str(Get(when, "beat")) ?? "", criteria, Str(Get(m, "text")) ?? "");
+            case ContentKind.Symbol:
+                return new SymbolModel(id, name, Sequence(Get(m, "options")).Select(o => Str(o) ?? "").ToList());
+            case ContentKind.Pronoun:
+                return new PronounModel(id, name, Str(Get(m, "subject")) ?? "", Str(Get(m, "object")) ?? "", Str(Get(m, "possessive")) ?? "", Str(Get(m, "possessivePronoun")) ?? "", Str(Get(m, "reflexive")) ?? "", YamlBool(Str(Get(m, "plural"))));
             default:
                 return null;
         }
+    }
+
+    private static CriterionModel Criterion(string fact, YamlNode value)
+    {
+        if (value is YamlMappingNode)
+        {
+            Dictionary<string, YamlNode> range = Map(value);
+            return new CriterionModel(fact, [], false, RawInt(Get(range, "min")), RawInt(Get(range, "max")));
+        }
+
+        if (value is YamlSequenceNode)
+        {
+            return new CriterionModel(fact, Strings(value), true);
+        }
+
+        return new CriterionModel(fact, Str(value) is { } single ? [single] : []);
     }
 
     private static ApproachModel Approach(YamlNode? node)

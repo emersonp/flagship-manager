@@ -26,7 +26,7 @@ internal static class FormFlow
         FormChoices choices = FormChoicesReader.Read(files);
         string id = values.Get("id");
         var errors = new Dictionary<string, string>();
-        Checks.Id(id, files, errors);
+        Checks.Id(id, files, errors, form.Kind);
         Bound bound = form.Bind(id, values, choices);
         foreach ((string field, string message) in bound.Errors)
         {
@@ -41,7 +41,7 @@ internal static class FormFlow
         // The check above is a quick answer; this one, under the save's lock, decides.
         SaveResult result = await editor.Save(f =>
         {
-            if (f.Index().FirstOrDefault(i => i.Id == id) is { } used)
+            if (Checks.UsedBy(f, id, form.Kind) is { } used)
             {
                 throw new ChangeRefusedException($"That id is already used by {ContentKinds.WithArticle(used.Kind)}.");
             }
@@ -146,7 +146,11 @@ internal static class FormFlow
         IReadOnlyList<string> shown = reasons.Count > 0 ? [] : warnings;
         // Focus goes to the first field that failed its check, or to the alert for what the loader or the save said.
         string? focus = errors.Count > 0 ? FieldId(form.Kind, errors.Keys.First()) : reasons.Count > 0 ? "form-alert" : null;
-        return new ItemFormView(form.Kind, isNew, id, name, values, errors, reasons, notice, lead, shown, choices, focus) { DeleteNote = isNew ? null : DeleteNote(files, form.Kind, id) };
+        return new ItemFormView(form.Kind, isNew, id, name, values, errors, reasons, notice, lead, shown, choices, focus)
+        {
+            DeleteNote = isNew ? null : DeleteNote(files, form.Kind, id),
+            Preview = form.Kind == ContentKind.Line ? LinePreview.Of(files, id, values) : null,
+        };
     }
 
     private static string? DeleteNote(ContentFileSet files, ContentKind kind, string id)

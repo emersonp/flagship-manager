@@ -6,7 +6,7 @@
     <div class="well__body fields">
         @if (View.IsNew)
         {
-            <Field Name="id" Label="Id" Value="@View.Values.Get("id")" Hint="@Web.Forms.Checks.IdRule" Error="@View.Error("id")" Required="true" />
+            <Field Name="id" Label="Id" Value="@View.Values.Get("id")" Hint="@View.IdRule" Error="@View.Error("id")" Required="true" />
         }
         else
         {

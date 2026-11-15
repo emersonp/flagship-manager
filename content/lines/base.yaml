@@ -19,7 +19,7 @@
   text: "#actor# checks #skill# at #encounter#, supervised by #helper#."
 - id: LINE_EFFECTS
   when: { beat: effects }
-  text: "The decision takes effect."
+  text: The decision takes effect.
 - id: LINE_INJURY
   when: { beat: injury }
   text: "#crew# takes an injury roll at #encounter#."
@@ -46,19 +46,19 @@
   text: "#lead# decides #decision# without calling."
 - id: LINE_ANSWER_BOLD
   when: { beat: answer, answer: bold }
-  text: "The captain orders the team on."
+  text: The captain orders the team on.
 - id: LINE_ANSWER_SAFE
   when: { beat: answer, answer: safe }
-  text: "The captain orders caution."
+  text: The captain orders caution.
 - id: LINE_ANSWER_WITHDRAW
   when: { beat: answer, answer: withdraw }
-  text: "The captain orders the team out."
+  text: The captain orders the team out.
 - id: LINE_COLLAPSE
   when: { beat: collapse }
-  text: "The team collapses."
+  text: The team collapses.
 - id: LINE_RESULT
   when: { beat: result }
-  text: "The mission ends."
+  text: The mission ends.
 - id: LINE_REPORT_STAGE
   use: report
   when: { beat: stage }
@@ -94,12 +94,12 @@
 - id: LINE_REPORT_ANSWER
   use: report
   when: { beat: answer }
-  text: "The captain answered."
+  text: The captain answered.
 - id: LINE_REPORT_COLLAPSE
   use: report
   when: { beat: collapse }
-  text: "The team collapsed."
+  text: The team collapsed.
 - id: LINE_REPORT_RESULT
   use: report
   when: { beat: result }
-  text: "The mission ended."
+  text: The mission ended.

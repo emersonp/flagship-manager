@@ -10,7 +10,7 @@ namespace Web.Tests;
 // The editor's pages and the swappable pack, through the real app on a scratch copy of the content.
 public sealed class ContentPagesTests : IClassFixture<RepoContentGuard>
 {
-    private static readonly string[] Segments = ["skills", "gear", "crew", "assignments", "objectives", "encounters"];
+    private static readonly string[] Segments = ["skills", "gear", "crew", "assignments", "objectives", "encounters", "lines", "symbols", "pronouns"];
 
     private static ContentFileSet Repo()
     {

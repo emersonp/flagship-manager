@@ -6,7 +6,7 @@ namespace Web.Forms;
 // Fields the form does not show come from the stored model, read again when the save runs.
 internal abstract class KindForm
 {
-    private static readonly KindForm[] All = [new SkillKind(), new GearKind(), new CrewKind(), new AssignmentKind(), new ObjectiveKind(), new EncounterKind()];
+    private static readonly KindForm[] All = [new SkillKind(), new GearKind(), new CrewKind(), new AssignmentKind(), new ObjectiveKind(), new EncounterKind(), new LineKind(), new SymbolKind(), new PronounKind()];
 
     public abstract ContentKind Kind { get; }
 
@@ -130,6 +130,7 @@ internal sealed class CrewKind : KindForm
             new("seniority", Checks.Text(crew.Seniority)),
             new("caution", Checks.Text(crew.Caution)),
             new("discipline", Checks.Text(crew.Discipline)),
+            new("pronouns", crew.Pronouns ?? ""),
         };
         // Blank for a skill the member has no key for: they do not have it and cannot train it.
         fields.AddRange(choices.Skills.Select(s => new KeyValuePair<string, string>("skills." + s.Id, crew.Skills.TryGetValue(s.Id, out int level) ? Checks.Text(level) : "")));
@@ -138,7 +139,7 @@ internal sealed class CrewKind : KindForm
 
     public override FormValues Blank(FormChoices choices)
     {
-        var fields = new List<KeyValuePair<string, string>> { new("name", ""), new("seniority", "1"), new("caution", "0"), new("discipline", "0") };
+        var fields = new List<KeyValuePair<string, string>> { new("name", ""), new("seniority", "1"), new("caution", "0"), new("discipline", "0"), new("pronouns", "") };
         fields.AddRange(choices.Skills.Select(s => new KeyValuePair<string, string>("skills." + s.Id, "")));
         return new FormValues(fields);
     }
@@ -150,6 +151,13 @@ internal sealed class CrewKind : KindForm
         int seniority = Checks.Whole(values, "seniority", 1, null, errors);
         int caution = Checks.Whole(values, "caution", -2, 2, errors);
         int discipline = Checks.Whole(values, "discipline", -2, 2, errors);
+        // Blank is no key: the crew member uses "they".
+        string? pronouns = values.Get("pronouns") is { Length: > 0 } set ? set : null;
+        if (pronouns is not null && !choices.Pronouns.Any(p => p.Id == pronouns))
+        {
+            errors["pronouns"] = "Choose a pronoun set the pack has.";
+        }
+
         // Blank writes no key (the member does not have the skill); 0 is untrained but trainable.
         var levels = new Dictionary<string, int>();
         foreach (SkillChoice skill in choices.Skills)
@@ -183,7 +191,7 @@ internal sealed class CrewKind : KindForm
                 skills.TryAdd(key, level);
             }
 
-            return new CrewModel(id, name, seniority, skills, caution, discipline);
+            return new CrewModel(id, name, seniority, skills, caution, discipline, pronouns);
         }, errors);
     }
 }

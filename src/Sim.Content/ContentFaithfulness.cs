@@ -30,18 +30,18 @@ internal static class ContentFaithfulness
     private sealed record Map(IReadOnlyDictionary<string, Tree> Entries) : Tree;
 
     // Optional keys that read the same absent, null, or empty.
-    private static readonly HashSet<string> NullKeys = ["name", "chain", "gearTag", "ifUnattended", "decision", "tags", "bold", "safe", "stages", "objectives", "skills", "offer", "draw"];
+    private static readonly HashSet<string> NullKeys = ["name", "chain", "gearTag", "ifUnattended", "decision", "tags", "bold", "safe", "stages", "objectives", "skills", "offer", "draw", "pronouns", "use"];
     private static readonly HashSet<string> EmptyListKeys = ["tags", "bold", "safe", "stages"];
     private static readonly HashSet<string> EmptyMapKeys = ["skills", "offer", "objectives", "draw"];
 
     // Properties the loader deserialises as bool: any case of true and false.
-    private static readonly HashSet<string> FlagKeys = ["skippable", "commsBlocked"];
+    private static readonly HashSet<string> FlagKeys = ["skippable", "commsBlocked", "plural"];
 
     // Properties the loader deserialises as int (YAML integers: 0x10, 1_0, 0010 as octal).
     private static readonly HashSet<string> YamlIntKeys = ["seniority", "caution", "discipline", "loadoutLimit", "need", "stakes", "difficulty"];
 
     // Values the loader reads from the raw text with int.TryParse (effects, teamSize, a stage's count).
-    private static readonly HashSet<string> RawIntKeys = ["progress", "momentum", "strain", "teamSize", "count"];
+    private static readonly HashSet<string> RawIntKeys = ["progress", "momentum", "strain", "teamSize", "count", "min", "max"];
 
     // Numbers that read as 0 when absent.
     private static readonly HashSet<string> ZeroKeys = ["seniority", "caution", "discipline", "loadoutLimit", "need", "stakes", "difficulty", "teamSize", "count"];

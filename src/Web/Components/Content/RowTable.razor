@@ -33,7 +33,7 @@
                                 string? error = View.Error(name);
                                 string id = FormValues.Slug(name);
                                 <td class="cell">
-                                    <input id="@id" name="@name" type="text" inputmode="numeric" value="@Rows[row][Set.Fields[f]]" autocomplete="off" aria-label="@($"{Headers[f]}, row {row + 1}")" aria-invalid="@(error is null ? null : "true")" aria-describedby="@(error is null ? null : id + "-error")" @attributes="View.FocusFor(id)">
+                                    <input id="@id" name="@name" type="text" inputmode="@(Numeric ? "numeric" : null)" spellcheck="@(Numeric ? null : "false")" list="@(f == 0 && FirstSuggestions is not null ? $"h-{Set.Prefix}-list" : null)" value="@Rows[row][Set.Fields[f]]" autocomplete="off" aria-label="@($"{Headers[f]}, row {row + 1}")" aria-invalid="@(error is null ? null : "true")" aria-describedby="@(error is null ? null : id + "-error")" @attributes="View.FocusFor(id)">
                                     @if (error is not null)
                                     {
                                         <p class="error" id="@id-error">@error</p>
@@ -48,8 +48,17 @@
         </div>
     }
     <div class="rowset__add">
-        <RowButton Id="@Set.AddId" Value="@Set.AddAction">Add a row</RowButton>
+        <RowButton Id="@Set.AddId" Value="@Set.AddAction">@AddLabel</RowButton>
     </div>
+    @if (FirstSuggestions is not null)
+    {
+        <datalist id="@($"h-{Set.Prefix}-list")">
+            @foreach (string suggestion in FirstSuggestions)
+            {
+                <option value="@suggestion"></option>
+            }
+        </datalist>
+    }
 </div>
 
 @code {
@@ -63,6 +72,14 @@
     [Parameter, EditorRequired] public string Title { get; set; } = "";
 
     [Parameter] public string? Hint { get; set; }
+
+    // Whole numbers by default; text fields (a line's criteria) set this false.
+    [Parameter] public bool Numeric { get; set; } = true;
+
+    // Offered as a native list in the first column, any other text still allowed.
+    [Parameter] public IReadOnlyList<string>? FirstSuggestions { get; set; }
+
+    [Parameter] public string AddLabel { get; set; } = "Add a row";
 
     private List<Dictionary<string, string>> Rows => FormRows.Read(View.Values, Set);
 }

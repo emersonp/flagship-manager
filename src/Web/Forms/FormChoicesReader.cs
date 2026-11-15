@@ -21,6 +21,8 @@ public static class FormChoicesReader
             Encounters = encounters.Select(e => new EncounterChoice(e.Id, e.Name, e.Tags, e.Chain)).ToList(),
             EncounterTags = encounters.SelectMany(e => e.Tags).Distinct().Order(StringComparer.Ordinal).ToList(),
             DecisionOwners = DecisionOwnersOf(encounters),
+            Pronouns = index.Where(i => i.Kind == ContentKind.Pronoun).Select(i => new SkillChoice(i.Id, i.Name)).Prepend(new SkillChoice("they", null)).DistinctBy(p => p.Id).ToList(),
+            Symbols = index.Where(i => i.Kind == ContentKind.Symbol).Select(i => i.Id).ToList(),
         };
     }
 

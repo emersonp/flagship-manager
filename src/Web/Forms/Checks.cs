@@ -13,20 +13,34 @@ internal static partial class Checks
     [GeneratedRegex("^[A-Z][A-Z0-9_]*\\z")]
     private static partial Regex IdPattern();
 
-    public static void Id(string id, ContentFileSet files, Dictionary<string, string> errors)
+    public const string LowerIdRule = "A lower case letter, then letters, digits, and underscores.";
+
+    [GeneratedRegex("^[a-z][A-Za-z0-9_]*\\z")]
+    private static partial Regex LowerIdPattern();
+
+    // Symbols and pronoun sets: named in text, with ids of their own apart from everything else's.
+    public static bool LowerCase(ContentKind kind) => kind is ContentKind.Symbol or ContentKind.Pronoun;
+
+    public static void Id(string id, ContentFileSet files, Dictionary<string, string> errors, ContentKind kind = ContentKind.Skill)
     {
         if (id.Length == 0)
         {
             errors["id"] = "Enter an id.";
         }
-        else if (!IdPattern().IsMatch(id))
+        else if (LowerCase(kind) ? !LowerIdPattern().IsMatch(id) : !IdPattern().IsMatch(id))
         {
-            errors["id"] = "An id must be upper case letters, digits, and underscores, starting with a letter.";
+            errors["id"] = LowerCase(kind) ? "An id must start with a lower case letter and hold only letters, digits, and underscores." : "An id must be upper case letters, digits, and underscores, starting with a letter.";
         }
-        else if (files.Index().FirstOrDefault(i => i.Id == id) is { } used)
+        else if (UsedBy(files, id, kind) is { } used)
         {
             errors["id"] = $"That id is already used by {ContentKinds.WithArticle(used.Kind)}.";
         }
+    }
+
+    // The item already holding the id in the namespace this kind shares.
+    public static ContentItemRef? UsedBy(ContentFileSet files, string id, ContentKind kind)
+    {
+        return files.Index().FirstOrDefault(i => i.Id == id && (LowerCase(kind) ? i.Kind == kind : !LowerCase(i.Kind)));
     }
 
     // A decision's id: the id rule; an id another encounter holds is refused (the abort call's id is the game's own).

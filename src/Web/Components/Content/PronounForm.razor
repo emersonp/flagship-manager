@@ -1,0 +1,15 @@
+@using Web.Forms
+<FormShell View="View">
+    <div class="field-grid">
+        <Field Name="subject" Label="Subject" Value="@View.Values.Get("subject")" Hint="#actor.they#" Error="@View.Error("subject")" Required="true" Narrow="true" />
+        <Field Name="object" Label="Object" Value="@View.Values.Get("object")" Hint="#actor.them#" Error="@View.Error("object")" Required="true" Narrow="true" />
+        <Field Name="possessive" Label="Possessive" Value="@View.Values.Get("possessive")" Hint="#actor.their#" Error="@View.Error("possessive")" Required="true" Narrow="true" />
+        <Field Name="possessivePronoun" Label="Possessive pronoun" Value="@View.Values.Get("possessivePronoun")" Hint="#actor.theirs#" Error="@View.Error("possessivePronoun")" Required="true" Narrow="true" />
+        <Field Name="reflexive" Label="Reflexive" Value="@View.Values.Get("reflexive")" Hint="#actor.themself#" Error="@View.Error("reflexive")" Required="true" Narrow="true" />
+    </div>
+    <CheckField Name="plural" Label="Takes the plural verb" Checked="@(View.Values.Get("plural") == "true")" Hint="As they do: they check, not they checks. #actor:checks|check# then gives the second form." />
+</FormShell>
+
+@code {
+    [Parameter, EditorRequired] public ItemFormView View { get; set; } = null!;
+}
