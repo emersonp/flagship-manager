@@ -48,6 +48,32 @@
                 </div>
             }
         </section>
+        @if (Kind == ContentKind.Line && Files.Validate().Pack is { } pack)
+        {
+            Web.Forms.LineLint lint = Web.Forms.LineLint.Of(pack);
+            <section class="well" aria-labelledby="h-lint" id="lint">
+                <div class="well__head"><h2 id="h-lint">Lint</h2></div>
+                <div class="well__body">
+                    <p class="hint">From @lint.Samples beats of sample missions on the starting crew. A line a rare situation needs may never show here.</p>
+                    @if (lint.Clean)
+                    {
+                        <p class="alert-ok">Every line was chosen, and every beat met a line.</p>
+                    }
+                    @if (lint.NeverChosen.Count > 0)
+                    {
+                        <p>Never chosen: <span class="m">@string.Join(", ", lint.NeverChosen)</span>. Another line wins wherever these hold, or nothing they need occurs.</p>
+                    }
+                    @if (lint.LogWithout.Count > 0)
+                    {
+                        <p>Log beats with no line, which show the systems line: <span class="m">@string.Join(", ", lint.LogWithout)</span>.</p>
+                    }
+                    @if (lint.ReportWithout.Count > 0)
+                    {
+                        <p>Beats with no report line, which the report leaves out: <span class="m">@string.Join(", ", lint.ReportWithout)</span>.</p>
+                    }
+                </div>
+            </section>
+        }
     </ChildContent>
 </ContentShell>
 

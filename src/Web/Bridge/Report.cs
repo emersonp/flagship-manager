@@ -77,6 +77,21 @@ public static class Report
         _ => null,
     };
 
+    // Whether the report can use this beat, read from its situation: the same beats Rank ranks, for the lint.
+    public static bool Reports(Sim.Core.Narrative.Situation situation)
+    {
+        string? Text(string fact) => situation.Facts.TryGetValue(fact, out Sim.Core.Narrative.FactValue? value) ? value.Text : null;
+        return situation.Beat switch
+        {
+            "injury" => Text("outcome") != "unharmed",
+            "check" => Text("tier") is "critical" or "disaster" or "failure",
+            "call" or "notice" or "answer" or "collapse" or "result" or "lead" or "stage" => true,
+            _ => false,
+        };
+    }
+
+    public static bool Reports(Beat beat) => Rank(beat) is not null;
+
     // Each call with the captain's answer, and each notice with what the lead chose, in systems words.
     private static List<IReadOnlyList<LinePart>> Decisions(IReadOnlyList<MissionBeat> beats, Names names)
     {

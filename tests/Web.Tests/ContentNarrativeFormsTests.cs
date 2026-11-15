@@ -111,6 +111,20 @@ public sealed class ContentNarrativeFormsTests(RepoContentGuard guard) : IClassF
     }
 
     [Fact]
+    public async Task The_lines_page_shows_the_lint_and_other_kinds_do_not()
+    {
+        using TestApp app = NewApp();
+        using HttpClient client = app.CreateClient();
+
+        (_, string lines) = await Get(client, "/dev/content/lines");
+        (_, string skills) = await Get(client, "/dev/content/skills");
+
+        Assert.Contains("<section class=\"well\" aria-labelledby=\"h-lint\" id=\"lint\">", lines, StringComparison.Ordinal);
+        Assert.Contains("beats of sample missions", lines, StringComparison.Ordinal);
+        Assert.DoesNotContain("id=\"lint\"", skills, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task A_symbol_is_created_with_a_lower_case_id_and_its_options()
     {
         using TestApp app = NewApp();

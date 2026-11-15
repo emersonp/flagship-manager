@@ -150,6 +150,46 @@ public sealed class ProseTests : IDisposable
         Assert.Contains(report.Decisions.Select(Join), d => d.Contains("; the captain answered ", StringComparison.Ordinal));
     }
 
+    // The lint asks for report lines only where the report would use one, so the two rules must agree.
+    [Fact]
+    public void The_report_rule_reads_the_same_from_a_beat_and_from_its_situation()
+    {
+        int missions = 0;
+        for (ulong seed = 1; seed <= 12; seed++)
+        {
+            var played = new Played(Pack, seed);
+            if (!played.StepUntil(() => played.State.Phase == CyclePhase.Aftermath && played.Mission?.State.Result is not null))
+            {
+                continue;
+            }
+
+            missions++;
+            List<MissionBeat> beats = Beats(played);
+            var names = new Names(Pack);
+            var prose = new Prose(Pack, names, played.State.Seed, played.Mission!, beats, played.Mission!.State.Team[0].Member.Id);
+
+            Assert.Equal(beats.Select(b => Report.Reports(b.Beat)), prose.Situations.Select(Report.Reports));
+        }
+
+        Assert.True(missions >= 8);
+    }
+
+    [Fact]
+    public void The_lint_names_a_line_another_always_beats_and_beats_with_no_line()
+    {
+        LineDef result = new("LINE_RESULT_ANY", "log", "result", [new CriterionDef("outcome", Sim.Core.Narrative.NarrativeFacts.Outcomes)], "Over.");
+
+        Web.Forms.LineLint shadowed = Web.Forms.LineLint.Of(Pack with { Lines = [.. Pack.Lines, result] });
+        Web.Forms.LineLint empty = Web.Forms.LineLint.Of(Pack with { Lines = [] });
+
+        Assert.Contains("LINE_RESULT", shadowed.NeverChosen);
+        Assert.DoesNotContain("LINE_RESULT_ANY", shadowed.NeverChosen);
+        Assert.Contains("check", empty.LogWithout);
+        Assert.Contains("result", empty.ReportWithout);
+        Assert.DoesNotContain("effects", empty.ReportWithout);
+        Assert.False(empty.Clean);
+    }
+
     [Fact]
     public async Task The_log_shows_prose_then_tags_and_the_roll_on_request()
     {
