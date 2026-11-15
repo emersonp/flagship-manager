@@ -194,6 +194,17 @@ _Avoid_: Dashboard, HUD, main screen
 **Report**:
 The narrative account of a finished mission, generated from its beats.
 
+**Line**:
+An authored sentence for one kind of beat, with criteria that say when it fits. The most specific line whose criteria hold is the one shown.
+_Avoid_: Template, string, message
+
+**Symbol**:
+A named set of options a line can use (`#hesitates#`); one is picked for each beat.
+
+**Situation**:
+What a line is chosen for: the facts of one beat and the people in it.
+_Avoid_: Context (reserved for an assignment's theme)
+
 **Tuning file**:
 The one file in the content pack that holds every number the mission resolver uses. A mission keeps the tuning it started with.
 _Avoid_: Config, settings, balance file

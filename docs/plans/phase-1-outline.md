@@ -16,7 +16,7 @@ Order matters: the mission comes first because it is proven fun (the prototype),
 | 1e. Life aboard | `Sim.Storylets` with the expression language and quality view (stats and story flags); quality-gated, salience-ranked selection; morale; 5 vignettes (some with a small choice) and 2 captain storylets; captain's time; the inbox and crew file; `Sim.Chronicle` with the chronicle list | A full cycle of both layers in the browser (the Phase 1 result) | 3.7, 3.8, 5.1, 5.2, 5.4 |
 | 1f. Tuning in play | Developer-mode pages: the mission bench in the browser, and the tuning page that edits the tuning file and re-runs the bench on the same seeds, before and after side by side | The author tunes without leaving the game | 4.7, 10.1 |
 
-Slices 1a and 1b were built on 2026-11-14 from `2026-11-14-phase-1ab-plan.md`. The first part of 1c (a whole cycle, headless) was built on 2026-11-14 from `2026-11-14-phase-1c-headless-plan.md`: `Sim.Crew`, missions on the event bus, module state in the store, and `SimRunner cycles` playing real cycles. The second part of 1c (the cycle in the browser) was built on 2026-11-14 from `2026-11-14-phase-1c-web-plan.md`: `src/Web`, legacy selection, orders, briefing, resolution with paced beats and calls, aftermath, and the chosen design in `docs/design/`. The content editor (1c-editor) was built on 2026-11-14 from `2026-11-14-phase-1c-editor-plan.md`: display names, safe reading and writing of content files, a swappable live pack, and forms for every kind of content. Next is 1d, reports.
+Slices 1a and 1b were built on 2026-11-14 from `2026-11-14-phase-1ab-plan.md`. The first part of 1c (a whole cycle, headless) was built on 2026-11-14 from `2026-11-14-phase-1c-headless-plan.md`: `Sim.Crew`, missions on the event bus, module state in the store, and `SimRunner cycles` playing real cycles. The second part of 1c (the cycle in the browser) was built on 2026-11-14 from `2026-11-14-phase-1c-web-plan.md`: `src/Web`, legacy selection, orders, briefing, resolution with paced beats and calls, aftermath, and the chosen design in `docs/design/`. The content editor (1c-editor) was built on 2026-11-14 from `2026-11-14-phase-1c-editor-plan.md`: display names, safe reading and writing of content files, a swappable live pack, and forms for every kind of content. Reports (1d) were built on 2026-11-14 from `2026-11-14-phase-1d-plan.md`: `Sim.Narrative`, situations for every beat, lines chosen by salience, the log as prose with tags and the roll on request, the aftermath report, and lines, symbols, and pronoun sets in the editor with a preview and a lint. Next is 1e, life aboard.
 
 ## Carried forward to the second part of slice 1c (the browser)
 
@@ -179,3 +179,15 @@ When next touched:
 - Bench and command line: guards on `Summary` and `Run` for the browser (slice 1f); `--replay` parsed before content loads; an unwritable `--out` reported cleanly.
 
 Done from the Phase 0 list: the dice mapping is pinned, the `SimRunner` parser is strict with exit-code tests, the banned-API analyser replaced the substring test, `Persistence` is asserted to depend only on the core, and the csproj files no longer repeat shared properties.
+
+## Carried forward from reports
+
+From building slice 1d; none blocks play.
+
+- **Settled from earlier lists:** a refused answer now says what happened in plain words; a check's effects are cited by its tags; the abort call is phrased by lines with `decision: DECISION_ABORT`; the log's parts carry names apart from text, and the engine works on situations, not on resolved strings.
+- **Verb agreement follows a pronoun.** `#actor:checks|check#` gives the plural form for a plural set, so it belongs after `#actor.they#`; after a name, the author writes the singular. Generated crew may want the engine to know which it follows.
+- **Repetition is avoided within one mission only.** Memory across missions needs per-legacy narrative state (1e).
+- **Sample missions are fixed and small** (each objective template on four seeds, two teams). Rare beats (supervised checks, skips) may never appear in them, so the lint reports such lines as never chosen.
+- **The lines page runs the samples** once per pack, then keeps them while that pack is live.
+- **`tests/browser/edit.sh` was not extended** to write a line and see it win: the browser scripts need `playwright-cli`, and the web step of `check.sh` needs `python3` and `setsid`, none of which this Windows machine has. The same behaviour is covered by the web tests through the real app.
+- **Variants and contexts** are not yet criteria: variants change the resolver's draw, so they come with the content that needs them.

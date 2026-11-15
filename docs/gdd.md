@@ -1,6 +1,6 @@
 # Starship Sim: Game Design Document v1
 
-Status: draft v1.9, 2026-11-14, revised after the author's reviews (section 15), the mission prototype (section 4.7), and the author's notes on skills and narrative structure after slice 1c (section 15, items 18 to 21). Vocabulary follows `GLOSSARY.md`; the games and shows the design draws on are listed in `docs/touchstones.md`. Creative content is placeholder throughout (`SPECIES_A`, `OBJECTIVE_TEMPLATE_1`, `SKILL_A`); numbers are starting points for the balance simulator, not commitments.
+Status: draft v1.10, 2026-11-14, revised after the author's reviews (section 15), the mission prototype (section 4.7), and the author's notes on skills and narrative structure after slice 1c (section 15, items 18 to 21). Vocabulary follows `GLOSSARY.md`; the games and shows the design draws on are listed in `docs/touchstones.md`. Creative content is placeholder throughout (`SPECIES_A`, `OBJECTIVE_TEMPLATE_1`, `SKILL_A`); numbers are starting points for the balance simulator, not commitments.
 
 ## 1. Summary
 
@@ -479,6 +479,17 @@ Staffing the insight roles well is therefore how a captain of 500 sees the ship 
 
 Register: reports read as a ship's log (clipped, factual, attributed), which sits comfortably beside tables. See risk 2.
 
+Built in slice 1d (`Sim.Narrative`; design and plan in `docs/plans/2026-11-14-phase-1d-*.md`):
+
+- **Situations.** Each beat becomes a situation: a flat set of facts (the encounter and its tags, the stage, momentum, strain, and the beat's own facts, such as a check's tier and margin) and the people in it by role (`actor`, `helper`, `lead`, `crew`), with their stats as facts (`actor.caution`). `Sim.Core` lists the facts of every beat kind; the loader, the editor, and the mapping in `Sim.Missions` all read that one catalogue. `Sim.Narrative` knows nothing of missions, so vignettes and the chronicle can build situations of their own.
+- **Lines** (`content/lines/`) have a use (the live log or the report), a beat, criteria, and text. A criterion is a value, any of several values, or a range (`actor.caution: { min: 1 }`). The most specific line whose criteria all hold wins; a line already used in the mission loses to an equally specific fresh one; ties break by a stable hash of the legacy seed, the mission, and the beat.
+- **Text**: `#symbol#`, names by role (`#actor#`, `#encounter#`), pronouns (`#actor.they#`, `.them`, `.their`, `.theirs`, `.themself`), a verb after a pronoun (`#actor.they# #actor:checks|check#`), `.capitalize`, and `##` for a `#`. **Symbols** (`content/symbols/`) give one of their options; **pronoun sets** (`content/pronouns/`) ship as she, he, and they, and a crew member names one (they by default).
+- **Never stored, never random.** Text is regenerated on every view from the beats and the current pack, so a grammar edit shows at once, even in old missions. It draws from no RNG stream: the event log is identical with or without lines.
+- **Fallback.** A beat no authored line holds for shows the structural systems line, so a pack with no lines still plays. The loader refuses criteria and text that can never hold for their beat kind.
+- **Tags.** Every log line ends with generated figures for what its beat changed (a check's tier and margin, and its momentum and strain changes, from two members the check beat gained in this slice). Lines never author them, so every line cites what changed (risk 2).
+- **The report** in the aftermath: three to eight sentences from report lines, in order, chosen from the beats that mattered (injuries and deaths, calls, notices, answers, the collapse, and the result always; then failures and lead changes; then stage openers to make three), and each call and notice with its answer.
+- **Not yet**: encounter variants and assignment contexts as criteria, relationship-aware inserts, species forms, repetition memory across missions, and the expression language as a criterion (slice 1e).
+
 ## 7. Architecture
 
 ### 7.1 Modules
@@ -491,7 +502,7 @@ Register: reports read as a ship's log (clipped, factual, attributed), which sit
 | `Sim.Storylets` | Selection, casting, salience, and effects | Core |
 | `Sim.Crew` | Growth, morale, relationships, careers, and roster | Core |
 | `Sim.Chronicle` | Renown, succession, and chronicle projection | Core |
-| `Sim.Narrative` | Grammar engine | Core |
+| `Sim.Narrative` | Salience selection and expansion of lines (the grammar engine) | Core |
 | `Sim.Cycle` | Phase state machine; the only orchestrator | Core |
 | `Persistence` | Database, event log, and legacy load and save | Core |
 | `Web` | ASP.NET endpoints and Datastar views | All, through commands and queries |
@@ -539,11 +550,11 @@ Built in slice 1c (`src/Web`, run with `./run.sh`):
 - **Datastar 1.0.5, self-hosted,** with the stream events written by hand; pages and stream fragments are the same server-rendered components. The game needs no network.
 - **Briefing is one form,** sent whole at launch. Sending nobody just moves the phase on.
 - **Beats are paced by the server.** A launch or an answer resolves the mission to its next call or its end and commits; the response then sends the log one beat longer each time, with a pause that is a setting. The roster, the meters, the call, and the outcome hold back until the log reaches them, so nothing gives the ending away. A dropped connection loses nothing.
-- **The screens so far:** the list of legacies, orders, briefing, resolution, and aftermath, with the top bar (week, cycle, and the five phases) and the roster beside each. The inbox and the crew file come with slices 1d and 1e.
-- **Beat lines are plain and structural** until the narrative report (slice 1d) replaces them: `CREW_02 checks SKILL_B at ENCOUNTER_01, helped by CREW_05: 6 + 3 against 15, failure (−6).`
+- **The screens so far:** the list of legacies, orders, briefing, resolution, and aftermath, with the top bar (week, cycle, and the five phases) and the roster beside each. The inbox and the crew file come with slice 1e.
+- **Beat lines are prose** (slice 1d): an authored line, then its tags in the mono figure style, then a disclosure ("Roll" on a check) with the structural line: `CREW_02 checks SKILL_B at ENCOUNTER_01, helped by CREW_05: 6 + 3 against 15, failure (−6).` A stage line keeps its "Stage N:" head before the prose. The aftermath opens with the report. A refused call answer says what happened in plain words.
 - **A legacy played through the browser has exactly the simulator's event log** for the same seed and choices; a test holds the two together.
 - **Everything authored has a display name** (slice 1c-editor): skills, crew, gear, objective templates, encounters, decisions, and assignments. Ids stay the keys in saves, events, and references; the screens and the log show the name and fall back to the id. Two items that share a name show their ids beside it.
-- **The content editor** (slice 1c-editor, `/dev/content`, developer mode only; `run.sh` turns it on): a form for each kind of content, and the tuning and pack files as text. A save builds the whole pack as it would be, runs the loader on it, and only then writes one file and swaps the pack in the running game; a save the loader refuses writes nothing and shows the reasons. A file holding anything the editor cannot keep faithfully is never rewritten. Names and gear reach games in progress at once; a legacy's crew keep the levels they started with. Git stays the record.
+- **The content editor** (slice 1c-editor, `/dev/content`, developer mode only; `run.sh` turns it on): a form for each kind of content, and the tuning and pack files as text. Slice 1d adds lines (with a preview that expands the line as typed against fixed sample missions on the starting crew, and says whether it wins each beat or which line beats it), symbols, pronoun sets, the crew's pronoun pick, and a lint on the lines page that names lines no sample chooses and beats with no line. A save builds the whole pack as it would be, runs the loader on it, and only then writes one file and swaps the pack in the running game; a save the loader refuses writes nothing and shows the reasons. A file holding anything the editor cannot keep faithfully is never rewritten. Names and gear reach games in progress at once; a legacy's crew keep the levels they started with. Git stays the record.
 - **The look** is recorded in `docs/design/` (the mock-up, the tokens, and the component recipes): a blue-slate ground, one azure signal, a serif for headings over a technical grotesk, monospaced figures, and the mission log as one numbered trail that runs into the call. Screens are in `docs/screens/1c/`.
 
 ## 8. Engine recommendation
@@ -679,8 +690,8 @@ What has been built, slice by slice. A phase is cut into slices when it is plann
 | 1. Thinnest game | 1c, part one. A whole cycle, headless | Crew that grow, are hurt, heal, and die; missions on the event bus; module state stored; the simulator plays real cycles | Done 2026-11-14 |
 | 1. Thinnest game | 1c, part two. The cycle in the browser | Legacy selection, orders, briefing, resolution with paced beats and calls, aftermath, and the visual design | Done 2026-11-14 |
 | 1. Thinnest game | 1c-editor. Content editor | Developer-mode pages that write the content files, validated on save; display names for crew, skills, gear, objectives, encounters, and assignments | Done 2026-11-14 |
-| 1. Thinnest game | 1d. Reports | The grammar engine, lines chosen by salience, and the narrative report built from beats | Next |
-| 1. Thinnest game | 1e. Life aboard | Quality-gated, salience-ranked storylets, vignettes (some with a small choice), morale, captain's time, the inbox and crew file, and the chronicle list | Later |
+| 1. Thinnest game | 1d. Reports | The grammar engine, lines chosen by salience, the log as prose with tags, the aftermath report, and lines, symbols, and pronoun sets in the editor | Done 2026-11-14 |
+| 1. Thinnest game | 1e. Life aboard | Quality-gated, salience-ranked storylets, vignettes (some with a small choice), morale, captain's time, the inbox and crew file, and the chronicle list | Next |
 | 1. Thinnest game | 1f. Tuning in play | The mission bench and the tuning page in the browser | Later |
 | 1. Thinnest game | Playtest | Three legacies of 20 to 30 cycles against the checklist below | Later |
 | 2. Growth and loss | Not yet cut | Mentoring, memorials, several objectives at some sites, and mandates (experience, injuries, death, and unattended objectives arrived early, in 1c) | Not started |
