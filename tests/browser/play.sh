@@ -102,6 +102,14 @@ for i in $(seq 0 $((needed - 1))); do
   pw check "input[name=crew]:not([disabled]) >> nth=$i" > /dev/null
 done
 pw check "input[name=lead]:not([disabled]) >> nth=0" > /dev/null
+
+# The away team card holds every column at 400 pixels wide: neither the card nor the page scrolls sideways.
+pw resize 400 900 > /dev/null
+card='document.querySelector("#h-crew").closest("section")'
+[ "$(js "$card.scrollWidth === $card.clientWidth")" = "true" ] || fail "the away team card scrolls sideways at 400 pixels wide."
+[ "$(js "document.documentElement.scrollWidth <= document.documentElement.clientWidth")" = "true" ] || fail "the page scrolls sideways at 400 pixels wide."
+pw resize 1280 900 > /dev/null
+
 pw click "getByRole('button', { name: 'Launch' })" > /dev/null
 settled="document.querySelector('#log li') !== null && (document.querySelector('#call form') !== null || document.querySelector('#resolution-footer button') !== null)"
 wait_for "$settled" "the launch's beats to play"

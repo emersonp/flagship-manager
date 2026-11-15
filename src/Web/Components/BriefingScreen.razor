@@ -45,40 +45,38 @@
 
         <section class="well" aria-labelledby="h-crew">
             <div class="well__head"><h2 id="h-crew">Away team</h2><p class="note">Skills for the chosen objective. A figure in brackets is the level while injured.</p></div>
-            <div class="tw">
-                <table class="pick">
-                    <thead>
-                        <tr>
-                            <th scope="col">Crew</th>
-                            <th scope="col">Status</th>
+            <table class="pick pick--crew">
+                <thead>
+                    <tr>
+                        <th scope="col">Crew</th>
+                        <th scope="col">Status</th>
+                        @foreach (string skill in Skills)
+                        {
+                            <th scope="col" class="n" data-show="@Shows(skill)">@SkillName(skill)</th>
+                        }
+                        <th scope="col" class="c">Team</th>
+                        <th scope="col" class="c">Lead</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (CrewRow row in Briefing.Crew)
+                    {
+                        <tr class="@(row.Fit ? null : "is-off")">
+                            <td class="who">@row.Shown@if (row.Disambiguate)
+                                {
+                                    @(" ")<span class="quiet">@row.Id</span>
+                                }</td>
+                            <td class="status"><CrewStatusText Row="row" /></td>
                             @foreach (string skill in Skills)
                             {
-                                <th scope="col" class="n" data-show="@Shows(skill)">@SkillName(skill)</th>
+                                <td class="n" data-label="@SkillName(skill)" data-show="@Shows(skill)"><SkillLevel Row="row" Skill="@skill" /></td>
                             }
-                            <th scope="col" class="c">Team</th>
-                            <th scope="col" class="c">Lead</th>
+                            <td class="c"><label class="hit"><input type="checkbox" id="crew-@row.Id" name="crew" value="@row.Id" aria-label="@Named("Team", row)" disabled="@(!row.Fit)" data-on:change="@Count"></label></td>
+                            <td class="c"><label class="hit"><input type="radio" id="lead-@row.Id" name="lead" value="@row.Id" aria-label="@Named("Lead", row)" disabled="@(!row.Fit)"></label></td>
                         </tr>
-                    </thead>
-                    <tbody>
-                        @foreach (CrewRow row in Briefing.Crew)
-                        {
-                            <tr class="@(row.Fit ? null : "is-off")">
-                                <td class="who">@row.Shown@if (row.Disambiguate)
-                                    {
-                                        @(" ")<span class="quiet">@row.Id</span>
-                                    }</td>
-                                <td class="status"><CrewStatusText Row="row" /></td>
-                                @foreach (string skill in Skills)
-                                {
-                                    <td class="n" data-show="@Shows(skill)"><SkillLevel Row="row" Skill="@skill" /></td>
-                                }
-                                <td class="c"><label class="hit"><input type="checkbox" id="crew-@row.Id" name="crew" value="@row.Id" aria-label="@Named("Team", row)" disabled="@(!row.Fit)" data-on:change="@Count"></label></td>
-                                <td class="c"><label class="hit"><input type="radio" id="lead-@row.Id" name="lead" value="@row.Id" aria-label="@Named("Lead", row)" disabled="@(!row.Fit)"></label></td>
-                            </tr>
-                        }
-                    </tbody>
-                </table>
-            </div>
+                    }
+                </tbody>
+            </table>
         </section>
 
         <div class="brief-pair">

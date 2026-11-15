@@ -47,6 +47,24 @@ public sealed class BriefingTests : IDisposable
         return await client.GetStringAsync($"/legacy/{id}");
     }
 
+    // The section a heading id labels, up to its closing tag.
+    private static string Section(string html, string headingId)
+    {
+        int heading = html.IndexOf($"id=\"{headingId}\"", StringComparison.Ordinal);
+        Assert.True(heading >= 0, $"no heading {headingId}");
+        int start = html.LastIndexOf("<section", heading, StringComparison.Ordinal);
+        int end = html.IndexOf("</section>", heading, StringComparison.Ordinal);
+        return html[start..end];
+    }
+
+    [Fact]
+    public async Task The_away_team_table_has_no_scrolling_wrapper()
+    {
+        string card = Section(await Page(await NewBriefing()), "h-crew");
+        Assert.DoesNotContain("class=\"tw\"", card);
+        Assert.Contains("class=\"pick pick--crew\"", card);
+    }
+
     private static IReadOnlyList<string> Values(string html, string field)
     {
         return Regex.Matches(html, $"name=\"{field}\" value=\"([^\"]+)\"").Select(m => m.Groups[1].Value).ToList();
