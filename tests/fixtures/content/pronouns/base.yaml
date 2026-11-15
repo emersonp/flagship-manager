@@ -1,0 +1,20 @@
+# English pronoun sets. Add others as needed; a crew member with no pronouns uses "they".
+- id: she
+  subject: she
+  object: her
+  possessive: her
+  possessivePronoun: hers
+  reflexive: herself
+- id: he
+  subject: he
+  object: him
+  possessive: his
+  possessivePronoun: his
+  reflexive: himself
+- id: they
+  subject: they
+  object: them
+  possessive: their
+  possessivePronoun: theirs
+  reflexive: themself
+  plural: true

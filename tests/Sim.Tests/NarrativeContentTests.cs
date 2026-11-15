@@ -1,0 +1,233 @@
+using Sim.Content;
+using Sim.Core;
+using Sim.Core.Content;
+using Sim.Core.Narrative;
+using Sim.Missions;
+
+namespace Sim.Tests;
+
+// Loading lines, symbols, and pronoun sets (slice 1d design, section 2), and the beat-to-situation mapping that feeds them.
+public class NarrativeContentTests
+{
+    private static ContentLoadResult LoadWith(string path, string text)
+    {
+        Dictionary<string, string> files = TestContent.RepoFiles();
+        files[path] = text;
+        return ContentLoader.Load(files);
+    }
+
+    private static string OneLine(string when, string text = "\"#actor# acts.\"", string extra = "") => $"- id: LINE_TEST\n  when: {when}\n  text: {text}\n{extra}";
+
+    [Fact]
+    public void The_fixture_pack_loads_its_lines_and_pronoun_sets()
+    {
+        ContentPack pack = TestContent.Pack;
+
+        Assert.Contains(pack.Lines, l => l.Id == "LINE_CHECK_HELPED" && l.Beat == "check" && l.Use == "log" && l.When.Single() is { Fact: "helped", Values: ["true"] });
+        Assert.Contains(pack.Lines, l => l.Id == "LINE_REPORT_CHECK_BAD" && l.Use == "report" && l.When.Single().Values.SequenceEqual(new[] { "failure", "disaster" }));
+        Assert.Equal(["she", "he", "they"], pack.Pronouns.Select(p => p.Id));
+        Assert.Equal(PronounSet.They with { }, pack.PronounsOf(null) with { });
+    }
+
+    [Fact]
+    public void A_range_and_a_number_load_as_written()
+    {
+        ContentLoadResult result = LoadWith("lines/test.yaml", OneLine("{ beat: check, actor.caution: { min: -1, max: 2 }, margin: 4 }"));
+
+        Assert.Empty(result.Errors);
+        LineDef line = result.Pack!.Lines.Single(l => l.Id == "LINE_TEST");
+        Assert.Equal(new CriterionDef("actor.caution", [], -1, 2), line.When[0] with { Values = [] });
+        Assert.Equal(["4"], line.When[1].Values);
+        Assert.Equal(3, line.Specificity);
+    }
+
+    [Theory]
+    [InlineData("{ tier: failure }", "when must name a beat")]
+    [InlineData("{ beat: dance }", "unknown beat 'dance'")]
+    [InlineData("{ beat: stage, tier: failure }", "a stage beat has no fact 'tier'")]
+    [InlineData("{ beat: check, tier: grand }", "tier is one of critical, success")]
+    [InlineData("{ beat: check, encounter: ENCOUNTER_99 }", "encounter names 'ENCOUNTER_99', which the pack does not have")]
+    [InlineData("{ beat: check, skill: SKILL_Z }", "skill names 'SKILL_Z'")]
+    [InlineData("{ beat: check, tier: { min: 1 } }", "tier is not a number, so it cannot take a range")]
+    [InlineData("{ beat: check, margin: { min: 3, max: 1 } }", "min 3 is above max 1")]
+    [InlineData("{ beat: check, margin: { least: 1 } }", "takes min, max, or both")]
+    [InlineData("{ beat: check, margin: lots }", "margin is a number, not 'lots'")]
+    [InlineData("{ beat: check, supervised: maybe }", "supervised is true or false")]
+    [InlineData("{ beat: check, helper.mood: 1 }", "a check beat has no fact 'helper.mood'")]
+    [InlineData("{ beat: stage, actor.caution: 1 }", "a stage beat has no fact 'actor.caution'")]
+    public void A_line_whose_criteria_can_never_hold_is_refused(string when, string message)
+    {
+        ContentLoadResult result = LoadWith("lines/test.yaml", OneLine(when));
+
+        Assert.Contains(result.Errors, e => e.File == "lines/test.yaml" && e.Message.Contains(message, StringComparison.Ordinal));
+    }
+
+    [Theory]
+    [InlineData("{ beat: stage }", "\"#actor# acts.\"", "a stage beat does not have")]
+    [InlineData("{ beat: stage }", "\"#encounter.they# acts.\"", "needs a person")]
+    [InlineData("{ beat: check }", "\"#nobody# acts.\"", "names no person, thing, or symbol")]
+    [InlineData("{ beat: check }", "\"An open # mark.\"", "never closed")]
+    [InlineData("{ beat: check }", "\"#actor:checks# it.\"", "needs two verb forms")]
+    [InlineData("{ beat: check }", "\"\"", "text must not be empty")]
+    public void A_line_whose_text_names_what_its_beat_lacks_is_refused(string when, string text, string message)
+    {
+        ContentLoadResult result = LoadWith("lines/test.yaml", OneLine(when, text));
+
+        Assert.Contains(result.Errors, e => e.File == "lines/test.yaml" && e.Message.Contains(message, StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void A_line_of_an_unknown_use_is_refused()
+    {
+        ContentLoadResult result = LoadWith("lines/test.yaml", OneLine("{ beat: check }", extra: "  use: diary\n"));
+
+        Assert.Contains(result.Errors, e => e.Message.Contains("use must be one of log, report", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Symbols_load_and_a_line_may_use_them()
+    {
+        Dictionary<string, string> files = TestContent.RepoFiles();
+        files["symbols/base.yaml"] = "- id: hesitates\n  options: [WORD_A, \"#actor.they# pause\"]\n";
+        files["lines/test.yaml"] = OneLine("{ beat: check }", "\"#actor# #hesitates#.\"");
+
+        ContentLoadResult result = ContentLoader.Load(files);
+
+        Assert.Empty(result.Errors);
+        Assert.Equal(["WORD_A", "#actor.they# pause"], result.Pack!.Symbols.Single().Options);
+    }
+
+    [Theory]
+    [InlineData("- id: loop\n  options: [\"#loop#\"]\n", "uses itself")]
+    [InlineData("- id: a\n  options: [\"#b#\"]\n- id: b\n  options: [\"#a#\"]\n", "uses itself")]
+    [InlineData("- id: actor\n  options: [WORD_A]\n", "cannot be called 'actor'")]
+    [InlineData("- id: empty\n  options: []\n", "at least one option")]
+    [InlineData("- id: Upper\n  options: [WORD_A]\n", "must start with a lower case letter")]
+    [InlineData("- id: broken\n  options: [\"open # mark\"]\n", "never closed")]
+    public void A_symbol_that_cannot_expand_is_refused(string text, string message)
+    {
+        ContentLoadResult result = LoadWith("symbols/base.yaml", text);
+
+        Assert.Contains(result.Errors, e => e.File == "symbols/base.yaml" && e.Message.Contains(message, StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void A_symbol_used_by_a_line_is_checked_against_that_lines_beat()
+    {
+        Dictionary<string, string> files = TestContent.RepoFiles();
+        files["symbols/base.yaml"] = "- id: aside\n  options: [\"#helper# watches\"]\n";
+        files["lines/test.yaml"] = OneLine("{ beat: stage }", "\"#aside#.\"");
+
+        ContentLoadResult result = ContentLoader.Load(files);
+
+        Assert.Contains(result.Errors, e => e.Message.Contains("symbol 'aside' #helper# names 'helper', which a stage beat does not have", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Crew_pronouns_must_name_a_set_and_they_always_exists()
+    {
+        Dictionary<string, string> files = TestContent.RepoFiles();
+        files.Remove("pronouns/base.yaml");
+        files["crew/starting.yaml"] = files["crew/starting.yaml"].Replace("- id: CREW_01\n", "- id: CREW_01\n  pronouns: they\n", StringComparison.Ordinal).Replace("- id: CREW_02\n", "- id: CREW_02\n  pronouns: xe\n", StringComparison.Ordinal);
+
+        ContentLoadResult result = ContentLoader.Load(files);
+
+        Assert.Equal(["crew/starting.yaml: CREW_02: unknown pronoun set 'xe'."], result.Errors.Select(e => $"{e.File}: {e.Message}"));
+    }
+
+    [Fact]
+    public void A_crew_member_gets_the_set_they_name()
+    {
+        Dictionary<string, string> files = TestContent.RepoFiles();
+        files["crew/starting.yaml"] = files["crew/starting.yaml"].Replace("- id: CREW_02\n", "- id: CREW_02\n  pronouns: she\n", StringComparison.Ordinal);
+
+        ContentPack pack = ContentLoader.Load(files).Pack!;
+
+        Assert.Equal("she", pack.PronounsOf(pack.Crew.Single(c => c.Id == "CREW_02")).Subject);
+        Assert.Equal("they", pack.PronounsOf(pack.Crew.Single(c => c.Id == "CREW_01")).Subject);
+    }
+
+    [Theory]
+    [InlineData("- id: she\n  subject: she\n  object: her\n  possessive: her\n  possessivePronoun: hers\n", "reflexive must be one word")]
+    [InlineData("- id: she\n  subject: \" she\"\n  object: her\n  possessive: her\n  possessivePronoun: hers\n  reflexive: herself\n", "subject must be one word")]
+    [InlineData("- id: She\n  subject: she\n  object: her\n  possessive: her\n  possessivePronoun: hers\n  reflexive: herself\n", "must start with a lower case letter")]
+    public void A_pronoun_set_missing_a_form_is_refused(string text, string message)
+    {
+        ContentLoadResult result = LoadWith("pronouns/base.yaml", text);
+
+        Assert.Contains(result.Errors, e => e.File == "pronouns/base.yaml" && e.Message.Contains(message, StringComparison.Ordinal));
+    }
+
+    // Every situation holds only what the catalogue lists for its kind, and across many missions every listed fact turns up.
+    [Fact]
+    public void Situations_hold_exactly_the_catalogues_facts_people_and_things()
+    {
+        var seen = new Dictionary<string, HashSet<string>>();
+        foreach (CallAnswer answer in Enum.GetValues<CallAnswer>())
+        {
+            for (ulong seed = 1; seed <= 150; seed++)
+            {
+                Team team = seed % 3 == 0 ? TestContent.Team(7, 7, 8) : TestContent.Team(1, 1, 3, 5);
+                var parameters = new Parameters(DevelopJuniors: seed % 2 == 0, Autonomy: (int)(seed % 3) - 1);
+                MissionState start = MissionResolver.Start(TestContent.Objective, TestContent.Pack.Encounters, team, TestContent.Gear, parameters, TestContent.Tuning, seed);
+                MissionStep step = MissionResolver.Advance(start);
+                var beats = new List<Beat>(step.Beats);
+                while (step.Pending is { } call)
+                {
+                    step = MissionResolver.Advance(step.State, new CallReply(call.CallId, call.Options.Contains(answer) ? answer : call.LeadPrefers));
+                    beats.AddRange(step.Beats);
+                }
+
+                var frame = new BeatFrame(start, team.LeadId, TestContent.Objective.Tags, id => new Person(id, $"N_{id}", PronounSet.They), (kind, id) => $"{kind}:{id}");
+
+                IReadOnlyList<Situation> situations = BeatSituations.Of(beats, frame);
+
+                Assert.Equal(beats.Count, situations.Count);
+                foreach (Situation s in situations)
+                {
+                    BeatSpec spec = NarrativeFacts.Beats[s.Beat];
+                    Assert.All(s.People.Keys, role => Assert.Contains(role, spec.People));
+                    Assert.All(s.Words.Keys, thing => Assert.Contains(thing, spec.Things));
+                    foreach ((string fact, FactValue value) in s.Facts)
+                    {
+                        FactSpec? factSpec = NarrativeFacts.Fact(s.Beat, fact);
+                        Assert.True(factSpec is not null, $"{s.Beat} has '{fact}', which the catalogue does not list.");
+                        Assert.Equal(factSpec!.Type, value.Type);
+                        if (factSpec.Domain == FactDomain.Words)
+                        {
+                            Assert.Contains(value.Text!, factSpec.Words!);
+                        }
+                    }
+
+                    HashSet<string> kind = seen.TryGetValue(s.Beat, out HashSet<string>? found) ? found : seen[s.Beat] = [];
+                    kind.UnionWith(s.Facts.Keys.Where(k => !k.Contains('.', StringComparison.Ordinal)));
+                    kind.UnionWith(s.People.Keys.Select(p => "person:" + p));
+                }
+            }
+        }
+
+        foreach ((string beat, HashSet<string> facts) in seen)
+        {
+            BeatSpec spec = NarrativeFacts.Beats[beat];
+            // The fixture's decisions never roll injuries, so an effects beat's injuryRoll is the one fact these missions cannot show.
+            IEnumerable<string> expected = spec.Facts.Select(f => f.Name).Concat(spec.People.Select(p => "person:" + p))
+                .Where(f => !(beat == "effects" && f == "injuryRoll"));
+            Assert.All(expected, f => Assert.True(facts.Contains(f), $"No {beat} beat ever had '{f}'."));
+        }
+
+        Assert.Contains("check", seen.Keys);
+        Assert.Contains("answer", seen.Keys);
+    }
+
+    [Fact]
+    public void Every_enum_value_has_its_catalogue_word()
+    {
+        Assert.Equal(NarrativeFacts.Tiers, Enum.GetValues<Tier>().Select(BeatSituations.Word));
+        Assert.Equal(NarrativeFacts.Approaches, Enum.GetValues<Approach>().Select(BeatSituations.Word));
+        Assert.Equal(NarrativeFacts.Severities, Enum.GetValues<InjurySeverity>().Select(BeatSituations.Word));
+        Assert.Equal(NarrativeFacts.InjuryOutcomes, Enum.GetValues<InjuryOutcome>().Select(BeatSituations.Word));
+        Assert.Equal(NarrativeFacts.Answers, Enum.GetValues<CallAnswer>().Select(BeatSituations.Word));
+        Assert.Equal(NarrativeFacts.Standings, Enum.GetValues<CallStanding>().Select(BeatSituations.Word));
+        Assert.Equal(NarrativeFacts.Outcomes, Enum.GetValues<MissionOutcome>().Select(BeatSituations.Word));
+    }
+}

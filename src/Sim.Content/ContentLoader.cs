@@ -42,7 +42,13 @@ public static partial class ContentLoader
         var crew = new List<(string File, CrewDto Dto)>();
         var gear = new List<(string File, GearDto Dto)>();
         var assignments = new List<(string File, AssignmentDto Dto)>();
+        var lines = new List<(string File, LineDto Dto)>();
+        var symbols = new List<(string File, SymbolDto Dto)>();
+        var pronouns = new List<(string File, PronounDto Dto)>();
         var seenIn = new Dictionary<string, string>();
+        // Symbols and pronoun sets are named in text, apart from the ids of everything else.
+        var symbolsSeenIn = new Dictionary<string, string>();
+        var pronounsSeenIn = new Dictionary<string, string>();
         foreach ((string path, string text) in files.OrderBy(f => f.Key, StringComparer.Ordinal))
         {
             if (path == ManifestFile || path == TuningFile || path == CrewTuningFile)
@@ -75,6 +81,15 @@ public static partial class ContentLoader
                 case "assignments":
                     assignments.AddRange(Items<AssignmentDto>(yaml, path, text, d => d.Id, seenIn, errors).Select(d => (path, d)));
                     break;
+                case "lines":
+                    lines.AddRange(Items<LineDto>(yaml, path, text, d => d.Id, seenIn, errors).Select(d => (path, d)));
+                    break;
+                case "symbols":
+                    symbols.AddRange(Items<SymbolDto>(yaml, path, text, d => d.Id, symbolsSeenIn, errors, CheckLowerId).Select(d => (path, d)));
+                    break;
+                case "pronouns":
+                    pronouns.AddRange(Items<PronounDto>(yaml, path, text, d => d.Id, pronounsSeenIn, errors, CheckLowerId).Select(d => (path, d)));
+                    break;
                 case "tuning":
                     errors.Add(new ContentError(path, $"Unknown tuning file. The only tuning files are {TuningFile} and {CrewTuningFile}."));
                     break;
@@ -88,12 +103,20 @@ public static partial class ContentLoader
         List<ObjectiveDef> objectiveDefs = BuildObjectives(objectives, encounterDefs, errors);
         (MissionTuning? tuning, BenchTuning? bench) = LoadTuning(yaml, files, errors);
         CrewTuning? crewTuning = LoadCrewTuning(yaml, files, errors);
-        List<CrewDef> crewDefs = BuildCrew(crew, skills, crewTuning, errors);
+        List<PronounSet> pronounSets = BuildPronouns(pronouns, errors);
+        List<CrewDef> crewDefs = BuildCrew(crew, skills, crewTuning, pronounSets, errors);
         List<GearDef> gearDefs = BuildGear(gear, errors);
         List<AssignmentDef> assignmentDefs = BuildAssignments(assignments, objectives.Select(o => o.Dto).ToList(), errors);
+        List<SymbolDef> symbolDefs = BuildSymbols(symbols, errors);
+        List<LineDef> lineDefs = BuildLines(lines, symbolDefs, skills, encounterDefs, objectiveDefs, errors);
 
         ContentPack? pack = errors.Count == 0
             ? new ContentPack(manifest!.Id!, manifest.Version, skills, encounterDefs, objectiveDefs, tuning!, bench!, crewDefs, gearDefs, assignmentDefs, crewTuning!)
+            {
+                Lines = lineDefs,
+                Symbols = symbolDefs,
+                Pronouns = pronounSets,
+            }
             : null;
         return new ContentLoadResult(pack, errors);
     }
@@ -112,9 +135,10 @@ public static partial class ContentLoader
     }
 
     // The valid, uniquely named items of one list file. Ids are unique across the whole pack.
-    private static List<T> Items<T>(IDeserializer yaml, string path, string text, Func<T, string?> id, Dictionary<string, string> seenIn, List<ContentError> errors)
+    private static List<T> Items<T>(IDeserializer yaml, string path, string text, Func<T, string?> id, Dictionary<string, string> seenIn, List<ContentError> errors, Func<string, string?, List<ContentError>, bool>? checkId = null)
         where T : class
     {
+        checkId ??= CheckId;
         var items = new List<T>();
         foreach (T? dto in Parse<List<T?>>(yaml, path, text, errors) ?? [])
         {
@@ -124,7 +148,7 @@ public static partial class ContentLoader
                 continue;
             }
 
-            if (!CheckId(path, id(dto), errors))
+            if (!checkId(path, id(dto), errors))
             {
                 continue;
             }

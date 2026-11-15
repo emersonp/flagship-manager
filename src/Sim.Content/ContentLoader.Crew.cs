@@ -52,8 +52,9 @@ public static partial class ContentLoader
         return read.ReportUnused() && errors.Count == errorsBefore ? tuning : null;
     }
 
-    private static List<CrewDef> BuildCrew(List<(string File, CrewDto Dto)> items, List<SkillDef> skills, CrewTuning? tuning, List<ContentError> errors)
+    private static List<CrewDef> BuildCrew(List<(string File, CrewDto Dto)> items, List<SkillDef> skills, CrewTuning? tuning, List<PronounSet> pronouns, List<ContentError> errors)
     {
+        var pronounIds = pronouns.Select(p => p.Id).Append(PronounSet.They.Id).ToHashSet();
         var skillIds = skills.Select(s => s.Id).ToHashSet();
         var defs = new List<CrewDef>();
         foreach ((string file, CrewDto dto) in items)
@@ -91,10 +92,15 @@ public static partial class ContentLoader
                 Error($"discipline must be -2 to 2, not {dto.Discipline}.");
             }
 
+            if (dto.Pronouns is { } set && !pronounIds.Contains(set))
+            {
+                Error($"unknown pronoun set '{set}'.");
+            }
+
             string? name = CheckName(file, dto.Id!, dto.Name, errors);
             if (errors.Count == before)
             {
-                defs.Add(new CrewDef(dto.Id!, dto.Seniority, dto.Skills ?? [], dto.Caution, dto.Discipline, name));
+                defs.Add(new CrewDef(dto.Id!, dto.Seniority, dto.Skills ?? [], dto.Caution, dto.Discipline, name, dto.Pronouns));
             }
         }
 
@@ -195,6 +201,8 @@ public static partial class ContentLoader
         public int Caution { get; set; }
 
         public int Discipline { get; set; }
+
+        public string? Pronouns { get; set; }
     }
 
     private sealed class GearDto

@@ -1,6 +1,7 @@
 namespace Sim.Core.Content;
 
-public sealed record CrewDef(string Id, int Seniority, IReadOnlyDictionary<string, int> Skills, int Caution, int Discipline, string? Name = null);
+// Pronouns names a pronoun set in the pack; null means "they".
+public sealed record CrewDef(string Id, int Seniority, IReadOnlyDictionary<string, int> Skills, int Caution, int Discipline, string? Name = null, string? Pronouns = null);
 
 public sealed record GearDef(string Id, string Tag, string? Name = null);
 
