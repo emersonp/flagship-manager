@@ -181,13 +181,13 @@ play_mission() {
 play_mission
 [ -n "$seen" ] || fail "no renamed encounter is in the first mission's log."
 
-# Refusals write nothing. A field check: an encounter with no careful skill.
+# Refusals write nothing. A field check: an encounter whose first approach has no skill.
 files_before=$(sum_of "$tmp/content")
 visit "/dev/content/encounters/ENCOUNTER_02"
-pw select "#f-careful-skill" "" > /dev/null
+pw select "#f-approaches-0-skill" "" > /dev/null
 pw click "getByRole('button', { name: 'Save' })" > /dev/null
-wait_for "document.querySelector('#f-careful-skill-error') !== null" "the field error on the careful skill"
-[ "$(js "document.querySelector('#f-careful-skill-error').textContent")" = "Choose a skill." ] || fail "the careful skill's error was not 'Choose a skill.'."
+wait_for "document.querySelector('#f-approaches-0-skill-error') !== null" "the field error on the first approach's skill"
+[ "$(js "document.querySelector('#f-approaches-0-skill-error').textContent")" = "Choose a skill." ] || fail "the first approach's skill error was not 'Choose a skill.'."
 [ "$(sum_of "$tmp/content")" = "$files_before" ] || fail "a refused encounter save wrote to the content files."
 
 # The loader's refusal: delete the encounter the others chain to.

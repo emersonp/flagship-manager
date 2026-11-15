@@ -9,8 +9,8 @@ public class MissionContentTests
         - id: ENCOUNTER_01
           tags: [field]
           approaches:
-            careful: { skill: SKILL_A, difficulty: 5, gearTag: scanner }
-            fast: { skill: SKILL_A, difficulty: 6 }
+            - { id: careful, skill: SKILL_A, difficulty: 5, gearTag: scanner }
+            - { id: fast, skill: SKILL_A, difficulty: 6 }
           decision:
             id: DECISION_PROMPT_1
             stakes: 2
@@ -45,7 +45,7 @@ public class MissionContentTests
         ContentPack pack = Load(Encounter, Objective).Pack!;
 
         EncounterDef encounter = Assert.Single(pack.Encounters);
-        Assert.Equal(new ApproachDef("SKILL_A", 5, "scanner"), encounter.Careful);
+        Assert.Equal(new ApproachDef("careful", "SKILL_A", 5, "scanner"), encounter.Approaches[0]);
         Assert.Equal(new EffectDef(Momentum: 1, Strain: 1, InjuryRoll: InjurySeverity.Light), encounter.Decision!.Bold);
         Assert.True(encounter.Decision.Safe.Withdraw);
         ObjectiveDef objective = Assert.Single(pack.Objectives);
@@ -78,6 +78,66 @@ public class MissionContentTests
                 "objectives/a.yaml|OBJECTIVE_TEMPLATE_1: Stage 'approach' draws up to 3 encounters tagged [field], but only 0 match.",
             },
             result.Errors.Select(e => $"{e.File}|{e.Message}"));
+    }
+
+    [Fact]
+    public void An_encounter_with_no_approaches_is_refused()
+    {
+        ContentLoadResult result = Load(Encounter.Replace("    - { id: careful, skill: SKILL_A, difficulty: 5, gearTag: scanner }\n    - { id: fast, skill: SKILL_A, difficulty: 6 }\n", ""), Objective);
+
+        Assert.Null(result.Pack);
+        Assert.Contains(result.Errors, e => e.Message == "ENCOUNTER_01: An encounter needs at least one approach.");
+    }
+
+    [Fact]
+    public void An_encounter_with_five_approaches_is_refused()
+    {
+        string more = string.Concat(new[] { "a", "b", "c" }.Select(id => $"    - {{ id: {id}, skill: SKILL_A, difficulty: 6 }}\n"));
+
+        ContentLoadResult result = Load(Encounter.Replace("  decision:", more + "  decision:"), Objective);
+
+        Assert.Null(result.Pack);
+        Assert.Contains(result.Errors, e => e.Message == "ENCOUNTER_01: An encounter may have at most 4 approaches.");
+    }
+
+    [Fact]
+    public void Two_approaches_with_one_id_are_refused()
+    {
+        ContentLoadResult result = Load(Encounter.Replace("id: fast", "id: careful"), Objective);
+
+        Assert.Null(result.Pack);
+        Assert.Contains(result.Errors, e => e.Message == "ENCOUNTER_01: Approach id 'careful' is used twice.");
+    }
+
+    [Theory]
+    [InlineData("Fast")]
+    [InlineData("go fast")]
+    [InlineData("a-very-long-approach-id-indeed")]
+    public void An_approach_id_with_a_capital_or_a_space_is_refused(string id)
+    {
+        ContentLoadResult result = Load(Encounter.Replace("id: fast", $"id: {id}"), Objective);
+
+        Assert.Null(result.Pack);
+        Assert.Contains(result.Errors, e => e.Message == $"ENCOUNTER_01: Approach id '{id}' must be 1 to 24 lower case letters, digits, and hyphens.");
+    }
+
+    [Fact]
+    public void Approaches_load_in_the_order_written()
+    {
+        ContentPack pack = TestContent.Pack;
+
+        Assert.Equal(["careful", "fast"], pack.Encounters.Single(e => e.Id == "ENCOUNTER_01").Approaches.Select(a => a.Id));
+        Assert.Equal(["APPROACH_A_NAME", "APPROACH_B_NAME"], pack.Encounters.Single(e => e.Id == "ENCOUNTER_01").Approaches.Select(a => a.Name));
+        Assert.Equal(["fast", "careful"], Load(Encounter.Replace("id: careful", "id: first").Replace("id: fast", "id: careful").Replace("id: first", "id: fast"), Objective).Pack!.Encounters[0].Approaches.Select(a => a.Id));
+    }
+
+    [Fact]
+    public void An_approach_name_follows_the_name_rule()
+    {
+        ContentLoadResult result = Load(Encounter.Replace("id: fast,", $"id: fast, name: \"{new string('x', 81)}\","), Objective);
+
+        Assert.Null(result.Pack);
+        Assert.Contains(result.Errors, e => e.Message == "ENCOUNTER_01 approach fast: name must be 1 to 80 characters with no line break.");
     }
 
     // Decision ids key the game's calls and its display names, so each is used once in the whole pack.

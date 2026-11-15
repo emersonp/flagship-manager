@@ -15,7 +15,7 @@ public class BeatLinesTests
     [
         new StageBeat(0, "ENCOUNTER_03", "SLOT_1", true, 1, 2),
         new SkipBeat("ENCOUNTER_04"),
-        new CheckBeat("ENCOUNTER_03", Approach.Careful, "SKILL_A", "CREW_02", null, false, 3, 0, 1, 0, 0, 3, 6, 11, -2, Tier.Partial, 0.5, false, 0),
+        new CheckBeat("ENCOUNTER_03", "careful", "SKILL_A", "CREW_02", null, false, 3, 0, 1, 0, 0, 3, 6, 11, -2, Tier.Partial, 0.5, false, 0),
         new EffectsBeat(new EffectDef(Momentum: 1, Strain: -1, Progress: 2, InjuryRoll: InjurySeverity.Light, Withdraw: true)),
         new InjuryBeat("CREW_02", "ENCOUNTER_03", InjurySeverity.Severe, 4, InjuryOutcome.LightInjury),
         new LeadChangeBeat("CREW_03"),
@@ -52,7 +52,7 @@ public class BeatLinesTests
         Assert.Equal(["stage", "skip", "check", "effects", "injury", "lead", "chain", "call", "initiative", "answer", "collapse", "result"], kinds);
     }
 
-    private static CheckBeat Check(string? helper, bool supervised, Approach approach, int margin, Tier tier)
+    private static CheckBeat Check(string? helper, bool supervised, string approach, int margin, Tier tier)
     {
         return new CheckBeat("ENCOUNTER_03", approach, "SKILL_A", "CREW_02", helper, supervised, 3, 0, 0, 0, 0, 3, 6, 11, margin, tier, 0, false, 0);
     }
@@ -60,29 +60,49 @@ public class BeatLinesTests
     [Fact]
     public void A_check_with_no_helper_has_no_helper_clause_and_a_true_minus_margin()
     {
-        Assert.Equal("CREW_02 checks SKILL_A at ENCOUNTER_03: 3 + 6 against 11, partial (\u22122).", BeatLines.Line(2, Samples[2]).Text);
+        Assert.Equal("CREW_02 checks SKILL_A at ENCOUNTER_03: 3 + 6 against 11, partial (\u22122). careful.", BeatLines.Line(2, Samples[2]).Text);
     }
 
     [Fact]
     public void A_helped_check_names_the_helper_and_a_positive_margin_carries_a_plus()
     {
-        CheckBeat beat = Check("CREW_01", false, Approach.Careful, 4, Tier.Success);
+        CheckBeat beat = Check("CREW_01", false, "careful", 4, Tier.Success);
 
-        Assert.Equal("CREW_02 checks SKILL_A at ENCOUNTER_03, helped by CREW_01: 3 + 6 against 11, success (+4).", BeatLines.Line(0, beat).Text);
+        Assert.Equal("CREW_02 checks SKILL_A at ENCOUNTER_03, helped by CREW_01: 3 + 6 against 11, success (+4). careful.", BeatLines.Line(0, beat).Text);
     }
 
     [Fact]
     public void A_supervised_fast_check_says_supervised_by_and_ends_with_the_approach()
     {
-        CheckBeat beat = Check("CREW_01", true, Approach.Fast, -2, Tier.Failure);
+        CheckBeat beat = Check("CREW_01", true, "fast", -2, Tier.Failure);
 
-        Assert.Equal("CREW_02 checks SKILL_A at ENCOUNTER_03, supervised by CREW_01: 3 + 6 against 11, failure (\u22122). Fast approach.", BeatLines.Line(0, beat).Text);
+        Assert.Equal("CREW_02 checks SKILL_A at ENCOUNTER_03, supervised by CREW_01: 3 + 6 against 11, failure (\u22122). fast.", BeatLines.Line(0, beat).Text);
+    }
+
+    // Every check ends with the approach taken: its name, or its id when it has none. Ids are unique only within an encounter.
+    [Fact]
+    public void The_roll_detail_ends_with_the_approachs_name_or_its_id()
+    {
+        ContentPack pack = BridgePack.Load() with
+        {
+            Encounters =
+            [
+                new EncounterDef("ENCOUNTER_03", [], false, null, [new ApproachDef("careful", "SKILL_A", 1, null, "APPROACH_A_NAME"), new ApproachDef("fast", "SKILL_A", 2, null)], null),
+                new EncounterDef("ENCOUNTER_04", [], false, null, [new ApproachDef("careful", "SKILL_A", 1, null, "APPROACH_C_NAME")], null),
+            ],
+        };
+        var names = new Names(pack);
+
+        Assert.EndsWith("success (+4). APPROACH_A_NAME.", BeatLines.Line(0, Check(null, false, "careful", 4, Tier.Success), 0, names).Text);
+        Assert.EndsWith("success (+4). fast.", BeatLines.Line(0, Check(null, false, "fast", 4, Tier.Success), 0, names).Text);
+        Assert.Equal("APPROACH_C_NAME", names.Approach("ENCOUNTER_04", "careful"));
+        Assert.Equal("slow", names.Approach("ENCOUNTER_03", "slow"));
     }
 
     [Fact]
     public void A_zero_margin_has_no_sign()
     {
-        Assert.Equal("CREW_02 checks SKILL_A at ENCOUNTER_03: 3 + 6 against 11, critical (0).", BeatLines.Line(0, Check(null, false, Approach.Careful, 0, Tier.Critical)).Text);
+        Assert.Equal("CREW_02 checks SKILL_A at ENCOUNTER_03: 3 + 6 against 11, critical (0). careful.", BeatLines.Line(0, Check(null, false, "careful", 0, Tier.Critical)).Text);
     }
 
     [Theory]
@@ -175,13 +195,13 @@ public class BeatLinesTests
             CultureInfo.CurrentCulture = new CultureInfo("sv-SE");
             Assert.NotEqual("-", (-1).ToString());
             Assert.DoesNotContain('-', string.Concat(BeatLines.Line(0, new EffectsBeat(new EffectDef(Momentum: -1))).Text));
-            var check = new CheckBeat("ENCOUNTER_03", Approach.Careful, "SKILL_A", "CREW_02", null, false, 0, 0, 0, 0, 0, -5, 1, 11, -15, Tier.Disaster, 0, false, 0);
+            var check = new CheckBeat("ENCOUNTER_03", "careful", "SKILL_A", "CREW_02", null, false, 0, 0, 0, 0, 0, -5, 1, 11, -15, Tier.Disaster, 0, false, 0);
             var stage = new StageBeat(0, "ENCOUNTER_03", "SLOT_1", false, -1, 2);
             var effects = new EffectsBeat(new EffectDef(Momentum: -1, Strain: -2, Progress: -3));
 
             string[] lines = [BeatLines.Line(0, check).Text, BeatLines.Line(0, stage, 2).Text, BeatLines.Line(0, effects).Text];
 
-            Assert.Equal("CREW_02 checks SKILL_A at ENCOUNTER_03: \u22125 + 1 against 11, disaster (\u221215).", lines[0]);
+            Assert.Equal("CREW_02 checks SKILL_A at ENCOUNTER_03: \u22125 + 1 against 11, disaster (\u221215). careful.", lines[0]);
             Assert.Equal("Stage 2: ENCOUNTER_03. Momentum \u22121, strain 2.", lines[1]);
             Assert.Equal("Progress \u22123. Momentum \u22121. Strain \u22122.", lines[2]);
         }
@@ -196,18 +216,18 @@ public class BeatLinesTests
     // Names for every id the samples use: crew, skill, encounters, and the two decisions (carried on encounters).
     private static Names SampleNames(string crew02 = "NAME_PLACEHOLDER_CREW_02")
     {
-        var approach = new ApproachDef("SKILL_A", 1, null);
+        ApproachDef[] approach = [new ApproachDef("careful", "SKILL_A", 1, null), new ApproachDef("fast", "SKILL_A", 2, null)];
         ContentPack pack = BridgePack.Load() with
         {
             Crew = SampleCrew.Select(id => new CrewDef(id, 1, new Dictionary<string, int>(), 0, 0, id == "CREW_02" ? crew02 : "NAME_PLACEHOLDER_" + id)).ToList(),
             Skills = [new SkillDef("SKILL_A", [], "NAME_PLACEHOLDER_SKILL_A")],
             Encounters =
             [
-                new EncounterDef("ENCOUNTER_02", [], false, null, approach, approach, null, "NAME_PLACEHOLDER_ENCOUNTER_02"),
-                new EncounterDef("ENCOUNTER_03", [], false, null, approach, approach, null, "NAME_PLACEHOLDER_ENCOUNTER_03"),
-                new EncounterDef("ENCOUNTER_04", [], false, null, approach, approach, null, "NAME_PLACEHOLDER_ENCOUNTER_04"),
-                new EncounterDef("ENCOUNTER_05", [], false, null, approach, approach, new DecisionDef("DECISION_1", 1, new EffectDef(), new EffectDef(), "NAME_PLACEHOLDER_DECISION_1"), "NAME_PLACEHOLDER_ENCOUNTER_05"),
-                new EncounterDef("ENCOUNTER_06", [], false, null, approach, approach, new DecisionDef("DECISION_2", 1, new EffectDef(), new EffectDef(), "NAME_PLACEHOLDER_DECISION_2"), "NAME_PLACEHOLDER_ENCOUNTER_06"),
+                new EncounterDef("ENCOUNTER_02", [], false, null, approach, null, "NAME_PLACEHOLDER_ENCOUNTER_02"),
+                new EncounterDef("ENCOUNTER_03", [], false, null, approach, null, "NAME_PLACEHOLDER_ENCOUNTER_03"),
+                new EncounterDef("ENCOUNTER_04", [], false, null, approach, null, "NAME_PLACEHOLDER_ENCOUNTER_04"),
+                new EncounterDef("ENCOUNTER_05", [], false, null, approach, new DecisionDef("DECISION_1", 1, new EffectDef(), new EffectDef(), "NAME_PLACEHOLDER_DECISION_1"), "NAME_PLACEHOLDER_ENCOUNTER_05"),
+                new EncounterDef("ENCOUNTER_06", [], false, null, approach, new DecisionDef("DECISION_2", 1, new EffectDef(), new EffectDef(), "NAME_PLACEHOLDER_DECISION_2"), "NAME_PLACEHOLDER_ENCOUNTER_06"),
             ],
         };
         return new Names(pack);
@@ -242,8 +262,8 @@ public class BeatLinesTests
     {
         LogLine line = BeatLines.Line(0, Samples[2]);
 
-        Assert.Equal("CREW_02 checks SKILL_A at ENCOUNTER_03: 3 + 6 against 11, partial (\u22122).", line.Text);
-        Assert.Equal(["CREW_02", "SKILL_A", "ENCOUNTER_03"], line.Segments.Where(p => p.IsName).Select(p => p.Text));
+        Assert.Equal("CREW_02 checks SKILL_A at ENCOUNTER_03: 3 + 6 against 11, partial (\u22122). careful.", line.Text);
+        Assert.Equal(["CREW_02", "SKILL_A", "ENCOUNTER_03", "careful"], line.Segments.Where(p => p.IsName).Select(p => p.Text));
         Assert.Equal(line.Text, string.Concat(line.Segments.Select(p => p.Text)));
     }
 
@@ -251,11 +271,11 @@ public class BeatLinesTests
     public void The_parts_hold_each_name_whole_and_join_to_the_text()
     {
         Names names = SampleNames("NAME 7, <b> & -3");
-        var beat = new CheckBeat("ENCOUNTER_03", Approach.Careful, "SKILL_A", "CREW_02", "CREW_01", false, 3, 0, 0, 0, 0, 3, 6, 11, 4, Tier.Success, 0, false, 0);
+        var beat = new CheckBeat("ENCOUNTER_03", "careful", "SKILL_A", "CREW_02", "CREW_01", false, 3, 0, 0, 0, 0, 3, 6, 11, 4, Tier.Success, 0, false, 0);
 
         LogLine line = BeatLines.Line(0, beat, 0, names);
 
-        Assert.Equal(["NAME 7, <b> & -3", "NAME_PLACEHOLDER_SKILL_A", "NAME_PLACEHOLDER_ENCOUNTER_03", "NAME_PLACEHOLDER_CREW_01"], line.Segments.Where(p => p.IsName).Select(p => p.Text));
+        Assert.Equal(["NAME 7, <b> & -3", "NAME_PLACEHOLDER_SKILL_A", "NAME_PLACEHOLDER_ENCOUNTER_03", "NAME_PLACEHOLDER_CREW_01", "careful"], line.Segments.Where(p => p.IsName).Select(p => p.Text));
         Assert.Equal(line.Text, string.Concat(line.Segments.Select(p => p.Text)));
     }
 

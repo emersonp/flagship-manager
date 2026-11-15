@@ -12,7 +12,8 @@
       best SKILL_A: Some of this hull plate is older than the Concord. Older than us.
       = #lead# brought the team to the edge of the #encounter#.
   approaches:
-    careful:
+    - id: careful
+      name: Careful
       skill: SKILL_A
       difficulty: 5
       gearTag: scanner
@@ -30,7 +31,8 @@
           actor: Brace! Brace!
           > Proximity alarm. Multiple impacts.
           = #actor# led the team into the worst of the #encounter#.
-    fast:
+    - id: fast
+      name: Fast
       skill: SKILL_C
       difficulty: 6
       text:
@@ -73,7 +75,8 @@
       lead: Captain, we have company. Salvagers, and they got here first.
       = #lead# found a salvagers' picket barring the way.
   approaches:
-    careful:
+    - id: careful
+      name: Careful
       skill: SKILL_D
       difficulty: 5
       text:
@@ -86,7 +89,8 @@
         failure: |-
           actor: They're not listening, Captain. They think we're here to take their claim.
           = #actor# could not talk the salvagers down.
-    fast:
+    - id: fast
+      name: Fast
       skill: SKILL_B
       difficulty: 6
       text:
@@ -125,7 +129,8 @@
       lead: Captain, we've found a door. Cartographer work, and it has not opened in a very long time.
       = #lead# reached the #encounter#.
   approaches:
-    careful:
+    - id: careful
+      name: Careful
       skill: SKILL_B
       difficulty: 6
       gearTag: tools
@@ -139,7 +144,8 @@
         failure: |-
           actor: It's cycling. I've lost it. It's locking itself down again.
           = The #encounter# locked itself down under #actor.their# hands.
-    fast:
+    - id: fast
+      name: Fast
       skill: SKILL_A
       difficulty: 7
       text:
@@ -179,7 +185,8 @@
       lead: Captain, the deck's gone. The whole gallery fell in, and what's left is a sheer face.
       = #lead# found the way barred by the #encounter#.
   approaches:
-    careful:
+    - id: careful
+      name: Careful
       skill: SKILL_C
       difficulty: 5
       text:
@@ -189,7 +196,8 @@
         failure: |-
           actor: Anchor's gone. I'm all right. I'm all right.
           = An anchor tore out under #actor# in the #encounter#.
-    fast:
+    - id: fast
+      name: Fast
       skill: SKILL_C
       difficulty: 6
       text:
@@ -223,7 +231,8 @@
       lead: Captain, the core isn't dead. It's been asleep, and we just woke it.
       = #lead# reached the #encounter# as it came back to life.
   approaches:
-    careful:
+    - id: careful
+      name: Careful
       skill: SKILL_A
       difficulty: 6
       gearTag: scanner
@@ -238,7 +247,8 @@
           > Discharge. Scanner offline.
           actor: It read me back. It read me back!
           = The #encounter# discharged through #actor.their# scanner.
-    fast:
+    - id: fast
+      name: Fast
       skill: SKILL_B
       difficulty: 7
       text:
@@ -285,14 +295,16 @@
       lead: Capt... we're losing y... something down here is...
       = #lead# took the team into the #encounter#, and the ship lost them.
   approaches:
-    careful:
+    - id: careful
+      name: Careful
       skill: SKILL_C
       difficulty: 6
       text:
         attempt: "actor: Hand signals from here. Stay in sight of the one ahead of you."
         success: "#actor# led the team through the #encounter# on hand signals and patience."
         failure: "#actor# lost the route in the #encounter#, and the team spent an hour finding each other."
-    fast:
+    - id: fast
+      name: Fast
       skill: SKILL_D
       difficulty: 7
       text:
@@ -334,7 +346,8 @@
       lead: Captain, there are people living here. Pilgrims. They call the Cartographers the First Hands.
       = #lead# came upon the #encounter#.
   approaches:
-    careful:
+    - id: careful
+      name: Careful
       skill: SKILL_D
       difficulty: 6
       text:
@@ -345,7 +358,8 @@
         success: "#actor# listened to the pilgrims' elders, and they let the team pass."
         partial: "#actor# won passage through the #encounter#, on the condition that nothing be removed."
         failure: "#actor# gave offence at the #encounter# without understanding how."
-    fast:
+    - id: fast
+      name: Fast
       skill: SKILL_D
       difficulty: 7
       text:
@@ -363,7 +377,8 @@
       lead: Captain, the only way down is a lift shaft. The car's here. The power isn't.
       = #lead# reached the #encounter#.
   approaches:
-    careful:
+    - id: careful
+      name: Careful
       skill: SKILL_B
       difficulty: 5
       gearTag: tools
@@ -371,7 +386,8 @@
         attempt: "actor: I can run it off a suit cell. Give me time to rig a governor."
         success: "#actor# rigged the #encounter# to a suit cell, and it carried the team down at a walk."
         failure: "#actor#'s rig on the #encounter# held for nine metres and then did not."
-    fast:
+    - id: fast
+      name: Fast
       skill: SKILL_C
       difficulty: 6
       text:
@@ -407,14 +423,16 @@
       lead: Everyone move! Move!
       = The structure gave way around the team.
   approaches:
-    careful:
+    - id: careful
+      name: Careful
       skill: SKILL_C
       difficulty: 6
       text:
         attempt: "actor: Seal your suits and follow the wall. Do not run."
         success: "#actor# got the team clear of the breach in good order."
         failure: "#actor# got the team clear of the breach, but not together and not unhurt."
-    fast:
+    - id: fast
+      name: Fast
       skill: SKILL_A
       difficulty: 7
       text:

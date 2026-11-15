@@ -30,8 +30,8 @@ internal static class ContentFaithfulness
     private sealed record Map(IReadOnlyDictionary<string, Tree> Entries) : Tree;
 
     // Optional keys that read the same absent, null, or empty.
-    private static readonly HashSet<string> NullKeys = ["name", "chain", "gearTag", "ifUnattended", "decision", "tags", "bold", "safe", "stages", "objectives", "skills", "offer", "draw", "pronouns", "text", "lines", "labels"];
-    private static readonly HashSet<string> EmptyListKeys = ["tags", "bold", "safe", "stages", "lines"];
+    private static readonly HashSet<string> NullKeys = ["name", "chain", "gearTag", "ifUnattended", "decision", "tags", "bold", "safe", "stages", "objectives", "skills", "offer", "draw", "pronouns", "text", "lines", "labels", "approaches"];
+    private static readonly HashSet<string> EmptyListKeys = ["tags", "bold", "safe", "stages", "lines", "approaches"];
     private static readonly HashSet<string> EmptyMapKeys = ["skills", "offer", "objectives", "draw", "text", "labels"];
 
     // Properties the loader deserialises as bool: any case of true and false.

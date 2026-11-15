@@ -13,7 +13,7 @@ public static class FormChoicesReader
         List<SkillChoice> skills = index.Where(i => i.Kind == ContentKind.Skill).Select(i => new SkillChoice(i.Id, i.Name)).ToList();
         List<EncounterModel> encounters = index.Where(i => i.Kind == ContentKind.Encounter).Select(i => ContentEdits.Get<EncounterModel>(files, i.Kind, i.Id)).OfType<EncounterModel>().ToList();
         IEnumerable<string> inUse = index.Where(i => i.Kind == ContentKind.Gear).Select(i => ContentEdits.Get<GearModel>(files, i.Kind, i.Id)?.Tag).OfType<string>();
-        List<string> gearTags = BuiltInGearTags.Concat(encounters.SelectMany(e => new[] { e.Careful.GearTag, e.Fast.GearTag }).OfType<string>()).Concat(inUse).Distinct().Order(StringComparer.Ordinal).ToList();
+        List<string> gearTags = BuiltInGearTags.Concat(encounters.SelectMany(e => e.Approaches.Select(a => a.GearTag)).OfType<string>()).Concat(inUse).Distinct().Order(StringComparer.Ordinal).ToList();
         IEnumerable<ObjectiveModel> objectives = index.Where(i => i.Kind == ContentKind.Objective).Select(i => ContentEdits.Get<ObjectiveModel>(files, i.Kind, i.Id)).OfType<ObjectiveModel>();
         List<string> objectiveTags = objectives.SelectMany(o => o.Tags).Distinct().Order(StringComparer.Ordinal).ToList();
         return new FormChoices(skills, gearTags, objectiveTags, files.Validate().Pack?.CrewTuning.MaxLevel)

@@ -199,9 +199,8 @@ public static class ContentWriter
                 }
 
                 f.AddRange(Texts(encounter.Text, Sim.Core.Narrative.NarrativeFacts.EncounterTexts));
-                f.Add("approaches:");
-                f.AddRange(Approach("careful", encounter.Careful).Select(l => "  " + l));
-                f.AddRange(Approach("fast", encounter.Fast).Select(l => "  " + l));
+                f.Add(encounter.Approaches.Count == 0 ? "approaches: []" : "approaches:");
+                f.AddRange(encounter.Approaches.SelectMany(Approach).Select(l => "  " + l));
                 if (encounter.Decision is { } decision)
                 {
                     f.Add("decision:");
@@ -303,20 +302,27 @@ public static class ContentWriter
     private static string Count(int min, int max) => min == max ? Num(min) : $"[{Num(min)}, {Num(max)}]";
 
     // On one line when the approach has no words of its own; otherwise a block, so each text has its own line.
-    private static List<string> Approach(string key, ApproachModel approach)
+    private static List<string> Approach(ApproachModel approach)
     {
-        if (approach.Text is not { Count: > 0 })
+        var keys = new List<(string Key, string Value)> { ("id", Quote(approach.Id)) };
+        if (approach.Name is not null)
         {
-            string gear = approach.GearTag is null ? "" : $", gearTag: {Quote(approach.GearTag)}";
-            return [$"{key}: {{ skill: {Quote(approach.Skill)}, difficulty: {Num(approach.Difficulty)}{gear} }}"];
+            keys.Add(("name", Quote(approach.Name)));
         }
 
-        var lines = new List<string> { $"{key}:", $"  skill: {Quote(approach.Skill)}", $"  difficulty: {Num(approach.Difficulty)}" };
+        keys.Add(("skill", Quote(approach.Skill)));
+        keys.Add(("difficulty", Num(approach.Difficulty)));
         if (approach.GearTag is not null)
         {
-            lines.Add($"  gearTag: {Quote(approach.GearTag)}");
+            keys.Add(("gearTag", Quote(approach.GearTag)));
         }
 
+        if (approach.Text is not { Count: > 0 })
+        {
+            return [$"- {Map(keys)}"];
+        }
+
+        var lines = keys.Select((k, i) => $"{(i == 0 ? "- " : "  ")}{k.Key}: {k.Value}").ToList();
         lines.AddRange(Texts(approach.Text, Sim.Core.Narrative.NarrativeFacts.ApproachTexts).Select(l => "  " + l));
         return lines;
     }

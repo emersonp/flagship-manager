@@ -20,14 +20,14 @@ public sealed class ContentMissionFormsTests(RepoContentGuard guard) : IClassFix
 
     private const string Encounter1 =
         "name=&tags=field, hazard&chain=ENCOUNTER_CHAIN"
-        + "&careful.skill=SKILL_A&careful.difficulty=5&careful.gearTag=scanner"
-        + "&fast.skill=SKILL_C&fast.difficulty=6&fast.gearTag="
+        + "&approaches[0].id=careful&approaches[0].name=APPROACH_A_NAME&approaches[0].skill=SKILL_A&approaches[0].difficulty=5&approaches[0].gearTag=scanner"
+        + "&approaches[1].id=fast&approaches[1].name=APPROACH_B_NAME&approaches[1].skill=SKILL_C&approaches[1].difficulty=6&approaches[1].gearTag="
         + "&hasDecision=true&decision.name=&decision.stakes=1&bold[0].momentum=1&bold[1].strain=1";
 
     private const string EncounterNone =
         "name=&tags=field&chain="
-        + "&careful.skill=SKILL_A&careful.difficulty=5&careful.gearTag="
-        + "&fast.skill=SKILL_B&fast.difficulty=6&fast.gearTag=";
+        + "&approaches[0].id=careful&approaches[0].skill=SKILL_A&approaches[0].difficulty=5&approaches[0].gearTag="
+        + "&approaches[1].id=fast&approaches[1].skill=SKILL_B&approaches[1].difficulty=6&approaches[1].gearTag=";
 
     // The posted fields with the overrides replacing every field of the same name.
     private static string Merge(string baseFields, string overrides)
@@ -145,11 +145,12 @@ public sealed class ContentMissionFormsTests(RepoContentGuard guard) : IClassFix
         Assert.Equal(HttpStatusCode.OK, status);
         Assert.Equal("field, social", Value(body, "tags"));
         Assert.Equal("ENCOUNTER_CHAIN", Selected(body, "chain"));
-        Assert.Equal("SKILL_D", Selected(body, "careful.skill"));
-        Assert.Equal("5", Value(body, "careful.difficulty"));
-        Assert.Equal("", Selected(body, "careful.gearTag"));
-        Assert.Equal("SKILL_B", Selected(body, "fast.skill"));
-        Assert.Equal("6", Value(body, "fast.difficulty"));
+        Assert.Equal(("careful", "APPROACH_A_NAME", "fast"), (Value(body, "approaches[0].id"), Value(body, "approaches[0].name"), Value(body, "approaches[1].id")));
+        Assert.Equal("SKILL_D", Selected(body, "approaches[0].skill"));
+        Assert.Equal("5", Value(body, "approaches[0].difficulty"));
+        Assert.Equal("", Selected(body, "approaches[0].gearTag"));
+        Assert.Equal("SKILL_B", Selected(body, "approaches[1].skill"));
+        Assert.Equal("6", Value(body, "approaches[1].difficulty"));
         Assert.Equal(["true"], Checked(body, "hasDecision"));
         Assert.Contains("DECISION_PROMPT_2", body);
         Assert.Null(Value(body, "decision.id"));
@@ -226,7 +227,7 @@ public sealed class ContentMissionFormsTests(RepoContentGuard guard) : IClassFix
     {
         using TestApp app = NewApp();
         HttpClient client = app.NewClient();
-        string words = "text.arrive=lead: We are at #encounter#.\r\n\r\n  > Signal weak.  \r\n&careful.text.attempt=actor: Slowly now.&careful.text.failure=#actor# slipped.&decision.text.bold=The bold choice held."
+        string words = "text.arrive=lead: We are at #encounter#.\r\n\r\n  > Signal weak.  \r\n&approaches[0].text.attempt=actor: Slowly now.&approaches[0].text.failure=#actor# slipped.&decision.text.bold=The bold choice held."
             + "&decision.label.bold=Send them in"
             + "&lines[0].beat=injury&lines[0].f0=outcome&lines[0].v0=dead&lines[0].f2=crew.caution&lines[0].v2=1..&lines[0].text=#crew# was run through at #encounter#.";
 
@@ -235,7 +236,7 @@ public sealed class ContentMissionFormsTests(RepoContentGuard guard) : IClassFix
         Assert.Equal(HttpStatusCode.OK, status);
         string disk = Disk(app, "encounters/base.yaml");
         // A script is kept one entry to a line, trimmed, with blank lines dropped, and is written as a block so the file reads as it was typed.
-        Assert.Contains("  text:\n    arrive: |-\n      lead: We are at #encounter#.\n      > Signal weak.\n  approaches:\n    careful:\n      skill: SKILL_A\n      difficulty: 5\n      gearTag: scanner\n      text:\n        attempt: \"actor: Slowly now.\"\n        failure: \"#actor# slipped.\"\n    fast: { skill: SKILL_C, difficulty: 6 }\n", disk, StringComparison.Ordinal);
+        Assert.Contains("  text:\n    arrive: |-\n      lead: We are at #encounter#.\n      > Signal weak.\n  approaches:\n    - id: careful\n      name: APPROACH_A_NAME\n      skill: SKILL_A\n      difficulty: 5\n      gearTag: scanner\n      text:\n        attempt: \"actor: Slowly now.\"\n        failure: \"#actor# slipped.\"\n    - { id: fast, name: APPROACH_B_NAME, skill: SKILL_C, difficulty: 6 }\n", disk, StringComparison.Ordinal);
         Assert.Contains("    text:\n      bold: The bold choice held.\n    labels:\n      bold: Send them in\n  lines:\n    - when: { beat: injury, outcome: dead, crew.caution: { min: 1 } }\n      text: \"#crew# was run through at #encounter#.\"\n", disk, StringComparison.Ordinal);
         Assert.Equal(
             ["ENCOUNTER_01.lines[1]", "ENCOUNTER_01.arrive", "ENCOUNTER_01.careful.attempt", "ENCOUNTER_01.careful.failure", "ENCOUNTER_01.decision.bold"],
@@ -263,6 +264,99 @@ public sealed class ContentMissionFormsTests(RepoContentGuard guard) : IClassFix
         Assert.Equal(before, Everything(app));
     }
 
+    // --- Approaches ---
+
+    private static string ApproachRow(int row, string id) => $"&approaches[{row}].id={id}&approaches[{row}].skill=SKILL_A&approaches[{row}].difficulty=7&approaches[{row}].gearTag=";
+
+    // A refused save answers as every refused save does (422), with the form drawn again from what was posted.
+    private static async Task RefusedWithNothingWritten(TestApp app, string fields, string problem)
+    {
+        string before = Everything(app);
+        string file = Disk(app, "encounters/base.yaml");
+
+        (HttpStatusCode status, string body) = await Post(app.NewClient(), "/dev/content/encounters/ENCOUNTER_01", fields);
+
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, status);
+        Assert.Contains("<form id=\"item-form\"", body, StringComparison.Ordinal);
+        Assert.Contains(problem, Text(body), StringComparison.Ordinal);
+        Assert.Equal(file, Disk(app, "encounters/base.yaml"));
+        Assert.Equal(before, Everything(app));
+    }
+
+    [Fact]
+    public async Task Posting_five_approaches_is_refused_with_a_problem()
+    {
+        using TestApp app = NewApp();
+
+        await RefusedWithNothingWritten(app, Encounter1 + ApproachRow(2, "a") + ApproachRow(3, "b") + ApproachRow(4, "c"), "An encounter may have at most 4 approaches.");
+    }
+
+    [Fact]
+    public async Task Posting_no_approach_is_refused_with_a_problem()
+    {
+        using TestApp app = NewApp();
+
+        await RefusedWithNothingWritten(app, Without(Encounter1, "approaches["), "An encounter needs at least one approach.");
+    }
+
+    [Fact]
+    public async Task Posting_two_approaches_with_one_id_is_refused_with_a_problem()
+    {
+        using TestApp app = NewApp();
+
+        await RefusedWithNothingWritten(app, Merge(Encounter1, "approaches[1].id=careful"), "Approach id 'careful' is used twice.");
+    }
+
+    [Fact]
+    public async Task Removing_an_approach_an_own_line_tests_is_refused_on_that_line()
+    {
+        using TestApp app = NewApp();
+        string fields = Without(Encounter1, "approaches[1].") + "&lines[0].beat=check&lines[0].f0=approach&lines[0].v0=fast&lines[0].text=x";
+
+        await RefusedWithNothingWritten(app, fields, "Tests approach 'fast', which this encounter does not have.");
+        (_, string body) = await Post(app.NewClient(), "/dev/content/encounters/ENCOUNTER_01", fields);
+        Assert.Matches("<input id=\"f-lines-0-v0\"[^>]*aria-invalid=\"true\"", body);
+    }
+
+    [Fact]
+    public async Task Adding_an_approach_row_redraws_the_form_with_one_more_and_saves_nothing()
+    {
+        using TestApp app = NewApp();
+        string before = Everything(app);
+
+        (HttpStatusCode status, string body) = await Post(app.NewClient(), "/dev/content/encounters/ENCOUNTER_01/rows", Merge(Encounter1, "approaches[1].text.attempt=actor: Now.&row=add:approaches"));
+
+        Assert.Equal(HttpStatusCode.OK, status);
+        Assert.Equal("fast", Value(body, "approaches[1].id"));
+        Assert.Contains(">actor: Now.</textarea>", body, StringComparison.Ordinal);
+        Assert.Equal("", Value(body, "approaches[2].id"));
+        Assert.Equal("1", Value(body, "approaches[2].difficulty"));
+        Assert.Null(Value(body, "approaches[3].id"));
+        Assert.Contains("id=\"plays-approach-2\"", body, StringComparison.Ordinal);
+        Assert.DoesNotContain("Saved.", body);
+        Assert.Equal(before, Everything(app));
+    }
+
+    // At four there is nothing to add, and at one nothing to remove.
+    [Fact]
+    public async Task Add_is_hidden_at_four_approaches_and_remove_at_one()
+    {
+        using TestApp app = NewApp();
+        HttpClient client = app.NewClient();
+
+        (_, string four) = await Post(client, "/dev/content/encounters/ENCOUNTER_01/rows", Encounter1 + ApproachRow(2, "a") + "&row=add:approaches");
+        (_, string one) = await Post(client, "/dev/content/encounters/ENCOUNTER_01/rows", Encounter1 + "&row=remove:approaches:1");
+        (_, string two) = await Get(client, "/dev/content/encounters/ENCOUNTER_01");
+
+        Assert.NotNull(Value(four, "approaches[3].id"));
+        Assert.DoesNotContain("id=\"row-add-approaches\"", four, StringComparison.Ordinal);
+        Assert.Contains("id=\"row-remove-approaches-3\"", four, StringComparison.Ordinal);
+        Assert.Null(Value(one, "approaches[1].id"));
+        Assert.Contains("id=\"row-add-approaches\"", one, StringComparison.Ordinal);
+        Assert.DoesNotContain("id=\"row-remove-approaches-0\"", one, StringComparison.Ordinal);
+        Assert.Contains("id=\"row-remove-approaches-1\"", two, StringComparison.Ordinal);
+    }
+
     // --- What plays here ---
 
     // The panel lists the encounter's beats in mission order; a blank box shows the line that plays there now, and a beat with no box shows it with the way to write one.
@@ -274,7 +368,7 @@ public sealed class ContentMissionFormsTests(RepoContentGuard guard) : IClassFix
         string body = Text((await Get(app.NewClient(), "/dev/content/encounters/ENCOUNTER_01")).Body);
 
         Assert.Contains("<section class=\"plays\" id=\"plays\"", body, StringComparison.Ordinal);
-        int[] order = new[] { "plays-arrive", "plays-careful", "plays-fast", "plays-checks", "plays-effects", "plays-injury", "plays-lead", "plays-decision", "plays-answer", "plays-skip", "plays-chain", "plays-collapse" }
+        int[] order = new[] { "plays-arrive", "plays-approach-0", "plays-approach-1", "plays-checks", "plays-effects", "plays-injury", "plays-lead", "plays-decision", "plays-answer", "plays-skip", "plays-chain", "plays-collapse" }
             .Select(id => body.IndexOf($"id=\"{id}\"", StringComparison.Ordinal)).ToArray();
         Assert.All(order, at => Assert.True(at > 0));
         Assert.Equal(order.Order(), order);
@@ -294,7 +388,7 @@ public sealed class ContentMissionFormsTests(RepoContentGuard guard) : IClassFix
     {
         using TestApp app = NewApp();
         string before = Everything(app);
-        string words = "text.arrive=lead: We are at #encounter#.\n> Signal weak.&careful.text.failure=#nobody# slipped.&careful.text.disaster=-"
+        string words = "text.arrive=lead: We are at #encounter#.\n> Signal weak.&approaches[0].text.failure=#nobody# slipped.&approaches[0].text.disaster=-"
             + "&lines[0].beat=injury&lines[0].f0=outcome&lines[0].v0=dead&lines[0].text=#crew# was run through at #encounter#."
             + "&lines[1].beat=check&lines[1].f0=skill&lines[1].v0=SKILL_D&lines[1].text=Never.";
 
@@ -308,8 +402,8 @@ public sealed class ContentMissionFormsTests(RepoContentGuard guard) : IClassFix
         Assert.Contains("Sample 2: CREW_02 leads, CREW_03 acts.", body, StringComparison.Ordinal);
         Assert.Contains("?sample=2'", body, StringComparison.Ordinal);
         Assert.Matches("(?s)id=\"pv-f-text-arrive\">.*?<span class=\"script__who\">CREW_02</span>.*?We are at ENCOUNTER_01\\..*?script__line--note.*?Signal weak\\..*?Its own words\\.", body);
-        Assert.Matches("(?s)id=\"pv-f-careful-text-failure\">.*?<p class=\"error\">#nobody# names nothing", body);
-        Assert.Matches("(?s)id=\"pv-f-careful-text-disaster\">.*?Nothing is said\\..*?Its own words\\.", body);
+        Assert.Matches("(?s)id=\"pv-f-approaches-0-text-failure\">.*?<p class=\"error\">#nobody# names nothing", body);
+        Assert.Matches("(?s)id=\"pv-f-approaches-0-text-disaster\">.*?Nothing is said\\..*?Its own words\\.", body);
         // A line with criteria is shown against a sample made to satisfy them, and one that can never hold here says so.
         Assert.Matches("(?s)id=\"pv-line-0\">.*?CREW_03 was run through at ENCOUNTER_01\\..*?This line wins in this sample\\.", body);
         Assert.Matches("(?s)id=\"pv-line-1\">.*?This cannot happen here: the checks at this encounter are on SKILL_A and SKILL_C\\.", body);
@@ -376,14 +470,14 @@ public sealed class ContentMissionFormsTests(RepoContentGuard guard) : IClassFix
     {
         using TestApp app = NewApp();
 
-        (HttpStatusCode status, _) = await Post(app.NewClient(), "/dev/content/encounters/ENCOUNTER_01", Merge(Encounter1, "name=NAME_PLACEHOLDER&chain=&careful.difficulty=4&careful.gearTag=tools&decision.stakes=3&decision.name=NAME_PLACEHOLDER_2"));
+        (HttpStatusCode status, _) = await Post(app.NewClient(), "/dev/content/encounters/ENCOUNTER_01", Merge(Encounter1, "name=NAME_PLACEHOLDER&chain=&approaches[0].difficulty=4&approaches[0].gearTag=tools&decision.stakes=3&decision.name=NAME_PLACEHOLDER_2"));
 
         Assert.Equal(HttpStatusCode.OK, status);
         EncounterDef live = app.Live.Pack.Encounters.Single(e => e.Id == "ENCOUNTER_01");
         Assert.Equal("NAME_PLACEHOLDER", live.Name);
         Assert.Null(live.Chain);
-        Assert.Equal(4, live.Careful.Difficulty);
-        Assert.Equal("tools", live.Careful.GearTag);
+        Assert.Equal(4, live.Approaches[0].Difficulty);
+        Assert.Equal("tools", live.Approaches[0].GearTag);
         Assert.Equal(3, live.Decision!.Stakes);
         Assert.Equal("NAME_PLACEHOLDER_2", live.Decision.Name);
         Assert.Equal("DECISION_PROMPT_1", live.Decision.Id);
@@ -497,11 +591,11 @@ public sealed class ContentMissionFormsTests(RepoContentGuard guard) : IClassFix
         { "/dev/content/objectives/OBJECTIVE_TEMPLATE_1", Objective1, "stages[2].draw=nothing_uses_this", "Unknown tag." },
         { "/dev/content/objectives/OBJECTIVE_TEMPLATE_1", Objective1, "tags=a,,b", "A tag cannot be blank." },
         { "/dev/content/objectives/OBJECTIVE_TEMPLATE_1", Objective1, "name=" + new string('x', 81), "A name is 1 to 80 characters with no line break." },
-        { "/dev/content/encounters/ENCOUNTER_01", Encounter1, "careful.skill=", "Choose a skill." },
-        { "/dev/content/encounters/ENCOUNTER_01", Encounter1, "fast.skill=SKILL_NOT_THERE", "Unknown skill." },
-        { "/dev/content/encounters/ENCOUNTER_01", Encounter1, "careful.difficulty=0", "Must be 1 or more." },
-        { "/dev/content/encounters/ENCOUNTER_01", Encounter1, "fast.difficulty=", "Enter a whole number." },
-        { "/dev/content/encounters/ENCOUNTER_01", Encounter1, "careful.gearTag=not_a_tag", "Unknown gear tag." },
+        { "/dev/content/encounters/ENCOUNTER_01", Encounter1, "approaches[0].skill=", "Choose a skill." },
+        { "/dev/content/encounters/ENCOUNTER_01", Encounter1, "approaches[1].skill=SKILL_NOT_THERE", "Unknown skill." },
+        { "/dev/content/encounters/ENCOUNTER_01", Encounter1, "approaches[0].difficulty=0", "Must be 1 or more." },
+        { "/dev/content/encounters/ENCOUNTER_01", Encounter1, "approaches[1].difficulty=", "Enter a whole number." },
+        { "/dev/content/encounters/ENCOUNTER_01", Encounter1, "approaches[0].gearTag=not_a_tag", "Unknown gear tag." },
         { "/dev/content/encounters/ENCOUNTER_01", Encounter1, "chain=ENCOUNTER_NOT_THERE", "Unknown encounter." },
         { "/dev/content/encounters/ENCOUNTER_01", Encounter1, "chain=ENCOUNTER_01", "Chains to itself." },
         { "/dev/content/encounters/ENCOUNTER_01", Encounter1, "decision.stakes=6", "Must be 1 to 5." },
@@ -574,11 +668,11 @@ public sealed class ContentMissionFormsTests(RepoContentGuard guard) : IClassFix
     {
         using TestApp app = NewApp();
 
-        (_, string body) = await Post(app.NewClient(), "/dev/content/encounters/ENCOUNTER_01", Merge(Encounter1, "careful.difficulty=0&bold[1].strain=7&tags=typed_tag"));
+        (_, string body) = await Post(app.NewClient(), "/dev/content/encounters/ENCOUNTER_01", Merge(Encounter1, "approaches[0].difficulty=0&bold[1].strain=7&tags=typed_tag"));
 
         Assert.Equal("typed_tag", Value(body, "tags"));
         Assert.Equal("7", Value(body, "bold[1].strain"));
-        Assert.Equal("0", Value(body, "careful.difficulty"));
+        Assert.Equal("0", Value(body, "approaches[0].difficulty"));
     }
 
     [Fact]
@@ -744,7 +838,7 @@ public sealed class ContentMissionFormsTests(RepoContentGuard guard) : IClassFix
         using TestApp app = NewApp(root =>
         {
             string file = Path.Combine(root, "encounters", "base.yaml");
-            File.WriteAllText(file, File.ReadAllText(file).Replace("tags: [field, technical]\n  chain: ENCOUNTER_CHAIN\n  approaches:\n    careful: { skill: SKILL_B, difficulty: 5, gearTag: tools }", "tags: [field, technical, rare]\n  chain: ENCOUNTER_CHAIN\n  approaches:\n    careful: { skill: SKILL_B, difficulty: 5, gearTag: tools }"));
+            File.WriteAllText(file, File.ReadAllText(file).Replace("tags: [field, technical]\n  chain: ENCOUNTER_CHAIN\n  approaches:\n    - { id: careful, name: APPROACH_A_NAME, skill: SKILL_B, difficulty: 5, gearTag: tools }", "tags: [field, technical, rare]\n  chain: ENCOUNTER_CHAIN\n  approaches:\n    - { id: careful, name: APPROACH_A_NAME, skill: SKILL_B, difficulty: 5, gearTag: tools }"));
         });
 
         (_, string body) = await Post(app.NewClient(), "/dev/content/objectives/OBJECTIVE_TEMPLATE_1/rows", Merge(Objective1, "stages[0].draw=rare&row=add"));

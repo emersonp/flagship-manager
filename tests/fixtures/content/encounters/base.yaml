@@ -3,8 +3,8 @@
   tags: [field, hazard]
   chain: ENCOUNTER_CHAIN
   approaches:
-    careful: { skill: SKILL_A, difficulty: 5, gearTag: scanner }
-    fast: { skill: SKILL_C, difficulty: 6 }
+    - { id: careful, name: APPROACH_A_NAME, skill: SKILL_A, difficulty: 5, gearTag: scanner }
+    - { id: fast, name: APPROACH_B_NAME, skill: SKILL_C, difficulty: 6 }
   decision:
     id: DECISION_PROMPT_1
     stakes: 1
@@ -14,8 +14,8 @@
   tags: [field, social]
   chain: ENCOUNTER_CHAIN
   approaches:
-    careful: { skill: SKILL_D, difficulty: 5 }
-    fast: { skill: SKILL_B, difficulty: 6 }
+    - { id: careful, name: APPROACH_A_NAME, skill: SKILL_D, difficulty: 5 }
+    - { id: fast, name: APPROACH_B_NAME, skill: SKILL_B, difficulty: 6 }
   decision:
     id: DECISION_PROMPT_2
     stakes: 2
@@ -25,8 +25,8 @@
   tags: [field, technical]
   chain: ENCOUNTER_CHAIN
   approaches:
-    careful: { skill: SKILL_B, difficulty: 6, gearTag: tools }
-    fast: { skill: SKILL_A, difficulty: 7 }
+    - { id: careful, name: APPROACH_A_NAME, skill: SKILL_B, difficulty: 6, gearTag: tools }
+    - { id: fast, name: APPROACH_B_NAME, skill: SKILL_A, difficulty: 7 }
   decision:
     id: DECISION_PROMPT_3
     stakes: 3
@@ -36,14 +36,14 @@
   tags: [field, hazard]
   chain: ENCOUNTER_CHAIN
   approaches:
-    careful: { skill: SKILL_C, difficulty: 5 }
-    fast: { skill: SKILL_C, difficulty: 6 }
+    - { id: careful, name: APPROACH_A_NAME, skill: SKILL_C, difficulty: 5 }
+    - { id: fast, name: APPROACH_B_NAME, skill: SKILL_C, difficulty: 6 }
 - id: ENCOUNTER_05
   tags: [field, technical]
   chain: ENCOUNTER_CHAIN
   approaches:
-    careful: { skill: SKILL_A, difficulty: 6, gearTag: scanner }
-    fast: { skill: SKILL_B, difficulty: 7 }
+    - { id: careful, name: APPROACH_A_NAME, skill: SKILL_A, difficulty: 6, gearTag: scanner }
+    - { id: fast, name: APPROACH_B_NAME, skill: SKILL_B, difficulty: 7 }
   decision:
     id: DECISION_PROMPT_4
     stakes: 4
@@ -54,8 +54,8 @@
   commsBlocked: true
   chain: ENCOUNTER_CHAIN
   approaches:
-    careful: { skill: SKILL_C, difficulty: 6 }
-    fast: { skill: SKILL_D, difficulty: 7 }
+    - { id: careful, name: APPROACH_A_NAME, skill: SKILL_C, difficulty: 6 }
+    - { id: fast, name: APPROACH_B_NAME, skill: SKILL_D, difficulty: 7 }
   decision:
     id: DECISION_PROMPT_5
     stakes: 3
@@ -65,14 +65,14 @@
   tags: [field, social]
   chain: ENCOUNTER_CHAIN
   approaches:
-    careful: { skill: SKILL_D, difficulty: 6 }
-    fast: { skill: SKILL_D, difficulty: 7 }
+    - { id: careful, name: APPROACH_A_NAME, skill: SKILL_D, difficulty: 6 }
+    - { id: fast, name: APPROACH_B_NAME, skill: SKILL_D, difficulty: 7 }
 - id: ENCOUNTER_08
   tags: [field, technical]
   chain: ENCOUNTER_CHAIN
   approaches:
-    careful: { skill: SKILL_B, difficulty: 5, gearTag: tools }
-    fast: { skill: SKILL_C, difficulty: 6 }
+    - { id: careful, name: APPROACH_A_NAME, skill: SKILL_B, difficulty: 5, gearTag: tools }
+    - { id: fast, name: APPROACH_B_NAME, skill: SKILL_C, difficulty: 6 }
   decision:
     id: DECISION_PROMPT_6
     stakes: 2
@@ -81,5 +81,5 @@
 - id: ENCOUNTER_CHAIN
   tags: [chained, hazard]
   approaches:
-    careful: { skill: SKILL_C, difficulty: 6 }
-    fast: { skill: SKILL_A, difficulty: 7 }
+    - { id: careful, name: APPROACH_A_NAME, skill: SKILL_C, difficulty: 6 }
+    - { id: fast, name: APPROACH_B_NAME, skill: SKILL_A, difficulty: 7 }

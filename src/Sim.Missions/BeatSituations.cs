@@ -143,7 +143,7 @@ public static class BeatSituations
             switch (beat)
             {
                 case CheckBeat b:
-                    facts["approach"] = FactValue.Of(Word(b.Approach));
+                    facts["approach"] = FactValue.Of(b.Approach);
                     facts["skill"] = FactValue.Of(b.Skill);
                     facts["tier"] = FactValue.Of(Word(b.Tier));
                     facts["margin"] = FactValue.Of(b.Margin);

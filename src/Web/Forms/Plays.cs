@@ -47,7 +47,8 @@ internal static class Plays
     private sealed record Group(string Key, string Title, string? Hint, bool Primary, IReadOnlyList<Slot> Slots, IReadOnlyList<string> Beats, bool Labels = false);
 
     // What the item is, read from the form: enough to say which beats can happen at it and to build a sample of each.
-    private sealed record Item(string Id, string Fact, string Name, IReadOnlyList<string> Tags, bool CommsBlocked, IReadOnlyDictionary<string, string> ApproachSkills, string? DecisionId, int Stakes);
+    // Approaches are the encounter's rows as the form holds them: the id, the title shown, and the skill; an objective has none.
+    private sealed record Item(string Id, string Fact, string Name, IReadOnlyList<string> Tags, bool CommsBlocked, IReadOnlyList<(string Id, string Title, string Skill)> Approaches, string? DecisionId, int Stakes);
 
     private static readonly IReadOnlyDictionary<string, string> BeatTitles = new Dictionary<string, string>
     {
@@ -74,8 +75,8 @@ internal static class Plays
         (int written, int total, int lines) = model switch
         {
             EncounterModel e => (
-                Count(e.Text) + Count(e.Careful.Text) + Count(e.Fast.Text) + Count(e.Decision?.Text),
-                NarrativeFacts.EncounterTexts.Count + (2 * NarrativeFacts.ApproachTexts.Count) + (e.Decision is null ? 0 : NarrativeFacts.DecisionTexts.Count),
+                Count(e.Text) + e.Approaches.Sum(a => Count(a.Text)) + Count(e.Decision?.Text),
+                NarrativeFacts.EncounterTexts.Count + (e.Approaches.Count * NarrativeFacts.ApproachTexts.Count) + (e.Decision is null ? 0 : NarrativeFacts.DecisionTexts.Count),
                 e.Lines?.Count ?? 0),
             ObjectiveModel o => (Count(o.Text), NarrativeFacts.Outcomes.Count, o.Lines?.Count ?? 0),
             _ => (0, 0, 0),
@@ -257,14 +258,19 @@ internal static class Plays
         List<string> tags = values.Get("tags").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
         if (kind == ContentKind.Objective)
         {
-            return new Item(shown, "objective", name, tags, false, new Dictionary<string, string>(), null, 1);
+            return new Item(shown, "objective", name, tags, false, [], null, 1);
         }
 
         bool hasDecision = values.Get("hasDecision") == "true";
         string? decision = !hasDecision ? null : choices.FixedDecisionId ?? (values.Get("decision.id").Trim() is { Length: > 0 } d ? d : "NEW_DECISION");
         int stakes = int.TryParse(values.Get("decision.stakes"), NumberStyles.None, CultureInfo.InvariantCulture, out int s) ? s : 1;
-        var skills = new Dictionary<string, string> { ["careful"] = values.Get("careful.skill"), ["fast"] = values.Get("fast.skill") };
-        return new Item(shown, "encounter", name, tags, values.Get("commsBlocked") == "true", skills, decision, stakes);
+        List<(string, string, string)> approaches = FormRows.Read(values, EncounterKind.Approaches).Select((row, i) =>
+        {
+            string approachId = row["id"].Trim();
+            string title = row["name"].Trim() is { Length: > 0 } named ? named : approachId.Length > 0 ? approachId : string.Create(CultureInfo.InvariantCulture, $"Approach {i + 1}");
+            return (approachId, title, row["skill"]);
+        }).ToList();
+        return new Item(shown, "encounter", name, tags, values.Get("commsBlocked") == "true", approaches, decision, stakes);
     }
 
     private static List<Group> EncounterGroups(Item item, FormValues values)
@@ -274,16 +280,20 @@ internal static class Plays
         {
             new("arrive", "Arrival", "What the log says when the team reaches this encounter.", true, [new Slot("text.arrive", "The team arrives", $"{item.Id}.arrive", "stage", [here])], ["stage"]),
         };
-        foreach (string approach in NarrativeFacts.Approaches)
+        for (int i = 0; i < item.Approaches.Count; i++)
         {
+            (string approach, string title, _) = item.Approaches[i];
+            int row = i;
             var on = new CriterionDef("approach", [approach]);
+            string Field(string key) => EncounterKind.Approaches.Name(row, EncounterKind.TextField(key));
             List<Slot> slots = NarrativeFacts.ApproachTexts.Select(key => key == "attempt"
-                ? new Slot($"{approach}.text.attempt", "Before the check", $"{item.Id}.{approach}.attempt", "attempt", [here, on])
-                : new Slot($"{approach}.text.{key}", Capital(key), $"{item.Id}.{approach}.{key}", "check", [here, on, new CriterionDef("tier", [key])])).ToList();
-            groups.Add(new Group(approach, approach == "careful" ? "Careful approach" : "Fast approach", "What is said before the check, then what the log says by how it went. Write - alone for a result that passes in silence.", true, slots, []));
+                ? new Slot(Field(key), "Before the check", $"{item.Id}.{approach}.attempt", "attempt", [here, on])
+                : new Slot(Field(key), Capital(key), $"{item.Id}.{approach}.{key}", "check", [here, on, new CriterionDef("tier", [key])])).ToList();
+            // Keyed by place, not id: an id is the author's to choose and could be any other group's key.
+            groups.Add(new Group(string.Create(CultureInfo.InvariantCulture, $"approach-{row}"), title, "What is said before the check, then what the log says by how it went. Write - alone for a result that passes in silence.", true, slots, []));
         }
 
-        groups.Add(new Group("checks", "Checks, either approach", "Lines for a check here that the boxes above cannot say: only when someone helps, only for a cautious actor.", false, [], ["attempt", "check"]));
+        groups.Add(new Group("checks", "Checks, any approach", "Lines for a check here that the boxes above cannot say: only when someone helps, only for a cautious actor.", false, [], ["attempt", "check"]));
         groups.Add(new Group("effects", "Effects", "What the log says when a check's or a choice's effects land.", false, [], ["effects"]));
         groups.Add(new Group("injury", "Injury", "What the log says when someone is hurt here.", true, [], ["injury"]));
         groups.Add(new Group("lead", "Lead change", null, false, [], ["lead"]));
@@ -369,7 +379,7 @@ internal static class Plays
             {
                 case "skill" when item.Fact == "encounter":
                     string? approach = when.FirstOrDefault(w => w.Fact == "approach")?.Values.FirstOrDefault();
-                    List<string> checkedHere = (approach is not null && item.ApproachSkills.TryGetValue(approach, out string? one) ? [one] : item.ApproachSkills.Values).Where(s => s.Length > 0).ToList();
+                    List<string> checkedHere = item.Approaches.Where(a => approach is null || a.Id == approach).Select(a => a.Skill).Where(s => s.Length > 0).ToList();
                     if (checkedHere.Count > 0 && !c.Values.Any(checkedHere.Contains))
                     {
                         return $"This cannot happen here: the checks at this encounter are on {string.Join(" and ", checkedHere.Distinct())}.";
@@ -411,9 +421,9 @@ internal static class Plays
         string objectiveId = item.Fact == "objective" ? item.Id : objective?.Id ?? "OBJECTIVE";
         string encounterId = item.Fact == "encounter" ? item.Id : encounter?.Id ?? "ENCOUNTER";
         string? Wanted(string fact) => when.FirstOrDefault(c => c.Fact == fact)?.Values.FirstOrDefault();
-        string approach = Wanted("approach") ?? "careful";
+        string approach = Wanted("approach") ?? (item.Fact == "encounter" ? item.Approaches.FirstOrDefault().Id : encounter?.Approaches.FirstOrDefault()?.Id) ?? "";
         string skill = Wanted("skill")
-            ?? (item.Fact == "encounter" ? item.ApproachSkills.GetValueOrDefault(approach) is { Length: > 0 } s ? s : null : approach == "careful" ? encounter?.Careful.Skill : encounter?.Fast.Skill)
+            ?? (item.Fact == "encounter" ? item.Approaches.FirstOrDefault(a => a.Id == approach).Skill is { Length: > 0 } s ? s : null : encounter?.Approaches.FirstOrDefault(a => a.Id == approach)?.Skill)
             ?? pack.Skills.FirstOrDefault()?.Id ?? "SKILL";
         string tier = Wanted("tier") ?? "success";
         string decision = Wanted("decision") ?? item.DecisionId ?? encounter?.Decision?.Id ?? DecisionIds.Abort;

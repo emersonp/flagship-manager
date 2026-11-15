@@ -13,6 +13,12 @@ public sealed class Names(ContentPack pack)
     private readonly Dictionary<string, string> decisions = Index(pack.Encounters.Where(e => e.Decision is not null).Select(e => (e.Decision!.Id, e.Decision.Name)));
     private readonly Dictionary<string, string> assignments = Index(pack.Assignments.Select(a => (a.Id, a.Name)));
 
+    // An approach id is unique only within its encounter, so these are keyed by both.
+    private readonly Dictionary<(string, string), string> approaches = pack.Encounters
+        .SelectMany(e => e.Approaches.Where(a => a.Name is not null).Select(a => ((e.Id, a.Id), a.Name!)))
+        .DistinctBy(p => p.Item1)
+        .ToDictionary(p => p.Item1, p => p.Item2);
+
     public string Skill(string id)
     {
         return Of(skills, id);
@@ -46,6 +52,12 @@ public sealed class Names(ContentPack pack)
     public string Assignment(string id)
     {
         return Of(assignments, id);
+    }
+
+    // The approach's name, or its id when it has none.
+    public string Approach(string encounterId, string approachId)
+    {
+        return approaches.TryGetValue((encounterId, approachId), out string? name) ? name : approachId;
     }
 
     // Only named items are kept, so a lookup that misses falls back to the id. The loader refuses a repeated id, but a page must

@@ -13,6 +13,7 @@ public static class Bench
         var experience = new SortedDictionary<string, double>(StringComparer.Ordinal);
         var encounters = new SortedDictionary<string, EncounterTally>(StringComparer.Ordinal);
         var stages = new List<StageTally>();
+        Dictionary<string, List<string>> positions = pack.Encounters.ToDictionary(e => e.Id, e => e.Approaches.Select(a => a.Id).ToList());
         int crewMissions = 0, deaths = 0, incapacitated = 0, calls = 0, initiatives = 0, worst = -1;
         ulong worstSeed = options.Seed;
 
@@ -55,7 +56,8 @@ public static class Bench
                     case CheckBeat check:
                         EncounterTally tally = Tally(encounters, check.EncounterId);
                         tally.Checks++;
-                        tally.Careful += check.Approach == Approach.Careful ? 1 : 0;
+                        int position = positions[check.EncounterId].IndexOf(check.Approach);
+                        tally.ByPosition[position]++;
                         tally.Tiers[check.Tier]++;
                         break;
                     case InjuryBeat { Outcome: InjuryOutcome.Dead } injury:
@@ -79,7 +81,7 @@ public static class Bench
             calls,
             initiatives,
             experience.ToDictionary(e => e.Key, e => e.Value / options.Runs),
-            encounters.Select(e => new EncounterFigures(e.Key, e.Value.Checks, e.Value.Careful, e.Value.Checks - e.Value.Careful, e.Value.Tiers, e.Value.Deaths, e.Value.Incapacitated)).ToList(),
+            encounters.Select(e => new EncounterFigures(e.Key, e.Value.Checks, e.Value.ByPosition, e.Value.Tiers, e.Value.Deaths, e.Value.Incapacitated)).ToList(),
             stages.Select((s, i) => new StageFigures(i + 1, s.Reached, s.Momentum / s.Reached, s.Strain / s.Reached)).ToList(),
             worstSeed);
     }
@@ -129,7 +131,7 @@ public static class Bench
     {
         public int Checks { get; set; }
 
-        public int Careful { get; set; }
+        public int[] ByPosition { get; } = new int[EncounterDef.MaxApproaches];
 
         public int Deaths { get; set; }
 

@@ -9,7 +9,7 @@ public sealed class SqliteLegacyStore : ILegacyStore
 {
     private const int MaxNameLength = 60;
 
-    private const int SchemaVersion = 4;
+    private const int SchemaVersion = 5;
 
     private const string Schema = """
         CREATE TABLE IF NOT EXISTS legacy (

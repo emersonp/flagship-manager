@@ -1,20 +1,46 @@
+@using Sim.Core.Content
 @using Sim.Core.Narrative
 @using Web.Forms
 <FormShell View="View">
     <TagsField Name="tags" Label="Tags" Value="@View.Values.Get("tags")" Error="@View.Error("tags")" Suggestions="View.Choices.EncounterTags" />
     <CheckField Name="commsBlocked" Label="Comms blocked" Checked="@(View.Values.Get("commsBlocked") == "true")" Hint="Without comms gear on the team, this encounter's decision is never put to the player as a call." />
     <Field Name="chain" Label="Chains to" Value="@View.Values.Get("chain")" Options="ChainOptions" Labels="ChainLabels" Placeholder="None" Hint="The encounter that follows this one. An encounter another one chains to is never drawn by a stage." Error="@View.Error("chain")" />
-    @foreach (string key in new[] { "careful", "fast" })
-    {
-        <fieldset class="approach">
-            <legend class="sub">@(key == "careful" ? "Careful approach" : "Fast approach")</legend>
-            <div class="field-grid">
-                <Field Name="@($"{key}.skill")" Label="Skill" AriaLabel="@($"Skill, {key} approach")" Value="@View.Values.Get($"{key}.skill")" Options="SkillIds" Labels="SkillLabels" Error="@View.Error($"{key}.skill")" Required="true" />
-                <Field Name="@($"{key}.difficulty")" Label="Difficulty" AriaLabel="@($"Difficulty, {key} approach")" Value="@View.Values.Get($"{key}.difficulty")" Hint="1 or more." Error="@View.Error($"{key}.difficulty")" Numeric="true" Narrow="true" Required="true" />
-                <Field Name="@($"{key}.gearTag")" Label="Gear tag" AriaLabel="@($"Gear tag, {key} approach")" Value="@View.Values.Get($"{key}.gearTag")" Options="View.Choices.GearTags" Placeholder="None" Hint="Gear with this tag helps." Error="@View.Error($"{key}.gearTag")" />
+    @* Each approach as a plain fieldset; its words are in "What plays here". Layout is the approaches plan's Task 5. *@
+    <div class="rowset" id="f-approaches" tabindex="-1" aria-labelledby="h-approaches" @attributes="ApproachesFocus">
+        <h3 class="sub" id="h-approaches">Approaches</h3>
+        <p class="hint">One to @EncounterDef.MaxApproaches ways to take this encounter, in order.</p>
+        @if (View.Error(Set.Prefix) is { } error)
+        {
+            <p class="error" id="f-approaches-error">@error</p>
+        }
+        @for (int i = 0; i < Approaches.Count; i++)
+        {
+            int row = i;
+            string which = $"approach {row + 1}";
+            <fieldset class="approach" id="@($"approach-{row}")">
+                <legend class="sub">Approach @(row + 1)</legend>
+                <div class="field-grid">
+                    <Field Name="@Set.Name(row, "id")" Label="Id" AriaLabel="@($"Id, {which}")" Value="@Approaches[row]["id"]" Hint="@EncounterKind.ApproachIdRule" Error="@View.Error(Set.Name(row, "id"))" Required="true" />
+                    <Field Name="@Set.Name(row, "name")" Label="Name" AriaLabel="@($"Name, {which}")" Value="@Approaches[row]["name"]" Hint="Optional. 1 to 80 characters." Error="@View.Error(Set.Name(row, "name"))" />
+                    <Field Name="@Set.Name(row, "skill")" Label="Skill" AriaLabel="@($"Skill, {which}")" Value="@Approaches[row]["skill"]" Options="SkillIds" Labels="SkillLabels" Error="@View.Error(Set.Name(row, "skill"))" Required="true" />
+                    <Field Name="@Set.Name(row, "difficulty")" Label="Difficulty" AriaLabel="@($"Difficulty, {which}")" Value="@Approaches[row]["difficulty"]" Hint="1 or more." Error="@View.Error(Set.Name(row, "difficulty"))" Numeric="true" Narrow="true" Required="true" />
+                    <Field Name="@Set.Name(row, "gearTag")" Label="Gear tag" AriaLabel="@($"Gear tag, {which}")" Value="@Approaches[row]["gearTag"]" Options="View.Choices.GearTags" Placeholder="None" Hint="Gear with this tag helps." Error="@View.Error(Set.Name(row, "gearTag"))" />
+                </div>
+                @if (Approaches.Count > 1)
+                {
+                    <div class="rowset__add">
+                        <RowButton Id="@Set.ButtonId("remove", row)" Value="@Set.Action("remove", row)" Aria="@($"Remove {which}")">Remove</RowButton>
+                    </div>
+                }
+            </fieldset>
+        }
+        @if (Approaches.Count < EncounterDef.MaxApproaches)
+        {
+            <div class="rowset__add">
+                <RowButton Id="@Set.AddId" Value="@Set.AddAction">Add an approach</RowButton>
             </div>
-        </fieldset>
-    }
+        }
+    </div>
     <CheckField Name="hasDecision" Label="This encounter has a decision" Checked="HasDecision" ChangeUrl="@View.RowsUrlFocusing("f-hasDecision")" />
     @if (HasDecision)
     {
@@ -53,6 +79,12 @@
     [Parameter, EditorRequired] public ItemFormView View { get; set; } = null!;
 
     private bool HasDecision => View.Values.Get("hasDecision") == "true";
+
+    private static RowSet Set => EncounterKind.Approaches;
+
+    private IReadOnlyDictionary<string, object> ApproachesFocus => View.FocusFor("f-approaches");
+
+    private List<Dictionary<string, string>> Approaches => FormRows.Read(View.Values, Set);
 
     private IReadOnlyList<string> SkillIds => View.Choices.Skills.Select(s => s.Id).ToList();
 

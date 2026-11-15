@@ -13,8 +13,8 @@ internal static partial class TestContent
         - id: FIXTURE_ENCOUNTER
           tags: [fixture]
           approaches:
-            careful: { skill: FIXTURE_SKILL, difficulty: 5 }
-            fast: { skill: FIXTURE_SKILL, difficulty: 6 }
+            - { id: careful, skill: FIXTURE_SKILL, difficulty: 5 }
+            - { id: fast, skill: FIXTURE_SKILL, difficulty: 6 }
 
         """;
 

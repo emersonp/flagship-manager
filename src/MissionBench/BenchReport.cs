@@ -58,7 +58,7 @@ public static class BenchReport
 
     public static string Encounters(BenchFigures figures)
     {
-        var table = new List<string[]> { new[] { "Encounter", "checks", "careful %", "crit %", "succ %", "part %", "fail %", "dis %", "deaths", "incap." } };
+        var table = new List<string[]> { new[] { "Encounter", "checks", "1st %", "2nd %", "3rd %", "4th %", "crit %", "succ %", "part %", "fail %", "dis %", "deaths", "incap." } };
         foreach (EncounterFigures e in figures.Encounters)
         {
             string Tier(Tier tier)
@@ -68,7 +68,7 @@ public static class BenchReport
 
             table.Add(
             [
-                e.EncounterId, e.Checks.ToString(CultureInfo.InvariantCulture), Number(e.Checks == 0 ? null : 100.0 * e.Careful / e.Checks, "0"),
+                e.EncounterId, e.Checks.ToString(CultureInfo.InvariantCulture), .. e.ByPosition.Select(n => Number(e.Checks == 0 ? null : 100.0 * n / e.Checks, "0")),
                 Tier(Sim.Missions.Tier.Critical), Tier(Sim.Missions.Tier.Success), Tier(Sim.Missions.Tier.Partial), Tier(Sim.Missions.Tier.Failure), Tier(Sim.Missions.Tier.Disaster),
                 e.Deaths.ToString(CultureInfo.InvariantCulture), e.Incapacitated.ToString(CultureInfo.InvariantCulture),
             ]);

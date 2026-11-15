@@ -35,6 +35,21 @@ public class BenchTests
         Assert.Equal(before.Encounters.Select(e => e.EncounterId), after.Encounters.Select(e => e.EncounterId).Where(id => id != "ENCOUNTER_CHAIN"));
     }
 
+    // Each encounter's checks are counted by the place of the approach taken, always four places, and the table heads them by place.
+    [Fact]
+    public void Checks_are_counted_by_the_approachs_place_in_its_encounter()
+    {
+        BenchFigures figures = Bench.Run(Pack, Pack.Tuning, new BenchOptions("OBJECTIVE_TEMPLATE_1") { Runs = 50 });
+
+        Assert.All(figures.Encounters, e =>
+        {
+            Assert.Equal(4, e.ByPosition.Count);
+            Assert.Equal(e.Checks, e.ByPosition.Sum());
+            Assert.Equal(0, e.ByPosition[2] + e.ByPosition[3]);
+        });
+        Assert.Matches(@"^Encounter\s+checks\s+1st %\s+2nd %\s+3rd %\s+4th %\s+crit %", BenchReport.Encounters(figures));
+    }
+
     [Fact]
     public void The_summary_names_encounter_positions_and_how_many_runs_reached_them()
     {

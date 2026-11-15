@@ -6,7 +6,8 @@ public enum InjurySeverity
     Severe,
 }
 
-public sealed record ApproachDef(string Skill, int Difficulty, string? GearTag);
+// One way to take an encounter. Id is unique within its encounter and is what beats and lines name.
+public sealed record ApproachDef(string Id, string Skill, int Difficulty, string? GearTag, string? Name = null);
 
 // What a decision option does. Fields are additive, so several effects fold into one record.
 public sealed record EffectDef(int Momentum = 0, int Strain = 0, int Progress = 0, InjurySeverity? InjuryRoll = null, bool Withdraw = false);
@@ -25,10 +26,13 @@ public sealed record EncounterDef(
     IReadOnlyList<string> Tags,
     bool CommsBlocked,
     string? Chain,
-    ApproachDef Careful,
-    ApproachDef Fast,
+    IReadOnlyList<ApproachDef> Approaches,
     DecisionDef? Decision,
-    string? Name = null);
+    string? Name = null)
+{
+    // An encounter has one to this many approaches.
+    public const int MaxApproaches = 4;
+}
 
 public sealed record StageDef(string Slot, IReadOnlyList<string> DrawTags, int CountMin, int CountMax, bool Skippable);
 

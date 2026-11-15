@@ -54,7 +54,7 @@ public class MissionRulesTests
                 seen.Add(check.Tier);
                 (int momentum, int strain) = check.Tier switch
                 {
-                    Tier.Critical or Tier.Success => (Clamp(check.Momentum + (check.Tier == Tier.Critical ? t.MomentumCritical : 0) + (check.Approach == Approach.Fast ? t.MomentumFastSuccess : 0)), Clamp(check.Strain - t.StrainReliefOnSuccess)),
+                    Tier.Critical or Tier.Success => (Clamp(check.Momentum + (check.Tier == Tier.Critical ? t.MomentumCritical : 0) + (check.Approach == "fast" ? t.MomentumFastSuccess : 0)), Clamp(check.Strain - t.StrainReliefOnSuccess)),
                     Tier.Partial => (check.Momentum, Clamp(check.Strain + t.StrainPartial)),
                     Tier.Failure => (check.Momentum, Clamp(check.Strain + t.StrainFailure)),
                     _ => (check.Momentum, Clamp(check.Strain + t.StrainDisaster)),
@@ -106,10 +106,21 @@ public class MissionRulesTests
     public void Risk_is_tolerance_so_a_higher_risk_pushes_the_lead_toward_the_fast_approach()
     {
         Assert.Equal(
-            new[] { Approach.Careful, Approach.Careful, Approach.Fast },
+            new[] { "careful", "careful", "fast" },
             new[] { -1, 0, 1 }.Select(r => ApproachFor(TestContent.Team(3, 3, 5), r)));
-        Assert.Equal(Approach.Careful, ApproachFor(TestContent.Team(1, 1, 3), 1));
-        Assert.Equal(Approach.Fast, ApproachFor(TestContent.Team(2, 2, 3), 0));
+        Assert.Equal("careful", ApproachFor(TestContent.Team(1, 1, 3), 1));
+        Assert.Equal("fast", ApproachFor(TestContent.Team(2, 2, 3), 0));
+    }
+
+    // Interim until Task 4 of the approaches plan: the first approach or the second, and the only one when there is one.
+    [Fact]
+    public void An_encounter_with_one_approach_takes_it_whatever_the_risk()
+    {
+        EncounterDef encounter = new("ENCOUNTER_01", ["field"], false, null, [new ApproachDef("only", "SKILL_A", 5, null)], null);
+
+        Assert.Equal(
+            new[] { "only", "only", "only" },
+            new[] { -1, 0, 1 }.Select(r => MissionResolver.Advance(Start(TestContent.Team(2, 2, 3), new Parameters(Risk: r), encounter)).Beats.OfType<CheckBeat>().Single().Approach));
     }
 
     [Fact]
@@ -334,7 +345,7 @@ public class MissionRulesTests
     [Fact]
     public void A_check_gives_its_experience_to_the_actor_and_helper_under_the_approachs_skill()
     {
-        EncounterDef encounter = new("ENCOUNTER_01", ["field"], false, null, new ApproachDef("SKILL_A", 7, null), new ApproachDef("SKILL_B", 8, null), null);
+        EncounterDef encounter = new("ENCOUNTER_01", ["field"], false, null, [new ApproachDef("careful", "SKILL_A", 7, null), new ApproachDef("fast", "SKILL_B", 8, null)], null);
 
         MissionStep step = MissionResolver.Advance(Start(TestContent.Team(2, 2, 3), new Parameters(), encounter));
 
@@ -493,14 +504,14 @@ public class MissionRulesTests
         return new CallReply(step.Pending!.CallId, answer);
     }
 
-    private static Approach ApproachFor(Team team, int risk)
+    private static string ApproachFor(Team team, int risk)
     {
         return MissionResolver.Advance(Start(team, new Parameters(Risk: risk), Encounter(5))).Beats.OfType<CheckBeat>().Single().Approach;
     }
 
     private static EncounterDef Encounter(int difficulty, DecisionDef? decision = null, bool commsBlocked = false, string? gearTag = null, string id = "ENCOUNTER_01", string[]? tags = null, string? chain = null)
     {
-        return new EncounterDef(id, tags ?? ["field"], commsBlocked, chain, new ApproachDef("SKILL_A", difficulty, gearTag), new ApproachDef("SKILL_A", difficulty + 1, null), decision);
+        return new EncounterDef(id, tags ?? ["field"], commsBlocked, chain, [new ApproachDef("careful", "SKILL_A", difficulty, gearTag), new ApproachDef("fast", "SKILL_A", difficulty + 1, null)], decision);
     }
 
     private static MissionState Start(Team team, Parameters parameters, params EncounterDef[] pool)

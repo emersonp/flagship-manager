@@ -1,4 +1,5 @@
 using Sim.Content;
+using Sim.Core.Content;
 using Sim.Core.Narrative;
 
 namespace Web.Forms;
@@ -126,13 +127,24 @@ internal sealed class ObjectiveKind : KindForm
 
 internal sealed class EncounterKind : KindForm
 {
+    // An approach's words post with its row, as approaches[0].text.attempt, so they move and go with it.
+    public static readonly RowSet Approaches = new(
+        "approaches",
+        ["id", "name", "skill", "difficulty", "gearTag", .. NarrativeFacts.ApproachTexts.Select(TextField)],
+        Qualified: true,
+        Noun: "approach",
+        Defaults: new Dictionary<string, string> { ["difficulty"] = "1" });
+
     public static readonly RowSet Bold = new("bold", ["progress", "momentum", "strain", "injury", "withdraw"], Qualified: true, Noun: "effect");
 
     public static readonly RowSet Safe = new("safe", ["progress", "momentum", "strain", "injury", "withdraw"], Qualified: true, Noun: "effect");
 
     public override ContentKind Kind => ContentKind.Encounter;
 
-    public override IReadOnlyList<RowSet> RowSets => [Bold, Safe, OwnedText.Lines];
+    public override IReadOnlyList<RowSet> RowSets => [Approaches, Bold, Safe, OwnedText.Lines];
+
+    // The row field that holds an approach's text for this key.
+    public static string TextField(string key) => OwnedText.Field("", key);
 
     public override string? NameOf(ContentFileSet files, string id)
     {
@@ -163,8 +175,11 @@ internal sealed class EncounterKind : KindForm
 
         fields.Add(new("chain", encounter.Chain ?? ""));
         OwnedText.Add(fields, "", NarrativeFacts.EncounterTexts, encounter.Text);
-        AddApproach(fields, "careful", encounter.Careful);
-        AddApproach(fields, "fast", encounter.Fast);
+        for (int i = 0; i < encounter.Approaches.Count; i++)
+        {
+            AddApproach(fields, i, encounter.Approaches[i]);
+        }
+
         if (encounter.Decision is { } decision)
         {
             fields.Add(new("hasDecision", "true"));
@@ -183,7 +198,7 @@ internal sealed class EncounterKind : KindForm
 
     public override FormValues Blank(FormChoices choices)
     {
-        return new FormValues([new("name", ""), new("tags", ""), new("chain", ""), new("careful.skill", ""), new("careful.difficulty", "1"), new("careful.gearTag", ""), new("fast.skill", ""), new("fast.difficulty", "1"), new("fast.gearTag", "")]);
+        return new FormValues([new("name", ""), new("tags", ""), new("chain", ""), new(Approaches.Name(0, "id"), ""), new(Approaches.Name(0, "name"), ""), new(Approaches.Name(0, "skill"), ""), new(Approaches.Name(0, "difficulty"), "1"), new(Approaches.Name(0, "gearTag"), "")]);
     }
 
     public override Bound Bind(string id, FormValues values, FormChoices choices)
@@ -204,9 +219,8 @@ internal sealed class EncounterKind : KindForm
         }
 
         IReadOnlyDictionary<string, string>? text = OwnedText.Bind(values, "", NarrativeFacts.EncounterTexts, errors);
-        IReadOnlyList<OwnLineModel>? lines = OwnedText.BindLines(values, "encounter", errors);
-        ApproachModel? careful = BindApproach(values, "careful", choices, errors);
-        ApproachModel? fast = BindApproach(values, "fast", choices, errors);
+        List<ApproachModel> approaches = BindApproaches(values, choices, errors);
+        IReadOnlyList<OwnLineModel>? lines = OwnedText.BindLines(values, "encounter", errors, approaches.Select(a => a.Id).ToList());
         bool hasDecision = values.Get("hasDecision") == "true";
         string? typedId = null;
         string? decisionName = null;
@@ -251,16 +265,18 @@ internal sealed class EncounterKind : KindForm
                 decision = new DecisionModel(decisionId, decisionName, stakes, bold, safe, decisionText, labels);
             }
 
-            return new EncounterModel(id, name, tags, commsBlocked, chain.Length == 0 ? null : chain, careful!, fast!, decision, text, lines);
+            return new EncounterModel(id, name, tags, commsBlocked, chain.Length == 0 ? null : chain, approaches, decision, text, lines);
         }, errors);
     }
 
-    private static void AddApproach(List<KeyValuePair<string, string>> fields, string key, ApproachModel approach)
+    private static void AddApproach(List<KeyValuePair<string, string>> fields, int row, ApproachModel approach)
     {
-        fields.Add(new($"{key}.skill", approach.Skill));
-        fields.Add(new($"{key}.difficulty", Checks.Text(approach.Difficulty)));
-        fields.Add(new($"{key}.gearTag", approach.GearTag ?? ""));
-        OwnedText.Add(fields, $"{key}.", NarrativeFacts.ApproachTexts, approach.Text);
+        fields.Add(new(Approaches.Name(row, "id"), approach.Id));
+        fields.Add(new(Approaches.Name(row, "name"), Name(approach.Name)));
+        fields.Add(new(Approaches.Name(row, "skill"), approach.Skill));
+        fields.Add(new(Approaches.Name(row, "difficulty"), Checks.Text(approach.Difficulty)));
+        fields.Add(new(Approaches.Name(row, "gearTag"), approach.GearTag ?? ""));
+        OwnedText.Add(fields, Approaches.Name(row, ""), NarrativeFacts.ApproachTexts, approach.Text);
     }
 
     private static void AddEffects(List<KeyValuePair<string, string>> fields, RowSet set, IReadOnlyList<EffectModel> effects)
@@ -279,27 +295,65 @@ internal sealed class EncounterKind : KindForm
         }
     }
 
-    private static ApproachModel? BindApproach(FormValues values, string key, FormChoices choices, Dictionary<string, string> errors)
+    // One row is one approach, in the order shown. The count and the ids are checked here as the loader checks them.
+    private static List<ApproachModel> BindApproaches(FormValues values, FormChoices choices, Dictionary<string, string> errors)
     {
-        string skill = values.Get($"{key}.skill");
-        if (skill.Length == 0)
+        int rows = FormRows.Read(values, Approaches).Count;
+        if (rows == 0)
         {
-            errors[$"{key}.skill"] = "Choose a skill.";
+            errors[Approaches.Prefix] = "An encounter needs at least one approach.";
         }
-        else if (choices.Skills.All(s => s.Id != skill))
+        else if (rows > EncounterDef.MaxApproaches)
         {
-            errors[$"{key}.skill"] = "Unknown skill.";
-        }
-
-        int difficulty = Checks.Whole(values, $"{key}.difficulty", 1, null, errors);
-        string gearTag = values.Get($"{key}.gearTag");
-        if (gearTag.Length > 0 && !choices.GearTags.Contains(gearTag))
-        {
-            errors[$"{key}.gearTag"] = "Unknown gear tag.";
+            errors[Approaches.Prefix] = $"An encounter may have at most {EncounterDef.MaxApproaches} approaches.";
         }
 
-        return new ApproachModel(skill, difficulty, gearTag.Length == 0 ? null : gearTag, OwnedText.Bind(values, $"{key}.", NarrativeFacts.ApproachTexts, errors));
+        var approaches = new List<ApproachModel>();
+        var ids = new HashSet<string>();
+        for (int i = 0; i < rows; i++)
+        {
+            string idField = Approaches.Name(i, "id");
+            string approachId = values.Get(idField).Trim();
+            if (approachId.Length == 0)
+            {
+                errors[idField] = "Enter an id.";
+            }
+            else if (!ContentLoader.IsApproachId(approachId))
+            {
+                errors[idField] = ApproachIdRule;
+            }
+            else if (!ids.Add(approachId))
+            {
+                errors[idField] = $"Approach id '{approachId}' is used twice.";
+            }
+
+            string? name = Checks.Name(values, errors, Approaches.Name(i, "name"));
+            string skillField = Approaches.Name(i, "skill");
+            string skill = values.Get(skillField);
+            if (skill.Length == 0)
+            {
+                errors[skillField] = "Choose a skill.";
+            }
+            else if (choices.Skills.All(s => s.Id != skill))
+            {
+                errors[skillField] = "Unknown skill.";
+            }
+
+            int difficulty = Checks.Whole(values, Approaches.Name(i, "difficulty"), 1, null, errors);
+            string gearField = Approaches.Name(i, "gearTag");
+            string gearTag = values.Get(gearField);
+            if (gearTag.Length > 0 && !choices.GearTags.Contains(gearTag))
+            {
+                errors[gearField] = "Unknown gear tag.";
+            }
+
+            approaches.Add(new ApproachModel(approachId, name, skill, difficulty, gearTag.Length == 0 ? null : gearTag, OwnedText.Bind(values, Approaches.Name(i, ""), NarrativeFacts.ApproachTexts, errors)));
+        }
+
+        return approaches;
     }
+
+    public const string ApproachIdRule = "1 to 24 lower case letters, digits, and hyphens, unique in this encounter.";
 
     // One row is one entry: a field per key, blank meaning the key is absent.
     private static List<EffectModel> BindEffects(FormValues values, RowSet set, Dictionary<string, string> errors)

@@ -30,6 +30,11 @@ public static partial class BeatLines
             return new Nm(names?.Skill(id) ?? id);
         }
 
+        Nm Approach(string encounterId, string approachId)
+        {
+            return new Nm(names?.Approach(encounterId, approachId) ?? approachId);
+        }
+
         Nm Decision(string id)
         {
             return new Nm(names?.Decision(id) ?? id);
@@ -39,7 +44,7 @@ public static partial class BeatLines
         {
             StageBeat b => ("stage", Stage(b, stage, Encounter(b.EncounterId))),
             SkipBeat b => ("skip", Compose($"{Encounter(b.EncounterId)} skipped.")),
-            CheckBeat b => ("check", Check(b, Crew(b.ActorId), Skill(b.Skill), Encounter(b.EncounterId), b.HelperId is null ? null : Crew(b.HelperId))),
+            CheckBeat b => ("check", Check(b, Crew(b.ActorId), Skill(b.Skill), Encounter(b.EncounterId), b.HelperId is null ? null : Crew(b.HelperId), Approach(b.EncounterId, b.Approach))),
             EffectsBeat b => ("effects", Compose($"{Effects(b.Effects)}")),
             InjuryBeat b => ("injury", Compose($"{Crew(b.CrewId)} takes a {Words(b.Severity)} injury roll at {Encounter(b.EncounterId)}: {N(b.Roll)}, {Words(b.Outcome)}.")),
             LeadChangeBeat b => ("lead", Compose($"{Crew(b.CrewId)} becomes lead.")),
@@ -222,11 +227,10 @@ public static partial class BeatLines
         return Compose($"Stage {stage}: {encounter}.{blocked} Momentum {N(b.Momentum)}, strain {N(b.Strain)}.");
     }
 
-    private static List<LinePart> Check(CheckBeat b, Nm actor, Nm skill, Nm encounter, Nm? helper)
+    private static List<LinePart> Check(CheckBeat b, Nm actor, Nm skill, Nm encounter, Nm? helper, Nm approach)
     {
         List<LinePart> helped = helper is { } h ? Compose($", {(b.Supervised ? "supervised by" : "helped by")} {h}") : [];
-        string fast = b.Approach == Approach.Fast ? " Fast approach." : string.Empty;
-        return Compose($"{actor} checks {skill} at {encounter}{helped}: {N(b.Score)} + {N(b.Roll)} against {N(b.Target)}, {Words(b.Tier)} ({Signed(b.Margin)}).{fast}");
+        return Compose($"{actor} checks {skill} at {encounter}{helped}: {N(b.Score)} + {N(b.Roll)} against {N(b.Target)}, {Words(b.Tier)} ({Signed(b.Margin)}). {approach}.");
     }
 
     private static string Effects(EffectDef e)

@@ -90,8 +90,8 @@ public class ContentWriterTests : IClassFixture<RepoContentGuard>
                 "  commsBlocked: true",
                 "  chain: ENCOUNTER_CHAIN",
                 "  approaches:",
-                "    careful: { skill: SKILL_A, difficulty: 5, gearTag: scanner }",
-                "    fast: { skill: SKILL_C, difficulty: 6 }",
+                "    - { id: careful, skill: SKILL_A, difficulty: 5, gearTag: scanner }",
+                "    - { id: fast, skill: SKILL_C, difficulty: 6 }",
                 "  decision:",
                 "    id: DECISION_PROMPT_1",
                 "    name: NAME_PLACEHOLDER",
@@ -101,8 +101,8 @@ public class ContentWriterTests : IClassFixture<RepoContentGuard>
                 "- id: ENCOUNTER_CHAIN",
                 "  tags: []",
                 "  approaches:",
-                "    careful: { skill: SKILL_C, difficulty: 6 }",
-                "    fast: { skill: SKILL_A, difficulty: 7 }"),
+                "    - { id: careful, skill: SKILL_C, difficulty: 6 }",
+                "    - { id: fast, skill: SKILL_A, difficulty: 7 }"),
             Render(
                 new EncounterModel(
                     "ENCOUNTER_01",
@@ -110,10 +110,48 @@ public class ContentWriterTests : IClassFixture<RepoContentGuard>
                     ["field", "hazard"],
                     true,
                     "ENCOUNTER_CHAIN",
-                    new ApproachModel("SKILL_A", 5, "scanner"),
-                    new ApproachModel("SKILL_C", 6, null),
+                    [new ApproachModel("careful", null, "SKILL_A", 5, "scanner"), new ApproachModel("fast", null, "SKILL_C", 6, null)],
                     new DecisionModel("DECISION_PROMPT_1", "NAME_PLACEHOLDER", 2, [new EffectModel(1, null, null, null), new EffectModel(null, -1, 2, null), new EffectModel(null, null, null, "light"), new EffectModel(null, null, null, null, true)], [])),
-                new EncounterModel("ENCOUNTER_CHAIN", null, [], false, null, new ApproachModel("SKILL_C", 6, null), new ApproachModel("SKILL_A", 7, null), null)));
+                new EncounterModel("ENCOUNTER_CHAIN", null, [], false, null, [new ApproachModel("careful", null, "SKILL_C", 6, null), new ApproachModel("fast", null, "SKILL_A", 7, null)], null)));
+    }
+
+    // An approach with words is a block, one key to a line; one without stays on one line. The order written is kept.
+    [Fact]
+    public void An_encounter_with_three_approaches_one_with_words_writes_and_reads_back_equal()
+    {
+        var model = new EncounterModel(
+            "ENCOUNTER_01",
+            null,
+            ["field"],
+            false,
+            null,
+            [
+                new ApproachModel("careful", "APPROACH_A_NAME", "SKILL_A", 5, "scanner"),
+                new ApproachModel("fast", "APPROACH_B_NAME", "SKILL_C", 6, null, new Dictionary<string, string> { ["attempt"] = "actor: Now.", ["failure"] = "#actor# slipped." }),
+                new ApproachModel("third-way", null, "SKILL_B", 7, null),
+            ],
+            null);
+
+        string text = Render(model);
+
+        Assert.Equal(
+            Lines(
+                "- id: ENCOUNTER_01",
+                "  tags: [field]",
+                "  approaches:",
+                "    - { id: careful, name: APPROACH_A_NAME, skill: SKILL_A, difficulty: 5, gearTag: scanner }",
+                "    - id: fast",
+                "      name: APPROACH_B_NAME",
+                "      skill: SKILL_C",
+                "      difficulty: 6",
+                "      text:",
+                "        attempt: \"actor: Now.\"",
+                "        failure: \"#actor# slipped.\"",
+                "    - { id: third-way, skill: SKILL_B, difficulty: 7 }"),
+            text);
+        ContentFileSet files = ContentEdits.ReplaceText(Repo(), "encounters/base.yaml", text);
+        EncounterModel read = ContentEdits.Get<EncounterModel>(files, ContentKind.Encounter, "ENCOUNTER_01")!;
+        Assert.Equal(System.Text.Json.JsonSerializer.Serialize(model), System.Text.Json.JsonSerializer.Serialize(read));
     }
 
     // The leading comment block is kept as read, with no trailing spaces; blank lines around it go.

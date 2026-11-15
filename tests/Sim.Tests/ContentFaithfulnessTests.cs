@@ -96,7 +96,8 @@ public class ContentFaithfulnessTests : IClassFixture<RepoContentGuard>
         new("offer key that is not a number", ContentKind.Assignment, "assignments/base.yaml", "- id: ASSIGNMENT_TEMPLATE_1", b => b + "\n- id: ASSIGNMENT_2\n  objectives: { tags: [] }\n  offer: { 1: 6, two: 3 }\n  loadoutLimit: 2", "ASSIGNMENT_TEMPLATE_1", "ASSIGNMENT_2", "offer"),
         new("approches on an encounter", ContentKind.Encounter, "encounters/base.yaml", Enc2, b => b.Replace("approaches:", "approches:"), "ENCOUNTER_01", "ENCOUNTER_02", "approches"),
         new("extra key in an approach", ContentKind.Encounter, "encounters/base.yaml", Enc2, b => b.Replace("difficulty: 5 }", "difficulty: 5, extra: 1 }"), "ENCOUNTER_01", "ENCOUNTER_02", "extra"),
-        new("extra approach name", ContentKind.Encounter, "encounters/base.yaml", Enc2, b => b.Replace("    fast:", "    slow: { skill: SKILL_B, difficulty: 6 }\n    fast:"), "ENCOUNTER_01", "ENCOUNTER_02", "slow"),
+        new("an approach that is not a mapping", ContentKind.Encounter, "encounters/base.yaml", Enc2, b => b.Replace("    - { id: fast,", "    - slow\n    - { id: fast,"), "ENCOUNTER_01", "ENCOUNTER_02", "approaches[1]"),
+        new("approaches written as the old map", ContentKind.Encounter, "encounters/base.yaml", Enc2, b => b.Replace("    - { id: careful, name: APPROACH_A_NAME,", "    careful: {").Replace("    - { id: fast, name: APPROACH_B_NAME,", "    fast: {"), "ENCOUNTER_01", "ENCOUNTER_02", "approaches"),
         new("effect with an unknown key", ContentKind.Encounter, "encounters/base.yaml", Enc2, b => b.Replace("{ injuryRoll: light }]", "{ injuryRoll: light }, { bogus: 1 }]"), "ENCOUNTER_01", "ENCOUNTER_02", "bold[2]"),
         new("effect that is not a number", ContentKind.Encounter, "encounters/base.yaml", Enc2, b => b.Replace("{ progress: 1 }", "{ progress: lots }"), "ENCOUNTER_01", "ENCOUNTER_02", "progress"),
         new("stage with no slot", ContentKind.Objective, "objectives/base.yaml", Obj2, b => b.Replace("slot: approach, ", ""), "OBJECTIVE_TEMPLATE_1", "OBJECTIVE_TEMPLATE_2", "slot"),
@@ -215,6 +216,24 @@ public class ContentFaithfulnessTests : IClassFixture<RepoContentGuard>
         }
 
         ContentFileSet canonical = ContentEdits.Canonicalize(files);
+        Assert.Equal(JsonSerializer.Serialize(files.Validate().Pack, SimJson.Options), JsonSerializer.Serialize(canonical.Validate().Pack, SimJson.Options));
+    }
+
+    // Three approaches, one with words of its own, survive a rewrite unchanged and in their order.
+    [Fact]
+    public void An_encounter_with_three_approaches_one_with_words_writes_and_reads_back_equal()
+    {
+        ContentFileSet repo = Repo();
+        string text = EditBlock(repo.Files["encounters/base.yaml"], Enc2, b => b.Replace(
+            "    - { id: fast, name: APPROACH_B_NAME, skill: SKILL_B, difficulty: 6 }\n",
+            "    - id: fast\n      name: APPROACH_B_NAME\n      skill: SKILL_B\n      difficulty: 6\n      gearTag: tools\n      text:\n        attempt: \"actor: Now.\"\n        failure: \"#actor# slipped.\"\n    - { id: third-way, skill: SKILL_A, difficulty: 7 }\n"));
+        ContentFileSet files = ContentEdits.ReplaceText(repo, "encounters/base.yaml", text);
+        EncounterModel model = (EncounterModel)ModelOf(files, ContentKind.Encounter, "ENCOUNTER_02");
+
+        Assert.Empty(ContentEdits.Losses(files, "encounters/base.yaml"));
+        Assert.Equal(["careful", "fast", "third-way"], model.Approaches.Select(a => a.Id));
+        ContentFileSet canonical = ContentEdits.Canonicalize(files);
+        Assert.Equal(JsonSerializer.Serialize(model), JsonSerializer.Serialize(ModelOf(canonical, ContentKind.Encounter, "ENCOUNTER_02")));
         Assert.Equal(JsonSerializer.Serialize(files.Validate().Pack, SimJson.Options), JsonSerializer.Serialize(canonical.Validate().Pack, SimJson.Options));
     }
 

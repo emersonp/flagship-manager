@@ -81,6 +81,10 @@ internal sealed partial class LineKind : KindForm
             {
                 errors[factField] = $"A {beat} beat has no fact '{fact}'.";
             }
+            else if (NarrativeFacts.Beats.ContainsKey(beat) && NarrativeFacts.Fact(beat, fact) is { Domain: FactDomain.Approach })
+            {
+                errors[factField] = $"Only an encounter's own lines may test {fact}.";
+            }
             else if (!seen.Add(fact))
             {
                 errors[factField] = "Each fact can be tested once.";

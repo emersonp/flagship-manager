@@ -116,10 +116,10 @@ public static class BridgeReader
     {
         // A stored legacy may name a template the loaded pack lacks: the pack warning explains it, so a miss reads as empty.
         ObjectiveDef? template = pack.Objectives.FirstOrDefault(o => o.Id == objective.TemplateId);
-        // Every skill any encounter the template can draw is checked with, either approach.
+        // Every skill any encounter the template can draw is checked with, by any of its approaches.
         List<string> skills = template is null ? [] : pack.Encounters
             .Where(e => template.Stages.Any(s => s.DrawTags.All(e.Tags.Contains)))
-            .SelectMany(e => new[] { e.Careful.Skill, e.Fast.Skill })
+            .SelectMany(e => e.Approaches.Select(a => a.Skill))
             .Distinct()
             .Order(StringComparer.Ordinal)
             .ToList();

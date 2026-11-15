@@ -198,8 +198,9 @@ public static class MissionResolver
         private void Check(EncounterDef encounter)
         {
             Parameters p = State.Parameters;
-            Approach approach = Lead.Member.Caution - p.Risk >= 0 ? Approach.Careful : Approach.Fast;
-            ApproachDef def = approach == Approach.Careful ? encounter.Careful : encounter.Fast;
+            // Interim until Task 4 of the approaches plan.
+            int position = Lead.Member.Caution - p.Risk >= 0 ? 0 : Math.Min(1, encounter.Approaches.Count - 1);
+            ApproachDef def = encounter.Approaches[position];
             int Skill(MemberState m)
             {
                 return Math.Max(0, m.Member.Skills.GetValueOrDefault(def.Skill) - m.Injury);
@@ -243,7 +244,8 @@ public static class MissionResolver
                 case Tier.Critical or Tier.Success:
                     State.Strain = Clamp(State.Strain - T.StrainReliefOnSuccess);
                     State.Progress++;
-                    State.Momentum = Clamp(State.Momentum + (tier == Tier.Critical ? T.MomentumCritical : 0) + (approach == Approach.Fast ? T.MomentumFastSuccess : 0));
+                    // Interim until Task 4 of the approaches plan.
+                    State.Momentum = Clamp(State.Momentum + (tier == Tier.Critical ? T.MomentumCritical : 0) + (position == 1 ? T.MomentumFastSuccess : 0));
                     break;
                 case Tier.Partial:
                     State.Strain = Clamp(State.Strain + T.StrainPartial);
@@ -270,7 +272,7 @@ public static class MissionResolver
             }
 
             Beats.Add(new CheckBeat(
-                encounter.Id, approach, def.Skill, actor.Member.Id, helper?.Member.Id, supervised,
+                encounter.Id, def.Id, def.Skill, actor.Member.Id, helper?.Member.Id, supervised,
                 actorSkill, assist, gear, momentum, strain, score, roll, target, margin, tier, experience, mentoring, helperExperience, State.Momentum, State.Strain));
 
             if (tier == Tier.Failure)

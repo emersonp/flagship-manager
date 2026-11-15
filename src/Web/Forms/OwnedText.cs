@@ -129,8 +129,9 @@ internal static class OwnedText
             .ToList();
     }
 
-    // implied is the fact the item stands for ("encounter" or "objective"), which a row may not test again.
-    public static IReadOnlyList<OwnLineModel>? BindLines(FormValues values, string implied, Dictionary<string, string> errors)
+    // implied is the fact the item stands for ("encounter" or "objective"), which a row may not test again. approachIds are the
+    // encounter's approaches, the only values its lines may test approach with; an objective has none.
+    public static IReadOnlyList<OwnLineModel>? BindLines(FormValues values, string implied, Dictionary<string, string> errors, IReadOnlyCollection<string>? approachIds = null)
     {
         var lines = new List<OwnLineModel>();
         List<Dictionary<string, string>> rows = FormRows.Read(values, Lines);
@@ -170,6 +171,18 @@ internal static class OwnedText
                 else if (LineKind.ParseValue(fact, value, out string? problem) is { } criterion)
                 {
                     criteria.Add(criterion);
+                    if (known && NarrativeFacts.Fact(beat, fact) is { Domain: FactDomain.Approach })
+                    {
+                        string? missing = criterion.Values.FirstOrDefault(v => approachIds?.Contains(v) != true);
+                        if (approachIds is null)
+                        {
+                            errors[factField] = $"Only an encounter's own lines may test {fact}.";
+                        }
+                        else if (missing is not null)
+                        {
+                            errors[Lines.Name(i, ValueField(place))] = $"Tests {fact} '{missing}', which this encounter does not have.";
+                        }
+                    }
                 }
                 else
                 {

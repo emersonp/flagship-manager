@@ -134,6 +134,9 @@ public static partial class ContentLoader
             [FactDomain.Decision] = encounters.Where(e => e.Decision is not null).Select(e => e.Decision!.Id).Append(DecisionIds.Abort).ToHashSet(),
         };
 
+        Dictionary<string, HashSet<string>> approachIds = encounterItems
+            .GroupBy(e => e.Dto.Id!)
+            .ToDictionary(g => g.Key, g => g.SelectMany(e => e.Dto.Approaches ?? []).Select(a => a?.Id).OfType<string>().ToHashSet());
         var lines = new List<LineDef>();
         void Build(string file, string label, string id, LineDto dto, CriterionDef? implied, string? owner)
         {
@@ -185,8 +188,22 @@ public static partial class ContentLoader
                     continue;
                 }
 
+                if (spec.Domain == FactDomain.Approach && implied?.Fact != "encounter")
+                {
+                    Error($"Only an encounter's own lines may test {fact}.");
+                    continue;
+                }
+
                 if (Criterion(fact, spec, value, domains, Error) is { } criterion)
                 {
+                    // An approach id means something only inside its encounter, so an own line may name only its encounter's approaches.
+                    string? missing = spec.Domain == FactDomain.Approach ? criterion.Values.FirstOrDefault(v => !approachIds[implied!.Values[0]].Contains(v)) : null;
+                    if (missing is not null)
+                    {
+                        Error($"tests {fact} '{missing}', which {implied!.Values[0]} does not have.");
+                        continue;
+                    }
+
                     criteria.Add(criterion);
                 }
             }
@@ -295,9 +312,10 @@ public static partial class ContentLoader
             string id = dto.Id!;
             var here = new CriterionDef("encounter", [id]);
             Add(file, id, "", dto.Text, NarrativeFacts.EncounterTexts, "stage", _ => [here]);
-            foreach ((string approach, ApproachDto? def) in new[] { ("careful", dto.Approaches?.Careful), ("fast", dto.Approaches?.Fast) })
+            foreach (ApproachDto def in (dto.Approaches ?? []).OfType<ApproachDto>().Where(a => a.Id is not null))
             {
-                Add(file, id, approach + ".", def?.Text, NarrativeFacts.ApproachTexts, "check", key => key == "attempt"
+                string approach = def.Id!;
+                Add(file, id, approach + ".", def.Text, NarrativeFacts.ApproachTexts, "check", key => key == "attempt"
                     ? [here, new CriterionDef("approach", [approach])]
                     : [here, new CriterionDef("approach", [approach]), new CriterionDef("tier", [key])]);
             }

@@ -105,7 +105,6 @@ internal static class ContentReader
 
                 return new ObjectiveModel(id, name, Strings(Get(m, "tags")), teamMin, teamMax, Int(Get(m, "need")) ?? 0, Int(Get(Map(Get(m, "ifUnattended")), "difficulty")), stages, Texts(Get(m, "text")), OwnLines(Get(m, "lines")));
             case ContentKind.Encounter:
-                Dictionary<string, YamlNode> approaches = Map(Get(m, "approaches"));
                 DecisionModel? decision = null;
                 if (Get(m, "decision") is YamlMappingNode d)
                 {
@@ -113,7 +112,7 @@ internal static class ContentReader
                     decision = new DecisionModel(Str(Get(dm, "id")) ?? "", Str(Get(dm, "name")), Int(Get(dm, "stakes")) ?? 0, Effects(Get(dm, "bold")), Effects(Get(dm, "safe")), Texts(Get(dm, "text")), Texts(Get(dm, "labels")));
                 }
 
-                return new EncounterModel(id, name, Strings(Get(m, "tags")), YamlBool(Str(Get(m, "commsBlocked"))), Str(Get(m, "chain")), Approach(Get(approaches, "careful")), Approach(Get(approaches, "fast")), decision, Texts(Get(m, "text")), OwnLines(Get(m, "lines")));
+                return new EncounterModel(id, name, Strings(Get(m, "tags")), YamlBool(Str(Get(m, "commsBlocked"))), Str(Get(m, "chain")), Sequence(Get(m, "approaches")).Select(Approach).ToList(), decision, Texts(Get(m, "text")), OwnLines(Get(m, "lines")));
             case ContentKind.Line:
                 OwnLineModel line = OwnLine(m);
                 return new LineModel(id, name, line.Beat, line.When, line.Text);
@@ -158,7 +157,7 @@ internal static class ContentReader
     private static ApproachModel Approach(YamlNode? node)
     {
         Dictionary<string, YamlNode> a = Map(node);
-        return new ApproachModel(Str(Get(a, "skill")) ?? "", Int(Get(a, "difficulty")) ?? 0, Str(Get(a, "gearTag")), Texts(Get(a, "text")));
+        return new ApproachModel(Str(Get(a, "id")) ?? "", Str(Get(a, "name")), Str(Get(a, "skill")) ?? "", Int(Get(a, "difficulty")) ?? 0, Str(Get(a, "gearTag")), Texts(Get(a, "text")));
     }
 
     // An item's own words by key, or null when it has none. A key with no value is not kept.

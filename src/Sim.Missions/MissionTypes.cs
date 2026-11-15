@@ -12,12 +12,6 @@ public enum Tier
     Disaster,
 }
 
-public enum Approach
-{
-    Careful,
-    Fast,
-}
-
 public enum CallAnswer
 {
     Bold,
@@ -33,7 +27,7 @@ public enum InjuryOutcome
     Dead,
 }
 
-// Operational parameters, each from -1 to +1. Risk is risk tolerance: +1 favours the fast approach.
+// Operational parameters, each from -1 to +1. Risk is risk tolerance: +1 favours an encounter's second approach.
 public sealed record Parameters(int Priority = 0, int Risk = 0, int Autonomy = 0, bool DevelopJuniors = false);
 
 public sealed record PendingCall(

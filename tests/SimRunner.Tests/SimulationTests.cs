@@ -179,11 +179,12 @@ public class SimulationTests
 
     // Golden seed: this hash changes only when behaviour changes. If the change is intended, update it in the same commit and say why. Re-pinned: the notice beat is named initiative.
     // Re-pinned in slice 1d: check beats gained MomentumAfter and StrainAfter (additive; no rule changed).
+    // Re-pinned for authored approaches: a check's approach is written as its id ("careful") where the enum wrote "Careful"; every other field is unchanged.
     [Fact]
     public void Golden_seed_1_matches_the_accepted_log()
     {
         SimSummary summary = Simulation.Run(new SimOptions(Legacies: 1, Cycles: 10, Seed: 1), Pack);
 
-        Assert.Equal("C47700744A81CEF1DB0AB8E3FC90D5E0B64E86D7448C4CDB7196A044D677C92E", summary.Legacies[0].LogHash);
+        Assert.Equal("62963D7EE85A33E8CD4514720BEBC6491D76353DE772F43E65CD4F38B6039484", summary.Legacies[0].LogHash);
     }
 }

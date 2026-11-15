@@ -9,6 +9,9 @@ public enum FactDomain
     Encounter,
     Skill,
     Decision,
+
+    // The ids of the approaches of the encounter that owns the line.
+    Approach,
 }
 
 // Words is the closed list of values when Domain is Words.
@@ -21,7 +24,6 @@ public sealed record BeatSpec(string Kind, IReadOnlyList<FactSpec> Facts, IReadO
 public static class NarrativeFacts
 {
     public static readonly IReadOnlyList<string> Tiers = ["critical", "success", "partial", "failure", "disaster"];
-    public static readonly IReadOnlyList<string> Approaches = ["careful", "fast"];
     public static readonly IReadOnlyList<string> Severities = ["light", "severe"];
     public static readonly IReadOnlyList<string> InjuryOutcomes = ["unharmed", "lightInjury", "incapacitated", "dead"];
     public static readonly IReadOnlyList<string> Answers = ["bold", "safe", "withdraw"];
@@ -73,7 +75,7 @@ public static class NarrativeFacts
         Beat(
             "attempt",
             [
-                new("approach", FactType.Text, FactDomain.Words, Approaches),
+                new("approach", FactType.Text, FactDomain.Approach),
                 new("skill", FactType.Text, FactDomain.Skill),
                 new("supervised", FactType.Flag),
                 new("helped", FactType.Flag),
@@ -84,7 +86,7 @@ public static class NarrativeFacts
         Beat(
             "check",
             [
-                new("approach", FactType.Text, FactDomain.Words, Approaches),
+                new("approach", FactType.Text, FactDomain.Approach),
                 new("skill", FactType.Text, FactDomain.Skill),
                 new("tier", FactType.Text, FactDomain.Words, Tiers),
                 new("margin", FactType.Number),

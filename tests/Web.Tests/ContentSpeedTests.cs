@@ -16,7 +16,7 @@ public sealed class ContentSpeedTests : IClassFixture<RepoContentGuard>
         var text = new StringBuilder();
         for (int i = 1; i <= Count; i++)
         {
-            text.Append($"- id: ENCOUNTER_BULK_{i:000}\n  tags: [bulk]\n  approaches:\n    careful: {{ skill: SKILL_A, difficulty: 3 }}\n    fast: {{ skill: SKILL_B, difficulty: 4 }}\n");
+            text.Append($"- id: ENCOUNTER_BULK_{i:000}\n  tags: [bulk]\n  approaches:\n    - {{ id: careful, skill: SKILL_A, difficulty: 3 }}\n    - {{ id: fast, skill: SKILL_B, difficulty: 4 }}\n");
             text.Append($"  decision:\n    id: DECISION_BULK_{i:000}\n    stakes: 1\n    bold: [{{ momentum: 1 }}]\n    safe: []\n");
         }
 

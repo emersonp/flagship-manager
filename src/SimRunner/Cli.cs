@@ -112,7 +112,7 @@ public static class Cli
             return 1;
         }
 
-        string[] knownGear = ["comms", "medical", .. pack.Encounters.SelectMany(e => new[] { e.Careful.GearTag, e.Fast.GearTag }).OfType<string>()];
+        string[] knownGear = ["comms", "medical", .. pack.Encounters.SelectMany(e => e.Approaches.Select(a => a.GearTag)).OfType<string>()];
         knownGear = knownGear.Distinct().Order(StringComparer.Ordinal).ToArray();
         if (options.GearTags.FirstOrDefault(t => !knownGear.Contains(t)) is { } unknown)
         {
@@ -178,11 +178,11 @@ public static class Cli
             output.Write(BenchReport.Encounters(figures));
         }
 
-        IEnumerable<string> uneven = pack.Encounters.Where(e => e.Fast.Difficulty != e.Careful.Difficulty + 1).Select(e => e.Id);
+        IEnumerable<string> uneven = pack.Encounters.Where(e => e.Approaches.Count > 1 && e.Approaches[1].Difficulty != e.Approaches[0].Difficulty + 1).Select(e => e.Id);
         if (uneven.Any())
         {
             output.WriteLine();
-            output.WriteLine($"Fast is not careful + 1 in: {string.Join(", ", uneven)}.");
+            output.WriteLine($"The second approach is not the first + 1 in: {string.Join(", ", uneven)}.");
         }
 
         if (line.Has("--out"))

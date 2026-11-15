@@ -100,7 +100,7 @@ public class NarrativeContentTests
     public void A_decision_text_keyed_notice_is_refused()
     {
         ContentLoadResult result = LoadEncounter1(
-            "  approaches:\n    careful: { skill: SKILL_A, difficulty: 5 }\n    fast: { skill: SKILL_C, difficulty: 6 }\n"
+            "  approaches:\n    - { id: careful, skill: SKILL_A, difficulty: 5 }\n    - { id: fast, skill: SKILL_C, difficulty: 6 }\n"
             + "  decision:\n    id: DECISION_PROMPT_1\n    stakes: 1\n    bold: [{ momentum: 1 }]\n    safe: []\n    text:\n      notice: \"TEXT\"\n");
 
         Assert.Contains(result.Errors, e => e.Message.Contains("notice", StringComparison.Ordinal));
@@ -112,7 +112,7 @@ public class NarrativeContentTests
     {
         ContentLoadResult result = LoadEncounter1(
             "  text:\n    arrive: \"#lead# reached #encounter#.\"\n"
-            + "  approaches:\n    careful:\n      skill: SKILL_A\n      difficulty: 5\n      text:\n        failure: \"#actor# slipped, and #actor.they# #actor:knows|know# it.\"\n    fast: { skill: SKILL_C, difficulty: 6 }\n"
+            + "  approaches:\n    - id: careful\n      skill: SKILL_A\n      difficulty: 5\n      text:\n        failure: \"#actor# slipped, and #actor.they# #actor:knows|know# it.\"\n    - { id: fast, skill: SKILL_C, difficulty: 6 }\n"
             + "  decision:\n    id: DECISION_PROMPT_1\n    stakes: 1\n    bold: [{ momentum: 1 }]\n    safe: []\n    text:\n      call: \"#lead# asked about #decision#.\"\n      initiative: \"#lead# settled #decision#.\"\n      bold: The bold choice held.\n      safe: The safe choice held.\n");
 
         Assert.Empty(result.Errors);
@@ -131,7 +131,7 @@ public class NarrativeContentTests
     public void A_line_written_inside_an_encounter_holds_only_there_and_outranks_the_shared_one()
     {
         ContentLoadResult result = LoadEncounter1(
-            "  approaches:\n    careful: { skill: SKILL_A, difficulty: 5 }\n    fast: { skill: SKILL_C, difficulty: 6 }\n"
+            "  approaches:\n    - { id: careful, skill: SKILL_A, difficulty: 5 }\n    - { id: fast, skill: SKILL_C, difficulty: 6 }\n"
             + "  lines:\n    - when: { beat: injury, outcome: dead }\n      text: \"#crew# was run through at #encounter#.\"\n");
 
         Assert.Empty(result.Errors);
@@ -147,9 +147,29 @@ public class NarrativeContentTests
     [InlineData("    - id: LINE_X\n      when: { beat: injury }\n      text: x\n", "ENCOUNTER_01: lines[1]: a line written inside an item takes no id or name.")]
     public void A_line_inside_an_encounter_that_can_never_work_is_refused(string lines, string message)
     {
-        ContentLoadResult result = LoadEncounter1("  approaches:\n    careful: { skill: SKILL_A, difficulty: 5 }\n    fast: { skill: SKILL_C, difficulty: 6 }\n  lines:\n" + lines);
+        ContentLoadResult result = LoadEncounter1("  approaches:\n    - { id: careful, skill: SKILL_A, difficulty: 5 }\n    - { id: fast, skill: SKILL_C, difficulty: 6 }\n  lines:\n" + lines);
 
         Assert.Contains(result.Errors, e => e.File == "encounters/base.yaml" && e.Message.StartsWith(message, StringComparison.Ordinal));
+    }
+
+    // An approach id means something only inside its encounter.
+    [Fact]
+    public void An_own_line_testing_an_approach_the_encounter_lacks_is_refused()
+    {
+        ContentLoadResult result = LoadEncounter1("  approaches:\n    - { id: careful, skill: SKILL_A, difficulty: 5 }\n    - { id: fast, skill: SKILL_C, difficulty: 6 }\n  lines:\n"
+            + "    - when: { beat: check, approach: [careful, slow] }\n      text: x\n    - when: { beat: attempt, approach: fast }\n      text: x\n");
+
+        ContentError error = Assert.Single(result.Errors);
+        Assert.Equal(("encounters/base.yaml", "ENCOUNTER_01: lines[1]: tests approach 'slow', which ENCOUNTER_01 does not have."), (error.File, error.Message));
+    }
+
+    [Fact]
+    public void A_shared_line_testing_approach_is_refused()
+    {
+        ContentLoadResult result = LoadWith("lines/test.yaml", OneLine("{ beat: check, approach: careful }"));
+
+        ContentError error = Assert.Single(result.Errors);
+        Assert.Equal(("lines/test.yaml", "LINE_TEST: Only an encounter's own lines may test approach."), (error.File, error.Message));
     }
 
     [Fact]
@@ -167,11 +187,11 @@ public class NarrativeContentTests
     }
 
     [Theory]
-    [InlineData("  text:\n    leave: x\n  approaches:\n    careful: { skill: SKILL_A, difficulty: 5 }\n    fast: { skill: SKILL_C, difficulty: 6 }\n", "ENCOUNTER_01: text.leave is not a text this can have; it must be one of arrive.")]
-    [InlineData("  text:\n    arrive: \"#actor# arrived.\"\n  approaches:\n    careful: { skill: SKILL_A, difficulty: 5 }\n    fast: { skill: SKILL_C, difficulty: 6 }\n", "ENCOUNTER_01: text.arrive cannot be used: #actor# names 'actor', which a stage beat does not have.")]
-    [InlineData("  approaches:\n    careful:\n      skill: SKILL_A\n      difficulty: 5\n      text:\n        fine: x\n    fast: { skill: SKILL_C, difficulty: 6 }\n", "ENCOUNTER_01: careful.text.fine is not a text this can have; it must be one of attempt, critical, success, partial, failure, disaster.")]
-    [InlineData("  approaches:\n    careful: { skill: SKILL_A, difficulty: 5 }\n    fast:\n      skill: SKILL_C\n      difficulty: 6\n      text:\n        failure: \"\"\n", "ENCOUNTER_01: fast.text.failure must not be empty.")]
-    [InlineData("  approaches:\n    careful: { skill: SKILL_A, difficulty: 5 }\n    fast: { skill: SKILL_C, difficulty: 6 }\n  decision:\n    id: DECISION_PROMPT_1\n    stakes: 1\n    bold: []\n    safe: []\n    text:\n      bold: \"An open # mark.\"\n", "ENCOUNTER_01: decision.text.bold cannot be read: A # at character 9 is never closed.")]
+    [InlineData("  text:\n    leave: x\n  approaches:\n    - { id: careful, skill: SKILL_A, difficulty: 5 }\n    - { id: fast, skill: SKILL_C, difficulty: 6 }\n", "ENCOUNTER_01: text.leave is not a text this can have; it must be one of arrive.")]
+    [InlineData("  text:\n    arrive: \"#actor# arrived.\"\n  approaches:\n    - { id: careful, skill: SKILL_A, difficulty: 5 }\n    - { id: fast, skill: SKILL_C, difficulty: 6 }\n", "ENCOUNTER_01: text.arrive cannot be used: #actor# names 'actor', which a stage beat does not have.")]
+    [InlineData("  approaches:\n    - id: careful\n      skill: SKILL_A\n      difficulty: 5\n      text:\n        fine: x\n    - { id: fast, skill: SKILL_C, difficulty: 6 }\n", "ENCOUNTER_01: careful.text.fine is not a text this can have; it must be one of attempt, critical, success, partial, failure, disaster.")]
+    [InlineData("  approaches:\n    - { id: careful, skill: SKILL_A, difficulty: 5 }\n    - id: fast\n      skill: SKILL_C\n      difficulty: 6\n      text:\n        failure: \"\"\n", "ENCOUNTER_01: fast.text.failure must not be empty.")]
+    [InlineData("  approaches:\n    - { id: careful, skill: SKILL_A, difficulty: 5 }\n    - { id: fast, skill: SKILL_C, difficulty: 6 }\n  decision:\n    id: DECISION_PROMPT_1\n    stakes: 1\n    bold: []\n    safe: []\n    text:\n      bold: \"An open # mark.\"\n", "ENCOUNTER_01: decision.text.bold cannot be read: A # at character 9 is never closed.")]
     public void Own_text_that_can_never_work_is_refused_where_it_sits(string body, string message)
     {
         ContentLoadResult result = LoadEncounter1(body);
@@ -293,6 +313,11 @@ public class NarrativeContentTests
                         {
                             Assert.Contains(value.Text!, factSpec.Words!);
                         }
+
+                        if (factSpec.Domain == FactDomain.Approach)
+                        {
+                            Assert.Contains(value.Text!, TestContent.Pack.Encounters.Single(e => e.Id == s.Facts["encounter"].Text).Approaches.Select(a => a.Id));
+                        }
                     }
 
                     HashSet<string> kind = seen.TryGetValue(s.Beat, out HashSet<string>? found) ? found : seen[s.Beat] = [];
@@ -319,7 +344,6 @@ public class NarrativeContentTests
     public void Every_enum_value_has_its_catalogue_word()
     {
         Assert.Equal(NarrativeFacts.Tiers, Enum.GetValues<Tier>().Select(BeatSituations.Word));
-        Assert.Equal(NarrativeFacts.Approaches, Enum.GetValues<Approach>().Select(BeatSituations.Word));
         Assert.Equal(NarrativeFacts.Severities, Enum.GetValues<InjurySeverity>().Select(BeatSituations.Word));
         Assert.Equal(NarrativeFacts.InjuryOutcomes, Enum.GetValues<InjuryOutcome>().Select(BeatSituations.Word));
         Assert.Equal(NarrativeFacts.Answers, Enum.GetValues<CallAnswer>().Select(BeatSituations.Word));

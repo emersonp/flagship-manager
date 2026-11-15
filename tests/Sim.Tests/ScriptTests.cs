@@ -66,7 +66,7 @@ public sealed class ScriptTests
         return ContentLoader.Load(files);
     }
 
-    private const string Approaches = "  approaches:\n    careful: { skill: SKILL_A, difficulty: 5 }\n    fast: { skill: SKILL_C, difficulty: 6 }\n";
+    private const string Approaches = "  approaches:\n    - { id: careful, skill: SKILL_A, difficulty: 5 }\n    - { id: fast, skill: SKILL_C, difficulty: 6 }\n";
 
     private const string Decision = "  decision:\n    id: DECISION_PROMPT_1\n    stakes: 1\n    bold: [{ momentum: 1 }]\n    safe: []\n";
 
@@ -75,7 +75,7 @@ public sealed class ScriptTests
     {
         ContentLoadResult result = LoadEncounter1(
             "  text:\n    arrive: |-\n      lead: Captain, we are at #encounter#.\n      best SKILL_A: Nothing on the scanner.\n      captain: Go on.\n      > Signal falling.\n      = #lead# reached #encounter#.\n"
-            + "  approaches:\n    careful:\n      skill: SKILL_A\n      difficulty: 5\n      text:\n        attempt: \"actor: I will take it slowly.\"\n        disaster: \"-\"\n    fast: { skill: SKILL_C, difficulty: 6 }\n"
+            + "  approaches:\n    - id: careful\n      skill: SKILL_A\n      difficulty: 5\n      text:\n        attempt: \"actor: I will take it slowly.\"\n        disaster: \"-\"\n    - { id: fast, skill: SKILL_C, difficulty: 6 }\n"
             + Decision + "    labels: { bold: Send them in, withdraw: Pull them out }\n");
 
         Assert.Empty(result.Errors);

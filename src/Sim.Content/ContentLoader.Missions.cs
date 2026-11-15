@@ -1,10 +1,20 @@
 using System.Globalization;
+using System.Text.RegularExpressions;
 using Sim.Core.Content;
 
 namespace Sim.Content;
 
 public static partial class ContentLoader
 {
+    // An approach id: 1 to 24 lower case letters, digits, and hyphens. It is unique only within its encounter.
+    public static bool IsApproachId(string id)
+    {
+        return ApproachIdPattern().IsMatch(id);
+    }
+
+    [GeneratedRegex("^[a-z0-9-]{1,24}\\z")]
+    private static partial Regex ApproachIdPattern();
+
     private static List<EncounterDef> BuildEncounters(List<(string File, EncounterDto Dto)> items, List<SkillDef> skills, List<ContentError> errors)
     {
         var skillIds = skills.Select(s => s.Id).ToHashSet();
@@ -19,29 +29,50 @@ public static partial class ContentLoader
                 errors.Add(new ContentError(file, $"{dto.Id}: {message}"));
             }
 
-            ApproachDef? Approach(string name, ApproachDto? approach)
+            var approaches = new List<ApproachDef>();
+            var approachIds = new HashSet<string>();
+            List<ApproachDto?> written = dto.Approaches ?? [];
+            if (written.Count == 0)
             {
-                if (approach is null)
+                Error("An encounter needs at least one approach.");
+            }
+            else if (written.Count > EncounterDef.MaxApproaches)
+            {
+                Error($"An encounter may have at most {EncounterDef.MaxApproaches} approaches.");
+            }
+
+            for (int i = 0; i < written.Count; i++)
+            {
+                if (written[i] is not { } approach)
                 {
-                    Error($"The {name} approach is missing.");
-                    return null;
+                    Error($"approaches[{i + 1}] is blank.");
+                    continue;
+                }
+
+                string label = approach.Id ?? $"approaches[{i + 1}]";
+                if (approach.Id is null || !IsApproachId(approach.Id))
+                {
+                    Error($"Approach id '{approach.Id}' must be 1 to 24 lower case letters, digits, and hyphens.");
+                }
+                else if (!approachIds.Add(approach.Id))
+                {
+                    Error($"Approach id '{approach.Id}' is used twice.");
                 }
 
                 if (approach.Skill is null || !skillIds.Contains(approach.Skill))
                 {
-                    Error($"The {name} approach uses unknown skill '{approach.Skill}'.");
+                    Error($"The {label} approach uses unknown skill '{approach.Skill}'.");
                 }
 
                 if (approach.Difficulty < 1)
                 {
-                    Error($"The {name} approach's difficulty must be 1 or more.");
+                    Error($"The {label} approach's difficulty must be 1 or more.");
                 }
 
-                return new ApproachDef(approach.Skill ?? "", approach.Difficulty, approach.GearTag);
+                string? approachName = CheckName(file, $"{dto.Id} approach {label}", approach.Name, errors);
+                approaches.Add(new ApproachDef(approach.Id ?? "", approach.Skill ?? "", approach.Difficulty, approach.GearTag, approachName));
             }
 
-            ApproachDef? careful = Approach("careful", dto.Approaches?.Careful);
-            ApproachDef? fast = Approach("fast", dto.Approaches?.Fast);
             if (dto.Chain is not null && !ids.Contains(dto.Chain))
             {
                 Error($"Chains to unknown encounter '{dto.Chain}'.");
@@ -81,7 +112,7 @@ public static partial class ContentLoader
             string? name = CheckName(file, dto.Id!, dto.Name, errors);
             if (errors.Count == before)
             {
-                defs.Add(new EncounterDef(dto.Id!, dto.Tags ?? [], dto.CommsBlocked, dto.Chain, careful!, fast!, decision, name));
+                defs.Add(new EncounterDef(dto.Id!, dto.Tags ?? [], dto.CommsBlocked, dto.Chain, approaches, decision, name));
             }
         }
 
@@ -234,7 +265,7 @@ public static partial class ContentLoader
 
         public string? Chain { get; set; }
 
-        public ApproachesDto? Approaches { get; set; }
+        public List<ApproachDto?>? Approaches { get; set; }
 
         public DecisionDto? Decision { get; set; }
 
@@ -243,15 +274,12 @@ public static partial class ContentLoader
         public List<LineDto?>? Lines { get; set; }
     }
 
-    private sealed class ApproachesDto
-    {
-        public ApproachDto? Careful { get; set; }
-
-        public ApproachDto? Fast { get; set; }
-    }
-
     private sealed class ApproachDto
     {
+        public string? Id { get; set; }
+
+        public string? Name { get; set; }
+
         public string? Skill { get; set; }
 
         public int Difficulty { get; set; }

@@ -3,7 +3,8 @@ using Sim.Missions;
 
 namespace MissionBench;
 
-public sealed record EncounterFigures(string EncounterId, int Checks, int Careful, int Fast, IReadOnlyDictionary<Tier, int> Tiers, int Deaths, int Incapacitated);
+// ByPosition counts the checks taken by each approach in the order the encounter lists them; it is always four long.
+public sealed record EncounterFigures(string EncounterId, int Checks, IReadOnlyList<int> ByPosition, IReadOnlyDictionary<Tier, int> Tiers, int Deaths, int Incapacitated);
 
 public sealed record StageFigures(int Position, int Reached, double Momentum, double Strain);
 
