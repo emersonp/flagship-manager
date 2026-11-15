@@ -1,0 +1,4 @@
+# Keep LF in the working tree on every machine: tests and the content editor match text by "
+",
+# and Git for Windows checks out CRLF by default.
+* text=auto eol=lf
