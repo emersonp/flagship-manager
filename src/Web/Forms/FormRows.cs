@@ -110,7 +110,9 @@ public static class FormRows
     public static bool HasBadRowNumber(FormValues values, IReadOnlyList<RowSet> sets)
     {
         string action = values.Get(RowSet.ActionField);
-        foreach (RowSet set in sets)
+        // A form may hold one unqualified list beside qualified ones; an action that names a qualified list is not the unqualified list's.
+        bool named = sets.Any(s => s.Qualified && (action.StartsWith($"remove:{s.Prefix}:", StringComparison.Ordinal) || action.StartsWith($"up:{s.Prefix}:", StringComparison.Ordinal) || action.StartsWith($"down:{s.Prefix}:", StringComparison.Ordinal)));
+        foreach (RowSet set in sets.Where(s => s.Qualified || !named))
         {
             string head = set.Qualified ? $"^(remove|up|down):{Regex.Escape(set.Prefix)}:(.*)$" : "^(remove|up|down):(.*)$";
             Match match = Regex.Match(action, head, RegexOptions.Singleline);

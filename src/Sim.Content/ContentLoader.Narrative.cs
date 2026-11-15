@@ -5,7 +5,8 @@ using Sim.Core.Narrative;
 
 namespace Sim.Content;
 
-// Lines, symbols, and pronoun sets (slice 1d). All three folders are optional: with no lines the game shows its systems lines.
+// Lines, symbols, and pronoun sets (slice 1d), and the text an encounter or an objective carries for its own beats, which becomes
+// lines too. All of it is optional: with no lines the game shows its systems lines.
 public static partial class ContentLoader
 {
     // Roles a token can name; a symbol by one of these names would never be reached.
@@ -111,8 +112,12 @@ public static partial class ContentLoader
         return false;
     }
 
+    // The lines of lines/, and the lines written inside an encounter or an objective. A line written inside an item holds only
+    // for that item: the item is one more criterion, implied by where the line sits, so it outranks a shared line that tests the same things.
     private static List<LineDef> BuildLines(
         List<(string File, LineDto Dto)> items,
+        List<(string File, EncounterDto Dto)> encounterItems,
+        List<(string File, ObjectiveDto Dto)> objectiveItems,
         List<SymbolDef> symbols,
         List<SkillDef> skills,
         List<EncounterDef> encounters,
@@ -129,18 +134,17 @@ public static partial class ContentLoader
         };
 
         var lines = new List<LineDef>();
-        foreach ((string file, LineDto dto) in items)
+        void Build(string file, string label, string id, LineDto dto, CriterionDef? implied, string? owner)
         {
             int before = errors.Count;
             void Error(string message)
             {
-                errors.Add(new ContentError(file, $"{dto.Id}: {message}"));
+                errors.Add(new ContentError(file, $"{label}: {message}"));
             }
 
-            string use = dto.Use ?? "log";
-            if (!NarrativeFacts.Uses.Contains(use))
+            if (dto.Use is not null)
             {
-                Error($"use must be one of {string.Join(", ", NarrativeFacts.Uses)}, not '{use}'.");
+                Error("use is no longer read: one line serves both the log and the report. Remove it.");
             }
 
             Dictionary<string, object?> when = dto.When ?? [];
@@ -156,11 +160,22 @@ public static partial class ContentLoader
             }
 
             var criteria = new List<CriterionDef>();
+            if (implied is not null)
+            {
+                criteria.Add(implied);
+            }
+
             foreach ((string fact, object? value) in when.Where(w => w.Key != "beat"))
             {
                 if (beat is null)
                 {
                     break;
+                }
+
+                if (fact == implied?.Fact)
+                {
+                    Error($"{fact} is already {implied.Values[0]}, because the line is written inside it. Remove it.");
+                    continue;
                 }
 
                 if (NarrativeFacts.Fact(beat, fact) is not { } spec)
@@ -188,11 +203,119 @@ public static partial class ContentLoader
                 CheckTokens(tokens, NarrativeFacts.Beats[beat], symbolsById, null, [], Error);
             }
 
-            string? name = CheckName(file, dto.Id!, dto.Name, errors);
+            string? name = owner is null ? CheckName(file, id, dto.Name, errors) : null;
+            if (owner is not null && (dto.Id is not null || dto.Name is not null))
+            {
+                Error("a line written inside an item takes no id or name.");
+            }
+
             if (errors.Count == before)
             {
-                lines.Add(new LineDef(dto.Id!, use, beat!, criteria, dto.Text!, name));
+                lines.Add(new LineDef(id, beat!, criteria, dto.Text!, name, owner));
             }
+        }
+
+        foreach ((string file, LineDto dto) in items)
+        {
+            Build(file, dto.Id!, dto.Id!, dto, null, null);
+        }
+
+        void Inside(string file, string owner, string fact, List<LineDto?>? own)
+        {
+            for (int i = 0; i < (own?.Count ?? 0); i++)
+            {
+                if (own![i] is { } dto)
+                {
+                    Build(file, $"{owner}: lines[{i + 1}]", $"{owner}.lines[{i + 1}]", dto, new CriterionDef(fact, [owner]), owner);
+                }
+                else
+                {
+                    errors.Add(new ContentError(file, $"{owner}: lines[{i + 1}] is blank."));
+                }
+            }
+        }
+
+        foreach ((string file, EncounterDto dto) in encounterItems)
+        {
+            Inside(file, dto.Id!, "encounter", dto.Lines);
+        }
+
+        foreach ((string file, ObjectiveDto dto) in objectiveItems)
+        {
+            Inside(file, dto.Id!, "objective", dto.Lines);
+        }
+
+        return lines;
+    }
+
+    // The words written inside an encounter or an objective, as lines whose criteria are implied by where they sit: an encounter's
+    // arrival holds for its stage beat, an approach's tier text for that check, a decision's texts for its call, its notice, and
+    // the effects of each choice, and an objective's texts for its result. They join the shared pool, so salience ranks them with
+    // the lines of lines/, and their implied criteria count like written ones.
+    private static List<LineDef> BuildOwnedLines(
+        List<(string File, EncounterDto Dto)> encounters,
+        List<(string File, ObjectiveDto Dto)> objectives,
+        List<SymbolDef> symbols,
+        List<ContentError> errors)
+    {
+        Dictionary<string, SymbolDef> symbolsById = symbols.ToDictionary(s => s.Id);
+        var lines = new List<LineDef>();
+        void Add(string file, string owner, string where, Dictionary<string, string?>? texts, IReadOnlyList<string> keys, string beat, Func<string, CriterionDef[]> when)
+        {
+            foreach ((string key, string? text) in texts ?? [])
+            {
+                string at = $"{owner}: {where}text.{key}";
+                int before = errors.Count;
+                void Error(string message)
+                {
+                    errors.Add(new ContentError(file, $"{at} {message}"));
+                }
+
+                if (!keys.Contains(key))
+                {
+                    Error($"is not a text this can have; it must be one of {string.Join(", ", keys)}.");
+                }
+                else if (string.IsNullOrEmpty(text))
+                {
+                    Error("must not be empty.");
+                }
+                else if (Tokens(text, out string? problem) is not { } tokens)
+                {
+                    Error($"cannot be read: {problem}");
+                }
+                else
+                {
+                    string kind = key is "call" or "notice" ? key : beat;
+                    CheckTokens(tokens, NarrativeFacts.Beats[kind], symbolsById, null, [], m => Error($"cannot be used: {m}"));
+                    if (errors.Count == before)
+                    {
+                        lines.Add(new LineDef($"{owner}.{where}{key}", kind, when(key), text, null, owner));
+                    }
+                }
+            }
+        }
+
+        foreach ((string file, EncounterDto dto) in encounters)
+        {
+            string id = dto.Id!;
+            var here = new CriterionDef("encounter", [id]);
+            Add(file, id, "", dto.Text, NarrativeFacts.EncounterTexts, "stage", _ => [here]);
+            foreach ((string approach, ApproachDto? def) in new[] { ("careful", dto.Approaches?.Careful), ("fast", dto.Approaches?.Fast) })
+            {
+                Add(file, id, approach + ".", def?.Text, NarrativeFacts.Tiers, "check", tier => [here, new CriterionDef("approach", [approach]), new CriterionDef("tier", [tier])]);
+            }
+
+            if (dto.Decision is { Id: { } decision })
+            {
+                var that = new CriterionDef("decision", [decision]);
+                Add(file, id, "decision.", dto.Decision.Text, NarrativeFacts.DecisionTexts, "effects", key => key is "call" or "notice" ? [that] : [that, new CriterionDef("chose", [key])]);
+            }
+        }
+
+        foreach ((string file, ObjectiveDto dto) in objectives)
+        {
+            string id = dto.Id!;
+            Add(file, id, "", dto.Text, NarrativeFacts.Outcomes, "result", outcome => [new CriterionDef("objective", [id]), new CriterionDef("outcome", [outcome])]);
         }
 
         return lines;
@@ -350,7 +473,7 @@ public static partial class ContentLoader
     [GeneratedRegex("^[a-z][A-Za-z0-9_]*$")]
     private static partial Regex LowerIdPattern();
 
-    private sealed class LineDto
+    internal sealed class LineDto
     {
         public string? Id { get; set; }
 

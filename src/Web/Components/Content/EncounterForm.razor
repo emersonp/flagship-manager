@@ -1,8 +1,10 @@
+@using Sim.Core.Narrative
 @using Web.Forms
 <FormShell View="View">
     <TagsField Name="tags" Label="Tags" Value="@View.Values.Get("tags")" Error="@View.Error("tags")" Suggestions="View.Choices.EncounterTags" />
     <CheckField Name="commsBlocked" Label="Comms blocked" Checked="@(View.Values.Get("commsBlocked") == "true")" Hint="Without comms gear on the team, this encounter's decision is never put to the player as a call." />
     <Field Name="chain" Label="Chains to" Value="@View.Values.Get("chain")" Options="ChainOptions" Labels="ChainLabels" Placeholder="None" Hint="The encounter that follows this one. An encounter another one chains to is never drawn by a stage." Error="@View.Error("chain")" />
+    <TextRows Title="Words on arrival" Keys="@NarrativeFacts.EncounterTexts" Labels="@ArriveLabels" Hint="@($"What the log says when the team reaches this encounter. Blank uses a shared line. Names: {OwnedText.Names("stage")}.")" />
     @foreach (string key in new[] { "careful", "fast" })
     {
         <fieldset class="approach">
@@ -12,6 +14,7 @@
                 <Field Name="@($"{key}.difficulty")" Label="Difficulty" AriaLabel="@($"Difficulty, {key} approach")" Value="@View.Values.Get($"{key}.difficulty")" Hint="1 or more." Error="@View.Error($"{key}.difficulty")" Numeric="true" Narrow="true" Required="true" />
                 <Field Name="@($"{key}.gearTag")" Label="Gear tag" AriaLabel="@($"Gear tag, {key} approach")" Value="@View.Values.Get($"{key}.gearTag")" Options="View.Choices.GearTags" Placeholder="None" Hint="Gear with this tag helps." Error="@View.Error($"{key}.gearTag")" />
             </div>
+            <TextRows Title="@($"Words, {key} approach")" Prefix="@($"{key}.")" Keys="@NarrativeFacts.Tiers" Hint="@($"What the log says for this check, by how it went. Blank uses a shared line. Names: {OwnedText.Names("check")}; #helper# only when someone helps.")" />
         </fieldset>
     }
     <CheckField Name="hasDecision" Label="This encounter has a decision" Checked="HasDecision" ChangeUrl="@View.RowsUrlFocusing("f-hasDecision")" />
@@ -35,6 +38,7 @@
             <Field Name="decision.stakes" Label="Stakes" Value="@(View.Values.Has("decision.stakes") ? View.Values.Get("decision.stakes") : "1")" Hint="1 to 5." Error="@View.Error("decision.stakes")" Numeric="true" Narrow="true" Required="true" />
             <EffectRows Set="EncounterKind.Bold" Title="Bold" Hint="What happens when the bold answer is chosen. An effect holds a value for each key it changes; leave the others blank." />
             <EffectRows Set="EncounterKind.Safe" Title="Safe" Hint="What happens when the safe answer is chosen." />
+            <TextRows Title="Words, decision" Prefix="decision." Keys="@NarrativeFacts.DecisionTexts" Labels="@DecisionLabels" Hint="@($"What the log says when the lead calls this in, decides it alone, and when each choice takes effect. Blank uses a shared line. Names: {OwnedText.Names("call")}.")" />
         </fieldset>
     }
     else
@@ -45,10 +49,23 @@
             <input type="hidden" name="@field.Key" value="@field.Value">
         }
     }
+    <RowTable View="View" Set="OwnedText.Lines" Headers="@(["Beat", "Also when", "Text"])" Title="Lines of its own" Numeric="false" FirstSuggestions="@NarrativeFacts.Kinds" AddLabel="Add a line" Hint="@LinesHint" />
 </FormShell>
 
 @code {
     [Parameter, EditorRequired] public ItemFormView View { get; set; } = null!;
+
+    private static readonly IReadOnlyDictionary<string, string> ArriveLabels = new Dictionary<string, string> { ["arrive"] = "The team arrives" };
+
+    private static readonly IReadOnlyDictionary<string, string> DecisionLabels = new Dictionary<string, string>
+    {
+        ["call"] = "The lead calls it in",
+        ["notice"] = "The lead decides alone",
+        ["bold"] = "The bold choice takes effect",
+        ["safe"] = "The safe choice takes effect",
+    };
+
+    private const string LinesHint = "Any other line that holds only at this encounter, for any beat: an injury here, the lead changing here. It is chosen like a shared line, and being here counts as one more criterion, so it wins over a shared line that tests the same things. Also when: further criteria as fact: value, with ; between them, such as outcome: dead; crew.caution: 1..";
 
     private bool HasDecision => View.Values.Get("hasDecision") == "true";
 

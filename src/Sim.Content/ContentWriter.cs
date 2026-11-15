@@ -135,12 +135,7 @@ public static class ContentWriter
 
                 break;
             case LineModel line:
-                if (line.Use is not null)
-                {
-                    f.Add($"use: {Quote(line.Use)}");
-                }
-
-                f.Add($"when: {Map(line.When.Select(c => (Quote(c.Fact), Criterion(c))).Prepend(("beat", Quote(line.Beat))))}");
+                f.Add(When(line.Beat, line.When));
                 f.Add($"text: {Quote(line.Text)}");
                 break;
             case SymbolModel symbol:
@@ -179,13 +174,7 @@ public static class ContentWriter
                     f.Add($"ifUnattended: {{ difficulty: {Num(difficulty)} }}");
                 }
 
-                if (objective.Stages.Count == 0)
-                {
-                    f.Add("stages: []");
-                    break;
-                }
-
-                f.Add("stages:");
+                f.Add(objective.Stages.Count == 0 ? "stages: []" : "stages:");
                 foreach (StageModel stage in objective.Stages)
                 {
                     string skippable = stage.Skippable ? ", skippable: true" : "";
@@ -194,6 +183,8 @@ public static class ContentWriter
                     f.Add($"  - {{ slot: {Quote(stage.Slot)},{draw} count: {Count(stage.CountMin, stage.CountMax)}{skippable} }}");
                 }
 
+                f.AddRange(Texts(objective.Text, Sim.Core.Narrative.NarrativeFacts.Outcomes));
+                f.AddRange(OwnLines(objective.Lines));
                 break;
             case EncounterModel encounter:
                 f.Add($"tags: {List(encounter.Tags)}");
@@ -207,9 +198,10 @@ public static class ContentWriter
                     f.Add($"chain: {Quote(encounter.Chain)}");
                 }
 
+                f.AddRange(Texts(encounter.Text, Sim.Core.Narrative.NarrativeFacts.EncounterTexts));
                 f.Add("approaches:");
-                f.Add($"  careful: {Approach(encounter.Careful)}");
-                f.Add($"  fast: {Approach(encounter.Fast)}");
+                f.AddRange(Approach("careful", encounter.Careful).Select(l => "  " + l));
+                f.AddRange(Approach("fast", encounter.Fast).Select(l => "  " + l));
                 if (encounter.Decision is { } decision)
                 {
                     f.Add("decision:");
@@ -222,11 +214,37 @@ public static class ContentWriter
                     f.Add($"  stakes: {Num(decision.Stakes)}");
                     f.Add($"  bold: {Effects(decision.Bold)}");
                     f.Add($"  safe: {Effects(decision.Safe)}");
+                    f.AddRange(Texts(decision.Text, Sim.Core.Narrative.NarrativeFacts.DecisionTexts).Select(l => "  " + l));
                 }
+
+                f.AddRange(OwnLines(encounter.Lines));
 
                 break;
             default:
                 throw new ArgumentException($"Unknown content model {item.GetType().Name}.", nameof(item));
+        }
+
+        return f;
+    }
+
+    private static string When(string beat, IReadOnlyList<CriterionModel> when)
+    {
+        return $"when: {Map(when.Select(c => (Quote(c.Fact), Criterion(c))).Prepend(("beat", Quote(beat))))}";
+    }
+
+    // The lines written inside an item, last in it. Nothing when there are none.
+    private static List<string> OwnLines(IReadOnlyList<OwnLineModel>? lines)
+    {
+        if (lines is not { Count: > 0 })
+        {
+            return [];
+        }
+
+        var f = new List<string> { "lines:" };
+        foreach (OwnLineModel line in lines)
+        {
+            f.Add($"  - {When(line.Beat, line.When)}");
+            f.Add($"    text: {Quote(line.Text)}");
         }
 
         return f;
@@ -283,10 +301,36 @@ public static class ContentWriter
     // One number when both ends match, otherwise [min, max].
     private static string Count(int min, int max) => min == max ? Num(min) : $"[{Num(min)}, {Num(max)}]";
 
-    private static string Approach(ApproachModel approach)
+    // On one line when the approach has no words of its own; otherwise a block, so each text has its own line.
+    private static List<string> Approach(string key, ApproachModel approach)
     {
-        string gear = approach.GearTag is null ? "" : $", gearTag: {Quote(approach.GearTag)}";
-        return $"{{ skill: {Quote(approach.Skill)}, difficulty: {Num(approach.Difficulty)}{gear} }}";
+        if (approach.Text is not { Count: > 0 })
+        {
+            string gear = approach.GearTag is null ? "" : $", gearTag: {Quote(approach.GearTag)}";
+            return [$"{key}: {{ skill: {Quote(approach.Skill)}, difficulty: {Num(approach.Difficulty)}{gear} }}"];
+        }
+
+        var lines = new List<string> { $"{key}:", $"  skill: {Quote(approach.Skill)}", $"  difficulty: {Num(approach.Difficulty)}" };
+        if (approach.GearTag is not null)
+        {
+            lines.Add($"  gearTag: {Quote(approach.GearTag)}");
+        }
+
+        lines.AddRange(Texts(approach.Text, Sim.Core.Narrative.NarrativeFacts.Tiers).Select(l => "  " + l));
+        return lines;
+    }
+
+    // An item's own words: one key to a line, the known keys in their fixed order and then any others as they were read. Nothing when there are none.
+    private static List<string> Texts(IReadOnlyDictionary<string, string>? texts, IReadOnlyList<string> order)
+    {
+        if (texts is not { Count: > 0 })
+        {
+            return [];
+        }
+
+        var lines = new List<string> { "text:" };
+        lines.AddRange(order.Where(texts.ContainsKey).Concat(texts.Keys.Where(k => !order.Contains(k))).Select(k => $"  {Quote(k)}: {Quote(texts[k])}"));
+        return lines;
     }
 
     private static string Effects(IReadOnlyList<EffectModel> effects)

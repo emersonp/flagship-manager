@@ -80,7 +80,7 @@ public static class ContentKinds
             ContentKind.Assignment => [new("Objective tags"), new("Loadout limit", true)],
             ContentKind.Objective => [new("Tags"), new("Team size", true), new("Need", true), new("Stages", true)],
             ContentKind.Encounter => [new("Tags"), new("Careful"), new("Fast"), new("Chain"), new("Decision")],
-            ContentKind.Line => [new("Use"), new("Beat"), new("Criteria", true), new("Text")],
+            ContentKind.Line => [new("Beat"), new("Criteria", true), new("Text")],
             ContentKind.Symbol => [new("Options", true), new("First option")],
             ContentKind.Pronoun => [new("Forms"), new("Plural")],
             _ => [],
@@ -107,7 +107,7 @@ public static class ContentKinds
             case ContentKind.Encounter when ContentEdits.Get<EncounterModel>(files, item.Kind, item.Id) is { } encounter:
                 return [List(encounter.Tags), Approach(encounter.Careful), Approach(encounter.Fast), encounter.Chain ?? "", encounter.Decision?.Id ?? ""];
             case ContentKind.Line when ContentEdits.Get<LineModel>(files, item.Kind, item.Id) is { } line:
-                return [line.Use ?? "log", line.Beat, Number(line.When.Count + 1), Clip(line.Text)];
+                return [line.Beat, Number(line.When.Count + 1), Clip(line.Text)];
             case ContentKind.Symbol when ContentEdits.Get<SymbolModel>(files, item.Kind, item.Id) is { } symbol:
                 return [Number(symbol.Options.Count), symbol.Options.Count > 0 ? Clip(symbol.Options[0]) : ""];
             case ContentKind.Pronoun when ContentEdits.Get<PronounModel>(files, item.Kind, item.Id) is { } set:

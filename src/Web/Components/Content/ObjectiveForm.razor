@@ -1,3 +1,4 @@
+@using Sim.Core.Narrative
 @using Web.Forms
 <FormShell View="View">
     <TagsField Name="tags" Label="Tags" Value="@View.Values.Get("tags")" Error="@View.Error("tags")" Suggestions="View.Choices.ObjectiveTags" />
@@ -8,8 +9,12 @@
         <Field Name="unattended" Label="Difficulty if unattended" Value="@View.Values.Get("unattended")" Hint="Blank means none. 1 or more." Error="@View.Error("unattended")" Numeric="true" Narrow="true" />
     </div>
     <StageRows />
+    <TextRows Title="Words, result" Keys="@NarrativeFacts.Outcomes" Hint="@($"What the log and the report say when a mission for this objective ends, by outcome. Blank uses a shared line. Names: {OwnedText.Names("result")}.")" />
+    <RowTable View="View" Set="OwnedText.Lines" Headers="@(["Beat", "Also when", "Text"])" Title="Lines of its own" Numeric="false" FirstSuggestions="@NarrativeFacts.Kinds" AddLabel="Add a line" Hint="@LinesHint" />
 </FormShell>
 
 @code {
     [Parameter, EditorRequired] public ItemFormView View { get; set; } = null!;
+
+    private const string LinesHint = "Any other line that holds only on missions for this objective, for any beat. It is chosen like a shared line, and being here counts as one more criterion. Also when: further criteria as fact: value, with ; between them, such as outcome: loss; strain: 4..";
 }

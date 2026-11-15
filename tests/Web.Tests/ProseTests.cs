@@ -105,7 +105,7 @@ public sealed class ProseTests : IDisposable
     [Fact]
     public void A_line_is_chosen_by_salience_so_a_more_specific_one_wins_where_it_holds()
     {
-        LineDef specific = new("LINE_CHECK_PLACE", "log", "check", [new CriterionDef("tier", ["critical", "success", "partial", "failure", "disaster"]), new CriterionDef("helped", ["true", "false"])], "SPECIFIC #actor#.");
+        LineDef specific = new("LINE_CHECK_PLACE", "check", [new CriterionDef("tier", ["critical", "success", "partial", "failure", "disaster"]), new CriterionDef("helped", ["true", "false"])], "SPECIFIC #actor#.");
         Played played = Ended(Pack with { Lines = [.. Pack.Lines, specific] });
 
         IReadOnlyList<LogLine> log = Read(played).Mission!.Log;
@@ -118,7 +118,7 @@ public sealed class ProseTests : IDisposable
     public void A_line_whose_text_cannot_expand_falls_back_to_the_systems_line()
     {
         // The loader would refuse this; a pack built in code shows the fallback instead of failing the page.
-        LineDef broken = new("LINE_CHECK_BROKEN", "log", "check", [new CriterionDef("helped", ["true", "false"]), new CriterionDef("supervised", ["true", "false"])], "#nobody# acts.");
+        LineDef broken = new("LINE_CHECK_BROKEN", "check", [new CriterionDef("helped", ["true", "false"]), new CriterionDef("supervised", ["true", "false"])], "#nobody# acts.");
         Played played = Ended(Pack with { Lines = [.. Pack.Lines, broken] });
 
         Assert.All(Read(played).Mission!.Log.Where(l => l.Kind == "check"), l => Assert.False(l.Authored));
@@ -145,9 +145,44 @@ public sealed class ProseTests : IDisposable
 
         List<string> sentences = report.Sentences.Select(Join).ToList();
         Assert.Contains(sentences, s => s.Contains(" called in: ", StringComparison.Ordinal));
-        Assert.Contains(sentences, s => s.Contains(" was hurt at ", StringComparison.Ordinal) || s.Contains(" was killed at ", StringComparison.Ordinal));
+        Assert.Contains(sentences, s => s.Contains(" injured at ", StringComparison.Ordinal) || s.Contains(" was incapacitated at ", StringComparison.Ordinal) || s.Contains(" was killed at ", StringComparison.Ordinal));
         Assert.Equal(beats.Count(b => b.Beat is CallBeat) + beats.Count(b => b.Beat is NoticeBeat), report.Decisions.Count);
         Assert.Contains(report.Decisions.Select(Join), d => d.Contains("; the captain answered ", StringComparison.Ordinal));
+    }
+
+    // The report is a part of the log: every sentence in it is the sentence the log showed for that beat.
+    [Fact]
+    public void The_report_says_what_the_log_said()
+    {
+        Played played = Ended(Pack);
+
+        BridgeView view = Read(played);
+
+        List<string> log = view.Mission!.Log.Select(l => Join(l.Prose!)).ToList();
+        Assert.All(view.Aftermath!.Report!.Sentences.Select(Join), s => Assert.Contains(s, log));
+    }
+
+    // An encounter's own words win over the shared lines for its beats, and other encounters keep the shared ones.
+    [Fact]
+    public void An_encounters_own_text_wins_at_that_encounter_only()
+    {
+        Played plain = Ended(Pack);
+        string encounter = plain.CycleEvents().OfType<MissionBeat>().Select(b => b.Beat).OfType<StageBeat>().First().EncounterId;
+        LineDef own = new($"{encounter}.arrive", "stage", [new CriterionDef("encounter", [encounter])], "OWN #encounter#.", null, encounter);
+        Played played = Ended(Pack with { Lines = [.. Pack.Lines, own] }, p => p.CycleEvents().OfType<MissionBeat>().Any(b => b.Beat is StageBeat s && s.EncounterId == encounter));
+        List<MissionBeat> beats = Beats(played);
+
+        IReadOnlyList<LogLine> log = Read(played).Mission!.Log;
+
+        for (int i = 0; i < log.Count; i++)
+        {
+            if (beats[i].Beat is StageBeat stage)
+            {
+                Assert.Equal(stage.EncounterId == encounter, Join(log[i].Prose!).StartsWith("OWN ", StringComparison.Ordinal));
+            }
+        }
+
+        Assert.DoesNotContain(own.Id, Web.Forms.LineLint.Of(Pack with { Lines = [own] }).NeverChosen);
     }
 
     // The lint asks for report lines only where the report would use one, so the two rules must agree.
@@ -177,14 +212,15 @@ public sealed class ProseTests : IDisposable
     [Fact]
     public void The_lint_names_a_line_another_always_beats_and_beats_with_no_line()
     {
-        LineDef result = new("LINE_RESULT_ANY", "log", "result", [new CriterionDef("outcome", Sim.Core.Narrative.NarrativeFacts.Outcomes)], "Over.");
+        LineDef result = new("LINE_RESULT_ANY", "result", [new CriterionDef("outcome", Sim.Core.Narrative.NarrativeFacts.Outcomes)], "Over.");
 
         Web.Forms.LineLint shadowed = Web.Forms.LineLint.Of(Pack with { Lines = [.. Pack.Lines, result] });
         Web.Forms.LineLint empty = Web.Forms.LineLint.Of(Pack with { Lines = [] });
 
         Assert.Contains("LINE_RESULT", shadowed.NeverChosen);
         Assert.DoesNotContain("LINE_RESULT_ANY", shadowed.NeverChosen);
-        Assert.Contains("check", empty.LogWithout);
+        Assert.Contains("check", empty.Without);
+        Assert.Contains("effects", empty.Without);
         Assert.Contains("result", empty.ReportWithout);
         Assert.DoesNotContain("effects", empty.ReportWithout);
         Assert.False(empty.Clean);

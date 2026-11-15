@@ -49,6 +49,7 @@ public static class BeatSituations
         bool blocked = false;
         string lead = frame.StartLeadId;
         string? decision = null;
+        string? chose = null;
         var situations = new List<Situation>();
         foreach (Beat beat in beats)
         {
@@ -91,12 +92,14 @@ public static class BeatSituations
                     break;
                 case AnswerBeat b:
                     lead = b.LeadId;
+                    chose = Word(b.Answer);
                     break;
                 case CallBeat b:
                     decision = b.Call.DecisionId;
                     break;
                 case NoticeBeat b:
                     decision = b.DecisionId;
+                    chose = Word(b.Chose);
                     break;
             }
 
@@ -146,6 +149,13 @@ public static class BeatSituations
                     }
 
                     facts["withdraw"] = FactValue.Of(b.Effects.Withdraw);
+                    // Effects follow a notice or an answer, so the decision and what was chosen are the ones just seen.
+                    if (decision is not null && chose is not null)
+                    {
+                        Decision(decision);
+                        facts["chose"] = FactValue.Of(chose);
+                    }
+
                     momentum = Math.Clamp(momentum + b.Effects.Momentum, 0, cap);
                     strain = Math.Clamp(strain + b.Effects.Strain, 0, cap);
                     break;

@@ -1,102 +1,66 @@
-# Placeholders. The author replaces these. They read like the systems log; the most specific line whose criteria hold wins.
+# Placeholders. The author replaces these. These are the shared lines: what an encounter falls back on when it has no words of
+# its own, and what belongs to no encounter (injuries, the lead, the captain's answers). An encounter's or an objective's own
+# words are written in that item, not here. Past tense: the log and the report use the same sentence.
 - id: LINE_STAGE
   when: { beat: stage }
-  text: "The team reaches #encounter#."
+  text: "The team reached #encounter#."
 - id: LINE_SKIP
   when: { beat: skip }
-  text: "#encounter# is skipped on momentum."
+  text: "#encounter# was skipped on momentum."
 - id: LINE_CHAIN
   when: { beat: chain }
-  text: "The disaster leads to #encounter#."
+  text: "The disaster led to #encounter#."
 - id: LINE_CHECK
   when: { beat: check }
-  text: "#actor# checks #skill# at #encounter#."
+  text: "#actor# checked #skill# at #encounter#."
 - id: LINE_CHECK_HELPED
   when: { beat: check, helped: true }
-  text: "#actor# checks #skill# at #encounter#, helped by #helper#."
+  text: "#actor# checked #skill# at #encounter#, helped by #helper#."
 - id: LINE_CHECK_SUPERVISED
   when: { beat: check, supervised: true }
-  text: "#actor# checks #skill# at #encounter#, supervised by #helper#."
-- id: LINE_EFFECTS
-  when: { beat: effects }
-  text: The decision takes effect.
-- id: LINE_INJURY_UNHARMED
-  when: { beat: injury, outcome: unharmed }
-  text: "#crew# comes through unharmed."
-- id: LINE_INJURY_LIGHT
-  when: { beat: injury, outcome: lightInjury }
-  text: "#crew# is lightly injured."
-- id: LINE_INJURY_INCAPACITATED
-  when: { beat: injury, outcome: incapacitated }
-  text: "#crew# is incapacitated."
-- id: LINE_INJURY_DEAD
-  when: { beat: injury, outcome: dead }
-  text: "#crew# is killed."
-- id: LINE_LEAD
-  when: { beat: lead }
-  text: "#crew# takes the lead."
-- id: LINE_CALL
-  when: { beat: call }
-  text: "#lead# calls in: #decision#."
-- id: LINE_NOTICE
-  when: { beat: notice }
-  text: "#lead# decides #decision# without calling."
-- id: LINE_ANSWER_BOLD
-  when: { beat: answer, answer: bold }
-  text: The captain orders the team on.
-- id: LINE_ANSWER_SAFE
-  when: { beat: answer, answer: safe }
-  text: The captain orders caution.
-- id: LINE_ANSWER_WITHDRAW
-  when: { beat: answer, answer: withdraw }
-  text: The captain orders the team out.
-- id: LINE_COLLAPSE
-  when: { beat: collapse }
-  text: The team collapses.
-- id: LINE_RESULT
-  when: { beat: result }
-  text: The mission ends.
-- id: LINE_REPORT_STAGE
-  use: report
-  when: { beat: stage }
-  text: "The team reached #encounter#."
-- id: LINE_REPORT_CHECK_CRITICAL
-  use: report
+  text: "#actor# checked #skill# at #encounter#, supervised by #helper#."
+- id: LINE_CHECK_CRITICAL
   when: { beat: check, tier: critical }
   text: "At #encounter#, #actor# excelled at #skill#."
-- id: LINE_REPORT_CHECK_BAD
-  use: report
+- id: LINE_CHECK_BAD
   when: { beat: check, tier: [failure, disaster] }
   text: "At #encounter#, #actor# failed at #skill#."
-- id: LINE_REPORT_INJURY
-  use: report
-  when: { beat: injury }
-  text: "#crew# was hurt at #encounter#."
-- id: LINE_REPORT_INJURY_DEAD
-  use: report
+- id: LINE_EFFECTS
+  when: { beat: effects }
+  text: The decision took effect.
+- id: LINE_INJURY_UNHARMED
+  when: { beat: injury, outcome: unharmed }
+  text: "#crew# came through unharmed."
+- id: LINE_INJURY_LIGHT
+  when: { beat: injury, outcome: lightInjury }
+  text: "#crew# was lightly injured at #encounter#."
+- id: LINE_INJURY_INCAPACITATED
+  when: { beat: injury, outcome: incapacitated }
+  text: "#crew# was incapacitated at #encounter#."
+- id: LINE_INJURY_DEAD
   when: { beat: injury, outcome: dead }
   text: "#crew# was killed at #encounter#."
-- id: LINE_REPORT_LEAD
-  use: report
+- id: LINE_LEAD
   when: { beat: lead }
   text: "#crew# took the lead."
-- id: LINE_REPORT_CALL
-  use: report
+- id: LINE_CALL
   when: { beat: call }
   text: "#lead# called in: #decision#."
-- id: LINE_REPORT_NOTICE
-  use: report
+- id: LINE_NOTICE
   when: { beat: notice }
   text: "#lead# decided #decision# without calling."
-- id: LINE_REPORT_ANSWER
-  use: report
-  when: { beat: answer }
-  text: The captain answered.
-- id: LINE_REPORT_COLLAPSE
-  use: report
+- id: LINE_ANSWER_BOLD
+  when: { beat: answer, answer: bold }
+  text: The captain ordered the team on.
+- id: LINE_ANSWER_SAFE
+  when: { beat: answer, answer: safe }
+  text: The captain ordered caution.
+- id: LINE_ANSWER_WITHDRAW
+  when: { beat: answer, answer: withdraw }
+  text: The captain ordered the team out.
+- id: LINE_COLLAPSE
   when: { beat: collapse }
   text: The team collapsed.
-- id: LINE_REPORT_RESULT
-  use: report
+- id: LINE_RESULT
   when: { beat: result }
   text: The mission ended.

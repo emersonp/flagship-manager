@@ -6,8 +6,9 @@ public sealed record CriterionDef(string Fact, IReadOnlyList<string> Values, int
     public bool IsRange => Values.Count == 0;
 }
 
-// Use is "log" (the live mission log) or "report" (the aftermath report). Beat is the beat kind, which counts as one criterion.
-public sealed record LineDef(string Id, string Use, string Beat, IReadOnlyList<CriterionDef> When, string Text, string? Name = null)
+// Beat is the beat kind, which counts as one criterion. Owner is the encounter or objective whose own text this line is, written
+// in that item and not in lines/; null for a line of the shared pool.
+public sealed record LineDef(string Id, string Beat, IReadOnlyList<CriterionDef> When, string Text, string? Name = null, string? Owner = null)
 {
     public int Specificity => When.Count + 1;
 }

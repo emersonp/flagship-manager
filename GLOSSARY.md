@@ -195,7 +195,7 @@ _Avoid_: Dashboard, HUD, main screen
 The narrative account of a finished mission, generated from its beats.
 
 **Line**:
-An authored sentence for one kind of beat, with criteria that say when it fits. The most specific line whose criteria hold is the one shown.
+An authored sentence for one kind of beat, with criteria that say when it fits. The most specific line whose criteria hold is the one shown, in the log and in the report alike. A line about one encounter or objective is written inside it and holds only there; a **shared line** belongs to none and is written on its own.
 _Avoid_: Template, string, message
 
 **Symbol**:
@@ -236,10 +236,8 @@ A short, free storylet that carries information. Usually it has no choice; somet
 _Avoid_: Flavour event
 
 **Storyline**:
-Storylets heading for authored waypoints by whatever path the state allows. It advances whether or not the captain attends to it.
-
-**Waypoint**:
-An authored storylet a storyline or conversation steers towards. A target, never a rail: the path varies, and the captain can divert it.
+Storylets linked by story flags, often one flag counting the storyline's progress. It advances whether or not the captain attends to it.
+_Avoid_: Waypoint
 
 **Captain's time**:
 The per-cycle budget the captain spends on captain storylets and discretionary actions. Does not carry over.

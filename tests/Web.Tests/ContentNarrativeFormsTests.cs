@@ -18,7 +18,7 @@ public sealed class ContentNarrativeFormsTests(RepoContentGuard guard) : IClassF
         using TestApp app = NewApp();
         using HttpClient client = app.CreateClient();
 
-        (HttpStatusCode status, string body) = await Post(client, "/dev/content/lines", "id=LINE_NEW&use=log&beat=check&when[0].fact=tier&when[0].value=failure, disaster&when[1].fact=actor.caution&when[1].value=1..&text=" + Uri.EscapeDataString("#actor# hesitates at #encounter#."));
+        (HttpStatusCode status, string body) = await Post(client, "/dev/content/lines", "id=LINE_NEW&beat=check&when[0].fact=tier&when[0].value=failure, disaster&when[1].fact=actor.caution&when[1].value=1..&text=" + Uri.EscapeDataString("#actor# hesitates at #encounter#."));
 
         Assert.Equal(HttpStatusCode.OK, status);
         Assert.Contains("Saved.", body, StringComparison.Ordinal);
@@ -37,10 +37,10 @@ public sealed class ContentNarrativeFormsTests(RepoContentGuard guard) : IClassF
         using HttpClient client = app.CreateClient();
         string before = Disk(app, "lines/base.yaml");
 
-        (_, string form) = await Get(client, "/dev/content/lines/LINE_REPORT_CHECK_BAD");
+        (_, string form) = await Get(client, "/dev/content/lines/LINE_CHECK_BAD");
         Assert.Equal("failure, disaster", Value(form, "when[0].value"));
-        Assert.Equal("report", Selected(form, "use"));
-        (HttpStatusCode status, _) = await Post(client, "/dev/content/lines/LINE_REPORT_CHECK_BAD", "use=report&beat=check&when[0].fact=tier&when[0].value=failure, disaster&text=" + Uri.EscapeDataString("At #encounter#, #actor# failed at #skill#."));
+        Assert.DoesNotContain("name=\"use\"", form, StringComparison.Ordinal);
+        (HttpStatusCode status, _) = await Post(client, "/dev/content/lines/LINE_CHECK_BAD", "beat=check&when[0].fact=tier&when[0].value=failure, disaster&text=" + Uri.EscapeDataString("At #encounter#, #actor# failed at #skill#."));
 
         Assert.Equal(HttpStatusCode.OK, status);
         Assert.Equal(before, Disk(app, "lines/base.yaml"));
@@ -58,7 +58,7 @@ public sealed class ContentNarrativeFormsTests(RepoContentGuard guard) : IClassF
         using HttpClient client = app.CreateClient();
         string before = Everything(app);
 
-        (HttpStatusCode status, string body) = await Post(client, "/dev/content/lines", "id=LINE_BAD&use=log&" + fields);
+        (HttpStatusCode status, string body) = await Post(client, "/dev/content/lines", "id=LINE_BAD&" + fields);
 
         Assert.Equal(HttpStatusCode.UnprocessableEntity, status);
         Assert.Contains(message, body, StringComparison.Ordinal);
@@ -73,7 +73,7 @@ public sealed class ContentNarrativeFormsTests(RepoContentGuard guard) : IClassF
         using HttpClient client = app.CreateClient();
         string before = Everything(app);
 
-        (HttpStatusCode status, string body) = await Post(client, "/dev/content/lines", "id=LINE_BAD&use=log&beat=stage&text=" + Uri.EscapeDataString("#actor# arrives."));
+        (HttpStatusCode status, string body) = await Post(client, "/dev/content/lines", "id=LINE_BAD&beat=stage&text=" + Uri.EscapeDataString("#actor# arrives."));
 
         Assert.Equal(HttpStatusCode.UnprocessableEntity, status);
         Assert.Contains("The change was refused. Nothing was written.", body, StringComparison.Ordinal);
@@ -88,7 +88,7 @@ public sealed class ContentNarrativeFormsTests(RepoContentGuard guard) : IClassF
         using HttpClient client = app.CreateClient();
         string before = Everything(app);
 
-        (HttpStatusCode status, string body) = await Post(client, "/dev/content/lines/rows", "id=LINE_TRY&use=log&beat=check&when[0].fact=helped&when[0].value=true&when[1].fact=tier&when[1].value=critical, success, partial, failure, disaster&text=" + Uri.EscapeDataString("TRY #actor# with #helper#."), datastar: true);
+        (HttpStatusCode status, string body) = await Post(client, "/dev/content/lines/rows", "id=LINE_TRY&beat=check&when[0].fact=helped&when[0].value=true&when[1].fact=tier&when[1].value=critical, success, partial, failure, disaster&text=" + Uri.EscapeDataString("TRY #actor# with #helper#."), datastar: true);
 
         Assert.Equal(HttpStatusCode.OK, status);
         string text = WebUtility.HtmlDecode(body);
@@ -104,7 +104,7 @@ public sealed class ContentNarrativeFormsTests(RepoContentGuard guard) : IClassF
         using TestApp app = NewApp();
         using HttpClient client = app.CreateClient();
 
-        (_, string body) = await Post(client, "/dev/content/lines/LINE_CHECK/rows", "use=log&beat=check&text=" + Uri.EscapeDataString("#actor# works."), datastar: true);
+        (_, string body) = await Post(client, "/dev/content/lines/LINE_CHECK/rows", "beat=check&text=" + Uri.EscapeDataString("#actor# works."), datastar: true);
 
         string text = WebUtility.HtmlDecode(body);
         Assert.Contains("LINE_CHECK_HELPED wins instead.", text, StringComparison.Ordinal);

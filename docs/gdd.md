@@ -1,6 +1,6 @@
 # Starship Sim: Game Design Document v1
 
-Status: draft v1.10, 2026-11-14, revised after the author's reviews (section 15), the mission prototype (section 4.7), and the author's notes on skills and narrative structure after slice 1c (section 15, items 18 to 21). Vocabulary follows `GLOSSARY.md`; the games and shows the design draws on are listed in `docs/touchstones.md`. Creative content is placeholder throughout (`SPECIES_A`, `OBJECTIVE_TEMPLATE_1`, `SKILL_A`); numbers are starting points for the balance simulator, not commitments.
+Status: draft v1.13, 2026-11-15, revised after the author's reviews (section 15), the mission prototype (section 4.7), and the author's notes on skills and narrative structure after slice 1c (section 15, items 18 to 21). Vocabulary follows `GLOSSARY.md`; the games and shows the design draws on are listed in `docs/touchstones.md`. Creative content is placeholder throughout (`SPECIES_A`, `OBJECTIVE_TEMPLATE_1`, `SKILL_A`); numbers are starting points for the balance simulator, not commitments.
 
 ## 1. Summary
 
@@ -169,6 +169,12 @@ stages:
   - slot: extraction
     draw: { tags: [travel], count: 1, skipIf: "mission.momentum >= 3" }
 rewards: { shipRenown: 2, admiraltyStanding: 1 }
+text:                         # the objective's own words for how it ends, by outcome (section 6)
+  fullSuccess: OBJECTIVE_TEMPLATE_1_SUCCESS_TEXT
+  loss: OBJECTIVE_TEMPLATE_1_LOSS_TEXT
+lines:                        # any other line that holds only on missions for this objective
+  - when: { beat: collapse }
+    text: OBJECTIVE_TEMPLATE_1_COLLAPSE_TEXT
 ```
 
 An objective template does not list encounters. It lists slots that draw from the encounter pool by tag, so every new encounter is automatically available to every template whose tags match.
@@ -179,11 +185,16 @@ An objective template does not list encounters. It lists slots that draw from th
 id: ENCOUNTER_07
 tags: [hazard, planetary]
 variants: [VARIANT_A, VARIANT_B, VARIANT_C, VARIANT_D]
+text:
+  arrive: ENCOUNTER_07_ARRIVE_TEXT        # the encounter's own words, written here and nowhere else (section 6)
 approaches:
   - id: careful
     skill: SKILL_A
     difficulty: 5
     gearTags: [scanner]
+    text:                                 # what the log says for this check, by tier
+      success: ENCOUNTER_07_CAREFUL_SUCCESS_TEXT
+      disaster: ENCOUNTER_07_CAREFUL_DISASTER_TEXT
   - id: fast
     skill: SKILL_C
     difficulty: 7
@@ -204,7 +215,12 @@ outcomes:
   partial:  [{ strain: 1 }]
   failure:  [{ strain: 2 }, { injuryRoll: light }]
   disaster: [{ strain: 3 }, { injuryRoll: severe }, { chain: ENCOUNTER_12 }]
+lines:                                    # any other line that holds only here, with criteria of its own
+  - when: { beat: injury, outcome: dead }
+    text: ENCOUNTER_07_DEATH_TEXT
 ```
+
+An encounter carries its own narrative. Its `text` gives the words for its own beats (arriving, each approach by tier, and its decision), and its `lines` are ordinary lines (section 6) that hold only at this encounter. Nothing about an encounter is written in the shared lines; those hold what belongs to no encounter, and the fallbacks.
 
 ### 3.6 Gear (content)
 
@@ -396,15 +412,16 @@ The numbers in this section were set on the throwaway prototype's bench (2,000 m
 
 ## 5. Storylet system
 
-The game uses three narrative structures, named as in Emily Short's survey ("Beyond Branching: Quality-Based and Salience-Based Narrative Structures", 2016), each where it fits:
+The game uses two narrative structures, named as in Emily Short's survey ("Beyond Branching: Quality-Based and Salience-Based Narrative Structures", 2016), each where it fits:
 
 | Structure | How the next piece is chosen | Used for |
 |---|---|---|
 | Quality-based | A piece becomes available when the qualities it requires hold | Which storylets are eligible, who can be cast (5.1), and which options a storylet offers |
 | Salience-based | Of everything eligible, the piece that fits the situation most specifically wins; ties break by seed | Report and vignette lines (section 6), and which storylets reach the inbox (5.1) |
-| Waypoint | Content steers towards an authored waypoint by whatever path the current state allows, avoiding paths already used; the player can divert it | Storylines (5.3) and the captain's conversations (5.4) |
 
-One selection engine serves all three: requirements gate (quality-based), a score ranks (salience), and distance to the next waypoint is one term of that score. Each structure's known weakness has a counter here. A thin early library is covered by generic fallbacks. Content that sequences itself at a bad moment is checked by stakes, cooldowns, and the simulator's fire counts. Waypoints are targets, never rails.
+One selection engine serves both: requirements gate (quality-based), and a score ranks what is left (salience). Each structure's known weakness has a counter here. A thin early library is covered by generic fallbacks. Content that sequences itself at a bad moment is checked by stakes, cooldowns, and the simulator's fire counts.
+
+Short's survey names a third structure, waypoint narrative, in which the engine steers content towards an authored target by measuring how far each piece is from it. The game does not use it. Storylines (5.3) and conversations (5.4) get the same result from qualities, and an author can read any storylet and know when it fires.
 
 ### 5.1 Selection each cycle
 
@@ -436,12 +453,12 @@ A vignette may offer one small, free choice where a moment of attention should b
 
 A storyline is storylets chained by story flags. Every captain storylet that reaches the inbox has an `ifIgnored` clause: after its expiry, effects apply and the next storylet in the chain becomes eligible. Ignoring is a choice with an outcome, and not always the worst one.
 
-Storylines are waypoint narratives. A storyline names its **waypoints**, the authored storylets it is heading for (a confrontation, a reconciliation, a departure), and its other storylets are the paths between them. Selection favours storylets that move the cast's qualities towards the next waypoint and disfavours paths already used, so one storyline plays out differently each time and recovers after the captain intervenes. The captain's choices can divert a storyline towards another waypoint or end it. A chain of flags, as above, is the simplest case: a storyline with one path. Built in Phase 4.
+A longer storyline tracks its progress in a story flag used as a counter, for example `feud` from 0 to 5. Its storylets each require a range of that flag and raise or lower it. The storylets the storyline is heading for (a confrontation, a reconciliation, a departure) are ordinary storylets that require a high value, so each fires when the state reaches it, by whichever storylets got it there. The captain's choices change the flag or set another, which makes different storylets eligible: that is how a storyline is diverted or ended. Salience picks among the eligible storylets and freshness disfavours those already used, so one storyline plays out differently each time. Nothing steers a storyline: it reaches its confrontation only through storylets written to raise the flag. A chain of flags, as above, is the simplest case: a storyline with one path. Built in Phase 4.
 
 ### 5.4 Captain's time
 
 - Budget per cycle: three to six, set by the captain's traits.
-- Spent on inbox captain storylets and on **discretionary actions**: player-initiated storylets such as a ready-room talk with a chosen crew member, a promotion review, or a social evening. These are ordinary storylets whose cast the player picks. A ready-room talk is a waypoint conversation (Phase 4): the crew member has something they mean to raise, and the talk steers towards it unless the captain changes the subject.
+- Spent on inbox captain storylets and on **discretionary actions**: player-initiated storylets such as a ready-room talk with a chosen crew member, a promotion review, or a social evening. These are ordinary storylets whose cast the player picks. In a ready-room talk (Phase 4) the crew member has something they mean to raise. That is a quality the talk's options test, so the talk comes round to it unless the captain's choices change the subject.
 - Does not carry over.
 - Transit cycles get a larger fixed budget. It does not scale with the number of weeks.
 - The inbox should usually hold more than the budget can cover. If the simulator shows the budget routinely covering everything, the economy is broken.
@@ -482,13 +499,126 @@ Register: reports read as a ship's log (clipped, factual, attributed), which sit
 Built in slice 1d (`Sim.Narrative`; design and plan in `docs/plans/2026-11-14-phase-1d-*.md`):
 
 - **Situations.** Each beat becomes a situation: a flat set of facts (the encounter and its tags, the stage, momentum, strain, and the beat's own facts, such as a check's tier and margin) and the people in it by role (`actor`, `helper`, `lead`, `crew`), with their stats as facts (`actor.caution`). `Sim.Core` lists the facts of every beat kind; the loader, the editor, and the mapping in `Sim.Missions` all read that one catalogue. `Sim.Narrative` knows nothing of missions, so vignettes and the chronicle can build situations of their own.
-- **Lines** (`content/lines/`) have a use (the live log or the report), a beat, criteria, and text. A criterion is a value, any of several values, or a range (`actor.caution: { min: 1 }`). The most specific line whose criteria all hold wins; a line already used in the mission loses to an equally specific fresh one; ties break by a stable hash of the legacy seed, the mission, and the beat.
+- **Lines** have a beat, criteria, and text. A criterion is a value, any of several values, or a range (`actor.caution: { min: 1 }`). The most specific line whose criteria all hold wins; a line already used in the mission loses to an equally specific fresh one; ties break by a stable hash of the legacy seed, the mission, and the beat.
+- **Where lines live** (revised after slice 1d, on the author's note that an encounter's narrative belongs in the encounter). There is one pool and one rule of selection, but two places to write. A line about one encounter or one objective is written inside that item: as `text` for its own beats (an encounter's arrival, each approach by tier, a decision's call, notice, and the effects of each choice; an objective's result by outcome), or as an entry in its `lines` for any other beat, with criteria of its own. The item is an implied criterion, so its own words outrank a shared line that tests the same things. The shared lines (`content/lines/`) hold only what belongs to no one item (injuries, the lead, the captain's answers, words keyed to personality) and the general fallbacks.
+- **One sentence, two places.** There is no separate report line. The log and the report show the same sentence for a beat, so lines are written in the past tense, as a ship's log is.
 - **Text**: `#symbol#`, names by role (`#actor#`, `#encounter#`), pronouns (`#actor.they#`, `.them`, `.their`, `.theirs`, `.themself`), a verb after a pronoun (`#actor.they# #actor:checks|check#`), `.capitalize`, and `##` for a `#`. **Symbols** (`content/symbols/`) give one of their options; **pronoun sets** (`content/pronouns/`) ship as she, he, and they, and a crew member names one (they by default).
 - **Never stored, never random.** Text is regenerated on every view from the beats and the current pack, so a grammar edit shows at once, even in old missions. It draws from no RNG stream: the event log is identical with or without lines.
 - **Fallback.** A beat no authored line holds for shows the structural systems line, so a pack with no lines still plays. The loader refuses criteria and text that can never hold for their beat kind.
 - **Tags.** Every log line ends with generated figures for what its beat changed (a check's tier and margin, and its momentum and strain changes, from two members the check beat gained in this slice). Lines never author them, so every line cites what changed (risk 2).
-- **The report** in the aftermath: three to eight sentences from report lines, in order, chosen from the beats that mattered (injuries and deaths, calls, notices, answers, the collapse, and the result always; then failures and lead changes; then stage openers to make three), and each call and notice with its answer.
+- **The report** in the aftermath: three to eight of the log's sentences, in order, chosen from the beats that mattered (injuries and deaths, calls, notices, answers, the collapse, and the result always; then failures and lead changes; then stage openers to make three), and each call and notice with its answer.
 - **Not yet**: encounter variants and assignment contexts as criteria, relationship-aware inserts, species forms, repetition memory across missions, and the expression language as a criterion (slice 1e).
+
+### 6.1 Writing lines
+
+A guide for the author. The rules above say what the engine does; this says how to use it.
+
+**What a line is.** A mission is a string of moments: the team reaches a place, someone attempts something, someone gets hurt, the lead calls in, the mission ends. Each moment is a beat. A line is a sentence written for one kind of beat, with a note on when it fits. Every time the game shows a beat, it looks through the lines, finds the ones that fit, and picks the best.
+
+A line is shown in two places, and written once. **The live log**, which the captain watches as the mission plays, shows a line for every beat. **The aftermath report**, the short account afterwards, repeats the lines of the beats that mattered. Both show the same sentence, so write in the past tense, as a ship's log does: "CREW_02 was lightly injured at ENCOUNTER_03."
+
+**Where to write a line.** Ask what the line is about.
+
+- **About one encounter:** write it in that encounter. The encounter form has a box for the team arriving, a box for each approach at each tier, and boxes for its decision (the lead calling it in, the lead deciding alone, and each choice taking effect). Anything else that happens there (someone killed at this encounter, the lead changing here) goes in the encounter's **Lines of its own**, each with a beat and any further criteria.
+- **About one objective:** write it in that objective, which has a box for each way a mission can end and lines of its own.
+- **About neither:** write it on the Lines page. These are the shared lines: what any encounter falls back on, and what belongs to none of them, such as an injury, the lead taking over, the captain's answer, or a cautious person failing anywhere.
+
+So "CREW_02 was injured" is a shared line, "CREW_02 was gravely injured" is a shared line with the criterion `severity: severe`, and the death that can only happen at ENCOUNTER_07 is written in ENCOUNTER_07. Nothing about an encounter has to be searched for anywhere else.
+
+```yaml
+# encounters/base.yaml
+- id: ENCOUNTER_07
+  tags: [field, hazard]
+  text:
+    arrive: "#lead# brought the team to #encounter#."
+  approaches:
+    careful:
+      skill: SKILL_A
+      difficulty: 5
+      text:
+        success: "#actor# took #encounter# slowly, and it held."
+        disaster: "#actor# took #encounter# slowly, and it gave way under #actor.them#."
+    fast: { skill: SKILL_C, difficulty: 6 }
+  decision:
+    id: DECISION_PROMPT_7
+    stakes: 3
+    bold: [{ progress: 1 }, { injuryRoll: severe }]
+    safe: []
+    text:
+      call: "#lead# called in from #encounter#: #decision#."
+      bold: "The team pressed on through #encounter#."
+  lines:
+    - when: { beat: injury, outcome: dead }
+      text: "#crew# did not come back from #encounter#."
+
+# lines/base.yaml: the shared lines
+- id: LINE_INJURY_LIGHT
+  when: { beat: injury, outcome: lightInjury }
+  text: "#crew# was lightly injured at #encounter#."
+- id: LINE_INJURY_GRAVE
+  when: { beat: injury, severity: severe, outcome: [incapacitated, dead] }
+  text: "#crew# was gravely injured at #encounter#."
+```
+
+**How the game picks a line.** Take a check where CREW_03 attempts a technical skill at a hazardous encounter and fails badly. The game asks two questions. First, which lines are allowed? A line qualifies only if it is for this kind of beat and every one of its criteria is true right now; one false criterion and it is out, and a line with no criteria fits every beat of its kind. Second, of those, which is most specific? The line with the most criteria wins. So with three check lines, one with no criteria, one for failures, and one for failures at hazards, a failure at a hazard gets the third, a failure anywhere else the second, and a success the first. The general lines never change to make room: the specific one simply wins wherever it applies.
+
+Words written inside an encounter or an objective are chosen the same way, and where they sit counts as criteria. A box for the careful approach failing counts as three (this encounter, careful, failure); a line of the encounter's own counts the encounter as one, plus whatever it adds. That is why an encounter's own words beat the shared ones without anyone arranging it. A shared line can still win by being more specific: one that tests four things beats the encounter's box for that check.
+
+Two tie-breakers sit underneath. **Freshness:** between equally specific lines, one not yet used in this mission wins, so five checks do not read the same five times. **A fixed coin toss:** if it is still a tie, the game picks, but always the same way for the same beat, so a reload shows the same words while another mission may get the other line. If no line fits, the log shows the structural line, numbers and all, so nothing is ever blank; the report leaves that beat out.
+
+**Writing criteria.** A criterion is a fact and a value, one row each on the line form. In an item's lines of its own they share one box, as `fact: value` with `;` between them (`outcome: dead; crew.caution: 1..`), and the item itself is never written: it is implied. A value is written one of three ways:
+
+- One value: `failure`.
+- Any of several: `failure, disaster`, true when the fact is either.
+- A range, for numbers: `1..3`, `1..` (one or more), or `..0` (zero or less).
+
+Some facts are lists, such as an encounter's tags, and for those the criterion asks whether the list holds the value: `encounterTags` with `hazard` means the encounter is tagged hazard, and `hazard, social` means it has either. Yes-or-no facts take `true` or `false`.
+
+**The facts to test.** Every beat has the objective and its tags (`objective`, `objectiveTags`), the encounter in play and its tags (`encounter`, `encounterTags`), the `stage` number, the team's `momentum` and `strain`, `commsBlocked`, and the `lead`. Each kind of beat adds its own:
+
+| Beat | When it happens | Its own facts | People |
+|---|---|---|---|
+| stage | The team arrives at a new stage | `slot`, the stage's role, such as approach or extraction | lead |
+| check | Someone attempts something | `approach` (careful or fast), `skill`, `tier` (critical, success, partial, failure, or disaster), `margin`, `helped`, `supervised`, `mentoring` | actor, helper (when there is one), lead |
+| injury | Someone rolls against injury | `severity` (light or severe), `outcome` (unharmed, lightInjury, incapacitated, or dead) | crew, lead |
+| call | The lead asks the captain | `decision`, `stakes` (1 to 5), `prefers` (bold, safe, or withdraw) | lead |
+| notice | The lead decided alone | `decision`, `stakes`, `chose`, `blocked` (comms were down) | lead |
+| answer | The captain replies | `decision`, `answer`, `standing` (backed, overruled, or neutral) | lead |
+| effects | A decision takes effect | `decision`, `chose` (bold, safe, or withdraw), `progress`, `momentumChange`, `strainChange`, `injuryRoll`, `withdraw` | lead |
+| lead | Someone takes over as lead | | crew (the new lead), lead |
+| skip, chain, collapse | A stage is skipped on momentum; a disaster leads to a follow-on encounter; the team collapses | | lead |
+| result | The mission ends | `outcome` (fullSuccess, partialSuccess, incomplete, withdrawal, or loss) | lead |
+
+Every person in a beat also has stats to test: `id`, `caution`, `discipline`, `seniority`, and `isLead`, written as `actor.caution` or `lead.discipline`. That is how lines reflect personality: `actor.caution` with `1..` means the person acting leans cautious, so the line can have them hesitate, while a reckless actor gets a line where they charge in. The form suggests exactly the chosen beat's facts, and the game refuses a fact the beat does not have.
+
+**Writing the text.** The text is an ordinary sentence with placeholders between `#` marks.
+
+- **Names.** `#actor#`, `#helper#`, `#lead#`, and `#crew#` give a person's name; `#encounter#`, `#objective#`, `#skill#`, and `#decision#` give the display name of that thing. Only names the beat has are allowed, so a stage line cannot mention `#actor#`, because no one is acting.
+- **Pronouns.** `#actor.they#`, `#actor.them#`, `#actor.their#`, `#actor.theirs#`, and `#actor.themself#` give that person's pronouns from their set: for someone set to she, `#actor.their# kit` becomes "her kit".
+- **A verb after a pronoun.** "She checks", but "they check". Write `#actor.they# #actor:checks|check#`, singular first, and the game picks. Use it only straight after a pronoun; after a name, write the verb as usual (`#actor# checks`), because a name is always singular.
+- **Capitals.** `.capitalize` on any placeholder raises its first letter, for a pronoun opening a sentence: `#actor.they.capitalize# steadies the line.`
+- **A literal #** is written `##`.
+
+**Symbols: variety without more lines.** A symbol is a named list of options. A symbol `hesitates` with three options drops one of them wherever a line says `#hesitates#`. One check line with two or three symbols reads differently from beat to beat without a dozen near-identical lines. Options may hold placeholders and other symbols. A symbol's id is lower case, because it is typed in text, and its choice follows the same fixed coin toss: varied across beats, steady for any one beat.
+
+**The numbers take care of themselves.** No line needs figures. Every log line ends with small tags for what changed (the check's tier and margin, a momentum or strain change, an injury outcome), and the full roll is one click away under "Roll". Sentences can stay purely narrative.
+
+**What the report uses.** In mission order: always injuries that hurt someone, deaths, calls, notices, the captain's answers, a collapse, critical and disastrous checks, and the result; then failed checks and changes of lead while there is room, up to eight sentences; then arrivals at stages to make at least three. It repeats what the log said for those beats. Plain successes and partials never reach the report.
+
+**A sensible way to work.**
+
+1. Keep the shared lines few. One general line for each beat kind is enough to keep the structural text out of the log, and the placeholder lines do this already; replace their words with yours.
+2. Write each encounter in the encounter. Fill in the boxes that matter (the arrival, the tiers worth telling apart) and leave the rest blank: a blank box falls back to a shared line.
+3. Add a shared line only for something that is true across encounters: a grave injury, a death, a cautious lead calling in over something small.
+4. Use **Preview** on a shared line while writing. It runs the line as typed, before saving, against a set of sample missions on the starting crew, shows it filled in, and says beat by beat whether it wins or which line beats it. An encounter's own words have no preview yet.
+5. Check the **lint** on the Lines page now and then. It lists shared lines that never won in the samples, beats that met no line at all, and which of those the report wanted. The samples are a small fixed set of missions, so a rare situation (a supervised check, a skip on momentum) may never come up, and a line flagged as never chosen may simply be waiting for its moment.
+
+**Worth knowing.**
+
+- Edits are live. A saved line shows on the next page, even in missions already played, because text is rebuilt from the beats on every view.
+- Lines never change what happens. They describe beats; they cannot touch a roll, an injury, or a decision.
+- The game refuses a line that can never work: a fact the beat lacks, a value that cannot occur (an unknown encounter, a misspelt tier), a name the beat does not have, or a symbol that loops back on itself. The reason is shown and nothing is written.
+- The abort call, when strain runs high and the lead asks whether to pull out, is a call with `decision` set to `DECISION_ABORT`. A shared call line with that criterion gives it its own words.
 
 ## 7. Architecture
 
@@ -665,7 +795,7 @@ Each phase ends with something playable, a simulator run, and a short list of wh
 | 1. Thinnest game | 8 crew, 1 skill set, 1 single-cycle assignment template, 2 objective templates, 1 team, 6 encounters, checks with tiers, momentum and strain, 1 decision with the call rule, text report; mission bench (command line, then developer page) with the tuning file and tuning page; morale; 5 vignettes and 2 captain storylets; captain's time; inbox and crew file; chronicle list | A full cycle of both layers in the browser |
 | 2. Growth and loss | Experience, mentoring, injuries, death, memorials, several objectives at some sites, unattended objectives, mandates | The central trade-off exists |
 | 3. Who you send | Personality-driven calls and notices, operational parameters, gear and requisition | Team choice changes what you are asked |
-| 4. Life aboard | Relationships, storylines with `ifIgnored` and waypoints, waypoint conversations, vignette budget, discretionary actions | Ignored problems get worse |
+| 4. Life aboard | Relationships, storylines with `ifIgnored` and progress flags, ready-room talks, vignette budget, discretionary actions | Ignored problems get worse |
 | 5. Roster | Departments, org chart, duty roster, shipboard training, department heads, digest, insight; finer skills grouped by department and attribute, with grades seen through insight | Football Manager's weekday |
 | 6. Careers | Ageing, ranks and promotion, ambitions, poaching, personal and ship renown, Admiralty standing | Rosters turn over |
 | 7. Split teams and long assignments | Two to three missions at once on an interleaved timeline; assignments of several cycles with carried state; transit cycles | One strong team or two thin ones |
@@ -696,7 +826,7 @@ What has been built, slice by slice. A phase is cut into slices when it is plann
 | 1. Thinnest game | Playtest | Three legacies of 20 to 30 cycles against the checklist below | Later |
 | 2. Growth and loss | Not yet cut | Mentoring, memorials, several objectives at some sites, and mandates (experience, injuries, death, and unattended objectives arrived early, in 1c) | Not started |
 | 3. Who you send | Not yet cut | Gear and requisition (personality-driven calls and operational parameters arrived early, in 1a) | Not started |
-| 4. Life aboard | Not yet cut | Relationships, waypoint storylines and conversations, the vignette budget, and discretionary actions | Not started |
+| 4. Life aboard | Not yet cut | Relationships, storylines and ready-room talks, the vignette budget, and discretionary actions | Not started |
 | 5. Roster | Not yet cut | Departments, org chart, duty roster, training, department heads, digest, and insight; finer skills with department and attribute grades | Not started |
 | 6. Careers | Not yet cut | Ageing, ranks and promotion, ambitions, poaching, renown, and Admiralty standing | Not started |
 | 7. Split teams and long assignments | Not yet cut | Several missions at once, assignments of several cycles, and transit | Not started |
@@ -780,7 +910,7 @@ Notes from the author on 2026-11-14, after slice 1c:
 
 18. **Skills.** Basic skills stay for prototyping. Later, skills are finer, each belongs to a department, an attribute, or (usually) both, and the skills under one give a grade that department heads see with varying insight: see 3.10 and 5.6. Built in Phase 5.
 19. **Vignettes may have a choice**, small in scope: see 5.2.
-20. **Narrative structures.** Quality-based, salience-based, and waypoint, each where it fits: see section 5, 5.3, and section 6. Salience arrives first, choosing report lines in slice 1d.
+20. **Narrative structures.** Quality-based and salience-based, each where it fits: see section 5, 5.3, and section 6. Salience arrives first, choosing report lines in slice 1d. Waypoint narrative was a third structure here until v1.13, when the author dropped it: its distance score was a data model nobody had defined, and qualities with salience give storylines and conversations the same behaviour. After 1d the author added: the narrative of an encounter, an objective, or any other storylet is written inside it, and only what belongs to none of them is a shared line; selection is unchanged (section 6, "Where lines live").
 21. **A hybrid model.** Skills and the other Football Manager numbers are proper stats; story state is qualities: see 3.8.
 
 ## 16. Open questions

@@ -54,7 +54,7 @@
             <section class="well" aria-labelledby="h-lint" id="lint">
                 <div class="well__head"><h2 id="h-lint">Lint</h2></div>
                 <div class="well__body">
-                    <p class="hint">From @lint.Samples beats of sample missions on the starting crew. A line a rare situation needs may never show here.</p>
+                    <p class="hint">From @lint.Samples beats of sample missions on the starting crew. A line a rare situation needs may never show here. The text written inside encounters and objectives is counted when it wins, and is not listed here.</p>
                     @if (lint.Clean)
                     {
                         <p class="alert-ok">Every line was chosen, and every beat met a line.</p>
@@ -63,13 +63,13 @@
                     {
                         <p>Never chosen: <span class="m">@string.Join(", ", lint.NeverChosen)</span>. Another line wins wherever these hold, or nothing they need occurs.</p>
                     }
-                    @if (lint.LogWithout.Count > 0)
+                    @if (lint.Without.Count > 0)
                     {
-                        <p>Log beats with no line, which show the systems line: <span class="m">@string.Join(", ", lint.LogWithout)</span>.</p>
+                        <p>Beats that met no line, which show the systems line in the log: <span class="m">@string.Join(", ", lint.Without)</span>.</p>
                     }
                     @if (lint.ReportWithout.Count > 0)
                     {
-                        <p>Beats with no report line, which the report leaves out: <span class="m">@string.Join(", ", lint.ReportWithout)</span>.</p>
+                        <p>Of those, the report wanted and had to leave out: <span class="m">@string.Join(", ", lint.ReportWithout)</span>.</p>
                     }
                 </div>
             </section>

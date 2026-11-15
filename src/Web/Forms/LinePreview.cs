@@ -93,7 +93,6 @@ public sealed record LinePreview(string? Message, IReadOnlyList<PreviewItem> Ite
         }
 
         string beat = values.Get("beat");
-        string use = values.Get("use") is { Length: > 0 } u ? u : "log";
         string text = values.Get("text").Trim();
         if (!NarrativeFacts.Beats.ContainsKey(beat) || text.Length == 0)
         {
@@ -112,7 +111,7 @@ public sealed record LinePreview(string? Message, IReadOnlyList<PreviewItem> Ite
         }
 
         string lineId = id.Length > 0 ? id : "NEW_LINE";
-        var line = new LineDef(lineId, use, beat, criteria, text);
+        var line = new LineDef(lineId, beat, criteria, text);
         List<LineDef> lines = [.. pack.Lines.Where(l => l.Id != lineId), line];
         Dictionary<string, SymbolDef> symbols = pack.Symbols.GroupBy(s => s.Id).ToDictionary(g => g.Key, g => g.First());
         var items = new List<PreviewItem>();
@@ -135,7 +134,7 @@ public sealed record LinePreview(string? Message, IReadOnlyList<PreviewItem> Ite
                 expanded = e.Message;
             }
 
-            LineDef? winner = LineSelector.Select(lines, sample.Situation, use, new HashSet<string>(), sample.Key);
+            LineDef? winner = LineSelector.Select(lines, sample.Situation, new HashSet<string>(), sample.Key);
             items.Add(new PreviewItem(sample.Where, expanded, winner?.Id == lineId, winner?.Id == lineId ? null : winner?.Id));
         }
 

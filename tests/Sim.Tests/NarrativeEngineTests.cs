@@ -30,7 +30,7 @@ public class NarrativeEngineTests
         return new Situation("check", facts, people, new Dictionary<string, string> { ["encounter"] = "PLACE_A", ["skill"] = "SKILL_A_NAME" });
     }
 
-    private static LineDef Line(string id, params CriterionDef[] when) => new(id, "log", "check", when, $"{id}.");
+    private static LineDef Line(string id, params CriterionDef[] when) => new(id, "check", when, $"{id}.");
 
     private static CriterionDef Is(string fact, params string[] values) => new(fact, values);
 
@@ -43,16 +43,16 @@ public class NarrativeEngineTests
     {
         LineDef[] lines = [Line("LINE_GENERIC"), Line("LINE_TIER", Is("tier", "failure")), Line("LINE_TIER_TAG", Is("tier", "failure"), Is("encounterTags", "hazard"))];
 
-        Assert.Equal("LINE_TIER_TAG", LineSelector.Select(lines, Check(), "log", NoneUsed, "k")!.Id);
-        Assert.Equal("LINE_GENERIC", LineSelector.Select(lines, Check(tier: "success"), "log", NoneUsed, "k")!.Id);
+        Assert.Equal("LINE_TIER_TAG", LineSelector.Select(lines, Check(), NoneUsed, "k")!.Id);
+        Assert.Equal("LINE_GENERIC", LineSelector.Select(lines, Check(tier: "success"), NoneUsed, "k")!.Id);
     }
 
     [Fact]
-    public void A_line_of_another_use_or_beat_never_wins()
+    public void A_line_of_another_beat_never_wins()
     {
-        LineDef[] lines = [new("LINE_REPORT", "report", "check", [], "x"), new("LINE_STAGE", "log", "stage", [], "x")];
+        LineDef[] lines = [new("LINE_STAGE", "stage", [], "x")];
 
-        Assert.Null(LineSelector.Select(lines, Check(), "log", NoneUsed, "k"));
+        Assert.Null(LineSelector.Select(lines, Check(), NoneUsed, "k"));
     }
 
     [Theory]
@@ -90,9 +90,9 @@ public class NarrativeEngineTests
     {
         LineDef[] lines = Enumerable.Range(1, 6).Select(i => Line($"LINE_{i}", Is("tier", "failure"))).ToArray();
 
-        HashSet<string> winners = Enumerable.Range(0, 40).Select(k => LineSelector.Select(lines, Check(), "log", NoneUsed, $"key{k}")!.Id).ToHashSet();
+        HashSet<string> winners = Enumerable.Range(0, 40).Select(k => LineSelector.Select(lines, Check(), NoneUsed, $"key{k}")!.Id).ToHashSet();
         Assert.True(winners.Count > 1);
-        Assert.All(Enumerable.Range(0, 5), _ => Assert.Equal(LineSelector.Select(lines, Check(), "log", NoneUsed, "key7")!.Id, LineSelector.Select(lines, Check(), "log", NoneUsed, "key7")!.Id));
+        Assert.All(Enumerable.Range(0, 5), _ => Assert.Equal(LineSelector.Select(lines, Check(), NoneUsed, "key7")!.Id, LineSelector.Select(lines, Check(), NoneUsed, "key7")!.Id));
     }
 
     [Fact]
@@ -100,9 +100,9 @@ public class NarrativeEngineTests
     {
         LineDef[] lines = [Line("LINE_A", Is("tier", "failure")), Line("LINE_B", Is("tier", "failure")), Line("LINE_GENERIC")];
 
-        Assert.Equal("LINE_B", LineSelector.Select(lines, Check(), "log", new HashSet<string> { "LINE_A" }, "k")!.Id);
-        Assert.Equal("LINE_A", LineSelector.Select(lines, Check(), "log", new HashSet<string> { "LINE_B" }, "k")!.Id);
-        Assert.Contains(LineSelector.Select(lines, Check(), "log", new HashSet<string> { "LINE_A", "LINE_B" }, "k")!.Id, new[] { "LINE_A", "LINE_B" });
+        Assert.Equal("LINE_B", LineSelector.Select(lines, Check(), new HashSet<string> { "LINE_A" }, "k")!.Id);
+        Assert.Equal("LINE_A", LineSelector.Select(lines, Check(), new HashSet<string> { "LINE_B" }, "k")!.Id);
+        Assert.Contains(LineSelector.Select(lines, Check(), new HashSet<string> { "LINE_A", "LINE_B" }, "k")!.Id, new[] { "LINE_A", "LINE_B" });
     }
 
     [Fact]
@@ -110,7 +110,7 @@ public class NarrativeEngineTests
     {
         LineDef[] lines = [Line("LINE_B"), Line("LINE_C", Is("tier", "failure")), Line("LINE_A")];
 
-        Assert.Equal(["LINE_C", "LINE_A", "LINE_B"], LineSelector.Candidates(lines, Check(), "log").Select(l => l.Id));
+        Assert.Equal(["LINE_C", "LINE_A", "LINE_B"], LineSelector.Candidates(lines, Check()).Select(l => l.Id));
     }
 
     [Fact]

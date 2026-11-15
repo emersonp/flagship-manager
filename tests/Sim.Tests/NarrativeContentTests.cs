@@ -23,8 +23,8 @@ public class NarrativeContentTests
     {
         ContentPack pack = TestContent.Pack;
 
-        Assert.Contains(pack.Lines, l => l.Id == "LINE_CHECK_HELPED" && l.Beat == "check" && l.Use == "log" && l.When.Single() is { Fact: "helped", Values: ["true"] });
-        Assert.Contains(pack.Lines, l => l.Id == "LINE_REPORT_CHECK_BAD" && l.Use == "report" && l.When.Single().Values.SequenceEqual(new[] { "failure", "disaster" }));
+        Assert.Contains(pack.Lines, l => l.Id == "LINE_CHECK_HELPED" && l.Beat == "check" && l.Owner is null && l.When.Single() is { Fact: "helped", Values: ["true"] });
+        Assert.Contains(pack.Lines, l => l.Id == "LINE_CHECK_BAD" && l.When.Single().Values.SequenceEqual(new[] { "failure", "disaster" }));
         Assert.Equal(["she", "he", "they"], pack.Pronouns.Select(p => p.Id));
         Assert.Equal(PronounSet.They with { }, pack.PronounsOf(null) with { });
     }
@@ -77,11 +77,95 @@ public class NarrativeContentTests
     }
 
     [Fact]
-    public void A_line_of_an_unknown_use_is_refused()
+    public void A_line_that_still_names_a_use_is_refused_in_words()
     {
-        ContentLoadResult result = LoadWith("lines/test.yaml", OneLine("{ beat: check }", extra: "  use: diary\n"));
+        ContentLoadResult result = LoadWith("lines/test.yaml", OneLine("{ beat: check }", extra: "  use: report\n"));
 
-        Assert.Contains(result.Errors, e => e.Message.Contains("use must be one of log, report", StringComparison.Ordinal));
+        Assert.Contains(result.Errors, e => e.Message.Contains("use is no longer read: one line serves both the log and the report", StringComparison.Ordinal));
+    }
+
+    private const string Encounter1 = "- id: ENCOUNTER_01\n  tags: [field, hazard]\n  chain: ENCOUNTER_CHAIN\n";
+
+    private static ContentLoadResult LoadEncounter1(string body)
+    {
+        Dictionary<string, string> files = TestContent.RepoFiles();
+        int start = files["encounters/base.yaml"].IndexOf("- id: ENCOUNTER_01\n", StringComparison.Ordinal);
+        int end = files["encounters/base.yaml"].IndexOf("- id: ENCOUNTER_02\n", StringComparison.Ordinal);
+        files["encounters/base.yaml"] = files["encounters/base.yaml"][..start] + Encounter1 + body + files["encounters/base.yaml"][end..];
+        return ContentLoader.Load(files);
+    }
+
+    // An encounter's own words become lines whose criteria are where they sit, so they outrank the shared lines for their beats.
+    [Fact]
+    public void An_encounters_own_text_becomes_lines_for_its_beats()
+    {
+        ContentLoadResult result = LoadEncounter1(
+            "  text:\n    arrive: \"#lead# reached #encounter#.\"\n"
+            + "  approaches:\n    careful:\n      skill: SKILL_A\n      difficulty: 5\n      text:\n        failure: \"#actor# slipped, and #actor.they# #actor:knows|know# it.\"\n    fast: { skill: SKILL_C, difficulty: 6 }\n"
+            + "  decision:\n    id: DECISION_PROMPT_1\n    stakes: 1\n    bold: [{ momentum: 1 }]\n    safe: []\n    text:\n      call: \"#lead# asked about #decision#.\"\n      notice: \"#lead# settled #decision#.\"\n      bold: The bold choice held.\n      safe: The safe choice held.\n");
+
+        Assert.Empty(result.Errors);
+        List<LineDef> owned = result.Pack!.Lines.Where(l => l.Owner == "ENCOUNTER_01").ToList();
+        Assert.Equal(
+            ["ENCOUNTER_01.arrive", "ENCOUNTER_01.careful.failure", "ENCOUNTER_01.decision.call", "ENCOUNTER_01.decision.notice", "ENCOUNTER_01.decision.bold", "ENCOUNTER_01.decision.safe"],
+            owned.Select(l => l.Id));
+        Assert.Equal(["stage", "check", "call", "notice", "effects", "effects"], owned.Select(l => l.Beat));
+        Assert.Equal(["encounter=ENCOUNTER_01", "approach=careful", "tier=failure"], owned[1].When.Select(c => $"{c.Fact}={c.Values.Single()}"));
+        Assert.Equal(["decision=DECISION_PROMPT_1", "chose=bold"], owned[4].When.Select(c => $"{c.Fact}={c.Values.Single()}"));
+        Assert.Equal(4, owned[1].Specificity);
+    }
+
+    // A line written inside an encounter is an ordinary line for any beat, with the encounter as one more criterion.
+    [Fact]
+    public void A_line_written_inside_an_encounter_holds_only_there_and_outranks_the_shared_one()
+    {
+        ContentLoadResult result = LoadEncounter1(
+            "  approaches:\n    careful: { skill: SKILL_A, difficulty: 5 }\n    fast: { skill: SKILL_C, difficulty: 6 }\n"
+            + "  lines:\n    - when: { beat: injury, outcome: dead }\n      text: \"#crew# was run through at #encounter#.\"\n");
+
+        Assert.Empty(result.Errors);
+        LineDef line = result.Pack!.Lines.Single(l => l.Owner == "ENCOUNTER_01");
+        Assert.Equal(("ENCOUNTER_01.lines[1]", "injury"), (line.Id, line.Beat));
+        Assert.Equal(["encounter=ENCOUNTER_01", "outcome=dead"], line.When.Select(c => $"{c.Fact}={c.Values.Single()}"));
+        Assert.True(line.Specificity > result.Pack.Lines.Single(l => l.Id == "LINE_INJURY_DEAD").Specificity);
+    }
+
+    [Theory]
+    [InlineData("    - when: { beat: injury, encounter: ENCOUNTER_02 }\n      text: x\n", "ENCOUNTER_01: lines[1]: encounter is already ENCOUNTER_01, because the line is written inside it.")]
+    [InlineData("    - when: { beat: injury, tier: failure }\n      text: x\n", "ENCOUNTER_01: lines[1]: a injury beat has no fact 'tier'.")]
+    [InlineData("    - id: LINE_X\n      when: { beat: injury }\n      text: x\n", "ENCOUNTER_01: lines[1]: a line written inside an item takes no id or name.")]
+    public void A_line_inside_an_encounter_that_can_never_work_is_refused(string lines, string message)
+    {
+        ContentLoadResult result = LoadEncounter1("  approaches:\n    careful: { skill: SKILL_A, difficulty: 5 }\n    fast: { skill: SKILL_C, difficulty: 6 }\n  lines:\n" + lines);
+
+        Assert.Contains(result.Errors, e => e.File == "encounters/base.yaml" && e.Message.StartsWith(message, StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void An_objectives_own_text_becomes_a_line_for_its_result()
+    {
+        Dictionary<string, string> files = TestContent.RepoFiles();
+        files["objectives/base.yaml"] = files["objectives/base.yaml"].Replace("- id: OBJECTIVE_TEMPLATE_1\n", "- id: OBJECTIVE_TEMPLATE_1\n  text:\n    loss: \"#lead# brought no one home from #objective#.\"\n", StringComparison.Ordinal);
+
+        ContentLoadResult result = ContentLoader.Load(files);
+
+        Assert.Empty(result.Errors);
+        LineDef line = result.Pack!.Lines.Single(l => l.Owner == "OBJECTIVE_TEMPLATE_1");
+        Assert.Equal(("OBJECTIVE_TEMPLATE_1.loss", "result"), (line.Id, line.Beat));
+        Assert.Equal(["objective=OBJECTIVE_TEMPLATE_1", "outcome=loss"], line.When.Select(c => $"{c.Fact}={c.Values.Single()}"));
+    }
+
+    [Theory]
+    [InlineData("  text:\n    leave: x\n  approaches:\n    careful: { skill: SKILL_A, difficulty: 5 }\n    fast: { skill: SKILL_C, difficulty: 6 }\n", "ENCOUNTER_01: text.leave is not a text this can have; it must be one of arrive.")]
+    [InlineData("  text:\n    arrive: \"#actor# arrived.\"\n  approaches:\n    careful: { skill: SKILL_A, difficulty: 5 }\n    fast: { skill: SKILL_C, difficulty: 6 }\n", "ENCOUNTER_01: text.arrive cannot be used: #actor# names 'actor', which a stage beat does not have.")]
+    [InlineData("  approaches:\n    careful:\n      skill: SKILL_A\n      difficulty: 5\n      text:\n        fine: x\n    fast: { skill: SKILL_C, difficulty: 6 }\n", "ENCOUNTER_01: careful.text.fine is not a text this can have; it must be one of critical, success, partial, failure, disaster.")]
+    [InlineData("  approaches:\n    careful: { skill: SKILL_A, difficulty: 5 }\n    fast:\n      skill: SKILL_C\n      difficulty: 6\n      text:\n        failure: \"\"\n", "ENCOUNTER_01: fast.text.failure must not be empty.")]
+    [InlineData("  approaches:\n    careful: { skill: SKILL_A, difficulty: 5 }\n    fast: { skill: SKILL_C, difficulty: 6 }\n  decision:\n    id: DECISION_PROMPT_1\n    stakes: 1\n    bold: []\n    safe: []\n    text:\n      bold: \"An open # mark.\"\n", "ENCOUNTER_01: decision.text.bold cannot be read: A # at character 9 is never closed.")]
+    public void Own_text_that_can_never_work_is_refused_where_it_sits(string body, string message)
+    {
+        ContentLoadResult result = LoadEncounter1(body);
+
+        Assert.Contains(result.Errors, e => e.File == "encounters/base.yaml" && e.Message.StartsWith(message, StringComparison.Ordinal));
     }
 
     [Fact]

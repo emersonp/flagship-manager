@@ -36,6 +36,10 @@ public sealed record AssignmentModel(string Id, string? Name, IReadOnlyList<stri
 
 public sealed record StageModel(string Slot, IReadOnlyList<string> DrawTags, int CountMin, int CountMax, bool Skippable);
 
+// A line written inside an encounter or an objective: the same as a line of lines/, with no id, holding only for that item.
+public sealed record OwnLineModel(string Beat, IReadOnlyList<CriterionModel> When, string Text);
+
+// Text, here and on an encounter, an approach, and a decision, is the item's own words by key (NarrativeFacts lists the keys), as written.
 public sealed record ObjectiveModel(
     string Id,
     string? Name,
@@ -44,14 +48,16 @@ public sealed record ObjectiveModel(
     int TeamSizeMax,
     int Need,
     int? UnattendedDifficulty,
-    IReadOnlyList<StageModel> Stages) : IContentModel;
+    IReadOnlyList<StageModel> Stages,
+    IReadOnlyDictionary<string, string>? Text = null,
+    IReadOnlyList<OwnLineModel>? Lines = null) : IContentModel;
 
-public sealed record ApproachModel(string Skill, int Difficulty, string? GearTag);
+public sealed record ApproachModel(string Skill, int Difficulty, string? GearTag, IReadOnlyDictionary<string, string>? Text = null);
 
 // One entry of a bold or safe list. The loader adds the entries together, so the list's order and split are kept as written.
 public sealed record EffectModel(int? Progress, int? Momentum, int? Strain, string? InjuryRoll, bool Withdraw = false);
 
-public sealed record DecisionModel(string Id, string? Name, int Stakes, IReadOnlyList<EffectModel> Bold, IReadOnlyList<EffectModel> Safe);
+public sealed record DecisionModel(string Id, string? Name, int Stakes, IReadOnlyList<EffectModel> Bold, IReadOnlyList<EffectModel> Safe, IReadOnlyDictionary<string, string>? Text = null);
 
 // One criterion as written: a value, a list of values, or a range. Values keep the text as written; IsList keeps [a] apart from a.
 public sealed record CriterionModel(string Fact, IReadOnlyList<string> Values, bool IsList = false, int? Min = null, int? Max = null)
@@ -59,8 +65,8 @@ public sealed record CriterionModel(string Fact, IReadOnlyList<string> Values, b
     public bool IsRange => Min is not null || Max is not null;
 }
 
-// Beat is written inside when, first; Use is absent (log) unless it is written.
-public sealed record LineModel(string Id, string? Name, string? Use, string Beat, IReadOnlyList<CriterionModel> When, string Text) : IContentModel;
+// Beat is written inside when, first.
+public sealed record LineModel(string Id, string? Name, string Beat, IReadOnlyList<CriterionModel> When, string Text) : IContentModel;
 
 public sealed record SymbolModel(string Id, string? Name, IReadOnlyList<string> Options) : IContentModel;
 
@@ -74,4 +80,6 @@ public sealed record EncounterModel(
     string? Chain,
     ApproachModel Careful,
     ApproachModel Fast,
-    DecisionModel? Decision) : IContentModel;
+    DecisionModel? Decision,
+    IReadOnlyDictionary<string, string>? Text = null,
+    IReadOnlyList<OwnLineModel>? Lines = null) : IContentModel;

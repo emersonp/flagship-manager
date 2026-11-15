@@ -7,11 +7,11 @@ namespace Sim.Narrative;
 // Salience selection (GDD section 6): of the lines whose criteria all hold, the one with the most criteria wins.
 public static class LineSelector
 {
-    // Every line of this use that holds for the situation, most specific first, then by id.
-    public static IReadOnlyList<LineDef> Candidates(IReadOnlyList<LineDef> lines, Situation situation, string use)
+    // Every line that holds for the situation, most specific first, then by id.
+    public static IReadOnlyList<LineDef> Candidates(IReadOnlyList<LineDef> lines, Situation situation)
     {
         return lines
-            .Where(l => l.Use == use && l.Beat == situation.Beat && l.When.All(c => Holds(c, situation)))
+            .Where(l => l.Beat == situation.Beat && l.When.All(c => Holds(c, situation)))
             .OrderByDescending(l => l.Specificity)
             .ThenBy(l => l.Id, StringComparer.Ordinal)
             .ToList();
@@ -19,9 +19,9 @@ public static class LineSelector
 
     // The winner, or null when nothing holds. Among the most specific, a line not yet used in this text wins over one that was;
     // the rest is a tie, broken by the seed key, so the same situation always gets the same line.
-    public static LineDef? Select(IReadOnlyList<LineDef> lines, Situation situation, string use, IReadOnlySet<string> used, string seedKey)
+    public static LineDef? Select(IReadOnlyList<LineDef> lines, Situation situation, IReadOnlySet<string> used, string seedKey)
     {
-        IReadOnlyList<LineDef> candidates = Candidates(lines, situation, use);
+        IReadOnlyList<LineDef> candidates = Candidates(lines, situation);
         if (candidates.Count == 0)
         {
             return null;

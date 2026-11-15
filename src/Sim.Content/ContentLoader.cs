@@ -108,7 +108,8 @@ public static partial class ContentLoader
         List<GearDef> gearDefs = BuildGear(gear, errors);
         List<AssignmentDef> assignmentDefs = BuildAssignments(assignments, objectives.Select(o => o.Dto).ToList(), errors);
         List<SymbolDef> symbolDefs = BuildSymbols(symbols, errors);
-        List<LineDef> lineDefs = BuildLines(lines, symbolDefs, skills, encounterDefs, objectiveDefs, errors);
+        List<LineDef> lineDefs = BuildLines(lines, encounters, objectives, symbolDefs, skills, encounterDefs, objectiveDefs, errors);
+        lineDefs.AddRange(BuildOwnedLines(encounters, objectives, symbolDefs, errors));
 
         ContentPack? pack = errors.Count == 0
             ? new ContentPack(manifest!.Id!, manifest.Version, skills, encounterDefs, objectiveDefs, tuning!, bench!, crewDefs, gearDefs, assignmentDefs, crewTuning!)

@@ -237,6 +237,10 @@ public static partial class ContentLoader
         public ApproachesDto? Approaches { get; set; }
 
         public DecisionDto? Decision { get; set; }
+
+        public Dictionary<string, string?>? Text { get; set; }
+
+        public List<LineDto?>? Lines { get; set; }
     }
 
     private sealed class ApproachesDto
@@ -253,6 +257,8 @@ public static partial class ContentLoader
         public int Difficulty { get; set; }
 
         public string? GearTag { get; set; }
+
+        public Dictionary<string, string?>? Text { get; set; }
     }
 
     private sealed class DecisionDto
@@ -266,6 +272,8 @@ public static partial class ContentLoader
         public List<Dictionary<string, string>?>? Bold { get; set; }
 
         public List<Dictionary<string, string>?>? Safe { get; set; }
+
+        public Dictionary<string, string?>? Text { get; set; }
     }
 
     private sealed class ObjectiveDto
@@ -283,6 +291,10 @@ public static partial class ContentLoader
         public List<StageDto?>? Stages { get; set; }
 
         public UnattendedDto? IfUnattended { get; set; }
+
+        public Dictionary<string, string?>? Text { get; set; }
+
+        public List<LineDto?>? Lines { get; set; }
     }
 
     private sealed class UnattendedDto

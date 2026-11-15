@@ -5,7 +5,7 @@ using Sim.Core.Narrative;
 
 namespace Web.Forms;
 
-// A line: its use, beat, criteria (fact and value as text), and text (slice 1d). The loader judges values against the pack.
+// A line: its beat, criteria (fact and value as text), and text (slice 1d). The loader judges values against the pack.
 internal sealed partial class LineKind : KindForm
 {
     public static readonly RowSet When = new("when", ["fact", "value"], Noun: "criterion");
@@ -26,7 +26,7 @@ internal sealed partial class LineKind : KindForm
             return null;
         }
 
-        var fields = new List<KeyValuePair<string, string>> { new("name", Name(line.Name)), new("use", line.Use ?? "log"), new("beat", line.Beat), new("text", line.Text) };
+        var fields = new List<KeyValuePair<string, string>> { new("name", Name(line.Name)), new("beat", line.Beat), new("text", line.Text) };
         for (int i = 0; i < line.When.Count; i++)
         {
             fields.Add(new(When.Name(i, "fact"), line.When[i].Fact));
@@ -38,19 +38,13 @@ internal sealed partial class LineKind : KindForm
 
     public override FormValues Blank(FormChoices choices)
     {
-        return new FormValues([new("name", ""), new("use", "log"), new("beat", ""), new("text", "")]);
+        return new FormValues([new("name", ""), new("beat", ""), new("text", "")]);
     }
 
     public override Bound Bind(string id, FormValues values, FormChoices choices)
     {
         var errors = new Dictionary<string, string>();
         string? name = Checks.Name(values, errors);
-        string use = values.Get("use");
-        if (!NarrativeFacts.Uses.Contains(use))
-        {
-            errors["use"] = "Choose where the line is used.";
-        }
-
         string beat = values.Get("beat");
         if (!NarrativeFacts.Beats.ContainsKey(beat))
         {
@@ -102,17 +96,7 @@ internal sealed partial class LineKind : KindForm
             }
         }
 
-        if (errors.Count > 0)
-        {
-            return new Bound(null, errors);
-        }
-
-        return new Bound(files =>
-        {
-            // An explicit "use: log" stays as written; an absent one stays absent.
-            string? storedUse = ContentEdits.Get<LineModel>(files, Kind, id)?.Use;
-            return new LineModel(id, name, use == "log" && storedUse is null ? null : use, beat, criteria, text);
-        }, errors);
+        return new Bound(errors.Count > 0 ? null : _ => new LineModel(id, name, beat, criteria, text), errors);
     }
 
     // a | a, b | 1..3 | 1.. | ..3

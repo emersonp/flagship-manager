@@ -103,26 +103,20 @@ internal static class ContentReader
                     stages.Add(new StageModel(Str(Get(s, "slot")) ?? "", Strings(Get(Map(Get(s, "draw")), "tags")), countMin, countMax, YamlBool(Str(Get(s, "skippable")))));
                 }
 
-                return new ObjectiveModel(id, name, Strings(Get(m, "tags")), teamMin, teamMax, Int(Get(m, "need")) ?? 0, Int(Get(Map(Get(m, "ifUnattended")), "difficulty")), stages);
+                return new ObjectiveModel(id, name, Strings(Get(m, "tags")), teamMin, teamMax, Int(Get(m, "need")) ?? 0, Int(Get(Map(Get(m, "ifUnattended")), "difficulty")), stages, Texts(Get(m, "text")), OwnLines(Get(m, "lines")));
             case ContentKind.Encounter:
                 Dictionary<string, YamlNode> approaches = Map(Get(m, "approaches"));
                 DecisionModel? decision = null;
                 if (Get(m, "decision") is YamlMappingNode d)
                 {
                     Dictionary<string, YamlNode> dm = Map(d);
-                    decision = new DecisionModel(Str(Get(dm, "id")) ?? "", Str(Get(dm, "name")), Int(Get(dm, "stakes")) ?? 0, Effects(Get(dm, "bold")), Effects(Get(dm, "safe")));
+                    decision = new DecisionModel(Str(Get(dm, "id")) ?? "", Str(Get(dm, "name")), Int(Get(dm, "stakes")) ?? 0, Effects(Get(dm, "bold")), Effects(Get(dm, "safe")), Texts(Get(dm, "text")));
                 }
 
-                return new EncounterModel(id, name, Strings(Get(m, "tags")), YamlBool(Str(Get(m, "commsBlocked"))), Str(Get(m, "chain")), Approach(Get(approaches, "careful")), Approach(Get(approaches, "fast")), decision);
+                return new EncounterModel(id, name, Strings(Get(m, "tags")), YamlBool(Str(Get(m, "commsBlocked"))), Str(Get(m, "chain")), Approach(Get(approaches, "careful")), Approach(Get(approaches, "fast")), decision, Texts(Get(m, "text")), OwnLines(Get(m, "lines")));
             case ContentKind.Line:
-                Dictionary<string, YamlNode> when = Map(Get(m, "when"));
-                var criteria = new List<CriterionModel>();
-                foreach ((string fact, YamlNode value) in when.Where(w => w.Key != "beat"))
-                {
-                    criteria.Add(Criterion(fact, value));
-                }
-
-                return new LineModel(id, name, Str(Get(m, "use")), Str(Get(when, "beat")) ?? "", criteria, Str(Get(m, "text")) ?? "");
+                OwnLineModel line = OwnLine(m);
+                return new LineModel(id, name, line.Beat, line.When, line.Text);
             case ContentKind.Symbol:
                 return new SymbolModel(id, name, Sequence(Get(m, "options")).Select(o => Str(o) ?? "").ToList());
             case ContentKind.Pronoun:
@@ -130,6 +124,19 @@ internal static class ContentReader
             default:
                 return null;
         }
+    }
+
+    private static OwnLineModel OwnLine(Dictionary<string, YamlNode> m)
+    {
+        Dictionary<string, YamlNode> when = Map(Get(m, "when"));
+        return new OwnLineModel(Str(Get(when, "beat")) ?? "", when.Where(w => w.Key != "beat").Select(w => Criterion(w.Key, w.Value)).ToList(), Str(Get(m, "text")) ?? "");
+    }
+
+    // The lines written inside an item, or null when it has none.
+    private static List<OwnLineModel>? OwnLines(YamlNode? node)
+    {
+        List<OwnLineModel> lines = Sequence(node).Select(n => OwnLine(Map(n))).ToList();
+        return lines.Count == 0 ? null : lines;
     }
 
     private static CriterionModel Criterion(string fact, YamlNode value)
@@ -151,7 +158,22 @@ internal static class ContentReader
     private static ApproachModel Approach(YamlNode? node)
     {
         Dictionary<string, YamlNode> a = Map(node);
-        return new ApproachModel(Str(Get(a, "skill")) ?? "", Int(Get(a, "difficulty")) ?? 0, Str(Get(a, "gearTag")));
+        return new ApproachModel(Str(Get(a, "skill")) ?? "", Int(Get(a, "difficulty")) ?? 0, Str(Get(a, "gearTag")), Texts(Get(a, "text")));
+    }
+
+    // An item's own words by key, or null when it has none. A key with no value is not kept.
+    private static Dictionary<string, string>? Texts(YamlNode? node)
+    {
+        var texts = new Dictionary<string, string>();
+        foreach ((string key, YamlNode value) in Map(node))
+        {
+            if (Str(value) is { } text)
+            {
+                texts[key] = text;
+            }
+        }
+
+        return texts.Count == 0 ? null : texts;
     }
 
     private static List<EffectModel> Effects(YamlNode? node)

@@ -48,7 +48,7 @@ public sealed class ContentMissionFormsTests(RepoContentGuard guard) : IClassFix
         return string.Join("&", Fields(fields).Where(f => !f.Key.StartsWith(prefix, StringComparison.Ordinal)).Select(f => $"{Uri.EscapeDataString(f.Key)}={Uri.EscapeDataString(f.Value)}"));
     }
 
-    // Every named field a browser would post from the item form: text and hidden inputs, ticked boxes, and the chosen option.
+    // Every named field a browser would post from the item form: text and hidden inputs, ticked boxes, the chosen option, and text areas.
     private static string FormFields(string body)
     {
         string form = Regex.Match(body, "<form id=\"item-form\".*?</form>", RegexOptions.Singleline).Value;
@@ -71,6 +71,11 @@ public sealed class ContentMissionFormsTests(RepoContentGuard guard) : IClassFix
         {
             Match chosen = Regex.Match(select.Groups[2].Value, "<option\\b[^>]*\\bvalue=\"([^\"]*)\"[^>]*\\bselected\\b");
             fields.Add($"{Uri.EscapeDataString(select.Groups[1].Value)}={Uri.EscapeDataString(WebUtility.HtmlDecode(chosen.Groups[1].Value))}");
+        }
+
+        foreach (Match area in Regex.Matches(form, "<textarea\\b[^>]*\\bname=\"([^\"]*)\"[^>]*>(.*?)</textarea>", RegexOptions.Singleline))
+        {
+            fields.Add($"{Uri.EscapeDataString(WebUtility.HtmlDecode(area.Groups[1].Value))}={Uri.EscapeDataString(WebUtility.HtmlDecode(area.Groups[2].Value))}");
         }
 
         return string.Join("&", fields);
@@ -213,6 +218,46 @@ public sealed class ContentMissionFormsTests(RepoContentGuard guard) : IClassFix
         Assert.Equal(HttpStatusCode.OK, status);
         Assert.Equal(before, PackJson(app));
         Assert.Contains("bold: [{ momentum: 1, strain: 2 }, { withdraw: true }, { progress: 1 }, { progress: 2 }]", Disk(app, "encounters/base.yaml"));
+    }
+
+    // The encounter's words are written inside it, in the file, and open again in the form as they were saved.
+    [Fact]
+    public async Task An_encounters_words_and_lines_are_saved_inside_it_and_survive_a_second_save()
+    {
+        using TestApp app = NewApp();
+        HttpClient client = app.NewClient();
+        string words = "text.arrive=#lead# reached #encounter#.&careful.text.failure=#actor# slipped.&decision.text.bold=The bold choice held."
+            + "&lines[0].beat=injury&lines[0].when=outcome: dead; crew.caution: 1..&lines[0].text=#crew# was run through at #encounter#.";
+
+        (HttpStatusCode status, string saved) = await Post(client, "/dev/content/encounters/ENCOUNTER_01", Merge(Encounter1, words));
+
+        Assert.Equal(HttpStatusCode.OK, status);
+        string disk = Disk(app, "encounters/base.yaml");
+        Assert.Contains("  text:\n    arrive: \"#lead# reached #encounter#.\"\n  approaches:\n    careful:\n      skill: SKILL_A\n      difficulty: 5\n      gearTag: scanner\n      text:\n        failure: \"#actor# slipped.\"\n    fast: { skill: SKILL_C, difficulty: 6 }\n", disk, StringComparison.Ordinal);
+        Assert.Contains("    text:\n      bold: The bold choice held.\n  lines:\n    - when: { beat: injury, outcome: dead, crew.caution: { min: 1 } }\n      text: \"#crew# was run through at #encounter#.\"\n", disk, StringComparison.Ordinal);
+        Assert.Equal(
+            ["ENCOUNTER_01.lines[1]", "ENCOUNTER_01.arrive", "ENCOUNTER_01.careful.failure", "ENCOUNTER_01.decision.bold"],
+            app.Live.Pack.Lines.Where(l => l.Owner == "ENCOUNTER_01").Select(l => l.Id));
+
+        (_, string body) = await Get(client, "/dev/content/encounters/ENCOUNTER_01");
+        (HttpStatusCode again, _) = await Post(client, "/dev/content/encounters/ENCOUNTER_01", FormFields(body));
+
+        Assert.Equal(HttpStatusCode.OK, again);
+        Assert.Equal(disk, Disk(app, "encounters/base.yaml"));
+        guard.Verify();
+    }
+
+    [Fact]
+    public async Task A_line_inside_an_encounter_that_tests_the_encounter_again_is_refused_beside_its_row()
+    {
+        using TestApp app = NewApp();
+        string before = Everything(app);
+
+        (HttpStatusCode status, string body) = await Post(app.NewClient(), "/dev/content/encounters/ENCOUNTER_01", Merge(Encounter1, "lines[0].beat=injury&lines[0].when=encounter: ENCOUNTER_02&lines[0].text=x"));
+
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, status);
+        Assert.Contains("The line already holds only for this encounter.", body, StringComparison.Ordinal);
+        Assert.Equal(before, Everything(app));
     }
 
     // --- Saving, creating, deleting ---

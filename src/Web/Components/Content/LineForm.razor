@@ -2,7 +2,6 @@
 @using Web.Forms
 <FormShell View="View">
     <div class="field-grid">
-        <Field Name="use" Label="Used in" Value="@View.Values.Get("use")" Options="@NarrativeFacts.Uses" Labels="@UseLabels" Hint="The live log, or the aftermath report." Error="@View.Error("use")" Required="true" Narrow="true" />
         <Field Name="beat" Label="Beat" Value="@Beat" Options="@NarrativeFacts.Kinds" Hint="Which beats the line is for." Error="@View.Error("beat")" Required="true" Narrow="true" />
     </div>
     <RowTable View="View" Set="Criteria" Headers="@(["Fact", "Value"])" Title="Criteria" Numeric="false" FirstSuggestions="@Facts" AddLabel="Add a criterion" Hint="@CriteriaHint" />
@@ -48,8 +47,6 @@
     [Parameter, EditorRequired] public ItemFormView View { get; set; } = null!;
 
     private static RowSet Criteria => LineKind.When;
-
-    private static readonly IReadOnlyDictionary<string, string> UseLabels = new Dictionary<string, string> { ["log"] = "Live log", ["report"] = "Aftermath report" };
 
     private string Beat => View.Values.Get("beat");
 

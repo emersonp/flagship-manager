@@ -45,25 +45,25 @@ public sealed class Prose
         situations = BeatSituations.Of(beats.Select(b => b.Beat).ToList(), frame);
     }
 
-    // The live log's prose, one per beat in order. A line used earlier in the mission loses to an equally specific fresh one.
+    // The mission's prose, one per beat in order; the live log shows all of it and the report a chosen part. A line used earlier in the mission loses to an equally specific fresh one.
     public IReadOnlyList<BeatProse> Log(Func<int, IReadOnlyList<LinePart>> systems)
     {
         var used = new HashSet<string>(StringComparer.Ordinal);
         var prose = new List<BeatProse>();
         for (int i = 0; i < beats.Count; i++)
         {
-            prose.Add(Render(i, "log", used) ?? new BeatProse(systems(i), false, null));
+            prose.Add(Render(i, used) ?? new BeatProse(systems(i), false, null));
         }
 
         return prose;
     }
 
     // The prose for one beat, or null when no authored line holds or its text cannot be expanded.
-    public BeatProse? Render(int position, string use, HashSet<string> used)
+    public BeatProse? Render(int position, HashSet<string> used)
     {
         Situation situation = situations[position];
-        string key = string.Create(CultureInfo.InvariantCulture, $"{seed}|{missionId}|{beats[position].Index}|{use}");
-        LineDef? line = LineSelector.Select(pack.Lines, situation, use, used, key);
+        string key = string.Create(CultureInfo.InvariantCulture, $"{seed}|{missionId}|{beats[position].Index}");
+        LineDef? line = LineSelector.Select(pack.Lines, situation, used, key);
         if (line is null)
         {
             return null;

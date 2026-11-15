@@ -42,7 +42,7 @@ public static class BridgeReader
             showSite ? new SiteView(site!.AssignmentId, objectives, names.Assignment(site.AssignmentId)) : null,
             showBriefing ? Briefing(pack, names, site!, objectives, roster) : null,
             mission,
-            showAftermath ? Aftermath(site!, state, cycleEvents, names) with { Report = prose is null ? null : Report.Build(beats, prose, names) } : null);
+            showAftermath ? Aftermath(site!, state, cycleEvents, names) with { Report = prose is null ? null : Report.Build(beats, prose.Log(_ => []), names) } : null);
     }
 
     // Rows in view that share a shown name also show their ids; a row shown by its id never repeats it.

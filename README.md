@@ -23,7 +23,7 @@ A starship captain management sim, played in the browser, with a headless simula
 `./run.sh` turns developer mode on, which adds a content editor at `/dev/content` (`http://127.0.0.1:5080/dev/content` by default). Developer mode is off unless a run turns it on, and with it off the editor does not exist.
 
 - The editor has a form for each kind of content, and text pages for `pack.yaml` and the two tuning files.
-- Lines are what the mission log and the aftermath report say. Each has a beat, criteria, and text; the most specific line whose criteria hold wins. The line form previews the line against sample missions, and the lines page lints them. Symbols give a line varied words, and pronoun sets give crew their pronouns.
+- Lines are what the mission log and the aftermath report say. Each has a beat, criteria, and text; the most specific line whose criteria hold wins. An encounter's or an objective's own words are written inside it, in its form; the Lines page holds the shared lines, which belong to no one encounter. The line form previews a shared line against sample missions, and the lines page lints them. Symbols give a line varied words, and pronoun sets give crew their pronouns.
 - A save is checked as a whole pack first. If it would break the pack, it is refused with the reasons and nothing is written.
 - A saved edit is live at once, with no restart.
 - Names and gear reach games in progress. A legacy's crew keep the levels they started with; a change to a crew member's levels applies to new legacies.
