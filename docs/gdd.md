@@ -830,6 +830,8 @@ Each phase ends with something playable, a simulator run, and a short list of wh
 | 8. Succession | Hull loss and succession, captain succession and pool, chronicle screen | A legacy survives its first disaster |
 | 9. Scale | Larger hulls up to roughly 500, salience tuning, casting performance | Management by exception |
 | 10. Families | Relatives of crew (siblings, cousins, and proteges) can arrive at any time; children join the fleet after real ageing | Names recur in the chronicle |
+| Unplaced: skills, attributes, and gear overhaul | A fuller skill list with attributes, and gear reworked to match. Risk tolerance, removed from the operational parameters in the 1d review, returns with it. Not yet designed, and not yet given a phase | Not yet known |
+| Unplaced: a shared library of approaches | Approaches defined once and used by many encounters, while an encounter can still write one of its own. The author will design this; not enough is known yet | Not yet known |
 | Track: online | Accounts, hosted Postgres, one legacy per player | Play from anywhere |
 | Track: portraits | Paper-doll spec, compositor, first part set | Faces in crew files |
 | Later | Dry dock, diplomacy, tactical grid, shared universe | |
@@ -862,6 +864,8 @@ What has been built, slice by slice. A phase is cut into slices when it is plann
 | 8. Succession | Not yet cut | Hull loss and succession, captain succession, and the chronicle screen | Not started |
 | 9. Scale | Not yet cut | Larger hulls, salience tuning, and casting performance | Not started |
 | 10. Families | Not yet cut | Relatives and children of crew | Not started |
+| Unplaced | Skills, attributes, and gear overhaul | A fuller skill list with attributes, gear reworked to match, and the return of risk tolerance | Not yet designed |
+| Unplaced | A shared library of approaches | Approaches shared between encounters, beside an encounter's own | Not yet designed; the author's to design |
 | Track: online | Not yet cut | Accounts, hosted database, and one legacy per player | Not started |
 | Track: portraits | Not yet cut | Paper-doll spec, compositor, and the first part set | Not started |
 
