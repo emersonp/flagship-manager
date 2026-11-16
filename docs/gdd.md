@@ -1,6 +1,6 @@
 # Starship Sim: Game Design Document v1
 
-Status: draft v1.14, 2026-11-15, revised after the author's reviews (section 15), the mission prototype (section 4.7), and the author's notes on skills and narrative structure after slice 1c (section 15, items 18 to 21). Vocabulary follows `GLOSSARY.md`; the games and shows the design draws on are listed in `docs/touchstones.md`. Creative content is placeholder throughout this document (`SPECIES_A`, `OBJECTIVE_TEMPLATE_1`, `SKILL_A`); the game's own pack in `content/` holds generated fiction, by the author's one-time exception (section 15, item 23); numbers are starting points for the balance simulator, not commitments.
+Status: draft v1.15, 2026-11-15, revised after the author's reviews (section 15), the mission prototype (section 4.7), the author's notes on skills and narrative structure after slice 1c (section 15, items 18 to 21), and the review of slice 1d, which made an encounter's approaches the author's to write (section 15, item 24). Vocabulary follows `GLOSSARY.md`; the games and shows the design draws on are listed in `docs/touchstones.md`. Creative content is placeholder throughout this document (`SPECIES_A`, `OBJECTIVE_TEMPLATE_1`, `SKILL_A`); the game's own pack in `content/` holds generated fiction, by the author's one-time exception (section 15, item 23); numbers are starting points for the balance simulator, not commitments.
 
 ## 1. Summary
 
@@ -187,19 +187,25 @@ tags: [hazard, planetary]
 variants: [VARIANT_A, VARIANT_B, VARIANT_C, VARIANT_D]
 text:
   arrive: ENCOUNTER_07_ARRIVE_TEXT        # the encounter's own words, written here and nowhere else (section 6)
-approaches:
-  - id: careful
+approaches:                               # one to four, in the order the author writes them
+  - id: APPROACH_A
+    name: APPROACH_A_NAME                 # shown in the editor, the log's roll detail, and the bench
     skill: SKILL_A
     difficulty: 5
-    gearTags: [scanner]
+    gearTag: scanner                      # optional: gear with this tag adds its bonus
+    requires:                             # optional: every entry must hold for the approach to be available
+      - { skill: SKILL_A, level: 4 }      # someone standing on the team has this level, after injury
+      - { gear: scanner }                 # the loadout carries gear with this tag
+    outcomes:                             # optional: a tier written here replaces that tier's default whole
+      success: [{ progress: 1 }, { strain: -1 }, { momentum: 1 }]
     text:                                 # what is said before this check, and what the log says after, by tier
-      attempt: ENCOUNTER_07_CAREFUL_ATTEMPT_TEXT
-      success: ENCOUNTER_07_CAREFUL_SUCCESS_TEXT
-      disaster: ENCOUNTER_07_CAREFUL_DISASTER_TEXT
-  - id: fast
+      attempt: ENCOUNTER_07_APPROACH_A_ATTEMPT_TEXT
+      success: ENCOUNTER_07_APPROACH_A_SUCCESS_TEXT
+      disaster: ENCOUNTER_07_APPROACH_A_DISASTER_TEXT
+  - id: APPROACH_B
+    name: APPROACH_B_NAME
     skill: SKILL_C
     difficulty: 7
-    onSuccess: { momentum: 1 }
 decision:                     # optional
   stakes: 3
   prompt: DECISION_PROMPT_1
@@ -212,16 +218,14 @@ decision:                     # optional
     - id: withdraw
       leadPrefers: "lead.caution >= 1"
       effects: [{ abortStage: true }]
-outcomes:
-  critical: [{ momentum: 2 }]
-  success:  [{ momentum: 1 }]
-  partial:  [{ strain: 1 }]
-  failure:  [{ strain: 2 }, { injuryRoll: light }]
-  disaster: [{ strain: 3 }, { injuryRoll: severe }, { chain: ENCOUNTER_12 }]
 lines:                                    # any other line that holds only here, with criteria of its own
   - when: { beat: injury, outcome: dead }
     text: ENCOUNTER_07_DEATH_TEXT
 ```
+
+An encounter's approaches are the ways through that suit the situation, named and tuned by the author: one to four, usually two. An approach's `id` is unique within the encounter and is the key in saved beats and in lines. It may carry any number of `requires`, though the editor's form edits three. The loader refuses an encounter in which every approach has a `requires`, so one is always available. A tier an approach does not write takes the tuning file's default for that tier: critical and success add 1 progress and remove 1 strain, critical adds momentum, partial adds strain, failure adds strain and a light injury roll, and disaster adds more strain and a severe one. An injury roll in an outcome falls on the actor. A disaster chains the encounter's follow-on whatever its approach's disaster outcome says.
+
+The fixture's placeholder form, which the tests use, is one line to an approach: `{ id: careful, name: APPROACH_A_NAME, skill: SKILL_A, difficulty: 5, gearTag: scanner }`, and a second whose `outcomes` write the critical and success tiers with the momentum the old fast approach earned.
 
 An encounter carries its own narrative. Its `text` gives the words for its own beats (arriving, each approach before its check and by tier, and its decision, whose `labels` name the call's answer buttons), and its `lines` are ordinary lines (section 6) that hold only at this encounter. Nothing about an encounter is written in the shared lines; those hold what belongs to no encounter, and the fallbacks.
 
@@ -336,7 +340,7 @@ A mission in flight is a small serialisable record: the drawn encounter list, a 
 
 For each encounter:
 
-1. **Pick the approach.** The team lead chooses from the approaches the team's gear allows. Operational parameters and the lead's personality weight the choice (a cautious lead under "low risk" picks `careful`). In the resolver the lead goes careful when caution minus risk tolerance is zero or more.
+1. **Pick the approach.** An approach is available when all of its requirements hold for the team as it stands at that encounter. Among the available approaches the team lead takes the one whose skill is highest for the lead, after injury; a tie goes to the approach listed first. It is the lead's own skill, not the team's best, so naming the lead changes how the team works. Personality does not weigh the choice. The best-qualified member still makes the check (step 2).
 2. **Pick the actor.** The crew member with the best relevant skill acts, unless the parameters say "develop juniors". Then the lowest-skilled eligible member acts under the best member's supervision, but only when the check is within reach: an expected margin of +2 or better on an average roll, at the supervised score. Otherwise the best acts as usual.
 3. **Compute the score.** `actor skill + assist + gear + traits + momentum − strain − injuries`. The assist is half the second-best skill, rounded down. Under "develop juniors" the senior carries the junior: the supervised check is made at the score the best-qualified member would have had, minus a penalty of 1, and minus 1 more for every four levels between senior and junior. Supervision therefore always costs something, on any team.
 4. **Roll.** Score plus the check dice (2d6 today) against `difficulty + 7`. The margin gives a tier: critical (+5 or more), success (0 to +4), partial (−1 to −3), failure (−4 to −7), or disaster (−8 or less).
@@ -352,7 +356,7 @@ Momentum and strain are the "dungeon" memory. Both carry between encounters and 
 - Strain subtracts from checks. A success or critical removes one strain.
 - At strain 4 the abort decision is always a call, whatever the lead is like, unless comms are blocked. At strain 5 the mission collapses: one member takes a severe injury roll and the rest take light rolls.
 - The collapse is checked after the encounter's decision, so a call at the strain cap can still pull the team out by withdrawing. This is the order the prototype played in. Checking first would cost weak teams under a lead who calls (an average lead with a rookie team: 21% lost becomes 28%); it is one condition in the resolver.
-- The fast approach is authored at +1 difficulty over the careful one, and earns momentum on success.
+- An approach may write its own outcomes, so a bolder approach can pay in momentum; a tier it does not write takes the tuning file's default. The prototype's rule that fast earns momentum on success is gone from the tuning file: the converted `fast` approaches carry it as written outcomes.
 - Disasters can chain a follow-on encounter that was not in the original draw.
 
 A mission ends in one of five results: full success, partial success, incomplete, withdrawal, or loss. Incomplete means the team played every stage and achieved too little; withdrawal means only that someone chose to pull out. Withdrawing when the lead preferred the safe option does not count as overruling them. Death comes only from a failed severe injury roll: on a disaster, on a bold option that risks one, or in a collapse.
@@ -368,6 +372,7 @@ else                                → initiative (lead picks the option their 
 ```
 
 - The player names each team's lead, defaulting to the highest rank. Choosing the lead is choosing what you will be asked.
+- The operational parameters are priority, autonomy, and develop juniors. Risk tolerance is not among them: it no longer chooses an approach, and returns with the overhaul of skills, attributes, and gear (section 11).
 - `parameters.autonomy` runs from −1 ("check in often") to +1 ("use your judgement"). This is the player's lever on how many calls they get.
 - A cautious, disciplined lead calls about most things. A reckless one mostly takes initiatives, some of which the captain would not have chosen. Lead and autonomy weigh about equally: on the prototype's bench a cautious lead makes 3.1, 2.5, or 1.2 calls per mission across the three autonomy settings, and a reckless one 0.8, 0.2, or 0.2.
 - Some encounters set `commsBlocked`, forcing an initiative whatever the lead is like. Who you sent matters most then.
@@ -488,7 +493,7 @@ Staffing the insight roles well is therefore how a captain of 500 sees the ship 
 
 ## 6. Narrative report generation
 
-- **Input**: beats. A beat is `{ kind, actors, encounterId, variant, approach, tier, tags, context }`.
+- **Input**: beats. A beat is `{ kind, actors, encounterId, variant, approach, tier, tags, context }`. The `approach` is the id of one of the encounter's own approaches, a string, so a shared line cannot test for "careful" or "fast" as such; an encounter's own lines may test its own approach ids. The log's roll detail names the approach by its name.
 - **Engine**: a Tracery-style grammar, expanded with a seed derived from the legacy, mission, and beat index. The same input always gives the same text.
 - **Selection by salience**: every line carries criteria over its beat and the qualities of the people in it: encounter, variant, approach, tier, tags, and context, and later personality, traits, and relationships. Of the lines whose criteria all hold, the one with the most criteria wins; ties break by the seed and the repetition memory. This is the rule-matching approach of Elan Ruskin's dialogue system for Left 4 Dead (section 5). The fixed fallback chain first proposed here (encounter + variant + tier, then encounter + tier, then tags + tier, then tier alone) is a special case of it. The author can start with a handful of generic lines and add specific ones where they matter, and a specific line never needs a change to the generic ones.
 - **Modifiers**: name, rank, pronoun, and species forms; personality-keyed word choices (`#actor.manner#`); relationship-aware inserts when two actors with a strong edge share a beat.
@@ -523,7 +528,7 @@ A line is shown in two places, and written once. **The live log**, which the cap
 
 **Where to write a line.** Ask what the line is about.
 
-- **About one encounter:** write it in that encounter. Its form ends with **What plays here**, which lists every beat the encounter can produce in the order a mission meets them: the team arriving, each approach (before the check, then each tier), effects, injuries, a change of lead, its decision (the lead calling it in, the lead deciding alone, each choice taking effect, and the call's button labels), and the rarer ones. A box you leave blank shows, in grey, the line that plays there now; write over it to give the encounter its own words. A beat with no box shows what plays there and a **Write one for here** button, which starts a line of the encounter's own from that sentence, to rewrite and to narrow with criteria.
+- **About one encounter:** write it in that encounter. Its form reads from the top: the definitions (tags, the approaches as a table, the decision), then a tab for each approach, then **What plays here**. An approach's tab holds its words before the check and for each tier, and beside each tier's words that tier's effects, shown in words as the default until the author changes them. **What plays here** lists every other beat the encounter can produce in the order a mission meets them: the team arriving, effects, injuries, a change of lead, its decision (the lead calling it in, the lead deciding alone, each choice taking effect, and the call's button labels), and the rarer ones. A box you leave blank shows, in grey, the line that plays there now; write over it to give the encounter its own words. A beat with no box shows what plays there and a **Write one for here** button, which starts a line of the encounter's own from that sentence, to rewrite and to narrow with criteria.
 - **About one objective:** write it in that objective, whose panel has a box for each way a mission can end and the same lines of its own for every other beat.
 - **About neither:** write it on the Lines page. These are the shared lines: what any encounter falls back on, and what belongs to none of them, such as an injury, the lead taking over, the captain's answer, or a cautious person failing anywhere.
 
@@ -536,13 +541,14 @@ So "CREW_02 was injured" is a shared line, "CREW_02 was gravely injured" is a sh
   text:
     arrive: "#lead# brought the team to #encounter#."
   approaches:
-    careful:
+    - id: APPROACH_A
+      name: APPROACH_A_NAME
       skill: SKILL_A
       difficulty: 5
       text:
         success: "#actor# took #encounter# slowly, and it held."
         disaster: "#actor# took #encounter# slowly, and it gave way under #actor.them#."
-    fast: { skill: SKILL_C, difficulty: 6 }
+    - { id: APPROACH_B, name: APPROACH_B_NAME, skill: SKILL_C, difficulty: 6 }
   decision:
     id: DECISION_PROMPT_7
     stakes: 3
@@ -566,7 +572,7 @@ So "CREW_02 was injured" is a shared line, "CREW_02 was gravely injured" is a sh
 
 **How the game picks a line.** Take a check where CREW_03 attempts a technical skill at a hazardous encounter and fails badly. The game asks two questions. First, which lines are allowed? A line qualifies only if it is for this kind of beat and every one of its criteria is true right now; one false criterion and it is out, and a line with no criteria fits every beat of its kind. Second, of those, which is most specific? The line with the most criteria wins. So with three check lines, one with no criteria, one for failures, and one for failures at hazards, a failure at a hazard gets the third, a failure anywhere else the second, and a success the first. The general lines never change to make room: the specific one simply wins wherever it applies.
 
-Words written inside an encounter or an objective are chosen the same way, and where they sit counts as criteria. A box for the careful approach failing counts as three (this encounter, careful, failure); a line of the encounter's own counts the encounter as one, plus whatever it adds. That is why an encounter's own words beat the shared ones without anyone arranging it. A shared line can still win by being more specific: one that tests four things beats the encounter's box for that check.
+Words written inside an encounter or an objective are chosen the same way, and where they sit counts as criteria. A box for an approach failing counts as three (this encounter, that approach, failure); a line of the encounter's own counts the encounter as one, plus whatever it adds. That is why an encounter's own words beat the shared ones without anyone arranging it. A shared line can still win by being more specific: one that tests four things beats the encounter's box for that check.
 
 Two tie-breakers sit underneath. **Freshness:** between equally specific lines, one not yet used in this mission wins, so five checks do not read the same five times. **A fixed coin toss:** if it is still a tie, the game picks, but always the same way for the same beat, so a reload shows the same words while another mission may get the other line. If no line fits, the log shows the structural line, numbers and all, so nothing is ever blank; the report leaves that beat out.
 
@@ -584,7 +590,7 @@ Some facts are lists, such as an encounter's tags, and for those the criterion a
 |---|---|---|---|
 | stage | The team arrives at a new stage | `slot`, the stage's role, such as approach or extraction | lead |
 | attempt | The moment before a check's result is known | `approach`, `skill`, `helped`, `supervised`, `mentoring` | actor, helper (when there is one), lead |
-| check | Someone attempts something | `approach` (careful or fast), `skill`, `tier` (critical, success, partial, failure, or disaster), `margin`, `helped`, `supervised`, `mentoring` | actor, helper (when there is one), lead |
+| check | Someone attempts something | `approach` (the approach's id), `skill`, `tier` (critical, success, partial, failure, or disaster), `margin`, `helped`, `supervised`, `mentoring` | actor, helper (when there is one), lead |
 | injury | Someone rolls against injury | `severity` (light or severe), `outcome` (unharmed, lightInjury, incapacitated, or dead) | crew, lead |
 | call | The lead asks the captain | `decision`, `stakes` (1 to 5), `prefers` (bold, safe, or withdraw) | lead |
 | initiative | The lead decided alone | `decision`, `stakes`, `chose`, `blocked` (comms were down) | lead |
@@ -625,7 +631,7 @@ text:
 
 Where scripts show: an approach's **Before the check** box is said before the result, so "I'm going to try to climb it" comes first and the outcome after. The text of a decision's call is shown on the call itself, above the answers, and the decision's button labels replace Bold, Safe, and Withdraw. In the log the newest beat's entries arrive one after another.
 
-The cliff, as three small pieces in one encounter: the fast approach's Before the check box is `actor: Captain, there's a sheer face here. I'm going to try to climb it.`; its Disaster box is `> Carrier signal lost.`; and a line of the encounter's own for the injury beat, with `outcome: dead`, is `> No life signs detected.` A second line for the attempt beat with `teamStanding: 1` gives the last survivor different words.
+The cliff, as three small pieces in one encounter: an approach's Before the check box is `actor: Captain, there's a sheer face here. I'm going to try to climb it.`; its Disaster box is `> Carrier signal lost.`; and a line of the encounter's own for the injury beat, with `outcome: dead`, is `> No life signs detected.` A second line for the attempt beat with `teamStanding: 1` gives the last survivor different words.
 
 **Symbols: variety without more lines.** A symbol is a named list of options. A symbol `hesitates` with three options drops one of them wherever a line says `#hesitates#`. One check line with two or three symbols reads differently from beat to beat without a dozen near-identical lines. Options may hold placeholders and other symbols. A symbol's id is lower case, because it is typed in text, and its choice follows the same fixed coin toss: varied across beats, steady for any one beat.
 
@@ -748,7 +754,7 @@ How content multiplies, using the example sizes of 10 objective templates, 20 en
 
 That headline number flatters the design. Players do not perceive skeletons; they perceive situations. The useful measure is distinct beats:
 
-`20 encounters × 4 variants × about 3 approaches × 5 tiers × about 3 lead dispositions (call, initiative in line with the captain, initiative against) ≈ 3,600 distinct beats from 80 authored encounter variants.`
+`20 encounters × 4 variants × about 3 authored approaches (one to four each, the author's to write) × 5 tiers × about 3 lead dispositions (call, initiative in line with the captain, initiative against) ≈ 3,600 distinct beats from 80 authored encounter variants.`
 
 Each addition's yield:
 
@@ -798,7 +804,7 @@ A second simulator mode that answers one question: is this mission balanced? It 
 - **Inputs**:
   - The mission: an objective template (encounters redrawn each run), or one fixed drawn mission (same encounters each run). The first tests the template; the second tests a specific offer.
   - The team, from one of three sources: a real team from a legacy, generated teams at a named strength (rookie, mixed, or veteran), or a sweep across all three.
-  - Loadout and operational parameters, or a sweep across them.
+  - Loadout and operational parameters (priority, how readily to call in, and develop juniors), or a sweep across them.
   - A policy to answer calls, and the run count and base seed.
 - **Isolation**: a bench run works on an in-memory copy. It never writes to a legacy, its event log, or its chronicle.
 - **Output**:
@@ -806,7 +812,7 @@ A second simulator mode that answers one question: is this mission balanced? It 
   - Deaths and severe injuries per run, and which encounter caused them.
   - Calls and initiatives per run.
   - Experience earned per team member.
-  - Per-encounter tier distribution, and how often each approach was chosen.
+  - Per-encounter tier distribution, and how often each approach was chosen: the share of checks by approach position ("1st %" to "4th %", in the order the encounter lists them), and "narrowed %", the checks where an approach was unavailable.
   - Momentum and strain at each stage, to show where runs are won or lost.
   - The same alarms as the full simulator, applied to this one mission.
   - With a sweep: the results side by side, so the gap between rookie and veteran teams is visible.
@@ -852,6 +858,7 @@ What has been built, slice by slice. A phase is cut into slices when it is plann
 | 1. Thinnest game | 1c-editor. Content editor | Developer-mode pages that write the content files, validated on save; display names for crew, skills, gear, objectives, encounters, and assignments | Done 2026-11-14 |
 | 1. Thinnest game | 1d. Reports | The grammar engine, lines chosen by salience, the log as prose with tags, the aftermath report, and lines, symbols, and pronoun sets in the editor | Done 2026-11-14 |
 | 1. Thinnest game | 1d-authoring. Writing in place | Scripts (speech, notes, a report sentence, an attempt before a check, call scripts and button labels), the "What plays here" panel with live previews, and generated fiction in the game's pack | Done 2026-11-15 |
+| 1. Thinnest game | 1d-review. Authored approaches | An encounter's approaches are the author's to name and tune, with requirements and outcomes of their own; the lead chooses by skill; "notice" becomes "initiative"; risk tolerance is removed; the encounter form gains a tab for each approach; the briefing's away team table restacks instead of scrolling | Done 2026-11-15 |
 | 1. Thinnest game | 1e. Life aboard | Quality-gated, salience-ranked storylets, vignettes (some with a small choice), morale, captain's time, the inbox and crew file, and the chronicle list | Next |
 | 1. Thinnest game | 1f. Tuning in play | The mission bench and the tuning page in the browser | Later |
 | 1. Thinnest game | Playtest | Three legacies of 20 to 30 cycles against the checklist below | Later |
@@ -947,6 +954,19 @@ Notes from the author on 2026-11-14, after slice 1c:
 21. **A hybrid model.** Skills and the other Football Manager numbers are proper stats; story state is qualities: see 3.8.
 22. **Writing is a first-class part of the game's tools** (after slice 1d). The browser editor is where narrative is written; the files stay readable. An item's narrative is written in the item, on one list of its beats, with previews as the author types. A line's text can be a script, so a call can be an exchange and a check can be an intention, a silence, and an outcome. Built as slice 1d authoring; the reusable parts are meant for every later storylet kind.
 23. **Generated fiction in the game's pack, once.** To see lines in use, the author authorised a one-time exception to the placeholder rule on 2026-11-15: `content/` now holds generated names and words (an original setting in the spirit of starship exploration drama), on the placeholders' ids and numbers. The rule stands everywhere else: this document, the test fixture, and anything the systems ship. The author will critique and replace it.
+
+Notes from the author on 2026-11-15, in the review of slice 1d (design in `docs/plans/2026-11-15-phase-1d-approaches-design.md`):
+
+24. **Authored approaches.**
+    - An encounter's approaches are written by the author: one to four, usually two, each named and tuned for its situation. "Careful" and "fast" were the engine's ideas, not the author's. The game's pack and the fixture were converted, the old two becoming the first and second approach and keeping their ids.
+    - An approach may need something of the team (a skill level on someone standing, or a gear tag) before it is available. The author will not write a fourth requirement until the form edits more than three.
+    - The lead chooses, among the available approaches, the one whose skill is highest for the lead after injury, and a tie goes to the first listed. Personality no longer weighs the choice, so risk tolerance had no job and is removed from the parameters; it returns with the skills, attributes, and gear overhaul. Choosing by personality trait is for when crew have more than caution and discipline.
+    - Each tier of an approach may write its own effects; one it does not write takes the tuning file's default, which are the numbers in use before. The momentum that fast earned by rule is gone from the tuning file and written into the converted fast approaches.
+    - "Notice" is renamed "initiative" throughout.
+    - A shared library of approaches, used by many encounters beside an encounter's own, is wanted later and is the author's to design (section 11, unplaced).
+    - Saves from before are refused, not converted: the store's schema version is 6.
+    - Two consequences of choosing by skill, measured on the bench and accepted for now. "Develop juniors" costs about 1 point of full success where it cost 2 or more. Crew gain levels more slowly: a test that saw a level in 20 cycles now needs 30. Both are the author's to tune. The bench's figures before and after the change are in the body of commit 03a1ab7.
+    - The briefing's away team table restacks below 56rem instead of scrolling inside its card.
 
 ## 16. Open questions
 

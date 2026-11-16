@@ -22,7 +22,7 @@ A starship captain management sim, played in the browser, with a headless simula
 
 `./run.sh` turns developer mode on, which adds a content editor at `/dev/content` (`http://127.0.0.1:5080/dev/content` by default). Developer mode is off unless a run turns it on, and with it off the editor does not exist.
 
-- The editor has a form for each kind of content, and text pages for `pack.yaml` and the two tuning files.
+- The editor has a form for each kind of content, and text pages for `pack.yaml` and the two tuning files. An encounter's form lists its approaches (one to four, each with a name, skill, difficulty, and what the team must have for it to be available), then a tab for each approach with its words and the effects of each tier, then "What plays here".
 - Lines are what the mission log and the aftermath report say. Each has a beat, criteria, and text; the most specific line whose criteria hold wins. An encounter's or an objective's own words are written inside it, in its form; the Lines page holds the shared lines, which belong to no one encounter. A line's text is one sentence or a script of speech, notes, and narration. The encounter and objective forms end with "What plays here": every beat the item produces, with a box for its own words or the line that plays there now, and a live preview. The line form previews a shared line against sample missions, and the lines page lints them. The game's own pack in `content/` holds generated fiction for trying this out; the test fixture stays placeholder. Symbols give a line varied words, and pronoun sets give crew their pronouns.
 - A save is checked as a whole pack first. If it would break the pack, it is refused with the reasons and nothing is written.
 - A saved edit is live at once, with no restart.
@@ -32,7 +32,7 @@ A starship captain management sim, played in the browser, with a headless simula
 ## Headless simulator
 
 - `dotnet run --project src/SimRunner -- cycles` runs legacies through cycles.
-- `dotnet run --project src/SimRunner -- bench` runs a mission bench.
+- `dotnet run --project src/SimRunner -- bench` runs a mission bench. For each encounter it reports the share of checks taken by each approach ("1st %" to "4th %") and "narrowed %", the checks where an approach was unavailable.
 
 ## Where things live
 

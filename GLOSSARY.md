@@ -142,7 +142,7 @@ _Avoid_: Squad, party
 The away team member whose personality decides whether a decision becomes a call or an initiative.
 
 **Operational parameters**:
-The captain's standing instructions to an away team: priority, risk tolerance, and how readily to call in.
+The captain's standing instructions to an away team: priority and how readily to call in.
 _Avoid_: Settings, stance
 
 **Encounter**:
@@ -154,11 +154,14 @@ A graded test of an away team's skills, gear, and traits against an encounter's 
 _Avoid_: Roll
 
 **Approach**:
-One of the two ways an away team can attempt a check: careful or fast. The team lead chooses.
+One of the ways an encounter offers to attempt its check, written by the author. The team lead chooses among those available, by skill.
 
 **Tier**:
 The graded result of a check: critical, success, partial, failure, or disaster.
 _Avoid_: Grade, degree of success
+
+**Outcome**:
+What a tier of an approach does to the mission: progress, momentum, strain, or an injury roll.
 
 **Momentum**:
 The running advantage a team carries forward from good outcomes within a mission.
