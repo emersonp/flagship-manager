@@ -25,6 +25,12 @@ internal abstract class KindForm
         return choices;
     }
 
+    // The form's values after a row action, for a kind whose page shows something that follows the rows.
+    public virtual FormValues AfterRows(FormRows.Applied applied)
+    {
+        return applied.Values;
+    }
+
     public abstract string? NameOf(ContentFileSet files, string id);
 
     // The fields of a stored item; null when the id holds none of this kind.

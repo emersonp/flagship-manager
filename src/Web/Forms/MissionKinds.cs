@@ -167,6 +167,30 @@ internal sealed class EncounterKind : KindForm
     // A field of a tier's outcome: one of OutcomeFields.
     public static string OutcomeField(string tier, string field) => $"out.{tier}.{field}";
 
+    // The posted field that says which approach's tab the page shows. It is not content: only the page reads it.
+    public const string TabField = "tab";
+
+    // The tab shown: the one posted, within the rows there are.
+    public static int Tab(FormValues values, int count)
+    {
+        int tab = int.TryParse(values.Get(TabField), System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out int n) ? n : 0;
+        return Math.Clamp(tab, 0, Math.Max(0, count - 1));
+    }
+
+    // An approach added shows its own tab; one removed leaves the tab that was shown, or the nearest one left when it was that one.
+    public override FormValues AfterRows(FormRows.Applied applied)
+    {
+        if (applied.Set != Approaches || applied.Verb is not ("add" or "remove"))
+        {
+            return applied.Values;
+        }
+
+        int count = FormRows.Read(applied.Values, Approaches).Count;
+        int shown = Tab(applied.Values, count + (applied.Verb == "remove" ? 1 : 0));
+        int tab = applied.Verb == "add" ? applied.Row : shown > applied.Row ? shown - 1 : Math.Max(0, Math.Min(shown, count - 1));
+        return applied.Values.With(TabField, tab.ToString(System.Globalization.CultureInfo.InvariantCulture));
+    }
+
     public override string? NameOf(ContentFileSet files, string id)
     {
         return ContentEdits.Get<EncounterModel>(files, Kind, id)?.Name;

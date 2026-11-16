@@ -1,0 +1,106 @@
+@using Sim.Core.Content
+@using Web.Forms
+@* The approaches' definitions, one row each; their words and outcomes are in the tabs below. The table never scrolls: its columns
+   share the width, and below 45rem each row stacks as a block with its labels. A condition's level shows only beside a skill, and
+   one unused condition at a time shows as "Add a condition" (app.css), so choosing one posts nothing. *@
+<div class="rowset approaches" id="f-approaches" tabindex="-1" aria-labelledby="h-approaches" @attributes="Focus">
+    <h3 class="sub" id="h-approaches">Approaches</h3>
+    <p class="hint">One to @EncounterDef.MaxApproaches ways to take this encounter, in order. Id: @EncounterKind.ApproachIdRule Name: optional. Difficulty: 1 or more. Gear with the gear tag helps. Every condition given must hold for the team as it stands, and a skill needs its level. At least one approach has none.</p>
+    @if (View.Error(Set.Prefix) is { } error)
+    {
+        <p class="error" id="f-approaches-error">@error</p>
+    }
+    <table class="approaches__table" aria-labelledby="h-approaches">
+        <colgroup>
+            <col class="approaches__name">
+            <col class="approaches__id">
+            <col class="approaches__skill">
+            <col class="approaches__difficulty">
+            <col class="approaches__gear">
+            <col class="approaches__when">
+            <col class="approaches__acts">
+        </colgroup>
+        <thead>
+            <tr>
+                <th scope="col">Name</th>
+                <th scope="col">Id</th>
+                <th scope="col">Skill</th>
+                <th scope="col">Difficulty</th>
+                <th scope="col">Gear tag</th>
+                <th scope="col">Available when</th>
+                <th scope="col"><span class="visually-hidden">Remove</span></th>
+            </tr>
+        </thead>
+        <tbody>
+            @for (int i = 0; i < Rows.Count; i++)
+            {
+                int row = i;
+                string which = $"approach {row + 1}";
+                Dictionary<string, string> values = Rows[row];
+                <tr id="@($"approach-{row}")">
+                    <td><Field Name="@Set.Name(row, "name")" Label="Name" AriaLabel="@($"Name, {which}")" Value="@values["name"]" Error="@View.Error(Set.Name(row, "name"))" /></td>
+                    <td><Field Name="@Set.Name(row, "id")" Label="Id" AriaLabel="@($"Id, {which}")" Value="@values["id"]" Error="@View.Error(Set.Name(row, "id"))" Required="true" /></td>
+                    <td><Field Name="@Set.Name(row, "skill")" Label="Skill" AriaLabel="@($"Skill, {which}")" Value="@values["skill"]" Options="SkillIds" Labels="SkillLabels" Error="@View.Error(Set.Name(row, "skill"))" Required="true" /></td>
+                    <td><Field Name="@Set.Name(row, "difficulty")" Label="Difficulty" AriaLabel="@($"Difficulty, {which}")" Value="@values["difficulty"]" Error="@View.Error(Set.Name(row, "difficulty"))" Numeric="true" Required="true" /></td>
+                    <td><Field Name="@Set.Name(row, "gearTag")" Label="Gear tag" AriaLabel="@($"Gear tag, {which}")" Value="@values["gearTag"]" Options="View.Choices.GearTags" Placeholder="None" Error="@View.Error(Set.Name(row, "gearTag"))" /></td>
+                    <td class="approaches__conditions">
+                        <span class="approaches__label" aria-hidden="true">Available when</span>
+                        @for (int r = 0; r < EncounterKind.RequirementRows; r++)
+                        {
+                            string what = EncounterKind.RequirementField(r, "what");
+                            string level = EncounterKind.RequirementField(r, "level");
+                            string condition = $"condition {r + 1}, {which}";
+                            <div class="req">
+                                <Field Name="@Set.Name(row, what)" Label="@($"Condition {r + 1}")" AriaLabel="@($"Skill or gear, {condition}")" Value="@values[what]" Options="RequirementOptions" Labels="RequirementLabels" Placeholder="Add a condition" Error="@View.Error(Set.Name(row, what))" />
+                                <div class="req__level">
+                                    <Field Name="@Set.Name(row, level)" Label="Level" AriaLabel="@($"Level, {condition}")" Value="@values[level]" Error="@View.Error(Set.Name(row, level))" Numeric="true" />
+                                </div>
+                            </div>
+                        }
+                    </td>
+                    <td class="approaches__acts">
+                        @if (Rows.Count > 1)
+                        {
+                            <RowButton Id="@Set.ButtonId("remove", row)" Value="@Set.Action("remove", row)" Aria="@($"Remove {which}")">Remove</RowButton>
+                        }
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+    @if (Rows.Count < EncounterDef.MaxApproaches)
+    {
+        <div class="rowset__add">
+            <RowButton Id="@Set.AddId" Value="@Set.AddAction">Add an approach</RowButton>
+        </div>
+    }
+</div>
+
+@code {
+    [CascadingParameter] public ItemFormView View { get; set; } = null!;
+
+    // The approaches as the form holds them, read once by the encounter form.
+    [Parameter, EditorRequired] public IReadOnlyList<Dictionary<string, string>> Rows { get; set; } = [];
+
+    private static RowSet Set => EncounterKind.Approaches;
+
+    private IReadOnlyDictionary<string, object> Focus => View.FocusFor("f-approaches");
+
+    // Read once for the page, not once for each control.
+    private IReadOnlyList<string> SkillIds = [];
+
+    private IReadOnlyDictionary<string, string> SkillLabels = new Dictionary<string, string>();
+
+    private IReadOnlyList<string> RequirementOptions = [];
+
+    private IReadOnlyDictionary<string, string> RequirementLabels = new Dictionary<string, string>();
+
+    protected override void OnParametersSet()
+    {
+        SkillIds = View.Choices.Skills.Select(s => s.Id).ToList();
+        SkillLabels = View.Choices.Skills.Where(s => s.Name is { Length: > 0 }).ToDictionary(s => s.Id, s => Checks.Choice(s.Id, s.Name!));
+        // A requirement names a skill by its id, or gear by its tag after "gear:".
+        RequirementOptions = [.. SkillIds, .. View.Choices.GearTags.Select(t => EncounterKind.GearPrefix + t)];
+        RequirementLabels = new Dictionary<string, string>(SkillLabels.Concat(View.Choices.GearTags.Select(t => KeyValuePair.Create(EncounterKind.GearPrefix + t, $"Gear: {t}"))));
+    }
+}

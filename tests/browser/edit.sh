@@ -2,7 +2,8 @@
 # The content editor in a real browser through playwright-cli, on a scratch copy of tests/fixtures/content/ with developer mode on: rename a crew
 # member, a skill, and every encounter a first stage can draw through the forms; start a legacy and see the names; play the first
 # mission and see an encounter's new name in its log; see an encounter and a text file refused with nothing written; tick boxes in
-# rows, remove and move rows, and see the saved values match the page; add a stage to an objective and see it saved.
+# rows, remove and move rows, and see the saved values match the page; add a stage to an objective and see it saved; add an encounter approach, move
+# between its tabs by keyboard, save, and see the file, the form, and the fit at 400 and 1280 pixels agree.
 # Scratch database and content, a free port, and everything removed on exit. Not part of check.sh.
 set -euo pipefail
 root="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -257,6 +258,47 @@ wait_for "document.querySelector('#form-alert .alert-ok')?.textContent === 'Save
 grep -q "slot: SLOT_PLACEHOLDER" "$tmp/content/objectives/base.yaml" || fail "the objectives file does not hold the new stage."
 visit "/dev/content/objectives/OBJECTIVE_TEMPLATE_2"
 [ "$(js "document.querySelector('#f-stages-3-slot').value")" = "SLOT_PLACEHOLDER" ] || fail "the new stage is not there after a fresh load."
+
+# The encounter form's approach tabs: add a third approach, name it, write its attempt and one outcome, move between tabs with
+# the keyboard, save, reload, and see the file and the form agree. Then neither 400 nor 1280 pixels scrolls sideways.
+shown="[...document.querySelectorAll('[role=tabpanel]')].filter(p => !p.hidden).map(p => p.id).join(',')"
+visit "/dev/content/encounters/ENCOUNTER_01"
+pw click "#row-add-approaches" > /dev/null
+wait_for "document.querySelector('#f-approaches-2-id') !== null" "the third approach"
+[ "$(js "$shown")" = "panel-approach-2" ] || fail "after adding an approach its tab is not the one shown ($(js "$shown"))."
+pw fill "#f-approaches-2-id" "third" > /dev/null
+pw fill "#f-approaches-2-name" "APPROACH_C_NAME" > /dev/null
+pw select "#f-approaches-2-skill" "SKILL_B" > /dev/null
+pw fill "#f-approaches-2-text-attempt" "actor: Third try." > /dev/null
+pw check "#f-approaches-2-out-success-own" > /dev/null
+wait_for "getComputedStyle(document.querySelector('#f-approaches-2-out-success-strain')).display !== 'none' && document.querySelector('#f-approaches-2-out-success-strain').offsetParent !== null" "the success outcome's fields"
+pw fill "#f-approaches-2-out-success-strain" "2" > /dev/null
+pw click "#tab-approach-2" > /dev/null
+pw press ArrowLeft > /dev/null
+[ "$(js "$shown")" = "panel-approach-1" ] || fail "Left did not show the second tab ($(js "$shown"))."
+[ "$(js "document.activeElement.id")" = "tab-approach-1" ] || fail "Left did not move focus to the second tab."
+pw press Home > /dev/null
+[ "$(js "$shown")" = "panel-approach-0" ] || fail "Home did not show the first tab ($(js "$shown"))."
+pw press End > /dev/null
+[ "$(js "$shown")" = "panel-approach-2" ] || fail "End did not show the last tab ($(js "$shown"))."
+pw press ArrowRight > /dev/null
+[ "$(js "$shown")" = "panel-approach-0" ] || fail "Right from the last tab did not wrap to the first ($(js "$shown"))."
+pw press ArrowLeft > /dev/null
+pw click "getByRole('button', { name: 'Save' })" > /dev/null
+wait_for "document.querySelector('#form-alert .alert-ok')?.textContent === 'Saved.'" "the encounter's save with a third approach"
+[ "$(js "$shown")" = "panel-approach-2" ] || fail "the save did not keep the tab that was shown ($(js "$shown"))."
+grep -A12 "id: ENCOUNTER_01" "$tmp/content/encounters/base.yaml" | grep -qF "id: third" || fail "the encounters file does not hold the third approach."
+grep -A20 "id: ENCOUNTER_01" "$tmp/content/encounters/base.yaml" | grep -qF "success: [{ strain: 2 }]" || fail "the third approach's success outcome was not saved."
+grep -A20 "id: ENCOUNTER_01" "$tmp/content/encounters/base.yaml" | grep -qF 'attempt: "actor: Third try."' || fail "the third approach's attempt was not saved."
+visit "/dev/content/encounters/ENCOUNTER_01"
+form="['#f-approaches-2-id','#f-approaches-2-name','#f-approaches-2-skill','#f-approaches-2-text-attempt','#f-approaches-2-out-success-strain'].map(s => document.querySelector(s).value).join('|')"
+[ "$(js "$form")" = "third|APPROACH_C_NAME|SKILL_B|actor: Third try.|2" ] || fail "after a reload the form shows $(js "$form")."
+[ "$(js "document.querySelector('#tab-approach-2').textContent.trim()")" = "APPROACH_C_NAME" ] || fail "the third tab is not labelled with its name."
+for width in 400 1280; do
+  pw resize "$width" 900 > /dev/null
+  [ "$(js "document.documentElement.scrollWidth <= document.documentElement.clientWidth")" = "true" ] || fail "the encounter form scrolls sideways at $width pixels."
+  [ "$(js "[...document.querySelectorAll('#item-form *')].every(e => e.getBoundingClientRect().right <= document.documentElement.clientWidth + 0.5)")" = "true" ] || fail "something in the encounter form is wider than the page at $width pixels."
+done
 
 console=$(pw --raw console)
 case "$console" in

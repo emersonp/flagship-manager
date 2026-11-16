@@ -88,7 +88,9 @@ internal static class FormFlow
         }
 
         ContentFileSet saved = editor.Read();
-        return (Open(form, saved, id, "Saved.") ?? Build(form, saved, choices, id, false, values, new Dictionary<string, string>(), [], "Saved."), true);
+        ItemFormView view = Open(form, saved, id, "Saved.") ?? Build(form, saved, choices, id, false, values, new Dictionary<string, string>(), [], "Saved.");
+        // The form is drawn from the file again, so the approach tab the author was on is carried over by hand.
+        return (values.Has(EncounterKind.TabField) ? view with { Values = view.Values.With(EncounterKind.TabField, values.Get(EncounterKind.TabField)) } : view, true);
     }
 
     // The form drawn again from the posted fields with the row action applied; nothing is saved. Null for an unknown id.
@@ -126,7 +128,7 @@ internal static class FormFlow
         string? focus = applied.Set is not { } set
             ? SafeFocus(focusId)
             : applied.Verb == "remove" ? set.AddId : FormValues.Slug(set.Name(applied.Row, set.Fields[0]));
-        return Build(form, files, choices, isNew ? posted.Get("id") : id!, isNew, applied.Values, new Dictionary<string, string>(), [], null) with { FocusId = focus };
+        return Build(form, files, choices, isNew ? posted.Get("id") : id!, isNew, form.AfterRows(applied), new Dictionary<string, string>(), [], null) with { FocusId = focus };
     }
 
     // The form as posted, for its panel's previews; sample, when given, is the sample to show. Null for an unknown id or a kind with no panel.

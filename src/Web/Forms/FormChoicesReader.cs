@@ -1,4 +1,5 @@
 using Sim.Content;
+using Sim.Core.Content;
 
 namespace Web.Forms;
 
@@ -16,8 +17,10 @@ public static class FormChoicesReader
         List<string> gearTags = BuiltInGearTags.Concat(encounters.SelectMany(e => e.Approaches.Select(a => a.GearTag)).OfType<string>()).Concat(inUse).Distinct().Order(StringComparer.Ordinal).ToList();
         IEnumerable<ObjectiveModel> objectives = index.Where(i => i.Kind == ContentKind.Objective).Select(i => ContentEdits.Get<ObjectiveModel>(files, i.Kind, i.Id)).OfType<ObjectiveModel>();
         List<string> objectiveTags = objectives.SelectMany(o => o.Tags).Distinct().Order(StringComparer.Ordinal).ToList();
-        return new FormChoices(skills, gearTags, objectiveTags, files.Validate().Pack?.CrewTuning.MaxLevel)
+        ContentPack? pack = files.Validate().Pack;
+        return new FormChoices(skills, gearTags, objectiveTags, pack?.CrewTuning.MaxLevel)
         {
+            Tuning = pack?.Tuning,
             Encounters = encounters.Select(e => new EncounterChoice(e.Id, e.Name, e.Tags, e.Chain)).ToList(),
             EncounterTags = encounters.SelectMany(e => e.Tags).Distinct().Order(StringComparer.Ordinal).ToList(),
             DecisionOwners = DecisionOwnersOf(encounters),

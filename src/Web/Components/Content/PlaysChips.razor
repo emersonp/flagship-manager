@@ -1,0 +1,17 @@
+@using Web.Forms
+@* What a text in this group can name; a chip inserts itself at the caret of the box last used (editor.js). *@
+@if (Chips.Count > 0)
+{
+    <div class="chips" role="group" aria-label="@($"Insert into the text, {Group}")">
+        @foreach (string chip in Chips)
+        {
+            <button class="chip" type="button" data-attr:disabled="@FormShell.Busy" data-insert="@chip">@chip.Trim()</button>
+        }
+    </div>
+}
+
+@code {
+    [Parameter, EditorRequired] public IReadOnlyList<string> Chips { get; set; } = [];
+
+    [Parameter, EditorRequired] public string Group { get; set; } = "";
+}

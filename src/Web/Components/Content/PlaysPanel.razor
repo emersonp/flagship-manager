@@ -12,7 +12,8 @@
     {
         <p class="empty-state" role="status">@Plays.Message</p>
     }
-    @foreach (PlaysGroup group in Plays.Groups)
+    @* An approach's own words are in its tab above; the panel holds everything else. *@
+    @foreach (PlaysGroup group in Plays.Shared)
     {
         <details class="plays__group" id="@($"plays-{group.Key}")" open="@Open(group)">
             <summary>@group.Title<span class="words__count">@Count(group)</span></summary>
@@ -20,28 +21,10 @@
             {
                 <p class="hint">@group.Hint</p>
             }
-            @if (group.Chips.Count > 0)
-            {
-                <div class="chips" role="group" aria-label="@($"Insert into the text, {group.Title}")">
-                    @foreach (string chip in group.Chips)
-                    {
-                        <button class="chip" type="button" data-attr:disabled="@FormShell.Busy" data-insert="@chip">@chip.Trim()</button>
-                    }
-                </div>
-            }
+            <PlaysChips Chips="group.Chips" Group="@group.Title" />
             @foreach (PlaysSlot slot in group.Slots)
             {
-                string id = FormValues.Slug(slot.Field);
-                string? error = View.Error(slot.Field);
-                <div class="field textfield textfield--line textfield--short plays__row">
-                    <label for="@id">@slot.Label</label>
-                    <textarea id="@id" name="@slot.Field" rows="2" spellcheck="true" autocomplete="off" placeholder="@slot.Placeholder" aria-label="@($"{group.Title}: {slot.Label}")" aria-describedby="@(error is null ? slot.Preview.Id : $"{id}-error {slot.Preview.Id}")" aria-invalid="@(error is null ? null : "true")" @attributes="View.FocusFor(id)">@View.Values.Get(slot.Field)</textarea>
-                    @if (error is not null)
-                    {
-                        <p class="error" id="@id-error">@error</p>
-                    }
-                    <PlaysPreviewBox Preview="slot.Preview" />
-                </div>
+                <PlaysSlotField Slot="slot" Group="@group.Title" />
             }
             @if (group.Labels)
             {

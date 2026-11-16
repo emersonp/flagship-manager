@@ -1,0 +1,24 @@
+@using Web.Forms
+@* A fixed box of the item's own words: the box, why its check failed, and its preview. Drawn by "What plays here" and by an approach's tab. *@
+<div class="field textfield textfield--line textfield--short plays__row">
+    <label for="@Id">@Slot.Label</label>
+    <textarea id="@Id" name="@Slot.Field" rows="2" spellcheck="true" autocomplete="off" placeholder="@Slot.Placeholder" aria-label="@($"{Group}: {Slot.Label}")" aria-describedby="@(Error is null ? Slot.Preview.Id : $"{Id}-error {Slot.Preview.Id}")" aria-invalid="@(Error is null ? null : "true")" @attributes="View.FocusFor(Id)">@View.Values.Get(Slot.Field)</textarea>
+    @if (Error is not null)
+    {
+        <p class="error" id="@Id-error">@Error</p>
+    }
+    <PlaysPreviewBox Preview="Slot.Preview" />
+</div>
+
+@code {
+    [CascadingParameter] public ItemFormView View { get; set; } = null!;
+
+    [Parameter, EditorRequired] public PlaysSlot Slot { get; set; } = null!;
+
+    // The title of what the box belongs to, read out before its label.
+    [Parameter, EditorRequired] public string Group { get; set; } = "";
+
+    private string Id => FormValues.Slug(Slot.Field);
+
+    private string? Error => View.Error(Slot.Field);
+}

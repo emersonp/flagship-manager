@@ -97,8 +97,8 @@ public static class MissionResolver
         return (tuning.BoldPriorityWeight * parameters.Priority) - (tuning.BoldCautionWeight * lead.Caution) > 0 ? CallAnswer.Bold : CallAnswer.Safe;
     }
 
-    // What a tier does when the approach has not written it: the tuning file's numbers and nothing else.
-    internal static EffectDef DefaultOutcome(MissionTuning tuning, Tier tier)
+    // What a tier does when the approach has not written it: the tuning file's numbers and nothing else. The editor shows it in words.
+    public static EffectDef DefaultOutcome(MissionTuning tuning, Tier tier)
     {
         return tier switch
         {

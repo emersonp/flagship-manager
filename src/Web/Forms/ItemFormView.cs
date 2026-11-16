@@ -10,6 +10,9 @@ public sealed record FormChoices(IReadOnlyList<SkillChoice> Skills, IReadOnlyLis
 {
     public IReadOnlyList<EncounterChoice> Encounters { get; init; } = [];
 
+    // The mission tuning, for the default an unwritten outcome has; null while the pack does not load.
+    public MissionTuning? Tuning { get; init; }
+
     // The tags encounters use: what an objective's stages draw by, and the suggestions for an encounter's own tags.
     public IReadOnlyList<string> EncounterTags { get; init; } = [];
 
@@ -62,7 +65,13 @@ public sealed record ItemFormView(
     // the element arrives in a patch, or when the attribute's text changes) that focuses it.
     public IReadOnlyDictionary<string, object> FocusFor(string id)
     {
-        return FocusId == id ? new Dictionary<string, object> { ["data-init"] = $"el.focus(); void {nonce}" } : None;
+        return FocusId == id ? new Dictionary<string, object> { ["data-init"] = Fresh("el.focus()") } : None;
+    }
+
+    // A data-init expression whose text differs in every response, so Datastar runs it again when a morph brings it back unchanged.
+    public string Fresh(string expression)
+    {
+        return $"{expression}; void {nonce}";
     }
 
     public string Segment => ContentKinds.Segment(Kind);

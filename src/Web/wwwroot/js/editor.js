@@ -1,16 +1,16 @@
-// The content editor's one script: a chip in the "What plays here" panel inserts its text at the caret of the box the author
-// was last in (within that chip's group), or of the group's first box. Everything else in the editor is Datastar.
+// The content editor's one script: a chip in the "What plays here" panel or in an approach's tab inserts its text at the caret
+// of the box the author was last in (within that chip's group or tab), or of its first box. Everything else in the editor is Datastar.
 let last = null;
 
 document.addEventListener("focusin", (event) => {
-  if (event.target instanceof HTMLTextAreaElement && event.target.closest("#plays")) {
+  if (event.target instanceof HTMLTextAreaElement && event.target.closest("#plays, .tabs__panel")) {
     last = event.target;
   }
 });
 
 document.addEventListener("click", (event) => {
   const chip = event.target instanceof Element ? event.target.closest("[data-insert]") : null;
-  const group = chip?.closest(".plays__group");
+  const group = chip?.closest(".plays__group, .tabs__panel");
   if (!chip || !group) {
     return;
   }

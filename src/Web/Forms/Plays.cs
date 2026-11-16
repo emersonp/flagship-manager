@@ -37,6 +37,12 @@ public sealed record PlaysGroup(
 public sealed record PlaysView(int Sample, string Cast, IReadOnlyList<PlaysGroup> Groups, string? Message)
 {
     public IEnumerable<PlaysPreview> Previews => Groups.SelectMany(g => g.Slots.Select(s => s.Preview).Concat(g.Fallbacks.Select(f => f.Preview)).Concat(g.Lines.Select(l => l.Preview)));
+
+    // An approach's own words, drawn in its tab; null for a row the form does not have.
+    public PlaysGroup? Approach(int row) => Groups.FirstOrDefault(g => g.Key == Plays.ApproachKey(row));
+
+    // Everything that is not an approach's: what the panel draws.
+    public IEnumerable<PlaysGroup> Shared => Groups.Where(g => !g.Key.StartsWith(Plays.ApproachPrefix, StringComparison.Ordinal));
 }
 
 internal static class Plays
@@ -68,6 +74,39 @@ internal static class Plays
     };
 
     public static string Title(string beat) => BeatTitles.GetValueOrDefault(beat, beat);
+
+    // An effect as the encounter form says it: "+1 progress, -1 strain, +1 momentum", "light injury roll", or "Nothing".
+    public static string EffectWords(EffectDef effect)
+    {
+        var parts = new List<string>();
+        void Add(int value, string what)
+        {
+            if (value != 0)
+            {
+                parts.Add(string.Create(CultureInfo.InvariantCulture, $"{(value > 0 ? "+" : "")}{value} {what}"));
+            }
+        }
+
+        Add(effect.Progress, "progress");
+        Add(effect.Strain, "strain");
+        Add(effect.Momentum, "momentum");
+        if (effect.InjuryRoll is { } injury)
+        {
+            parts.Add($"{injury.ToString().ToLowerInvariant()} injury roll");
+        }
+
+        if (effect.Withdraw)
+        {
+            parts.Add("withdraw");
+        }
+
+        return parts.Count == 0 ? "Nothing" : string.Join(", ", parts);
+    }
+
+    // The group of an approach's own words, by its row: the encounter form draws it in that approach's tab, not in the panel.
+    public const string ApproachPrefix = "approach-";
+
+    public static string ApproachKey(int row) => string.Create(CultureInfo.InvariantCulture, $"{ApproachPrefix}{row}");
 
     // How much of an item is written, for the kind's list: its boxes that hold words, of how many, and its lines.
     public static string Written(IContentModel model)
@@ -290,7 +329,7 @@ internal static class Plays
                 ? new Slot(Field(key), "Before the check", $"{item.Id}.{approach}.attempt", "attempt", [here, on])
                 : new Slot(Field(key), Capital(key), $"{item.Id}.{approach}.{key}", "check", [here, on, new CriterionDef("tier", [key])])).ToList();
             // Keyed by place, not id: an id is the author's to choose and could be any other group's key.
-            groups.Add(new Group(string.Create(CultureInfo.InvariantCulture, $"approach-{row}"), title, "What is said before the check, then what the log says by how it went. Write - alone for a result that passes in silence.", true, slots, []));
+            groups.Add(new Group(ApproachKey(row), title, "What is said before the check, then what the log says by how it went. Write - alone for a result that passes in silence.", true, slots, []));
         }
 
         groups.Add(new Group("checks", "Checks, any approach", "Lines for a check here that the boxes above cannot say: only when someone helps, only for a cautious actor.", false, [], ["attempt", "check"]));

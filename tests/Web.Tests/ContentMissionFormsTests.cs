@@ -332,7 +332,8 @@ public sealed class ContentMissionFormsTests(RepoContentGuard guard) : IClassFix
         Assert.Equal("", Value(body, "approaches[2].id"));
         Assert.Equal("1", Value(body, "approaches[2].difficulty"));
         Assert.Null(Value(body, "approaches[3].id"));
-        Assert.Contains("id=\"plays-approach-2\"", body, StringComparison.Ordinal);
+        Assert.Contains("id=\"tab-approach-2\"", body, StringComparison.Ordinal);
+        Assert.Contains("id=\"panel-approach-2\"", body, StringComparison.Ordinal);
         Assert.DoesNotContain("Saved.", body);
         Assert.Equal(before, Everything(app));
     }
@@ -368,7 +369,7 @@ public sealed class ContentMissionFormsTests(RepoContentGuard guard) : IClassFix
         string body = Text((await Get(app.NewClient(), "/dev/content/encounters/ENCOUNTER_01")).Body);
 
         Assert.Contains("<section class=\"plays\" id=\"plays\"", body, StringComparison.Ordinal);
-        int[] order = new[] { "plays-arrive", "plays-approach-0", "plays-approach-1", "plays-checks", "plays-effects", "plays-injury", "plays-lead", "plays-decision", "plays-answer", "plays-skip", "plays-chain", "plays-collapse" }
+        int[] order = new[] { "plays-arrive", "plays-checks", "plays-effects", "plays-injury", "plays-lead", "plays-decision", "plays-answer", "plays-skip", "plays-chain", "plays-collapse" }
             .Select(id => body.IndexOf($"id=\"{id}\"", StringComparison.Ordinal)).ToArray();
         Assert.All(order, at => Assert.True(at > 0));
         Assert.Equal(order.Order(), order);
@@ -593,6 +594,144 @@ public sealed class ContentMissionFormsTests(RepoContentGuard guard) : IClassFix
         using TestApp app = NewApp();
 
         await RefusedWithNothingWritten(app, Merge(Encounter1, "approaches[0].r0.what=gear:scanner&approaches[1].r0.what=gear:tools"), "At least one approach must have no requirements.");
+    }
+
+    // --- The approach tabs (approaches plan, Task 5) ---
+
+    // The opening tag of the element with this id.
+    private static string Tag(string body, string id)
+    {
+        return Regex.Match(body, $"<[a-z]+\\b[^>]*\\bid=\"{Regex.Escape(id)}\"[^>]*>").Value;
+    }
+
+    [Fact]
+    public async Task The_form_has_a_tab_and_a_panel_for_each_approach_before_what_plays_here()
+    {
+        using TestApp app = NewApp();
+
+        string body = (await Get(app.NewClient(), "/dev/content/encounters/ENCOUNTER_01")).Body;
+
+        MatchCollection tabs = Regex.Matches(body, "<button\\b[^>]*\\brole=\"tab\"[^>]*>([^<]*)");
+        int plays = body.IndexOf("id=\"h-plays\"", StringComparison.Ordinal);
+        Assert.Equal(2, tabs.Count);
+        Assert.True(plays > 0);
+        Assert.Equal(["APPROACH_A_NAME", "APPROACH_B_NAME"], tabs.Select(t => t.Groups[1].Value.Trim()));
+        foreach (Match tab in tabs)
+        {
+            Assert.True(tab.Index < plays);
+            string panel = Regex.Match(tab.Value, "\\baria-controls=\"([^\"]+)\"").Groups[1].Value;
+            Assert.Contains("role=\"tabpanel\"", Tag(body, panel), StringComparison.Ordinal);
+        }
+
+        Assert.Contains("role=\"tablist\"", body, StringComparison.Ordinal);
+        Assert.True(body.IndexOf("id=\"f-approaches\"", StringComparison.Ordinal) < body.IndexOf("id=\"f-hasDecision\"", StringComparison.Ordinal));
+        Assert.True(body.IndexOf("id=\"f-hasDecision\"", StringComparison.Ordinal) < tabs[0].Index);
+    }
+
+    [Fact]
+    public async Task A_tab_is_labelled_by_the_approach_id_while_its_name_is_blank()
+    {
+        using TestApp app = NewApp();
+
+        (_, string body) = await Post(app.NewClient(), "/dev/content/encounters/ENCOUNTER_01/rows", Merge(Encounter1, "approaches[0].name="));
+
+        Assert.Matches("<button\\b[^>]*\\bid=\"tab-approach-0\"[^>]*>\\s*careful\\s*<", body);
+    }
+
+    [Fact]
+    public async Task Every_panels_fields_are_in_the_form_whichever_tab_shows()
+    {
+        using TestApp app = NewApp();
+
+        string body = (await Get(app.NewClient(), "/dev/content/encounters/ENCOUNTER_01")).Body;
+
+        string form = Regex.Match(body, "<form id=\"item-form\".*?</form>", RegexOptions.Singleline).Value;
+        Assert.Contains("name=\"approaches[1].text.failure\"", form, StringComparison.Ordinal);
+        Assert.Contains("name=\"approaches[1].out.failure.strain\"", form, StringComparison.Ordinal);
+        Assert.Contains("data-signals:_tab=\"0\"", form, StringComparison.Ordinal);
+        Assert.DoesNotMatch("\\shidden\\b", Tag(body, "panel-approach-0"));
+        Assert.Matches("\\shidden\\b", Tag(body, "panel-approach-1"));
+        Assert.Contains("aria-selected=\"true\"", Tag(body, "tab-approach-0"), StringComparison.Ordinal);
+        Assert.Contains("aria-selected=\"false\"", Tag(body, "tab-approach-1"), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task An_unwritten_outcome_shows_the_default_in_words()
+    {
+        using TestApp app = NewApp();
+
+        string body = Text((await Get(app.NewClient(), "/dev/content/encounters/ENCOUNTER_01")).Body);
+
+        Assert.Contains("Default: +1 progress, -1 strain<", body, StringComparison.Ordinal);
+        Assert.Contains("Default: +2 strain, light injury roll<", body, StringComparison.Ordinal);
+        Assert.Matches("<input[^>]*name=\"approaches\\[0\\]\\.out\\.success\\.own\"[^>]*aria-label=\"Change success, approach 1\"", body);
+    }
+
+    [Fact]
+    public async Task A_refused_save_marks_and_shows_the_tab_with_the_problem()
+    {
+        using TestApp app = NewApp();
+
+        (HttpStatusCode status, string body) = await Post(app.NewClient(), "/dev/content/encounters/ENCOUNTER_01", Merge(Encounter1, "tab=0&approaches[1].out.failure.own=true&approaches[1].out.failure.strain=x"));
+
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, status);
+        Assert.Contains("aria-invalid=\"true\"", Tag(body, "tab-approach-1"), StringComparison.Ordinal);
+        Assert.DoesNotContain("aria-invalid", Tag(body, "tab-approach-0"), StringComparison.Ordinal);
+        Assert.Matches("id=\"tab-approach-1\"[^>]*>[^<]*<span[^>]*>\\(problems\\)</span>", body);
+        Assert.Contains("data-signals:_tab=\"1\"", body, StringComparison.Ordinal);
+        Assert.DoesNotMatch("\\shidden\\b", Tag(body, "panel-approach-1"));
+    }
+
+    [Fact]
+    public async Task What_plays_here_holds_no_approach_rows()
+    {
+        using TestApp app = NewApp();
+
+        string body = Text((await Get(app.NewClient(), "/dev/content/encounters/ENCOUNTER_01")).Body);
+
+        string plays = Regex.Match(body, "<section class=\"plays\".*?</section>", RegexOptions.Singleline).Value;
+        Assert.Contains("Checks, any approach", plays, StringComparison.Ordinal);
+        Assert.DoesNotContain("id=\"plays-approach-", plays, StringComparison.Ordinal);
+        Assert.DoesNotContain("name=\"approaches[", plays, StringComparison.Ordinal);
+    }
+
+    // After a row change the shown tab is the added approach, or the nearest one left after a removal; a save keeps the one shown.
+    [Theory]
+    [InlineData("tab=0&row=add:approaches", "3")]
+    [InlineData("tab=1&row=remove:approaches:1", "1")]
+    [InlineData("tab=2&row=remove:approaches:2", "1")]
+    [InlineData("tab=2&row=remove:approaches:0", "1")]
+    [InlineData("tab=0&row=remove:approaches:2", "0")]
+    public async Task A_row_change_shows_the_added_tab_or_the_nearest_one_left(string overrides, string shown)
+    {
+        using TestApp app = NewApp();
+
+        (_, string body) = await Post(app.NewClient(), "/dev/content/encounters/ENCOUNTER_01/rows", Merge(Encounter1 + ApproachRow(2, "third"), overrides));
+
+        Assert.Contains($"data-signals:_tab=\"{shown}\"", body, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task A_save_keeps_the_tab_that_was_shown()
+    {
+        using TestApp app = NewApp();
+
+        (HttpStatusCode status, string body) = await Post(app.NewClient(), "/dev/content/encounters/ENCOUNTER_01", Merge(Encounter1, "tab=1"));
+
+        Assert.Equal(HttpStatusCode.OK, status);
+        Assert.Contains("data-signals:_tab=\"1\"", body, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData(1, -1, 1, null, "+1 progress, -1 strain, +1 momentum")]
+    [InlineData(0, 2, 0, "Light", "+2 strain, light injury roll")]
+    [InlineData(-1, 3, 0, "Severe", "-1 progress, +3 strain, severe injury roll")]
+    [InlineData(0, 0, 0, null, "Nothing")]
+    public void Effect_words_read_an_effect_in_the_defaults_order(int progress, int strain, int momentum, string? injury, string words)
+    {
+        var effect = new EffectDef(Momentum: momentum, Strain: strain, Progress: progress, InjuryRoll: injury is null ? null : Enum.Parse<InjurySeverity>(injury));
+
+        Assert.Equal(words, Web.Forms.Plays.EffectWords(effect));
     }
 
     [Fact]

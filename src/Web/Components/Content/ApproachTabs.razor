@@ -1,0 +1,125 @@
+@using Sim.Core.Narrative
+@using Sim.Missions
+@using Web.Forms
+@* One tab for each approach, holding what is said before its check and, for each tier, what the log says and what happens. The tab
+   shown is a local signal, so switching posts nothing; every panel stays in the form, so one save sends them all. The shown tab
+   is posted with the form, so a row change or a save draws the page on the same one. Left, Right, Home, and End move between
+   tabs (the ARIA tabs pattern). Like every button, a tab waits while a request is in flight: its answer draws the tab that was posted. An outcome left alone shows its default; ticking Change shows its four fields (app.css). *@
+<div class="tabs" id="approach-tabs" data-signals:_tab="@Shown" data-init="@View.Fresh($"$_tab = {Shown}")" data-on:input__debounce.700ms="@Refresh">
+    <input type="hidden" name="@EncounterKind.TabField" value="@Shown" data-attr:value="$_tab">
+    <h3 class="sub" id="h-approach-tabs">Words and outcomes, by approach</h3>
+    <div class="tabs__list" role="tablist" aria-labelledby="h-approach-tabs" data-on:keydown="@Keys">
+        @for (int i = 0; i < Rows.Count; i++)
+        {
+            int row = i;
+            bool problem = Problem(row);
+            <button class="tab" type="button" role="tab" id="@TabId(row)" aria-controls="@PanelId(row)" aria-selected="@(row == Shown ? "true" : "false")" tabindex="@(row == Shown ? "0" : "-1")" aria-invalid="@(problem ? "true" : null)" data-attr:aria-selected="@($"$_tab === {row} ? 'true' : 'false'")" data-attr:tabindex="@($"$_tab === {row} ? '0' : '-1'")" data-attr:disabled="@FormShell.Busy" data-on:click="@($"$_tab = {row}")">
+                @Label(row)
+                @if (problem)
+                {
+                    <span class="tab__problem">(problems)</span>
+                }
+            </button>
+        }
+    </div>
+    @for (int i = 0; i < Rows.Count; i++)
+    {
+        int row = i;
+        string which = $"approach {row + 1}";
+        PlaysGroup? group = View.Plays?.Approach(row);
+        <div class="tabs__panel" role="tabpanel" id="@PanelId(row)" aria-labelledby="@TabId(row)" tabindex="0" hidden="@(row != Shown)" data-attr:hidden="@($"$_tab !== {row}")">
+            <p class="hint">What is said before the check, then what the log says and what happens by how it went. Write - alone for a result that passes in silence.</p>
+            @if (group is not null)
+            {
+                <PlaysChips Chips="group.Chips" Group="@group.Title" />
+            }
+            @foreach (string key in NarrativeFacts.ApproachTexts)
+            {
+                PlaysSlot? slot = group?.Slots.FirstOrDefault(s => s.Field == Set.Name(row, EncounterKind.TextField(key)));
+                if (key == "attempt")
+                {
+                    @if (slot is not null)
+                    {
+                        <PlaysSlotField Slot="slot" Group="@group!.Title" />
+                    }
+                    continue;
+                }
+
+                string tier = key;
+                string Name(string field) => Set.Name(row, EncounterKind.OutcomeField(tier, field));
+                string Value(string field) => Rows[row][EncounterKind.OutcomeField(tier, field)];
+                string outcome = $"{tier}, {which}";
+                <div class="outcome">
+                    @if (slot is not null)
+                    {
+                        <PlaysSlotField Slot="slot" Group="@group!.Title" />
+                    }
+                    <div class="outcome__effects">
+                        <div class="outcome__line">
+                            <p class="outcome__default">Default: @DefaultWords(tier)</p>
+                            <CheckField Name="@Name("own")" Label="Change" AriaLabel="@($"Change {outcome}")" Checked="@(Value("own") == "true")" />
+                        </div>
+                        <div class="outcome__own">
+                            <Field Name="@Name("progress")" Label="Progress" AriaLabel="@($"Progress, {outcome}")" Value="@Value("progress")" Error="@View.Error(Name("progress"))" Numeric="true" />
+                            <Field Name="@Name("strain")" Label="Strain" AriaLabel="@($"Strain, {outcome}")" Value="@Value("strain")" Error="@View.Error(Name("strain"))" Numeric="true" />
+                            <Field Name="@Name("momentum")" Label="Momentum" AriaLabel="@($"Momentum, {outcome}")" Value="@Value("momentum")" Error="@View.Error(Name("momentum"))" Numeric="true" />
+                            <Field Name="@Name("injury")" Label="Injury roll" AriaLabel="@($"Injury roll, {outcome}")" Value="@Value("injury")" Options="Severities" Placeholder="None" Error="@View.Error(Name("injury"))" />
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    [CascadingParameter] public ItemFormView View { get; set; } = null!;
+
+    // The approaches as the form holds them, read once by the encounter form.
+    [Parameter, EditorRequired] public IReadOnlyList<Dictionary<string, string>> Rows { get; set; } = [];
+
+    private static RowSet Set => EncounterKind.Approaches;
+
+    private static readonly string[] Severities = ["light", "severe"];
+
+    // After a refused save, the first tab holding a problem; otherwise the one posted.
+    private int Shown;
+
+    protected override void OnParametersSet()
+    {
+        int? problem = Enumerable.Range(0, Rows.Count).Cast<int?>().FirstOrDefault(r => Problem(r!.Value));
+        Shown = problem ?? EncounterKind.Tab(View.Values, Rows.Count);
+    }
+
+    private static string TabId(int row) => $"tab-approach-{row}";
+
+    private static string PanelId(int row) => $"panel-approach-{row}";
+
+    // A panel holds the approach's words and outcomes; its definition's problems show in the table above.
+    private bool Problem(int row)
+    {
+        string words = Set.Name(row, "text.");
+        string outcomes = Set.Name(row, "out.");
+        return View.Errors.Keys.Any(k => k.StartsWith(words, StringComparison.Ordinal) || k.StartsWith(outcomes, StringComparison.Ordinal));
+    }
+
+    private string Label(int row)
+    {
+        string name = Rows[row]["name"].Trim();
+        string id = Rows[row]["id"].Trim();
+        return name.Length > 0 ? name : id.Length > 0 ? id : $"Approach {row + 1}";
+    }
+
+    private string DefaultWords(string tier)
+    {
+        return View.Choices.Tuning is { } tuning
+            ? Plays.EffectWords(MissionResolver.DefaultOutcome(tuning, Enum.Parse<Tier>(tier, ignoreCase: true)))
+            : "from the tuning file, which does not load now";
+    }
+
+    // Typing in a panel asks for the previews again once the author pauses, as in "What plays here".
+    private string Refresh => $"@post('{View.PlaysUrl}', {{contentType: 'form'}})";
+
+    // Left and Right step round the tabs, Home and End go to the ends; the tab shown takes focus.
+    private string Keys => $"const n = {Rows.Count}; const to = {{ArrowRight: $_tab + 1, ArrowLeft: $_tab + n - 1, Home: 0, End: n - 1}}[evt.key]; if (to !== undefined) {{ evt.preventDefault(); $_tab = to % n; el.querySelectorAll('[role=tab]')[$_tab].focus() }}";
+}
