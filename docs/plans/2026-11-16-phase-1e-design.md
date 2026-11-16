@@ -79,6 +79,7 @@ A new kind, `content/storylets/`:
 - id: STORYLET_01
   name: STORYLET_01_NAME
   stakes: 2                       # 1 to 5; orders arrivals, highest first
+  scope: crew                     # ship or crew: whose flags it reads, and whether it has a subject
   requires:                       # every entry must hold; part three replaces this with the expression language
     - { flag: FLAG_A, min: 1, max: 1 }
     - { flag: FLAG_B, max: 0 }
@@ -98,8 +99,8 @@ A new kind, `content/storylets/`:
 ```
 
 - **Requires** is a list of one to four entries, and all must hold. Each names a flag and a range: `min` (1 when left out, or 0 when only `max` is given) and `max` (no limit when left out). "Has it happened twice" is `min: 2`; "not yet" is `max: 0`. The list is what lets the author keep a count in one flag and a stage in another, as Fallen London's authors do: a counter is only ever added to, a stage is only ever set, and one flag is never both.
-- **Scope.** The first entry is the storylet's own flag and decides its scope: the ship, or the crew member it is on. Every other entry is read on that same scope.
-- **The subject.** When the storylet's own flag is on a crew member, that member is the storylet's `subject`. When it is on the ship, there is no subject, and the loader refuses a text or an effect that names one. A storylet whose flag sits on several crew arrives once for each, up to the cycle's limit.
+- **Scope.** A storylet says `scope: ship` or `scope: crew`. Its requirements are all read on that scope: the ship's flags, or one crew member's. The loader needs this to check the text and the effects, since it cannot know at load where a flag will be set. A flag found on the other scope does not offer the storylet.
+- **The subject.** A storylet for crew arrives for one crew member, its `subject`. A storylet for the ship has none, and the loader refuses a text or an effect that names one. A storylet whose requirements hold for several crew arrives once for each, up to the cycle's limit.
 - **Text** is a script, as an encounter's is: speech, notes, narration, and a report sentence. Speakers are `subject`, `captain`, and `best SKILL_ID` among the living, fit crew. An option's `text` is what the log says once it is chosen.
 - **Options:** two to four, each with a label of 1 to 40 characters.
 - **Effects in part one:** `loyalty` (a whole number, `on: subject` or `on: crew` for everyone living), and `flag` with `add` or `set`, `on: ship` or `on: subject`; `on` may be left out, and then means the scope the storylet arrived for. Nothing else. The loader refuses the rest by name, so part two can add `morale` without ambiguity.
