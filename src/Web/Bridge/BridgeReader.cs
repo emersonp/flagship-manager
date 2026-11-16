@@ -2,8 +2,10 @@ using System.Globalization;
 using Persistence;
 using Sim.Core;
 using Sim.Core.Content;
+using Sim.Core.Narrative;
 using Sim.Crew;
 using Sim.Missions;
+using Sim.Storylets;
 
 namespace Web.Bridge;
 
@@ -26,7 +28,10 @@ public static class BridgeReader
         bool showSite = site is not null;
         bool showBriefing = site is not null && phase == CyclePhase.Briefing;
         bool showMission = site?.Mission is not null && phase is CyclePhase.Resolution or CyclePhase.Aftermath;
-        bool showAftermath = site is not null && phase is CyclePhase.Aftermath or CyclePhase.Advance;
+        bool afterwards = phase is CyclePhase.Aftermath or CyclePhase.Advance;
+        (List<StoryletView> waiting, List<SettledStoryletView> settled) = afterwards ? Storylets(state, pack, cycleEvents, names) : ([], []);
+        // Storylets can wait on a legacy with no site, so they show the aftermath too.
+        bool showAftermath = afterwards && (site is not null || waiting.Count > 0 || settled.Count > 0);
 
         List<ObjectiveView> objectives = site is null ? [] : site.Objectives.Select(o => Objective(pack, names, site, o)).ToList();
         MissionInFlight? inFlight = site?.Mission;
@@ -42,7 +47,7 @@ public static class BridgeReader
             showSite ? new SiteView(site!.AssignmentId, objectives, names.Assignment(site.AssignmentId)) : null,
             showBriefing ? Briefing(pack, names, site!, objectives, roster) : null,
             mission,
-            showAftermath ? Aftermath(site!, state, cycleEvents, names) with { Report = prose is null ? null : Report.Build(beats, prose.Log(_ => []), names) } : null);
+            showAftermath ? Aftermath(site, state, cycleEvents, names) with { Report = prose is null ? null : Report.Build(beats, prose.Log(_ => []), names), Waiting = waiting, Settled = settled } : null);
     }
 
     // Rows in view that share a shown name also show their ids; a row shown by its id never repeats it.
@@ -229,7 +234,7 @@ public static class BridgeReader
         return new CrewChange(crewId, kind, string.Concat(parts.Select(p => p.Text)), parts);
     }
 
-    private static AftermathView Aftermath(SiteState site, LegacyState state, IReadOnlyList<IEvent> cycleEvents, Names names)
+    private static AftermathView Aftermath(SiteState? site, LegacyState state, IReadOnlyList<IEvent> cycleEvents, Names names)
     {
         CrewState? crew = state.TryModule(CrewModule.Name, out CrewState? found) ? found : null;
         string? outcome = null;
@@ -279,6 +284,105 @@ public static class BridgeReader
             }
         }
 
-        return new AftermathView(outcome ?? site.Mission?.State.Result?.Outcome.ToString(), changes, unattended);
+        return new AftermathView(outcome ?? site?.Mission?.State.Result?.Outcome.ToString(), changes, unattended);
+    }
+
+    // The storylets waiting (those the pack still has, in arrival order) and those answered this cycle (in the order answered).
+    private static (List<StoryletView> Waiting, List<SettledStoryletView> Settled) Storylets(LegacyState state, ContentPack pack, IReadOnlyList<IEvent> cycleEvents, Names names)
+    {
+        StoryletsState? storylets = state.TryModule(StoryletsModule.Name, out StoryletsState? found) ? found : null;
+        List<CrewMember> crew = state.TryModule(CrewModule.Name, out CrewState? members) ? members.Members : [];
+        string seed = state.Seed.ToString(CultureInfo.InvariantCulture);
+        var waiting = new List<StoryletView>();
+        foreach (WaitingStorylet w in storylets?.Waiting ?? [])
+        {
+            // One the pack has lost blocks nothing and is withdrawn when the next aftermath begins.
+            if (pack.Storylets.FirstOrDefault(d => d.Id == w.StoryletId) is not { } storylet)
+            {
+                continue;
+            }
+
+            Situation situation = Prose.StoryletSituation(pack, names, crew, storylet.Id, w.SubjectId);
+            IReadOnlyList<ProseEntry> script = Prose.Storylet(pack, situation, $"{seed}|{w.OfferId}")?.Entries
+                ?? [Systems($"{storylet.Id}: {string.Join(", ", storylet.Options.Select(o => o.Id))}.")];
+            waiting.Add(new StoryletView(
+                w.OfferId,
+                names.Storylet(storylet.Id),
+                From(storylets!, storylet, w, names),
+                script,
+                storylet.Options.Select(o => new StoryletOptionView(o.Id, o.Label.Length > 0 ? o.Label : o.Id)).ToList()));
+        }
+
+        var settled = new List<SettledStoryletView>();
+        HashSet<string> living = crew.Where(m => m.Status != CrewStatus.Dead).Select(m => m.Id).ToHashSet();
+        HashSet<string> shared = Shared(crew.Select(m => names.Crew(m.Id)));
+        string Crew(string id)
+        {
+            string name = names.Crew(id);
+            return name != id && shared.Contains(name) ? $"{name} ({id})" : name;
+        }
+
+        for (int i = 0; i < cycleEvents.Count; i++)
+        {
+            if (cycleEvents[i] is not StoryletAnswered answered)
+            {
+                continue;
+            }
+
+            // An answer's own changes are published just before it: loyalty, and flags with no encounter.
+            int start = i;
+            while (start > 0 && cycleEvents[start - 1] is LoyaltyChanged or FlagChanged { EncounterId: null })
+            {
+                start--;
+            }
+
+            List<IEvent> changes = cycleEvents.Skip(start).Take(i - start).ToList();
+            Situation situation = Prose.StoryletSituation(pack, names, crew, answered.StoryletId, answered.SubjectId, answered.OptionId);
+            IReadOnlyList<ProseEntry> said = Prose.Storylet(pack, situation, $"{seed}|{answered.OfferId}|{answered.OptionId}")?.Entries ?? [Systems(answered.OptionId)];
+            settled.Add(new SettledStoryletView(names.Storylet(answered.StoryletId), said, StoryletTags(changes, living, Crew)));
+        }
+
+        return (waiting, settled);
+    }
+
+    private static ProseEntry Systems(string text)
+    {
+        return new ProseEntry(EntryKind.Narration, null, [new LinePart(false, text)]);
+    }
+
+    // The encounter that set the flag that brought it, and that flag: the first required flag it last changed, else the first set.
+    private static string? From(StoryletsState storylets, StoryletDef storylet, WaitingStorylet waiting, Names names)
+    {
+        if (waiting.EncounterId is not { } encounter)
+        {
+            return null;
+        }
+
+        List<StoredFlag> set = storylet.Requires
+            .Select(r => storylets.Flags.FirstOrDefault(f => f.Flag == r.Flag && f.CrewId == waiting.SubjectId))
+            .OfType<StoredFlag>()
+            .ToList();
+        string flag = (set.FirstOrDefault(f => f.EncounterId == encounter) ?? set.FirstOrDefault())?.Flag ?? storylet.Requires[0].Flag;
+        return $"From {names.Encounter(encounter)} · {flag}";
+    }
+
+    // Tags in the log's figure style. A loyalty change shared alike by every living crew member is one tag for all crew.
+    private static List<string> StoryletTags(IReadOnlyList<IEvent> changes, IReadOnlySet<string> living, Func<string, string> crew)
+    {
+        var tags = new List<string>();
+        List<LoyaltyChanged> loyalty = changes.OfType<LoyaltyChanged>().ToList();
+        foreach (IGrouping<int, LoyaltyChanged> delta in loyalty.GroupBy(l => l.To - l.From))
+        {
+            bool everyone = living.Count > 1 && delta.Select(l => l.CrewId).ToHashSet().SetEquals(living);
+            tags.AddRange(everyone ? [$"Loyalty {BeatLines.Signed(delta.Key)} all crew"] : delta.Select(l => $"Loyalty {BeatLines.Signed(delta.Key)} {crew(l.CrewId)}"));
+        }
+
+        foreach (FlagChanged flag in changes.OfType<FlagChanged>())
+        {
+            string on = flag.CrewId is null ? "" : $", {crew(flag.CrewId)}";
+            tags.Add(Inv($"{flag.Flag} {flag.From} to {flag.To}{on}"));
+        }
+
+        return tags;
     }
 }

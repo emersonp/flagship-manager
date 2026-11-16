@@ -3,6 +3,23 @@
         <h1>@(Aftermath?.Outcome is { } outcome ? Figures.Words(outcome) : "No team was sent")</h1>
         <p>@(ObjectiveName is null ? "Outcome: none, so every objective resolved unattended." : $"Outcome of {ObjectiveName}{Team}")</p>
     </div>
+    @if (Aftermath is { HasMatters: true } matters)
+    {
+        <section id="matters" class="well matters" aria-labelledby="matters-head">
+            <div class="well__head"><h2 id="matters-head">Matters aboard</h2></div>
+            <div class="matters__list">
+                @for (int i = 0; i < matters.Waiting.Count; i++)
+                {
+                    <StoryletPanel LegacyId="LegacyId" Bar="Bar" Index="i" Waiting="matters.Waiting[i]" />
+                }
+                @for (int i = 0; i < matters.Settled.Count; i++)
+                {
+                    <StoryletPanel LegacyId="LegacyId" Bar="Bar" Index="matters.Waiting.Count + i" Settled="matters.Settled[i]" />
+                }
+            </div>
+            <p id="storylet-refusal" role="alert">@StoryletReason</p>
+        </section>
+    }
     @if (Aftermath?.Report is { } report)
     {
         <section class="well report" aria-labelledby="report-head">
@@ -65,7 +82,7 @@
         </section>
     </div>
     <div class="actions well">
-        <AdvanceForm LegacyId="LegacyId" Bar="Bar" Label="Next cycle" Signal="_advancing" />
+        <AdvanceForm LegacyId="LegacyId" Bar="Bar" Label="Next cycle" Signal="_advancing" Blocked="@Blocked" />
         <Refusal Reason="@Reason" />
     </div>
 </main>
@@ -83,6 +100,12 @@
     [Parameter] public string? ObjectiveName { get; set; }
 
     [Parameter] public string? Reason { get; set; }
+
+    // A refused storylet answer's reason, shown with the storylets.
+    [Parameter] public string? StoryletReason { get; set; }
+
+    // The words the bus refuses an advance with while a storylet waits.
+    private string? Blocked => Aftermath?.Waiting.Count > 0 ? "A storylet is waiting for an answer." : null;
 
     private IReadOnlyList<CrewChange> Changes => Aftermath?.Changes ?? [];
 

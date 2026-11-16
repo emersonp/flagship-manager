@@ -218,7 +218,7 @@ public static partial class BeatLines
     }
 
     // The design sets every negative figure with the true minus sign.
-    private static string Signed(int value)
+    internal static string Signed(int value)
     {
         return value.ToString("+0;-0;0", CultureInfo.InvariantCulture).Replace('-', '\u2212');
     }

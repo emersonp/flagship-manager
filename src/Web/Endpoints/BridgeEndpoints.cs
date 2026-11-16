@@ -22,6 +22,7 @@ public static class BridgeEndpoints
         app.MapPost("/legacy/{id}/advance", Advance);
         app.MapPost("/legacy/{id}/launch", Launch);
         app.MapPost("/legacy/{id}/answer", Answer);
+        app.MapPost("/legacy/{id}/storylet", Storylet);
     }
 
     private static async Task<IResult> Page(string id, HttpContext http, GameServices game, LegacySession sessions, Render render, CancellationToken cancellation)
@@ -46,10 +47,17 @@ public static class BridgeEndpoints
             Check(stamp, game, live, legacy);
             // Aftermath goes on through the advance phase, so one request starts the next cycle.
             bool fromAftermath = legacy.State.Phase == CyclePhase.Aftermath;
-            legacy.Send(new AdvancePhase());
-            if (fromAftermath)
+            try
             {
                 legacy.Send(new AdvancePhase());
+                if (fromAftermath)
+                {
+                    legacy.Send(new AdvancePhase());
+                }
+            }
+            catch (CommandRejectedException rejected)
+            {
+                throw new RefusedException(rejected.Message, RefusedStatus(http));
             }
         }, cancellation);
     }
@@ -89,6 +97,61 @@ public static class BridgeEndpoints
 
             legacy.Send(answer);
         }, cancellation);
+    }
+
+    // A storylet's answer. Any refusal redraws the page from the stored state, with the reason beside the storylets when they are on
+    // screen, else in the bar.
+    private static async Task<IResult> Storylet(string id, HttpContext http, GameServices game, LegacySession sessions, Render render, CancellationToken cancellation)
+    {
+        IFormCollection? form = await ReadForm(http.Request, cancellation);
+        Stamp? stamp = StampOf(form);
+        string? offer = form is null ? null : Single(form, "offer");
+        string? option = form is null ? null : Single(form, "option");
+        LivePack live = RequestPack.Of(http);
+        if (!Guid.TryParse(id, out Guid legacyId))
+        {
+            return await NotFound(render, http);
+        }
+
+        BridgeView? view;
+        try
+        {
+            view = await sessions.Run(live, legacyId, legacy =>
+            {
+                Check(stamp, game, live, legacy);
+                if (string.IsNullOrEmpty(offer) || string.IsNullOrEmpty(option))
+                {
+                    throw new CommandRejectedException(Incomplete);
+                }
+
+                legacy.Send(new AnswerStorylet(offer, option));
+                return View(game, live, legacy);
+            }, cancellation);
+        }
+        catch (StalePageException stale)
+        {
+            return await Patches(render, legacyId, stale.Current, OutOfDate);
+        }
+        catch (CommandRejectedException rejected)
+        {
+            if (await sessions.Read(live, legacyId, cancellation) is not { } current)
+            {
+                return await NotFound(render, http);
+            }
+
+            BridgeView corrected = View(game, live, current);
+            bool shown = corrected.TopBar.Phase == CyclePhase.Aftermath && corrected.Aftermath is { HasMatters: true };
+            return await Patches(render, legacyId, corrected, shown ? null : rejected.Message, storyletReason: shown ? rejected.Message : null, status: RefusedStatus(http));
+        }
+
+        return view is null ? await NotFound(render, http) : await Patches(render, legacyId, view, null);
+    }
+
+    // A refusal answers 422, except to Datastar itself: Datastar 1.0.5 ignores the body of any response but a 200, so the reason would
+    // never reach the page.
+    private static int RefusedStatus(HttpContext http)
+    {
+        return Sse.IsDatastar(http.Request) ? StatusCodes.Status200OK : StatusCodes.Status422UnprocessableEntity;
     }
 
     // Commits first, then plays this request's new beats one at a time; the view before the commit rides along so the
@@ -223,22 +286,28 @@ public static class BridgeEndpoints
         });
     }
 
-    private static async Task<IResult> Patches(Render render, Guid legacyId, BridgeView view, string? reason, string? callReason = null)
+    private static async Task<IResult> Patches(Render render, Guid legacyId, BridgeView view, string? reason, string? callReason = null, string? storyletReason = null, int status = StatusCodes.Status200OK)
     {
         string topBar = await render.Html<TopBar>(new Dictionary<string, object?> { ["Bar"] = view.TopBar });
-        string main = await render.Html<MainScreen>(new Dictionary<string, object?> { ["LegacyId"] = legacyId, ["View"] = view, ["Reason"] = reason, ["CallReason"] = callReason });
+        string main = await render.Html<MainScreen>(new Dictionary<string, object?> { ["LegacyId"] = legacyId, ["View"] = view, ["Reason"] = reason, ["CallReason"] = callReason, ["StoryletReason"] = storyletReason });
         string roster = await render.Html<Roster>(new Dictionary<string, object?> { ["Rows"] = view.Roster });
         return new StreamResult(async response =>
         {
             await Sse.PatchElements(response, topBar);
             await Sse.PatchElements(response, main);
             await Sse.PatchElements(response, roster);
-        });
+        }, status);
     }
 
     private sealed record Turn(BridgeView Before, BridgeView After);
 
     private sealed record Stamp(int Cycle, CyclePhase Phase);
+
+    // A refusal that answers with its own status (the bus refusing an advance).
+    private sealed class RefusedException(string message, int status) : Exception(message)
+    {
+        public int Status { get; } = status;
+    }
 
     // Carries the stored state's view out of the lock, so the redrawn page is the one the check saw.
     private sealed class StalePageException(BridgeView current) : Exception(OutOfDate)
@@ -267,13 +336,13 @@ public static class BridgeEndpoints
         {
             return await Patches(render, legacyId, stale.Current, OutOfDate);
         }
-        catch (CommandRejectedException rejected)
+        catch (Exception e) when (e is CommandRejectedException or RefusedException)
         {
-            string refusal = await render.Html<Refusal>(new Dictionary<string, object?> { ["Reason"] = rejected.Message });
+            string refusal = await render.Html<Refusal>(new Dictionary<string, object?> { ["Reason"] = e.Message });
             return new StreamResult(async response =>
             {
                 await Sse.PatchElements(response, refusal);
-            });
+            }, (e as RefusedException)?.Status ?? StatusCodes.Status200OK);
         }
 
         if (view is null)
@@ -407,10 +476,11 @@ public static class BridgeEndpoints
         return Results.Content(html, "text/html; charset=utf-8", statusCode: StatusCodes.Status404NotFound);
     }
 
-    private sealed class StreamResult(Func<HttpResponse, Task> write) : IResult
+    private sealed class StreamResult(Func<HttpResponse, Task> write, int status = StatusCodes.Status200OK) : IResult
     {
         public async Task ExecuteAsync(HttpContext httpContext)
         {
+            httpContext.Response.StatusCode = status;
             await Sse.Start(httpContext.Response);
             await write(httpContext.Response);
         }

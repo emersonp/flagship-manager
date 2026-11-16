@@ -69,8 +69,24 @@ public sealed record CallView(string CallId, string DecisionId, int Stakes, IRea
     public string LeadShown => LeadName ?? LeadId;
 }
 
-// Report is null when no team was sent.
-public sealed record AftermathView(string? Outcome, IReadOnlyList<CrewChange> Changes, IReadOnlyList<UnattendedView> Unattended, ReportView? Report = null);
+// Report is null when no team was sent. Waiting and Settled are the storylets of "Matters aboard": those waiting for an answer in the
+// order they arrived, and those answered this cycle in the order answered.
+public sealed record AftermathView(string? Outcome, IReadOnlyList<CrewChange> Changes, IReadOnlyList<UnattendedView> Unattended, ReportView? Report = null)
+{
+    public IReadOnlyList<StoryletView> Waiting { get; init; } = [];
+
+    public IReadOnlyList<SettledStoryletView> Settled { get; init; } = [];
+
+    public bool HasMatters => Waiting.Count > 0 || Settled.Count > 0;
+}
+
+// A storylet waiting for an answer. From says where it came from ("From ENCOUNTER_01 · flag_a"), when an encounter set its flag.
+public sealed record StoryletView(string OfferId, string Title, string? From, IReadOnlyList<ProseEntry> Script, IReadOnlyList<StoryletOptionView> Options);
+
+public sealed record StoryletOptionView(string Id, string Label);
+
+// A storylet answered this cycle: what the answer said, and tags for what it changed.
+public sealed record SettledStoryletView(string Title, IReadOnlyList<ProseEntry> Said, IReadOnlyList<string> Tags);
 
 // Kind is skill, injury, death, recovery, or loyalty.
 public sealed record CrewChange(string CrewId, string Kind, string Text, IReadOnlyList<LinePart>? Parts = null)

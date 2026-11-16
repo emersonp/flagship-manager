@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # One cycle in a real browser through playwright-cli: every action button is double-clicked, and the page must move one
-# step each time. Scratch database and copy of tests/fixtures/content, free port, and everything removed on exit. Not part of check.sh.
+# step each time, and the aftermath holds a storylet that must be answered before the next cycle. Scratch database and copy of tests/fixtures/content, free port, and everything removed on exit. Not part of check.sh.
 set -euo pipefail
 root="$(cd "$(dirname "$0")/../.." && pwd)"
 
@@ -63,6 +63,21 @@ dotnet build --nologo -v quiet "$root/src/Web" > "$tmp/build.log" 2>&1 || { cat 
 
 # The app reads a scratch copy of the tests' placeholder pack, never the game's content/.
 cp -r "$root/tests/fixtures/content" "$tmp/content"
+# In the copy STORYLET_01 holds while flag_a is 5 or less, so it waits in the first aftermath whatever the mission did; either answer ends it.
+python3 - "$tmp/content/storylets/base.yaml" <<'PY'
+import sys
+path = sys.argv[1]
+text = open(path, encoding="utf-8").read()
+edits = [
+    ("- { flag: flag_a, min: 1, max: 1 }", "- { flag: flag_a, max: 5 }"),
+    ("effects: [{ flag: flag_a, set: 0 }, { loyalty: -1, on: crew }]", "effects: [{ flag: flag_a, set: 9 }, { loyalty: -1, on: crew }]"),
+    ("effects: [{ flag: flag_a, set: 2 }]", "effects: [{ flag: flag_a, set: 9 }]"),
+]
+for old, new in edits:
+    assert text.count(old) == 1, old
+    text = text.replace(old, new)
+open(path, "w", encoding="utf-8").write(text)
+PY
 
 # The app is its own session leader, so one signal to its group stops dotnet run and the app it starts.
 (cd "$root" && ASPNETCORE_URLS="$base" Web__DatabasePath="$tmp/play.db" Web__ContentDirectory="$tmp/content" Web__BeatDelayMs=50 Web__DeveloperMode=false ASPNETCORE_ENVIRONMENT=Production \
@@ -137,6 +152,31 @@ wait_for "document.querySelector('.verdict') !== null" "the aftermath"
 sleep 1
 [ "$(phase)" = "Aftermath" ] || fail "a double click on To aftermath left the page in $(phase), not Aftermath."
 
+# Aftermath: the storylet waits, and Next cycle is disabled with the reason beside it.
+wait_for "document.querySelector('#matters form.answer') !== null" "a waiting storylet"
+[ "$(js "document.querySelector('.actions .act button').disabled")" = "true" ] || fail "Next cycle is not disabled while a storylet waits."
+[ "$(js "document.querySelector('#advance-blocked').textContent")" = "A storylet is waiting for an answer." ] || fail "Next cycle does not say why it is disabled."
+
+# At 400 and 1280 pixels wide nothing scrolls sideways, and no storylet panel scrolls inside itself.
+fits="document.documentElement.scrollWidth <= document.documentElement.clientWidth && [...document.querySelectorAll('#matters, .storylet')].every(p => p.scrollWidth <= p.clientWidth && p.scrollHeight <= p.clientHeight)"
+for width in 400 1280; do
+  pw resize "$width" 900 > /dev/null
+  [ "$(js "$fits")" = "true" ] || fail "the waiting storylet scrolls at $width pixels wide."
+done
+
+# The first answer, double-clicked: the panel settles with its tags, and Next cycle is free.
+pw dblclick "#matters form.answer >> nth=0 >> button" > /dev/null
+wait_for "document.querySelector('#matters form') === null && document.querySelector('#matters .fig-tag') !== null" "the storylet to settle"
+[ "$(js "document.querySelector('.actions .act button').disabled")" = "false" ] || fail "Next cycle is still disabled after the answer."
+
+# A reload still shows the settled panel, and it fits at both widths.
+js "location.reload()" > /dev/null || true
+wait_for "document.readyState === 'complete' && document.querySelector('#matters .fig-tag') !== null" "the settled storylet after a reload"
+for width in 400 1280; do
+  pw resize "$width" 900 > /dev/null
+  [ "$(js "$fits")" = "true" ] || fail "the settled storylet scrolls at $width pixels wide."
+done
+
 # Aftermath: a double click starts one new cycle, not two.
 pw dblclick "getByRole('button', { name: 'Next cycle' })" > /dev/null
 wait_for "document.querySelector('[aria-current=step] .phase__name').textContent === 'Orders'" "the next cycle's orders"
@@ -151,4 +191,4 @@ case "$console" in
   *) fail "the browser console has errors: $console" ;;
 esac
 
-echo "Browser: one cycle played, double clicks held. OK."
+echo "Browser: one cycle played, a storylet answered, double clicks held. OK."

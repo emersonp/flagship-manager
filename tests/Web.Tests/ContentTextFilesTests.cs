@@ -12,6 +12,7 @@ public sealed class ContentTextFilesTests(RepoContentGuard guard) : IClassFixtur
         { "missions", "tuning/missions.yaml" },
         { "crew-tuning", "tuning/crew.yaml" },
         { "pack", "pack.yaml" },
+        { "storylets", "storylets/base.yaml" },
     };
 
     // The text area's text as the browser sees it: decoded. A literal line break straight after the tag would be dropped, so none may be there.
@@ -323,10 +324,91 @@ public sealed class ContentTextFilesTests(RepoContentGuard guard) : IClassFixtur
 
         (_, string body) = await Get(app.NewClient(), "/dev/content");
 
-        foreach ((string name, string path) in new[] { ("pack", "pack.yaml"), ("missions", "tuning/missions.yaml"), ("crew-tuning", "tuning/crew.yaml") })
+        foreach ((string name, string path) in new[] { ("pack", "pack.yaml"), ("missions", "tuning/missions.yaml"), ("crew-tuning", "tuning/crew.yaml"), ("storylets", "storylets/base.yaml") })
         {
             Assert.Contains($"<a href=\"/dev/content/files/{name}\">{path}</a>", body);
         }
+    }
+
+    // A storylet that reads flag_z, which nothing raises, and flag_a, which ENCOUNTER_01 raises; flag_b, which ENCOUNTER_04 raises, goes unread.
+    private const string Unmatched = "- id: STORYLET_09\n  stakes: 1\n  scope: ship\n  requires:\n    - { flag: flag_z, min: 1 }\n    - { flag: flag_a, max: 5 }\n  options:\n"
+        + "    - { id: option_a, label: LABEL_A, effects: [{ flag: flag_z, set: 0 }] }\n"
+        + "    - { id: option_b, label: LABEL_B, effects: [{ flag: flag_z, set: 0 }] }\n";
+
+    [Fact]
+    public async Task The_storylets_page_says_the_form_comes_later_and_the_file_is_checked_on_save()
+    {
+        using TestApp app = NewApp();
+
+        (_, string body) = await Get(app.NewClient(), "/dev/content/files/storylets");
+
+        string text = WebUtility.HtmlDecode(body);
+        Assert.Contains("The storylet form comes later.", text);
+        Assert.Contains("Saving checks this file with the rest of the pack.", text);
+    }
+
+    [Fact]
+    public async Task A_storylets_save_the_loader_refuses_shows_its_reason_and_writes_nothing()
+    {
+        using TestApp app = NewApp();
+        string before = Everything(app);
+        string typed = Disk(app, "storylets/base.yaml").Replace("  stakes: 2\n", "  stakes: 9\n", StringComparison.Ordinal);
+
+        (HttpStatusCode status, string body) = await Post(app.NewClient(), "/dev/content/files/storylets", Body(typed));
+
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, status);
+        Assert.Contains("STORYLET_01: A storylet's stakes must be 1 to 5.", WebUtility.HtmlDecode(body));
+        Assert.Contains("Nothing was written.", body);
+        Assert.Equal(typed, Typed(body));
+        Assert.Equal(before, Everything(app));
+    }
+
+    [Fact]
+    public async Task The_storylets_page_warns_of_a_flag_nothing_sets_and_one_nothing_reads_and_still_saves()
+    {
+        using TestApp app = NewApp();
+
+        (HttpStatusCode status, string body) = await Post(app.NewClient(), "/dev/content/files/storylets", Body(Unmatched));
+        (_, string page) = await Get(app.NewClient(), "/dev/content/files/storylets");
+
+        Assert.Equal(HttpStatusCode.OK, status);
+        Assert.Equal(Unmatched, Disk(app, "storylets/base.yaml"));
+        foreach (string shown in new[] { WebUtility.HtmlDecode(body), WebUtility.HtmlDecode(page) })
+        {
+            Assert.Contains("Nothing sets flag_z, which STORYLET_09 requires.", shown);
+            Assert.Contains("Nothing reads flag_b, which ENCOUNTER_04 sets.", shown);
+            Assert.DoesNotContain("Nothing reads flag_a", shown);
+            // The warnings sit under the text.
+            Assert.True(shown.IndexOf("</textarea>", StringComparison.Ordinal) < shown.IndexOf("Nothing sets flag_z", StringComparison.Ordinal));
+        }
+    }
+
+    [Fact]
+    public async Task The_fixtures_storylets_page_has_no_warnings()
+    {
+        using TestApp app = NewApp();
+
+        (_, string body) = await Get(app.NewClient(), "/dev/content/files/storylets");
+
+        Assert.DoesNotContain("Nothing sets", body);
+        Assert.DoesNotContain("Nothing reads", body);
+    }
+
+    [Fact]
+    public async Task A_missing_storylets_file_opens_empty_and_is_created_on_the_first_save()
+    {
+        using TestApp app = NewApp(root => File.Delete(Path.Combine(root, "storylets", "base.yaml")));
+        HttpClient client = app.NewClient();
+
+        (HttpStatusCode opened, string body) = await Get(client, "/dev/content/files/storylets");
+        Assert.Equal(HttpStatusCode.OK, opened);
+        Assert.Equal("", Typed(body));
+
+        (HttpStatusCode saved, _) = await Post(client, "/dev/content/files/storylets", Body(Unmatched));
+
+        Assert.Equal(HttpStatusCode.OK, saved);
+        Assert.Equal(Unmatched, Disk(app, "storylets/base.yaml"));
+        Assert.Contains(app.Live.Pack.Storylets, s => s.Id == "STORYLET_09");
     }
 
     [Fact]

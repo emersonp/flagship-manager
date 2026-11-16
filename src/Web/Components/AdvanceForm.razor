@@ -1,4 +1,12 @@
-<form class="act" @attributes="Indicator" data-on:submit="@Post"><StampFields Bar="Bar" /><button class="btn btn--primary" type="submit" data-attr:disabled="@Busy" data-attr:aria-busy="@BusyAttr">@Label</button></form>
+@if (Blocked is null)
+{
+    <form class="act" @attributes="Indicator" data-on:submit="@Post"><StampFields Bar="Bar" /><button class="btn btn--primary" type="submit" data-attr:disabled="@Busy" data-attr:aria-busy="@BusyAttr">@Label</button></form>
+}
+else
+{
+    @* Nothing to post: the button stays disabled until the page is drawn again with nothing blocking it. *@
+    <form class="act"><p class="note" id="advance-blocked">@Blocked</p><button class="btn btn--primary" type="submit" aria-describedby="advance-blocked" disabled>@Label</button></form>
+}
 
 @code {
     [Parameter, EditorRequired] public Guid LegacyId { get; set; }
@@ -9,6 +17,9 @@
 
     // The local in-flight signal, without its dollar sign.
     [Parameter, EditorRequired] public string Signal { get; set; } = "";
+
+    // Why the advance cannot be sent now; null when it can.
+    [Parameter] public string? Blocked { get; set; }
 
     private Dictionary<string, object> Indicator => new() { [$"data-indicator:{Signal}"] = true };
 

@@ -382,6 +382,19 @@ a.btn { text-decoration: none; }
 .changes li.is-harm .changes__kind { color: var(--color-harm); }
 #unattended { display: grid; gap: var(--space-xs); }
 .after-pair { display: grid; gap: var(--space-lg); grid-template-columns: minmax(0, 1fr); }
+/* Matters aboard: one panel per storylet in one well, split by hairlines like the changes list. Panels grow with their text; nothing in them scrolls. */
+.storylet { display: grid; gap: var(--space-md); min-width: 0; padding: var(--space-md) var(--space-lg); border-top: var(--rule-hair) solid var(--color-rule); }
+.storylet:first-child { border-top: 0; padding-top: 0; }
+.storylet__head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: var(--space-2xs) var(--space-md); min-width: 0; }
+.storylet h3 { font-family: var(--font-display); font-size: var(--text-lg); font-weight: 400; letter-spacing: var(--tracking-display); overflow-wrap: anywhere; color: var(--color-ink); }
+.storylet__head .note { overflow-wrap: anywhere; }
+.storylet .script { margin: 0; }
+.storylet .script__words { overflow-wrap: anywhere; }
+/* An authored label may be long: it wraps inside its button rather than push the page sideways. */
+.storylet .btn { max-width: 100%; white-space: normal; overflow-wrap: anywhere; text-align: center; padding-block: var(--space-2xs); }
+.storylet .beat__tags { margin-left: 0; }
+#storylet-refusal { padding: 0 var(--space-lg) var(--space-md); font-size: var(--text-sm); font-weight: 500; color: var(--color-harm); }
+#storylet-refusal:empty { display: none; }
 
 @media (max-width: 60rem) {
   #topbar { grid-template-columns: minmax(0, 1fr) auto; }
@@ -392,7 +405,7 @@ a.btn { text-decoration: none; }
   .phases ol { grid-template-columns: repeat(5, minmax(5.5rem, 1fr)); }
   .phase { padding: var(--space-xs) var(--space-sm); }
   .clock { gap: var(--space-md); }
-  .well__head, .well__body, .course > *, .unatt, .actions { padding-left: var(--space-md); padding-right: var(--space-md); }
+  .well__head, .well__body, .course > *, .unatt, .actions, .storylet, #storylet-refusal { padding-left: var(--space-md); padding-right: var(--space-md); }
   .roster__key { padding-left: var(--space-md); padding-right: var(--space-md); }
   th:first-child, td:first-child { padding-left: var(--space-md); }
   .rowset .tw { margin-inline: calc(-1 * var(--space-md)); }

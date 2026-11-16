@@ -10,6 +10,16 @@
                     <textarea id="text" name="text" rows="28" wrap="off" spellcheck="false" autocomplete="off" aria-describedby="text-hint">@View.Text</textarea>
                     <p class="hint" id="text-hint">Saving checks the whole pack first. If it would not load, nothing is written and the reasons are shown.</p>
                 </div>
+                @if (View.Warnings.Count > 0)
+                {
+                    <h3 class="sub" id="h-warnings">Warnings</h3>
+                    <ul class="problems" aria-labelledby="h-warnings">
+                        @foreach (string warning in View.Warnings)
+                        {
+                            <li>@warning</li>
+                        }
+                    </ul>
+                }
             </div>
         </form>
         <div class="actions well">

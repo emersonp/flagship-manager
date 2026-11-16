@@ -25,6 +25,8 @@ internal sealed class WebCaptain(TestApp app, HttpClient client, Guid id, Func<L
                 return ("launch", await Post("launch", Form(team)));
             case AnswerCall answer:
                 return ("answer", await Post("answer", [new("mission", answer.MissionId), new("call", answer.CallId), new("answer", answer.Answer.ToString())]));
+            case AnswerStorylet storylet:
+                return ("storylet", await Post("storylet", [new("offer", storylet.OfferId), new("option", storylet.OptionId)]));
             case AdvancePhase:
                 return ("advance", await Post("advance", []));
             default:
@@ -37,11 +39,12 @@ internal sealed class WebCaptain(TestApp app, HttpClient client, Guid id, Func<L
         return (await app.Sessions.Read(app.Live, id))!;
     }
 
-    // Posts with the cycle and phase the page shows now, as the browser does, unless the form carries its own.
-    public async Task<string> Post(string route, IEnumerable<KeyValuePair<string, string>> form)
+    // Posts with the cycle and phase the page shows now, as the browser does, unless the form carries its own. A refusal by the bus
+    // of an advance or a storylet's answer is 422.
+    public async Task<string> Post(string route, IEnumerable<KeyValuePair<string, string>> form, HttpStatusCode expected = HttpStatusCode.OK)
     {
         HttpResponseMessage response = await client.PostAsync($"/legacy/{id}/{route}", new FormUrlEncodedContent(app.Stamped(id, form)));
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(expected, response.StatusCode);
         return await response.Content.ReadAsStringAsync();
     }
 

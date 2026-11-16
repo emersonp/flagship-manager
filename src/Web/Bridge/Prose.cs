@@ -2,6 +2,7 @@ using System.Globalization;
 using Sim.Core;
 using Sim.Core.Content;
 using Sim.Core.Narrative;
+using Sim.Crew;
 using Sim.Missions;
 using Sim.Narrative;
 
@@ -174,6 +175,62 @@ public sealed class Prose
         IReadOnlyList<LinePart>? report = script.ReportText is { } sentence ? Expand(sentence, situation, symbols, key) : null;
         used.Add(line.Id);
         return (line, entries, report);
+    }
+
+    // The situation a storylet's lines are read against, apart from any mission: the storylet (and the option, for an answer's
+    // line), its subject when it has one, and for each skill a "best" speaker, the fit crew member with the highest level in it.
+    public static Situation StoryletSituation(ContentPack pack, Names names, IReadOnlyList<CrewMember> crew, string storyletId, string? subjectId, string? optionId = null)
+    {
+        Dictionary<string, CrewDef> defs = pack.Crew.GroupBy(c => c.Id).ToDictionary(g => g.Key, g => g.First());
+        Person PersonOf(string id) => new(id, names.Crew(id), pack.PronounsOf(defs.GetValueOrDefault(id)));
+        var facts = new Dictionary<string, FactValue> { ["storylet"] = FactValue.Of(storyletId) };
+        if (optionId is not null)
+        {
+            facts["option"] = FactValue.Of(optionId);
+        }
+
+        var people = new Dictionary<string, Person>();
+        if (subjectId is not null && crew.FirstOrDefault(m => m.Id == subjectId) is { } subject)
+        {
+            people["subject"] = PersonOf(subject.Id);
+            facts["subject.id"] = FactValue.Of(subject.Id);
+            facts["subject.caution"] = FactValue.Of(subject.Caution);
+            facts["subject.discipline"] = FactValue.Of(subject.Discipline);
+            facts["subject.seniority"] = FactValue.Of(subject.Seniority);
+        }
+
+        // The sort is stable, so a tie goes to the crew member earlier on the roster.
+        List<CrewMember> fit = crew.Where(m => m.Status == CrewStatus.Active).ToList();
+        foreach (string skill in fit.SelectMany(m => m.Skills.Keys).Distinct().Order(StringComparer.Ordinal))
+        {
+            if (fit.Where(m => m.Skills.GetValueOrDefault(skill)?.Level > 0).OrderByDescending(m => m.Skills[skill].Level).FirstOrDefault() is { } best)
+            {
+                people[Scripts.BestPrefix + skill] = PersonOf(best.Id);
+            }
+        }
+
+        string beat = optionId is null ? "storylet" : "storyletAnswer";
+        return new Situation(beat, facts, people, new Dictionary<string, string> { ["storylet"] = names.Storylet(storyletId) });
+    }
+
+    // A storylet's prose: the winning line, or, when its text cannot be expanded here (a shared line naming #subject# that met a storylet
+    // for the ship), the next line that holds. Null when none does.
+    public static BeatProse? Storylet(ContentPack pack, Situation situation, string key)
+    {
+        Dictionary<string, SymbolDef> symbols = pack.Symbols.GroupBy(s => s.Id).ToDictionary(g => g.Key, g => g.First());
+        var used = new HashSet<string>(StringComparer.Ordinal);
+        List<LineDef> pool = pack.Lines.Where(l => l.Beat == situation.Beat).ToList();
+        while (LineSelector.Select(pool, situation, used, key) is { } line)
+        {
+            if (Render([line], [], symbols, situation, key, used) is { } prose)
+            {
+                return prose;
+            }
+
+            pool.Remove(line);
+        }
+
+        return null;
     }
 
     private static Script? Read(string text)

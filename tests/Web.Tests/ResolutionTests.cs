@@ -520,7 +520,7 @@ public sealed class ResolutionTests : IDisposable
         (Guid id, WebCaptain captain, _) = await LaunchedWithCall();
         int stored = app.Game.Store.ReadEvents(id).Count;
 
-        string stream = await captain.Post("advance", []);
+        string stream = await captain.Post("advance", [], HttpStatusCode.UnprocessableEntity);
 
         List<string> patches = Patches(stream);
         Assert.Single(patches);

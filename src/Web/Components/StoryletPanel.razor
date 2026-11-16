@@ -1,0 +1,67 @@
+@* One storylet in "Matters aboard": waiting, with a button for each answer, or settled, with what the answer said and changed. *@
+<article class="storylet" aria-labelledby="@Head">
+    <div class="storylet__head">
+        <h3 id="@Head">@Title</h3>
+        @if (Waiting?.From is { } from)
+        {
+            <p class="note">@from</p>
+        }
+    </div>
+    @if (Waiting is not null)
+    {
+        <ScriptLines Entries="Waiting.Script" />
+        <div class="answers" role="group" aria-labelledby="@Head">
+            @for (int i = 0; i < Waiting.Options.Count; i++)
+            {
+                StoryletOptionView option = Waiting.Options[i];
+                <form data-on:submit="@Post" class="answer" @attributes="Indicator(i)">
+                    <input type="hidden" name="offer" value="@Waiting.OfferId">
+                    <input type="hidden" name="option" value="@option.Id">
+                    <StampFields Bar="Bar" />
+                    <button class="btn" type="submit" data-attr:disabled="@AnyInFlight" data-attr:aria-busy="@Busy(i)">@option.Label</button>
+                </form>
+            }
+        </div>
+    }
+    else if (Settled is not null)
+    {
+        <ScriptLines Entries="Settled.Said" />
+        @if (Settled.Tags.Count > 0)
+        {
+            <p class="beat__tags">@foreach (string tag in Settled.Tags)
+                {
+                    <span class="fig-tag">@tag</span>
+                }</p>
+        }
+    }
+</article>
+
+@code {
+    [Parameter, EditorRequired] public Guid LegacyId { get; set; }
+
+    [Parameter, EditorRequired] public TopBarView Bar { get; set; } = null!;
+
+    // Its place in the section, so its heading and in-flight signals are its own.
+    [Parameter, EditorRequired] public int Index { get; set; }
+
+    // Exactly one of the two is set.
+    [Parameter] public StoryletView? Waiting { get; set; }
+
+    [Parameter] public SettledStoryletView? Settled { get; set; }
+
+    private string Head => $"storylet-{Index}-head";
+
+    private string Title => Waiting?.Title ?? Settled?.Title ?? "";
+
+    private string Signal(int option) => $"_storylet{Index}x{option}";
+
+    private Dictionary<string, object> Indicator(int option) => new() { [$"data-indicator:{Signal(option)}"] = true };
+
+    // Every answer of this storylet waits while any one is in flight.
+    private string AnyInFlight => string.Join(" || ", Enumerable.Range(0, Waiting?.Options.Count ?? 0).Select(i => "$" + Signal(i)));
+
+    // Datastar writes a true value as an empty attribute, so the in-flight style gets the string "true".
+    private string Busy(int option) => $"${Signal(option)} ? 'true' : false";
+
+    private string Post => $"@post('/legacy/{LegacyId}/storylet', {{contentType: 'form'}})";
+}

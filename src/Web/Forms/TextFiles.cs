@@ -4,7 +4,8 @@ using YamlDotNet.RepresentationModel;
 
 namespace Web.Forms;
 
-// The files edited as text: the pack file and the two tuning files. The path comes from this list, never from a request.
+// The files edited as text: the pack file, the two tuning files, and the storylets until their form exists. The path comes from this
+// list, never from a request.
 public sealed record TextFile(string Name, string Path, string Title, IReadOnlyList<string> Notes)
 {
     private const string Tuning = "The page that edits these numbers and re-runs the bench comes later. A mission in flight keeps the tuning it started with.";
@@ -14,6 +15,7 @@ public sealed record TextFile(string Name, string Path, string Title, IReadOnlyL
         new("pack", "pack.yaml", "Pack file", ["The pack's id cannot be changed here. Changing the version makes every existing legacy show a warning that its content has changed."]),
         new("missions", "tuning/missions.yaml", "Mission tuning", [Tuning]),
         new("crew-tuning", "tuning/crew.yaml", "Crew tuning", [Tuning]),
+        new("storylets", "storylets/base.yaml", "Storylets", ["The storylet form comes later.", "Saving checks this file with the rest of the pack."]),
     ];
 
     // Exact names only: anything else is not a text file.
@@ -25,9 +27,11 @@ public sealed record TextFile(string Name, string Path, string Title, IReadOnlyL
     public string Action => $"/dev/content/files/{Name}";
 }
 
-// What a text file page shows: the text as typed or as stored, what the save refused, and the notice.
+// What a text file page shows: the text as typed or as stored, what the save refused, and the notice. Warnings never block a save.
 public sealed record TextFileView(TextFile File, string Text, IReadOnlyList<ContentError> Reasons, string? Notice, bool FocusAlert)
 {
+    public IReadOnlyList<string> Warnings { get; init; } = [];
+
     // A number that differs for each response, so the alert takes focus again on a second refusal in a row.
     private static long counter;
 
@@ -41,9 +45,45 @@ public sealed record TextFileView(TextFile File, string Text, IReadOnlyList<Cont
 // What each text file request does. A save goes through ContentEditor.Save like every other change.
 internal static class TextFileFlow
 {
+    // A missing file opens empty; the first save creates it.
     public static TextFileView Open(TextFile file, ContentFileSet files, string? notice = null)
     {
-        return new TextFileView(file, files.Files.GetValueOrDefault(file.Path, ""), [], notice, false);
+        IReadOnlyList<string> warnings = file.Name == "storylets" && files.Validate().Pack is { } pack ? FlagWarnings(pack) : [];
+        return new TextFileView(file, files.Files.GetValueOrDefault(file.Path, ""), [], notice, false) { Warnings = warnings };
+    }
+
+    // Flags that cannot work as written: one a storylet requires that nothing raises, and one an encounter raises that no storylet
+    // requires. A change that can only lower a flag (add below 0, set 0) does not count as setting it.
+    internal static IReadOnlyList<string> FlagWarnings(ContentPack pack)
+    {
+        HashSet<string> raised = pack.Encounters.SelectMany(Raises)
+            .Concat(pack.Storylets.SelectMany(s => s.Options).SelectMany(o => o.Effects).Select(e => e.Flag).OfType<FlagChange>().Where(f => f.Amount > 0).Select(f => f.Flag))
+            .ToHashSet(StringComparer.Ordinal);
+        HashSet<string> read = pack.Storylets.SelectMany(s => s.Requires).Select(r => r.Flag).ToHashSet(StringComparer.Ordinal);
+        var warnings = new List<string>();
+        foreach (StoryletDef storylet in pack.Storylets)
+        {
+            warnings.AddRange(storylet.Requires.Select(r => r.Flag).Distinct().Where(f => !raised.Contains(f)).Select(f => $"Nothing sets {f}, which {storylet.Id} requires."));
+        }
+
+        foreach (EncounterDef encounter in pack.Encounters)
+        {
+            warnings.AddRange(Raises(encounter).Distinct().Where(f => !read.Contains(f)).Select(f => $"Nothing reads {f}, which {encounter.Id} sets."));
+        }
+
+        return warnings;
+    }
+
+    // Every flag an encounter's approaches or decision raise.
+    private static IEnumerable<string> Raises(EncounterDef encounter)
+    {
+        IEnumerable<EffectDef> effects = encounter.Approaches.SelectMany(a => a.Outcomes.Values);
+        if (encounter.Decision is { } decision)
+        {
+            effects = effects.Append(decision.Bold).Append(decision.Safe);
+        }
+
+        return effects.SelectMany(e => e.Flags ?? []).Where(f => f.Amount > 0).Select(f => f.Flag);
     }
 
     public static async Task<(TextFileView View, bool Saved)> Save(TextFile file, ContentEditor editor, string typed, CancellationToken cancellation)
