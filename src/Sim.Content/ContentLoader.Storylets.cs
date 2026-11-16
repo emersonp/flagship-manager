@@ -118,6 +118,16 @@ public static partial class ContentLoader
             }
         }
 
+        // Ranges on one flag that do not overlap would make the storylet one that can never arrive.
+        foreach (IGrouping<string, FlagRange> ranges in requires.GroupBy(r => r.Flag))
+        {
+            int highestMin = ranges.Max(r => r.Min);
+            if (ranges.Any(r => r.Max < highestMin))
+            {
+                error($"No value of {ranges.Key} satisfies all of this storylet's requirements on it.");
+            }
+        }
+
         return requires;
     }
 
@@ -226,12 +236,12 @@ public static partial class ContentLoader
         int value = 0;
         if (set == add)
         {
-            error("A flag change needs add or set, not both.");
+            error("A flag change needs add or set, and only one of them.");
             ok = false;
         }
         else if (!int.TryParse(set ? setText : addText, NumberStyles.Integer, CultureInfo.InvariantCulture, out value))
         {
-            error($"Unknown effect '{(set ? "set" : "add")}: {(set ? setText : addText)}'.");
+            error("A flag change's amount must be a whole number.");
             ok = false;
         }
         else if (set && value < 0)

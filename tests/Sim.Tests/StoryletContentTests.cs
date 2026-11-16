@@ -170,6 +170,20 @@ public class StoryletContentTests
         AssertRefused(storylet, "STORYLET_X: A storylet needs two to four options.");
     }
 
+    [Fact]
+    public void A_blank_option_is_refused()
+    {
+        AssertRefused(Storylet.Replace("  options:\n", "  options:\n    -\n"), "STORYLET_X: options[1] is blank.");
+    }
+
+    [Fact]
+    public void Requirements_on_one_flag_that_no_value_satisfies_are_refused()
+    {
+        AssertRefused(
+            Storylet.Replace("{ flag: flag_a, min: 1, max: 1 }", "{ flag: flag_a, min: 1, max: 1 }\n    - { flag: flag_a, min: 2 }"),
+            "STORYLET_X: No value of flag_a satisfies all of this storylet's requirements on it.");
+    }
+
     [Theory]
     [InlineData("id: option_b", "id: Option_B", "STORYLET_X: Option id 'Option_B' must be lower case: a letter, then letters, digits, and underscores, at most 40 in all.")]
     [InlineData("id: option_b", "id: option_a", "STORYLET_X: Option id 'option_a' is used twice.")]
@@ -197,8 +211,11 @@ public class StoryletContentTests
     [InlineData("{ loyalty: -1, on: ship }", "STORYLET_X: A loyalty change needs on: subject or crew.")]
     [InlineData("{ loyalty: lots, on: crew }", "STORYLET_X: A loyalty change must be a whole number.")]
     [InlineData("{ flag: flag_b, add: 1, on: crew }", "STORYLET_X: A storylet's flag change takes on: ship or subject, or no on.")]
-    [InlineData("{ flag: flag_b, add: 1, set: 1 }", "STORYLET_X: A flag change needs add or set, not both.")]
-    [InlineData("{ flag: flag_b }", "STORYLET_X: A flag change needs add or set, not both.")]
+    [InlineData("{ flag: flag_b, add: 1, set: 1 }", "STORYLET_X: A flag change needs add or set, and only one of them.")]
+    [InlineData("{ flag: flag_b }", "STORYLET_X: A flag change needs add or set, and only one of them.")]
+    [InlineData("{ flag: flag_b, add: lots }", "STORYLET_X: A flag change's amount must be a whole number.")]
+    [InlineData("{ flag: flag_b, set: abc }", "STORYLET_X: A flag change's amount must be a whole number.")]
+    [InlineData("{}", "STORYLET_X: A storylet's effect is blank.")]
     [InlineData("{ flag: flag_b, set: -1 }", "STORYLET_X: A flag's set must be 0 or more.")]
     [InlineData("{ flag: Flag_B, add: 1 }", "STORYLET_X: Flag id 'Flag_B' must be lower case: a letter, then letters, digits, and underscores, at most 40 in all.")]
     [InlineData("{ flag: flag_b, add: 1, loyalty: 1 }", "STORYLET_X: An effect changes loyalty or a flag, not both.")]
