@@ -18,7 +18,7 @@
 - Test first: each task's tests are written and seen to fail before its code.
 - `src/Sim.*` stays pure, and feature modules never reference each other (the architecture test enforces both). `Sim.Storylets` references only `Sim.Core`. Nothing in this slice draws randomness.
 - `tests/fixtures/content/` holds placeholders only. `content/` may gain generated words for the two storylets of design section 4.8 and nothing else.
-- Vocabulary follows `GLOSSARY.md`: "story flag" (here "flag"), "storylet", "aftermath". There is no "mark", "quest", or "event" in the interface.
+- Names follow `docs/conventions.md` (ids, reserved characters, flags, YAML keys). Vocabulary follows `GLOSSARY.md`: "story flag" (here "flag"), "storylet", "aftermath". There is no "mark", "quest", or "event" in the interface.
 - A task that changes what the store holds raises `SchemaVersion` in `src/Persistence/SqliteLegacyStore.cs` and `CurrentFormatVersion` in `src/Persistence/LegacyExport.cs` by one each, with their pinned tests. They are 6 and 4 today.
 - Golden hashes move only where a task says so, with a comment saying why.
 - A refused request answers HTTP 422 with the page or form drawn again, as everywhere else.
@@ -26,11 +26,11 @@
 
 ## Review focus
 
-1. **A flag lands on someone who dies on that mission.** It is not stored, and no storylet arrives for them. (Task 2)
-2. **More storylets are due than the cycle allows** (two crew with the same flag and a ship storylet, limit 2). The same two arrive on every run, highest stakes first; the third arrives next cycle. (Task 2)
-3. **An answer is posted twice, for a storylet that is not waiting, or with an option it does not have.** Refused; nothing changes. (Tasks 2 and 3)
-4. **No team is sent, but a storylet has been waiting since an earlier cycle.** It is shown, it is answerable, the aftermath cannot be left until it is, and the simulator does not loop. (Tasks 2 and 3)
-5. **The author deletes or breaks a storylet while it is waiting in a saved game.** It is withdrawn at the next request; it never blocks the legacy. (Task 2)
+1. **A flag lands on someone who dies on that mission.** It is not stored, and no storylet arrives for them. (Task 3)
+2. **More storylets are due than the cycle allows** (two crew with the same flag and a ship storylet, limit 2). The same two arrive on every run, highest stakes first; the third arrives next cycle. (Task 3)
+3. **An answer is posted twice, for a storylet that is not waiting, or with an option it does not have.** Refused; nothing changes. (Tasks 3 and 4)
+4. **No team is sent, but a storylet has been waiting since an earlier cycle.** It is shown, it is answerable, the aftermath cannot be left until it is, and the simulator does not loop. (Tasks 3 and 4)
+5. **The author deletes or breaks a storylet while it is waiting in a saved game.** It is withdrawn at the next request; it never blocks the legacy. (Task 3)
 
 ---
 
@@ -46,7 +46,7 @@
 public sealed record FlagChange(string Flag, int Amount, bool Set, string On);
 public sealed record EffectDef(int Momentum = 0, int Strain = 0, int Progress = 0, InjurySeverity? InjuryRoll = null,
     bool Withdraw = false, IReadOnlyList<FlagChange>? Flags = null);   // null, never empty, when there are none: keeps record equality
-public static class FlagIds { public static bool IsValid(string id); }  // lower-case letters, digits, dots, hyphens; 1 to 40
+public static class FlagIds { public static bool IsValid(string id); }  // docs/conventions.md, lower case: ^[a-z][a-z0-9_]{0,39}$
 
 // Sim.Core
 public sealed record MissionFlag(string Flag, int Amount, bool Set, string? CrewId, string EncounterId);   // CrewId null: the ship
@@ -59,20 +59,50 @@ public sealed record MissionFlag(string Flag, int Amount, bool Set, string? Crew
 ```
 
 **Rules pinned here (design 4.2):**
-- YAML: `{ flag: flag-a, add: 1, on: ship }` or `{ flag: flag-a, set: 2, on: lead }` as one entry of an effect list. Exactly one of `add` and `set`; `on` required; `on: actor` only in an approach's outcome. `set` is 0 or more. Loader messages: "A flag change needs add or set, not both.", "A flag change needs on: ship, actor, lead, or team.", "on: actor is only for an approach's outcome.", "Flag id '{id}' must be 1 to 40 lower-case letters, digits, dots, or hyphens."
+- YAML: `{ flag: flag_a, add: 1, on: ship }` or `{ flag: flag_a, set: 2, on: lead }` as one entry of an effect list. Exactly one of `add` and `set`; `on` required; `on: actor` only in an approach's outcome. `set` is 0 or more. Loader messages: "A flag change needs add or set, not both.", "A flag change needs on: ship, actor, lead, or team.", "on: actor is only for an approach's outcome.", "Flag id '{id}' must be lower case: a letter, then letters, digits, and underscores, at most 40 in all."
 - The resolver appends one `MissionFlag` per target when an outcome or a decision's answer applies: `ship` gives `CrewId` null; `actor` the one who made the check; `lead` the current lead; `team` one for each member still standing, in team order. Nothing else about the mission changes: no dice, no momentum.
 - The mission's result carries every `MissionFlag` in the order made. A check's beat carries its own; an `EffectsBeat` already carries its `EffectDef`.
-- The log's tags for a beat that changed a flag: `flag-a +1, ship` / `flag-a = 2, CREW_02`.
+- The log's tags for a beat that changed a flag: `flag_a +1, ship` / `flag_a = 2, CREW_02`.
 - The form's outcome holds one flag change per tier and a decision's effect row one per row; labels "Flag", "Add or set", "Amount", "On". A hand-written outcome with two flag changes is kept by the reader and writer and marked as something the form cannot keep, through the existing lossy mechanism.
-- Fixture: `ENCOUNTER_01`'s first approach gains `partial: [{ strain: 1 }, { flag: flag-a, add: 1, on: ship }]`, and `ENCOUNTER_04`'s first approach gains a `disaster` outcome equal to its default plus `{ flag: flag-b, add: 1, on: actor }`.
+- Fixture: `ENCOUNTER_01`'s first approach gains `partial: [{ strain: 1 }, { flag: flag_a, add: 1, on: ship }]`, and `ENCOUNTER_04`'s first approach gains a `disaster` outcome equal to its default plus `{ flag: flag_b, add: 1, on: actor }`.
 
-- [ ] **Step 1:** Tests. `MissionContentTests`: one per loader message; `A_flag_change_loads_on_an_outcome_and_on_a_decision`. `MissionRulesTests`: `A_ship_flag_from_an_outcome_is_in_the_result_with_no_crew`, `An_actor_flag_names_the_one_who_made_the_check`, `A_team_flag_names_each_member_still_standing`, `A_lead_flag_from_a_decision_names_the_lead_at_that_moment`, `A_flag_change_alters_nothing_else_about_the_mission` (same seed with and without the flag: identical beats apart from `Flags`). `ContentWriterTests`, `ContentFaithfulnessTests`: add, set, each `on`, and two changes in one outcome read back equal. `ContentMissionFormsTests`: saving a tier with `out.partial.flag=flag-a`, `flagMode=add`, `flagAmount=1`, `flagOn=ship` writes the entry; opening and saving the fixture unchanged leaves the file unchanged. `BeatLinesTests`: the two tag forms.
+- [ ] **Step 1:** Tests. `MissionContentTests`: one per loader message; `A_flag_change_loads_on_an_outcome_and_on_a_decision`. `MissionRulesTests`: `A_ship_flag_from_an_outcome_is_in_the_result_with_no_crew`, `An_actor_flag_names_the_one_who_made_the_check`, `A_team_flag_names_each_member_still_standing`, `A_lead_flag_from_a_decision_names_the_lead_at_that_moment`, `A_flag_change_alters_nothing_else_about_the_mission` (same seed with and without the flag: identical beats apart from `Flags`). `ContentWriterTests`, `ContentFaithfulnessTests`: add, set, each `on`, and two changes in one outcome read back equal. `ContentMissionFormsTests`: saving a tier with `out.partial.flag=flag_a`, `flagMode=add`, `flagAmount=1`, `flagOn=ship` writes the entry; opening and saving the fixture unchanged leaves the file unchanged. `BeatLinesTests`: the two tag forms.
 - [ ] **Step 2:** Run them. Expected: compile failures, then failures.
 - [ ] **Step 3:** Implement. Raise both persistence versions (7 and 5).
 - [ ] **Step 4:** `dotnet test`. Both golden hashes move, because every mission result gained `Flags`; confirm on one walkthrough that every other field of every beat is unchanged, then re-pin with the comment "a mission's result and a check's beat carry the flags they changed (1e part one, Task 1)".
 - [ ] **Step 5:** `./check.sh`, then commit: "Let an encounter's outcome or a decision's answer change a story flag, and report it in the mission's result".
 
-### Task 2: the storylets module, headless
+### Task 2: one rule for ids
+
+The author's conventions (`docs/conventions.md`, decided 2026-11-16) replace the four id rules the loader and the editor enforce today.
+
+**Files:** new `src/Sim.Core/Content/Ids.cs`; `src/Sim.Content/ContentLoader.cs`, `ContentLoader.Missions.cs`, `ContentLoader.Narrative.cs`; `src/Web/Forms/Checks.cs` and every caller of its id rules; both packs' `symbols/base.yaml`, `lines/base.yaml`, and `encounters/base.yaml`; tests beside each.
+
+**Produces:**
+
+```csharp
+// Sim.Core.Content
+public static class Ids
+{
+    public const int MaxLength = 40;
+    public static bool IsItemId(string id);    // ^[A-Z][A-Z0-9_]{0,39}$ : skills, crew, gear, assignments, objectives, encounters, decisions, lines, storylets
+    public static bool IsInnerId(string id);   // ^[a-z][a-z0-9_]{0,39}$ : approaches, options, flags, symbols, pronoun sets, tags
+    public const string ItemRule = "Upper case: a letter, then letters, digits, and underscores, at most 40 in all.";
+    public const string InnerRule = "Lower case: a letter, then letters, digits, and underscores, at most 40 in all.";
+}
+```
+
+- `FlagIds.IsValid` from Task 1 becomes a call to `Ids.IsInnerId`; `ContentLoader.IsApproachId` likewise. Every regex for ids elsewhere is deleted, and the loader's and the editor's messages and hints use the two rule strings.
+- Tags are checked for the first time: an encounter's, an objective's, a gear item's, and a stage's draw tags must be inner ids ("Tag '{tag}' must be lower case: ...").
+- Symbols are renamed to the inner form in both packs (`captainAsk` becomes `captain_ask`, and every other mixed-case symbol likewise), with every `#symbol#` use in lines and in encounters' and objectives' text. Pronoun set ids are already lower case.
+- Nothing else is renamed. If an existing id in either pack fails the new rules other than symbols, stop and report it rather than renaming.
+
+- [ ] **Step 1:** Tests: `IdsTests` for both rules (a leading digit, a hyphen, a dot, a capital in an inner id, a lower-case letter in an item id, 40 and 41 characters); `MissionContentTests`: `A_tag_with_a_hyphen_is_refused`; `NarrativeContentTests`: `A_symbol_in_mixed_case_is_refused`; the editor's id hint quotes `Ids.ItemRule` on an item form and `Ids.InnerRule` on the symbol form.
+- [ ] **Step 2:** Run them. Expected: FAIL.
+- [ ] **Step 3:** Implement and rename. Both packs load; `./check.sh` passes; the golden hashes do not move (text is never stored).
+- [ ] **Step 4:** Commit: "Name every id by one of two rules, upper case for items and lower case for what lives inside them".
+
+### Task 3: the storylets module, headless
 
 **Files:** new project `src/Sim.Storylets/` (`StoryletsModule.cs`, `StoryletsState.cs`), `StarshipSim.slnx`, `src/Sim.Core/Content/StoryletContent.cs` (new), `ContentPack.cs`, `MissionTuning.cs` or a new tuning record, `src/Sim.Core/Narrative/NarrativeFacts.cs`, `src/Sim.Content/ContentLoader.Storylets.cs` (new), `ContentLoader.cs`, `ContentLoader.Narrative.cs`, `ContentFiles.cs`, `src/Sim.Crew/CrewModule.cs`, `src/GameHost/Game.cs`, `src/SimRunner/AutoCaptain.cs`, `Simulation.cs`, `Cli.cs`; `tests/fixtures/content/storylets/base.yaml` (new), `tests/fixtures/content/tuning/missions.yaml`, `content/tuning/missions.yaml`; `tests/Sim.Tests/StoryletContentTests.cs`, `StoryletsModuleTests.cs` (new), `ArchitectureTests.cs`, `tests/SimRunner.Tests/*`.
 
@@ -109,7 +139,7 @@ public sealed class StoryletsState { List<StoredFlag> Flags; List<WaitingStoryle
 
 **Content (design 4.3), file `storylets/*.yaml`:** as the design's example. Loader rules and messages:
 - `stakes` 1 to 5; `requires` one to four entries, each a known-shaped flag id with `min` and `max` (`min` defaults to 1, or to 0 when only `max` is given; `max` at least `min`); "A storylet needs one to four requirements."
-- Two to four options, ids unique in the storylet, in the approach id's form; labels 1 to 40 characters.
+- Two to four options, ids unique in the storylet, lower case (`docs/conventions.md`); labels 1 to 40 characters.
 - Effects: `{ loyalty: N, on: subject|crew }` and `{ flag: ID, add|set: N, on: ship|subject }` with `on` optional on a flag. Anything else: "A storylet's effect can change loyalty or a flag; '{key}' is not one of them."
 - "This storylet has no subject" for `on: subject`, a `subject` speaker, or a `#subject#` token is not decidable at load (the scope depends on where the flag was set), so instead: a storylet declares `scope: ship` or `scope: crew` (required), the loader checks text and effects against it, and at run time a flag found on the other scope does not offer the storylet.
 - "Option '{id}' leaves every requirement true, so this storylet would come back every cycle." Decide it by applying the option's flag changes to the lowest values that satisfy the requirements.
@@ -123,7 +153,7 @@ public sealed class StoryletsState { List<StoredFlag> Flags; List<WaitingStoryle
 - Guard `AnswerStorylet`: the offer is waiting and the option is the storylet's ("That storylet is not waiting for an answer.", "That is not one of its answers."). Handler: apply the option's effects in order (loyalty through `AdjustLoyalty`, for `crew` to every living member in roster order; flags as above), remove the offer, publish `StoryletAnswered`.
 - Guard `AdvancePhase` while the phase is `Aftermath` and anything waits: "A storylet is waiting for an answer."
 - `AutoCaptain.NextCommand`: in the aftermath, answer the first waiting storylet with its first option before advancing. `SimRunner cycles` adds "storylets offered" and "answered" per 100 cycles to its summary line.
-- Fixture: `STORYLET_01` (scope ship, requires `flag-a` 1 to 1; option-a sets it to 0 with loyalty -1 on crew; option-b sets it to 2) and `STORYLET_02` (scope crew, requires `flag-b` min 1 and `flag-c` max 0; option-a adds -1 to `flag-b`, sets `flag-c` 1; option-b sets `flag-c` 2 with loyalty -2 on subject), in placeholder words.
+- Fixture: `STORYLET_01` (scope ship, requires `flag_a` 1 to 1; option_a sets it to 0 with loyalty -1 on crew; option_b sets it to 2) and `STORYLET_02` (scope crew, requires `flag_b` min 1 and `flag_c` max 0; option_a adds -1 to `flag_b`, sets `flag_c` 1; option_b sets `flag_c` 2 with loyalty -2 on subject), in placeholder words.
 
 - [ ] **Step 1:** Tests. `StoryletContentTests`: one per loader message; the fixture loads; a storylet's text is in the pack's lines with its implied criteria. `StoryletsModuleTests`, driving the bus with built packs:
 
@@ -147,10 +177,10 @@ public sealed class StoryletsState { List<StoredFlag> Flags; List<WaitingStoryle
 `SimulationTests`: 50 cycles of the fixture end with nothing waiting and offered equal to answered plus withdrawn. `ArchitectureTests`: `Sim.Storylets` references only `Sim.Core`.
 - [ ] **Step 2:** Run them. Expected: compile failures, then failures.
 - [ ] **Step 3:** Implement. Register the module in `Game.Build` and its assembly in the event registry. Raise both persistence versions (8 and 6).
-- [ ] **Step 4:** `dotnet test`. The simulation's golden hash moves (new events in the log); the mission walkthrough's must not. Re-pin the first with "storylets are offered and answered in the aftermath (1e part one, Task 2)".
+- [ ] **Step 4:** `dotnet test`. The simulation's golden hash moves (new events in the log); the mission walkthrough's must not. Re-pin the first with "storylets are offered and answered in the aftermath (1e part one, Task 3)".
 - [ ] **Step 5:** `./check.sh`; put the simulator's storylets-per-100-cycles figure for the fixture in the commit message body. Commit: "Add the storylets module: flags stored from missions, storylets offered in the aftermath, and answers with fixed effects".
 
-### Task 3: storylets on the bridge and in the editor
+### Task 4: storylets on the bridge and in the editor
 
 **Files:** `src/Web/Bridge/BridgeView.cs`, `BridgeReader.cs`, `Prose.cs`, `Names.cs`, `src/Web/Endpoints/BridgeEndpoints.cs`, `src/Web/Components/AftermathScreen.razor`, new `StoryletPanel.razor`, `AdvanceForm.razor`, `CallPanel.razor` only if parts are shared, `src/Web/Forms/TextFiles.cs`, `src/Web/Components/Content/ContentIndex.razor` and its view, `src/Web/wwwroot/css/app.css`; `tests/Web.Tests/StoryletBridgeTests.cs` (new), `ParityTests.cs`, `WebCaptain.cs`, `ContentTextFilesTests.cs`, `tests/browser/play.sh`.
 
@@ -172,7 +202,7 @@ Use the script entry type the call panel already renders in place of `ScriptEntr
 
 **Behaviour (design 4.6 and 4.7):**
 - The aftermath shows a section headed "Matters aboard" above the report whenever anything is waiting or was settled this cycle; it is absent otherwise. One `StoryletPanel` for each, waiting ones first in arrival order.
-- A waiting panel: the storylet's name, "From {encounter name} · {flag}" when the flag has an encounter, the script, then one button for each option with its label. A settled panel: the name, the option's text, then tags in the log's figure style: `Loyalty -2 CREW_02`, `Loyalty -1 all crew`, `flag-a 1 to 0`. Settled panels are rebuilt from this cycle's `StoryletAnswered`, `LoyaltyChanged`, and `FlagChanged` events, so a reload shows them.
+- A waiting panel: the storylet's name, "From {encounter name} · {flag}" when the flag has an encounter, the script, then one button for each option with its label. A settled panel: the name, the option's text, then tags in the log's figure style: `Loyalty -2 CREW_02`, `Loyalty -1 all crew`, `flag_a 1 to 0`. Settled panels are rebuilt from this cycle's `StoryletAnswered`, `LoyaltyChanged`, and `FlagChanged` events, so a reload shows them.
 - The aftermath is shown even when no team was sent, if anything waits. (Review focus 4)
 - "Advance" is disabled with the words "A storylet is waiting for an answer." while anything waits; a posted advance is refused by the bus and answers 422 with those words.
 - A posted answer the bus refuses answers 422 with the reason beside the panel. (Review focus 3)
@@ -199,11 +229,11 @@ Use the script entry type the call panel already renders in place of `ScriptEntr
 - [ ] **Step 4:** In headless Firefox with scripting on, at 400 and 1280 pixels wide: play a cycle of the fixture to a waiting storylet, answer it, reload, advance. Nothing scrolls sideways and nothing scrolls inside a panel. Add the walk to `tests/browser/play.sh` (`bash -n` only).
 - [ ] **Step 5:** `./check.sh`; report `ContentSpeedTests` run alone. Commit: "Show waiting storylets in the aftermath with their answers, and open the storylets file in the editor".
 
-### Task 4: the game's two storylets and the record
+### Task 5: the game's two storylets and the record
 
 **Files:** `content/storylets/base.yaml` (new), `content/encounters/base.yaml`, `docs/gdd.md`, `GLOSSARY.md`, `docs/plans/phase-1-outline.md`, `README.md`, `wayfinder/map.md`, `tools/gdd-page/template.html` (version line only).
 
-- [ ] **Step 1:** Write the two storylets of design section 4.8 in the setting the pack already has (read `content/encounters/base.yaml` and `content/crew/starting.yaml` for its voice: clipped, a ship's log, speech by role). Flags: `sensors.quirk` (a stage on the ship: 1 new, 2 let ride, 0 fixed), `shaken` (a count on a crew member), `shaken.heard` (a stage on them: 1 heard, 2 turned away). Each storylet has a script of three to six entries with a report sentence, two options with labels of a few words, and a line of text for each option. "Often a choice between two bad options": neither answer is free.
+- [ ] **Step 1:** Write the two storylets of design section 4.8 in the setting the pack already has (read `content/encounters/base.yaml` and `content/crew/starting.yaml` for its voice: clipped, a ship's log, speech by role). Flags: `sensors_quirk` (a stage on the ship: 1 new, 2 let ride, 0 fixed), `shaken` (a count on a crew member), `shaken_heard` (a stage on them: 1 heard, 2 turned away). Each storylet has a script of three to six entries with a report sentence, two options with labels of a few words, and a line of text for each option. "Often a choice between two bad options": neither answer is free.
 - [ ] **Step 2:** Set the flags in `content/encounters/base.yaml`: the Debris Shoal's careful approach on partial and on failure (each the tier's default plus the flag), and the Collapsed Gallery's first approach on disaster (the default plus the flag on the actor). Change nothing else in the file.
 - [ ] **Step 3:** `dotnet run --project src/SimRunner -- cycles --legacies 20 --cycles 50 --seed 1 --content content`: both storylets are offered at least once across the run (if one never is, say so in the report; do not change difficulty to force it). Play one to its answer in headless Firefox.
 - [ ] **Step 4:** The record. GDD: status line to v1.16; 3.5 (an effect can change a flag) and 3.7 (the storylet's YAML as built, in placeholders, noting what part three replaces); 3.8 (every flag is a number; a counter is added to and a stage is set, and one flag is never both); 5.1 (what part one's selection is: requirements, stakes order, the per-cycle limit); 7.1 (`Sim.Storylets` as built); 7.5 (the aftermath's "Matters aboard"); 11.1 (part one done, with the date; part two next); section 15, one new item for the numeric-flag decision and the thin example. Glossary: **Captain storylet** becomes "A storylet that arrives and requires a choice." and **Story flag** gains the counter and stage sentence. Outline, README, map: one line each. Bump the page template's version line to v1.16.
