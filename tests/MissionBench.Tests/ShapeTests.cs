@@ -31,7 +31,8 @@ public class ShapeTests
         Assert.True(cautious.Outcomes[MissionOutcome.Loss] < reckless.Outcomes[MissionOutcome.Loss]);
     }
 
-    // The floor was 2 until the lead chose by skill (approaches plan, Task 4); the cost then measured about 1 point at 1000 and at 5000 runs.
+    // A design consequence of authored approaches: before them develop juniors cost 2 points of full success or more; with the lead
+    // choosing by skill it costs about 1. The floor is now that it costs something; the size of the cost is the author's to tune.
     [Fact]
     public void Develop_juniors_costs_some_success_and_teaches_the_juniors()
     {
@@ -39,7 +40,8 @@ public class ShapeTests
         BenchFigures develop = Run(3, [3, 5, 6], new Parameters(DevelopJuniors: true));
 
         double gap = 100.0 * (best.Outcomes[MissionOutcome.FullSuccess] - develop.Outcomes[MissionOutcome.FullSuccess]) / best.Runs;
-        Assert.InRange(gap, 0.5, 25);
+        Assert.True(gap > 0, $"Develop juniors cost {gap} points of full success.");
+        Assert.True(gap <= 25, $"Develop juniors cost {gap} points of full success.");
         Assert.True(develop.ExperienceByMember["CREW_05"] > 1.3 * best.ExperienceByMember["CREW_05"]);
         Assert.True(develop.ExperienceByMember["CREW_03"] < best.ExperienceByMember["CREW_03"]);
     }
