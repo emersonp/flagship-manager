@@ -104,7 +104,7 @@ fieldset.q legend { font-weight: 600; padding: 0; display: flex; gap: .6rem; ali
 <header>
 <p class="eyebrow">Game design document · v1.15 · reports done; authored approaches after the 1d review; life aboard next · 2026-11-15</p>
 <h1>Starship Sim</h1>
-<p class="lede">Send the people most likely to succeed, or the people who most need the experience. The game is that one decision, made every cycle, with consequences that stay. One player's whole game is a legacy.</p>
+<p class="lede">Hold the chair of a ship. Choose who goes, who leads, and who stays; then live with what follows aboard. Skill, experience, loyalty, and the crew's own qualities all pull on every choice, and the consequences stay. One player's whole game is a legacy.</p>
 <p class="status">Creative content is placeholder throughout (<code>SPECIES_A</code>, <code>MISSION_TEMPLATE_1</code>). Numbers are starting points for the balance simulator, not commitments. Source: <code>docs/gdd.md</code>.</p>
 </header>
 {{BODY}}
@@ -149,7 +149,7 @@ fieldset.q legend { font-weight: 600; padding: 0; display: flex; gap: .6rem; ali
   call();
 
   // Open questions: remembered per browser, copied out as text
-  var KEY = 'gdd-open-questions-v3', saved = {};
+  var KEY = 'gdd-open-questions-v4', saved = {};
   try { saved = JSON.parse(localStorage.getItem(KEY) || '{}') || {}; } catch (e) { saved = {}; }
   var sets = Array.prototype.slice.call(document.querySelectorAll('fieldset.q'));
   function store() {

@@ -6,7 +6,14 @@ Status: draft v1.15, 2026-11-15, revised after the author's reviews (section 15)
 
 The player holds the **chair** of a ship. Each **cycle** they choose missions, pick **away teams**, and then live with the consequences aboard. One player's whole game is a **legacy**. There is no ending and no game over: hulls are lost, captains retire, crew die or leave, and the **chronicle** keeps growing.
 
-The central tension is one decision made over and over: send the people most likely to succeed, or the people who most need the experience.
+The game is staffing decisions whose consequences stay. Choosing an away team is the one made most often, and several things pull on it at once:
+
+- The people most likely to succeed, or the people who most need the experience.
+- A broad team that can attempt anything, or a deep one that does one thing well.
+- Who leads, which decides how the team goes about its work and what the captain is asked.
+- Who is loyal, who is close to whom, and whose qualities may set off events of their own, on the mission or aboard afterwards.
+
+None of these is the game by itself. Developing juniors is one consideration among them.
 
 ### Settled decisions
 
@@ -77,7 +84,7 @@ status: active                # active | away | injured | departed | dead
 departmentId: DEPT_A
 post: POST_A
 reportsTo: crew_0007           # the org chart
-insight: rough                # hidden | rough | clear; see 5.6
+insight: rough                # hidden | rough | clear | keen; see 5.6
 parents: []                   # crew ids, for later generations
 trainingFocus: SKILL_B        # null = none
 skills:                       # level 0-10, xp toward next
@@ -325,9 +332,9 @@ attribute: ATTRIBUTE_A        # a broad capacity, such as fitness or presence
 ```
 
 - Every skill belongs to a department, an attribute, or both; most belong to one of each. Departments and attributes are content, named by the author.
-- A crew member's **grade** in a department or attribute comes from the levels of the skills under it. It is computed, never stored, and is a stat like any other (3.8).
+- A crew member's **grade** in a department or attribute is the plain mean of the levels of the skills under it. It is computed, never stored, and is a stat like any other (3.8).
 - A grade has a shape as well as a height. Being moderately good at every skill under an attribute and being average with one exceptional skill can give the same grade, and the difference is not normally obvious. Good insight shows the shape (5.6).
-- Checks still name a skill. Whether an approach may name a department or attribute grade instead is open (section 16).
+- Checks always name a skill, never a department or attribute grade. This is looked at again with the bench when Phase 5 builds grades (section 15, item 28).
 - Built with Phase 5 (departments and insight). Until then a skill has neither field; the loader starts requiring at least one when grades are built.
 
 ## 4. Mission resolution
@@ -492,10 +499,10 @@ A department that looks quiet may be well run or badly reported. Appointing head
 The org chart is always visible: who reports to whom, by department and post. What the player knows about each person is not.
 
 - Personality, morale, and relationship values are shown as bands in words, never as numbers.
-- Each crew member has an insight level: hidden, rough, or clear. It controls how many bands are shown and how fine they are.
+- Each crew member has an insight level: hidden, rough, clear, or keen. It controls how many bands are shown and how fine they are.
 - The captain's direct reports are always clear.
 - For everyone else, insight comes from the people responsible for them. Department heads and trainers give insight into skills and potential. Counsellors give insight into personality, morale, and relationships. The better they are at it, the clearer the picture and the sooner it arrives.
-- Skill grades (3.10) are seen through the department head or trainer responsible for the person. With poor insight a grade is a word ("High"); with better insight it is a grade ("B+"); with the best, it is the grade and its shape ("B+, excelling in SKILL_A"). The shape is the hard part to see. Someone strong across a whole attribute and someone average with one exceptional skill look alike to a poor observer. How many insight levels this needs is open (section 16).
+- Skill grades (3.10) are seen through the department head or trainer responsible for the person. At rough insight a grade is a word ("High"); at clear it is a letter ("B+"); at keen it is the letter and its shape ("B+, excelling in SKILL_A"). The shape is the hard part to see. Someone strong across a whole attribute and someone average with one exceptional skill look alike to anyone short of a keen observer.
 - Vignettes and missions raise insight for the crew they feature.
 - Insight is never wrong at first, only vague: poor staff mean wide bands. Later, traits can distort it, both in the person observed (someone hiding something) and in the observer (a counsellor biased against `SPECIES_A` reads them badly).
 
@@ -850,7 +857,7 @@ Each phase ends with something playable, a simulator run, and a short list of wh
 | Unplaced: a shared library of approaches | Approaches defined once and used by many encounters, while an encounter can still write one of its own. The author will design this; not enough is known yet | Not yet known |
 | Track: online | Accounts, hosted Postgres, one legacy per player | Play from anywhere |
 | Track: portraits | Paper-doll spec, compositor, first part set | Faces in crew files |
-| Later | Dry dock, diplomacy, tactical grid, shared universe | |
+| Later | Dry dock, diplomacy, tactical grid, shared universe; much later, a way to write a speech of more than one paragraph in a script | |
 
 Phase 1 uses the real architecture at the smallest size. Nothing in it is thrown away.
 
@@ -978,39 +985,16 @@ Notes from the author on 2026-11-15, in the review of slice 1d (design in `docs/
     - Two consequences of choosing by skill, measured on the bench and accepted for now. "Develop juniors" costs about 1 point of full success where it cost 2 or more. Crew gain levels more slowly: a test that saw a level in 20 cycles now needs 30. Both are the author's to tune. The bench's figures, before the 1d review and after it, are in section 4.7.
     - The briefing's away team table restacks below 56rem instead of scrolling inside its card.
 
+Answered by the author on 2026-11-15, from the open questions:
+
+25. **How grades are shown.** Words at the lower insight levels, letters at the higher: see 5.6.
+26. **How a grade is computed.** The plain mean of the skills under it, with the shape reported separately: see 3.10.
+27. **How many insight levels.** Four: hidden, rough, clear, and keen. Keen is the level that shows a grade's shape: see 5.6.
+28. **Checks against a grade.** No; checks always name a skill. Decided again with the bench in Phase 5: see 3.10.
+29. **A vignette nobody answers.** The default option applies, authored per vignette and usually the quiet one: see 5.2.
+30. **Generated characters in the editor.** Eventually the editor previews and samples against a testing and sample pool of crew that never appears in the main game. Built when crew generation is designed.
+31. **A long speech in a script.** Deferred to much later: it is on the roadmap's "Later" row (section 11). Until then a script entry is one line.
+
 ## 16. Open questions
 
-Cheap to settle later; none blocks slice 1d.
-
-1. **How grades are shown**
-At each insight level, a department or attribute grade can be shown as a word, a letter, or both.
-(a) Words at the lower insight levels, letters at the higher (b) Letters throughout, with a word only when insight is poor (c) Words throughout, with the shape added at the best level
-Recommend (a): this matches the examples in 5.6 ("High", then "B+", then "B+, excelling in SKILL_A").
-
-2. **How a grade is computed**
-A grade can be the mean of the skills under it, the mean of the best few, or a weighted mean.
-(a) The plain mean, with the shape reported separately (b) The mean of the best three (c) A weighted mean set in the tuning file
-Recommend (a): it keeps "good across the board" and "one standout" at the same grade, which is what makes the shape worth seeing.
-
-3. **How many insight levels**
-Skill grades show three things (a word, a grade, and the grade with its shape), and today there are three levels including hidden.
-(a) Four levels: hidden, rough, clear, and keen (b) Keep three; at clear, the observer's own skill decides whether the shape shows (c) Keep three; clear shows the shape
-Recommend (a): one more level is simpler to read than a hidden dependency on the observer.
-
-4. **Checks against a grade**
-Whether an approach can test a department or attribute grade instead of one skill.
-(a) Yes, for broad checks (b) No; checks always name a skill
-Recommend (b) until Phase 5, then decide with the bench.
-
-5. **A vignette nobody answers**
-What happens when the cycle advances before the player answers a vignette's choice.
-(a) The default option, authored per vignette and usually the quiet one (b) The vignette lapses with no effect
-Recommend (a): every vignette changes something (5.2), and the default keeps that true.
-
-6. **Generated characters in the editor**
-Crew will be generated from sources, but the editor's previews cast the starting crew, and a script can only name a person by role or by skill.
-No options yet: to be worked out when crew generation is designed.
-
-7. **A long speech in a script**
-A script entry is one line, so one speaker cannot yet say two paragraphs.
-No options yet: the author needs a mark or a method for the rare case, and deferred it.
+None at present.
