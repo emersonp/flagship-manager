@@ -59,12 +59,12 @@ public sealed record MissionFlag(string Flag, int Amount, bool Set, string? Crew
 ```
 
 **Rules pinned here (design 4.2):**
-- YAML: `{ flag: FLAG_A, add: 1, on: ship }` or `{ flag: FLAG_A, set: 2, on: lead }` as one entry of an effect list. Exactly one of `add` and `set`; `on` required; `on: actor` only in an approach's outcome. `set` is 0 or more. Loader messages: "A flag change needs add or set, not both.", "A flag change needs on: ship, actor, lead, or team.", "on: actor is only for an approach's outcome.", "Flag id '{id}' must be 1 to 40 lower-case letters, digits, dots, or hyphens."
+- YAML: `{ flag: flag-a, add: 1, on: ship }` or `{ flag: flag-a, set: 2, on: lead }` as one entry of an effect list. Exactly one of `add` and `set`; `on` required; `on: actor` only in an approach's outcome. `set` is 0 or more. Loader messages: "A flag change needs add or set, not both.", "A flag change needs on: ship, actor, lead, or team.", "on: actor is only for an approach's outcome.", "Flag id '{id}' must be 1 to 40 lower-case letters, digits, dots, or hyphens."
 - The resolver appends one `MissionFlag` per target when an outcome or a decision's answer applies: `ship` gives `CrewId` null; `actor` the one who made the check; `lead` the current lead; `team` one for each member still standing, in team order. Nothing else about the mission changes: no dice, no momentum.
 - The mission's result carries every `MissionFlag` in the order made. A check's beat carries its own; an `EffectsBeat` already carries its `EffectDef`.
-- The log's tags for a beat that changed a flag: `FLAG_A +1, ship` / `FLAG_A = 2, CREW_02`.
+- The log's tags for a beat that changed a flag: `flag-a +1, ship` / `flag-a = 2, CREW_02`.
 - The form's outcome holds one flag change per tier and a decision's effect row one per row; labels "Flag", "Add or set", "Amount", "On". A hand-written outcome with two flag changes is kept by the reader and writer and marked as something the form cannot keep, through the existing lossy mechanism.
-- Fixture: `ENCOUNTER_01`'s first approach gains `partial: [{ strain: 1 }, { flag: FLAG_A, add: 1, on: ship }]`, and `ENCOUNTER_04`'s first approach gains a `disaster` outcome equal to its default plus `{ flag: FLAG_B, add: 1, on: actor }`.
+- Fixture: `ENCOUNTER_01`'s first approach gains `partial: [{ strain: 1 }, { flag: flag-a, add: 1, on: ship }]`, and `ENCOUNTER_04`'s first approach gains a `disaster` outcome equal to its default plus `{ flag: flag-b, add: 1, on: actor }`.
 
 - [ ] **Step 1:** Tests. `MissionContentTests`: one per loader message; `A_flag_change_loads_on_an_outcome_and_on_a_decision`. `MissionRulesTests`: `A_ship_flag_from_an_outcome_is_in_the_result_with_no_crew`, `An_actor_flag_names_the_one_who_made_the_check`, `A_team_flag_names_each_member_still_standing`, `A_lead_flag_from_a_decision_names_the_lead_at_that_moment`, `A_flag_change_alters_nothing_else_about_the_mission` (same seed with and without the flag: identical beats apart from `Flags`). `ContentWriterTests`, `ContentFaithfulnessTests`: add, set, each `on`, and two changes in one outcome read back equal. `ContentMissionFormsTests`: saving a tier with `out.partial.flag=flag-a`, `flagMode=add`, `flagAmount=1`, `flagOn=ship` writes the entry; opening and saving the fixture unchanged leaves the file unchanged. `BeatLinesTests`: the two tag forms.
 - [ ] **Step 2:** Run them. Expected: compile failures, then failures.
@@ -123,7 +123,7 @@ public sealed class StoryletsState { List<StoredFlag> Flags; List<WaitingStoryle
 - Guard `AnswerStorylet`: the offer is waiting and the option is the storylet's ("That storylet is not waiting for an answer.", "That is not one of its answers."). Handler: apply the option's effects in order (loyalty through `AdjustLoyalty`, for `crew` to every living member in roster order; flags as above), remove the offer, publish `StoryletAnswered`.
 - Guard `AdvancePhase` while the phase is `Aftermath` and anything waits: "A storylet is waiting for an answer."
 - `AutoCaptain.NextCommand`: in the aftermath, answer the first waiting storylet with its first option before advancing. `SimRunner cycles` adds "storylets offered" and "answered" per 100 cycles to its summary line.
-- Fixture: `STORYLET_01` (scope ship, requires `FLAG_A` 1 to 1; option-a sets it to 0 with loyalty -1 on crew; option-b sets it to 2) and `STORYLET_02` (scope crew, requires `FLAG_B` min 1 and `FLAG_C` max 0; option-a adds -1 to `FLAG_B`, sets `FLAG_C` 1; option-b sets `FLAG_C` 2 with loyalty -2 on subject), in placeholder words.
+- Fixture: `STORYLET_01` (scope ship, requires `flag-a` 1 to 1; option-a sets it to 0 with loyalty -1 on crew; option-b sets it to 2) and `STORYLET_02` (scope crew, requires `flag-b` min 1 and `flag-c` max 0; option-a adds -1 to `flag-b`, sets `flag-c` 1; option-b sets `flag-c` 2 with loyalty -2 on subject), in placeholder words.
 
 - [ ] **Step 1:** Tests. `StoryletContentTests`: one per loader message; the fixture loads; a storylet's text is in the pack's lines with its implied criteria. `StoryletsModuleTests`, driving the bus with built packs:
 
@@ -172,7 +172,7 @@ Use the script entry type the call panel already renders in place of `ScriptEntr
 
 **Behaviour (design 4.6 and 4.7):**
 - The aftermath shows a section headed "Matters aboard" above the report whenever anything is waiting or was settled this cycle; it is absent otherwise. One `StoryletPanel` for each, waiting ones first in arrival order.
-- A waiting panel: the storylet's name, "From {encounter name} · {flag}" when the flag has an encounter, the script, then one button for each option with its label. A settled panel: the name, the option's text, then tags in the log's figure style: `Loyalty -2 CREW_02`, `Loyalty -1 all crew`, `FLAG_A 1 to 0`. Settled panels are rebuilt from this cycle's `StoryletAnswered`, `LoyaltyChanged`, and `FlagChanged` events, so a reload shows them.
+- A waiting panel: the storylet's name, "From {encounter name} · {flag}" when the flag has an encounter, the script, then one button for each option with its label. A settled panel: the name, the option's text, then tags in the log's figure style: `Loyalty -2 CREW_02`, `Loyalty -1 all crew`, `flag-a 1 to 0`. Settled panels are rebuilt from this cycle's `StoryletAnswered`, `LoyaltyChanged`, and `FlagChanged` events, so a reload shows them.
 - The aftermath is shown even when no team was sent, if anything waits. (Review focus 4)
 - "Advance" is disabled with the words "A storylet is waiting for an answer." while anything waits; a posted advance is refused by the bus and answers 422 with those words.
 - A posted answer the bus refuses answers 422 with the reason beside the panel. (Review focus 3)

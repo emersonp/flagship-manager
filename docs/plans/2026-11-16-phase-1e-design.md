@@ -61,9 +61,9 @@ An effect, in an approach's outcome or a decision's answer, can change a flag:
 
 ```yaml
 outcomes:
-  partial: [{ strain: 1 }, { flag: FLAG_A, add: 1, on: ship }]
+  partial: [{ strain: 1 }, { flag: flag-a, add: 1, on: ship }]
 decision:
-  bold: [{ progress: 1 }, { flag: FLAG_B, set: 1, on: lead }]
+  bold: [{ progress: 1 }, { flag: flag-b, set: 1, on: lead }]
 ```
 
 - **Every flag is a number** (the author, 2026-11-16, after Fallen London: a mark today is a count tomorrow, and "has this happened twice?" must not need a rewrite). A flag nobody has set is 0. `add: N` changes it by N, which may be negative; `set: N` makes it N. A flag never goes below 0, and a flag at 0 is not stored.
@@ -81,8 +81,8 @@ A new kind, `content/storylets/`:
   stakes: 2                       # 1 to 5; orders arrivals, highest first
   scope: crew                     # ship or crew: whose flags it reads, and whether it has a subject
   requires:                       # every entry must hold; part three replaces this with the expression language
-    - { flag: FLAG_A, min: 1, max: 1 }
-    - { flag: FLAG_B, max: 0 }
+    - { flag: flag-a, min: 1, max: 1 }
+    - { flag: flag-b, max: 0 }
   text: |-
     subject: STORYLET_01_LINE_1
     captain: #captainAsk#
@@ -90,11 +90,11 @@ A new kind, `content/storylets/`:
   options:
     - id: option-a
       label: STORYLET_01_OPTION_A_LABEL
-      effects: [{ loyalty: -2, on: subject }, { flag: FLAG_A, set: 0 }]
+      effects: [{ loyalty: -2, on: subject }, { flag: flag-a, set: 0 }]
       text: STORYLET_01_OPTION_A_TEXT
     - id: option-b
       label: STORYLET_01_OPTION_B_LABEL
-      effects: [{ flag: FLAG_A, set: 2 }]           # the same flag, moved on: known and let ride
+      effects: [{ flag: flag-a, set: 2 }]           # the same flag, moved on: known and let ride
       text: STORYLET_01_OPTION_B_TEXT
 ```
 
@@ -131,7 +131,7 @@ Aftermath
 
   Matters aboard                                   <- new, above the report while anything waits
   ┌──────────────────────────────────────────────────────────────┐
-  │ STORYLET_01_NAME                    From ENCOUNTER_01 · FLAG_A │
+  │ STORYLET_01_NAME                    From ENCOUNTER_01 · flag-a │
   │                                                                │
   │ CREW_02   STORYLET_01_LINE_1                                   │
   │ Captain   ...                                                  │
@@ -145,9 +145,9 @@ Aftermath
 
 - One panel for each waiting storylet, in arrival order, built from the call panel's parts: the script, then the answers as buttons with their authored labels.
 - The panel's head says where it came from: the encounter that set the flag, and the flag.
-- Once answered, the panel stays for the rest of the aftermath in a settled form: the option's text, then tags for what changed ("Loyalty -2 CREW_02", "FLAG_A 1 to 0"), in the figure style the log's tags use.
+- Once answered, the panel stays for the rest of the aftermath in a settled form: the option's text, then tags for what changed ("Loyalty -2 CREW_02", "flag-a 1 to 0"), in the figure style the log's tags use.
 - "Advance" is disabled with a reason while any storylet waits.
-- In the mission log, the beat whose effect set a flag gains a tag ("FLAG_A +1, ship").
+- In the mission log, the beat whose effect set a flag gains a tag ("flag-a +1, ship").
 - A cycle on which no team was sent can still have storylets waiting from an earlier one.
 
 ### 4.7 The editor
