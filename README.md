@@ -18,7 +18,7 @@ A starship captain management sim, played in the browser, with a headless simula
 
 `./run.sh` (or `./run.ps1` in PowerShell) starts the game and prints its address, `http://127.0.0.1:5080` by default. Set `ASPNETCORE_URLS` to use another address. The database is `starship-sim.db` in the repository root, and git ignores it.
 
-A `starship-sim.db` from before authored approaches is refused at start with a message; delete the file to start fresh.
+A `starship-sim.db` from an earlier build is refused at start with a message; delete it to start fresh.
 
 ## Edit the content
 

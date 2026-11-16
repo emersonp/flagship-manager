@@ -165,6 +165,17 @@ public class BeatLinesTests
     }
 
     [Fact]
+    public void A_checks_flag_tag_names_the_crew_member_and_keeps_a_written_word_as_written()
+    {
+        CheckBeat check = (CheckBeat)Samples[2] with { Flags = [new MissionFlag("flag_a", 2, true, "CREW_02", "ENCOUNTER_03")] };
+        var answer = new EffectsBeat(new EffectDef(Flags: [new FlagChange("flag_b", 2, true, "lead")]));
+        Names names = SampleNames();
+
+        Assert.Equal("flag_a = 2, NAME_PLACEHOLDER_CREW_02", BeatLines.Tags(check, names)[1]);
+        Assert.Equal("flag_b = 2, lead", BeatLines.Tags(answer, names)[0]);
+    }
+
+    [Fact]
     public void An_effect_of_nothing_reads_no_effect()
     {
         Assert.Equal("No effect.", BeatLines.Line(0, new EffectsBeat(new EffectDef())).Text);

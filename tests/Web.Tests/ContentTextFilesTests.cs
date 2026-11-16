@@ -375,11 +375,11 @@ public sealed class ContentTextFilesTests(RepoContentGuard guard) : IClassFixtur
         Assert.Equal(Unmatched, Disk(app, "storylets/base.yaml"));
         foreach (string shown in new[] { WebUtility.HtmlDecode(body), WebUtility.HtmlDecode(page) })
         {
-            Assert.Contains("Nothing sets flag_z, which STORYLET_09 requires.", shown);
+            Assert.Contains("Nothing sets flag_z on the ship, which STORYLET_09 requires.", shown);
             Assert.Contains("Nothing reads flag_b, which ENCOUNTER_04 sets.", shown);
             Assert.DoesNotContain("Nothing reads flag_a", shown);
             // The warnings sit under the text.
-            Assert.True(shown.IndexOf("</textarea>", StringComparison.Ordinal) < shown.IndexOf("Nothing sets flag_z", StringComparison.Ordinal));
+            Assert.True(shown.IndexOf("</textarea>", StringComparison.Ordinal) < shown.IndexOf("Nothing sets flag_z on the ship", StringComparison.Ordinal));
         }
     }
 
@@ -396,6 +396,62 @@ public sealed class ContentTextFilesTests(RepoContentGuard guard) : IClassFixtur
 
         Assert.Equal(HttpStatusCode.OK, status);
         Assert.DoesNotContain("Nothing sets", body);
+    }
+
+    // flag_a is raised only on the ship (ENCOUNTER_01) and flag_b only on crew (ENCOUNTER_04), so each scope's requirement can miss the other's.
+    [Fact]
+    public async Task A_flag_required_on_a_scope_nothing_raises_it_on_is_warned_of_for_each_scope()
+    {
+        using TestApp app = NewApp();
+        string typed = "- id: STORYLET_09\n  stakes: 1\n  scope: ship\n  requires:\n    - { flag: flag_b, min: 1 }\n  options:\n"
+            + "    - { id: option_a, label: LABEL_A, effects: [{ flag: flag_b, set: 0 }] }\n"
+            + "    - { id: option_b, label: LABEL_B, effects: [{ flag: flag_b, set: 0 }] }\n"
+            + "- id: STORYLET_10\n  stakes: 1\n  scope: crew\n  requires:\n    - { flag: flag_a, min: 1 }\n  options:\n"
+            + "    - { id: option_a, label: LABEL_A, effects: [{ flag: flag_a, set: 0 }] }\n"
+            + "    - { id: option_b, label: LABEL_B, effects: [{ flag: flag_a, set: 0 }] }\n";
+
+        (HttpStatusCode status, string body) = await Post(app.NewClient(), "/dev/content/files/storylets", Body(typed));
+
+        Assert.Equal(HttpStatusCode.OK, status);
+        string shown = WebUtility.HtmlDecode(body);
+        Assert.Contains("Nothing sets flag_b on the ship, which STORYLET_09 requires.", shown);
+        Assert.Contains("Nothing sets flag_a on a crew member, which STORYLET_10 requires.", shown);
+    }
+
+    // A storylet's own raise counts on its own scope, and "subject" is always crew.
+    [Fact]
+    public async Task A_flag_a_storylet_raises_counts_on_its_own_scope_and_subject_counts_as_crew()
+    {
+        using TestApp app = NewApp();
+        string typed = "- id: STORYLET_09\n  stakes: 1\n  scope: ship\n  requires:\n    - { flag: flag_a, min: 1 }\n  options:\n"
+            + "    - { id: option_a, label: LABEL_A, effects: [{ flag: flag_q, set: 1 }, { flag: flag_r, add: 1, on: subject }] }\n"
+            + "    - { id: option_b, label: LABEL_B, effects: [{ flag: flag_q, set: 1 }] }\n"
+            + "- id: STORYLET_10\n  stakes: 1\n  scope: ship\n  requires:\n    - { flag: flag_q, min: 1 }\n  options:\n"
+            + "    - { id: option_a, label: LABEL_A, effects: [{ flag: flag_q, set: 0 }] }\n"
+            + "    - { id: option_b, label: LABEL_B, effects: [{ flag: flag_q, set: 0 }] }\n"
+            + "- id: STORYLET_11\n  stakes: 1\n  scope: crew\n  requires:\n    - { flag: flag_r, min: 1 }\n  options:\n"
+            + "    - { id: option_a, label: LABEL_A, effects: [{ flag: flag_r, set: 0 }] }\n"
+            + "    - { id: option_b, label: LABEL_B, effects: [{ flag: flag_r, set: 0 }] }\n";
+
+        (_, string body) = await Post(app.NewClient(), "/dev/content/files/storylets", Body(typed));
+
+        Assert.DoesNotContain("Nothing sets", body);
+    }
+
+    // A save that only warns is a save: it reads "Saved." and lists the warnings under their own heading, not in the list a refusal uses.
+    [Fact]
+    public async Task A_save_with_only_warnings_says_saved_and_lists_them_apart_from_problems()
+    {
+        using TestApp app = NewApp();
+
+        (HttpStatusCode status, string body) = await Post(app.NewClient(), "/dev/content/files/storylets", Body(Unmatched));
+
+        Assert.Equal(HttpStatusCode.OK, status);
+        Assert.Contains("Saved.", body);
+        Assert.DoesNotContain("Nothing was written.", body);
+        Assert.Contains("Worth checking", body);
+        Assert.Contains("class=\"notes\"", body);
+        Assert.DoesNotContain("class=\"problems\"", body);
     }
 
     [Fact]

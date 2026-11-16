@@ -106,6 +106,15 @@ public class CrewContentTests
     }
 
     [Fact]
+    public void An_assignments_objective_tag_outside_the_inner_rule_is_refused()
+    {
+        ContentLoadResult result = ContentLoader.Load(Repo("assignments/base.yaml", "- { id: ASSIGNMENT_TEMPLATE_1, objectives: { tags: [Field-Work] }, offer: { 0: 1 }, loadoutLimit: 2 }\n"));
+
+        Assert.Null(result.Pack);
+        Assert.Contains("assignments/base.yaml|ASSIGNMENT_TEMPLATE_1: Tag 'Field-Work' must be lower case: a letter, then letters, digits, and underscores, at most 40 in all.", Errors(result));
+    }
+
+    [Fact]
     public void Assignments_that_break_the_rules_are_reported_by_id()
     {
         Dictionary<string, string> files = Repo("assignments/base.yaml", """

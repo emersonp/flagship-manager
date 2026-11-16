@@ -12,8 +12,8 @@
                 </div>
                 @if (View.Warnings.Count > 0)
                 {
-                    <h3 class="sub" id="h-warnings">Warnings</h3>
-                    <ul class="problems" aria-labelledby="h-warnings">
+                    <h3 class="sub" id="h-warnings">Worth checking</h3>
+                    <ul class="notes" aria-labelledby="h-warnings">
                         @foreach (string warning in View.Warnings)
                         {
                             <li>@warning</li>

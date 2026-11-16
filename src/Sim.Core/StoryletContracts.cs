@@ -1,7 +1,11 @@
 namespace Sim.Core;
 
 // Contracts of the storylets module, here so the bridge and the simulator need not reference the module's internals.
-public sealed record AnswerStorylet(string OfferId, string OptionId) : ICommand;
+public sealed record AnswerStorylet(string OfferId, string OptionId) : ICommand
+{
+    // Why the aftermath cannot end: said by the guard and by the screen that shows the same block.
+    public const string WaitingReason = "A storylet is waiting for an answer.";
+}
 
 // Handled by the crew module, which clamps the result to its tuning, so the storylets module never touches crew state.
 public sealed record AdjustLoyalty(string CrewId, int Delta) : ICommand;

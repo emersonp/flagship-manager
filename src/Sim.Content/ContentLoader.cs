@@ -62,6 +62,7 @@ public static partial class ContentLoader
                 case "skills":
                     foreach (SkillDto dto in Items<SkillDto>(yaml, path, text, d => d.Id, seenIn, errors))
                     {
+                        CheckTags(dto.Tags, message => errors.Add(new ContentError(path, $"{dto.Id}: {message}")));
                         skills.Add(new SkillDef(dto.Id!, dto.Tags ?? [], CheckName(path, dto.Id!, dto.Name, errors)));
                     }
 

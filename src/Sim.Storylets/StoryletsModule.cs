@@ -18,7 +18,7 @@ public static class StoryletsModule
     {
         bus.Module<StoryletsState>(Name);
         bus.Guard<AnswerStorylet>(Order, Name, (command, context) => CheckAnswer(pack, command, context));
-        bus.Guard<AdvancePhase>(Order, Name, (_, context) => context.State.Phase == CyclePhase.Aftermath && Answerable(pack, context).Any() ? "A storylet is waiting for an answer." : null);
+        bus.Guard<AdvancePhase>(Order, Name, (_, context) => context.State.Phase == CyclePhase.Aftermath && Answerable(pack, context).Any() ? AnswerStorylet.WaitingReason : null);
         bus.Handle<AnswerStorylet>((command, context) => OnAnswer(pack, command, context));
         bus.Subscribe<MissionEnded>(Order, Name, (e, context) => OnMissionEnded(e, context));
         bus.Subscribe<CrewDied>(Order, Name, (e, context) => OnCrewDied(e, context));

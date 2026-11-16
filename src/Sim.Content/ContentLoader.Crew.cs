@@ -148,6 +148,7 @@ public static partial class ContentLoader
             }
 
             List<string> tags = dto.Objectives?.Tags ?? [];
+            CheckTags(tags, Error);
             Dictionary<int, int> offer = dto.Offer ?? [];
             if (offer.Count == 0)
             {

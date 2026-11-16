@@ -63,7 +63,7 @@ public static partial class BeatLines
     }
 
     // What a beat changed, as short figures beside its prose (GDD risk 2): generated, never authored, so every line cites them.
-    public static IReadOnlyList<string> Tags(Beat beat)
+    public static IReadOnlyList<string> Tags(Beat beat, Names? names = null)
     {
         var tags = new List<string>();
         switch (beat)
@@ -80,7 +80,7 @@ public static partial class BeatLines
                     tags.Add($"strain {Signed(strain - b.Strain)}");
                 }
 
-                tags.AddRange((b.Flags ?? []).Select(f => FlagTag(f.Flag, f.Amount, f.Set, f.CrewId ?? FlagIds.Ship)));
+                tags.AddRange((b.Flags ?? []).Select(f => FlagTag(f.Flag, f.Amount, f.Set, f.CrewId is null ? FlagIds.Ship : names?.Crew(f.CrewId) ?? f.CrewId)));
                 break;
             case EffectsBeat b:
                 if (b.Effects.Progress != 0)

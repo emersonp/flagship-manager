@@ -52,31 +52,49 @@ internal static class TextFileFlow
         return new TextFileView(file, files.Files.GetValueOrDefault(file.Path, ""), [], notice, false) { Warnings = warnings };
     }
 
-    // Flags that cannot work as written: one a storylet requires above 0 that nothing raises, and one an encounter raises that no storylet
-    // requires. A change that can only lower a flag (add below 0, set 0) does not count as setting it.
+    // Flags that cannot work as written: one a storylet requires above 0 that nothing raises on the scope it reads, and one an encounter
+    // raises that no storylet requires. A change that can only lower a flag (add below 0, set 0) does not count as setting it.
     internal static IReadOnlyList<string> FlagWarnings(ContentPack pack)
     {
-        HashSet<string> raised = pack.Encounters.SelectMany(Raises)
-            .Concat(pack.Storylets.SelectMany(s => s.Options).SelectMany(o => o.Effects).Select(e => e.Flag).OfType<FlagChange>().Where(f => f.Amount > 0).Select(f => f.Flag))
-            .ToHashSet(StringComparer.Ordinal);
+        // A flag is on the ship or on a crew member; the two are separate values, so each scope is raised and read apart.
+        var raised = new HashSet<(string Flag, bool Ship)>();
+        foreach (EncounterDef encounter in pack.Encounters)
+        {
+            foreach (FlagChange change in Raises(encounter))
+            {
+                raised.Add((change.Flag, change.On == FlagIds.Ship));
+            }
+        }
+
+        foreach (StoryletDef storylet in pack.Storylets)
+        {
+            foreach (FlagChange change in storylet.Options.SelectMany(o => o.Effects).Select(e => e.Flag).OfType<FlagChange>().Where(f => f.Amount > 0))
+            {
+                // Empty means the scope the storylet arrived for; subject is always a crew member.
+                raised.Add((change.Flag, change.On == StoryletScopes.Ship || (change.On.Length == 0 && storylet.Scope == StoryletScopes.Ship)));
+            }
+        }
+
         HashSet<string> read = pack.Storylets.SelectMany(s => s.Requires).Select(r => r.Flag).ToHashSet(StringComparer.Ordinal);
         var warnings = new List<string>();
         foreach (StoryletDef storylet in pack.Storylets)
         {
             // A requirement that holds at 0 (only a max) needs nothing to set its flag.
-            warnings.AddRange(storylet.Requires.Where(r => r.Min > 0).Select(r => r.Flag).Distinct().Where(f => !raised.Contains(f)).Select(f => $"Nothing sets {f}, which {storylet.Id} requires."));
+            bool onShip = storylet.Scope == StoryletScopes.Ship;
+            string where = onShip ? "the ship" : "a crew member";
+            warnings.AddRange(storylet.Requires.Where(r => r.Min > 0).Select(r => r.Flag).Distinct().Where(f => !raised.Contains((f, onShip))).Select(f => $"Nothing sets {f} on {where}, which {storylet.Id} requires."));
         }
 
         foreach (EncounterDef encounter in pack.Encounters)
         {
-            warnings.AddRange(Raises(encounter).Distinct().Where(f => !read.Contains(f)).Select(f => $"Nothing reads {f}, which {encounter.Id} sets."));
+            warnings.AddRange(Raises(encounter).Select(c => c.Flag).Distinct().Where(f => !read.Contains(f)).Select(f => $"Nothing reads {f}, which {encounter.Id} sets."));
         }
 
         return warnings;
     }
 
-    // Every flag an encounter's approaches or decision raise.
-    private static IEnumerable<string> Raises(EncounterDef encounter)
+    // Every flag change an encounter's approaches or decision raise.
+    private static IEnumerable<FlagChange> Raises(EncounterDef encounter)
     {
         IEnumerable<EffectDef> effects = encounter.Approaches.SelectMany(a => a.Outcomes.Values);
         if (encounter.Decision is { } decision)
@@ -84,7 +102,7 @@ internal static class TextFileFlow
             effects = effects.Append(decision.Bold).Append(decision.Safe);
         }
 
-        return effects.SelectMany(e => e.Flags ?? []).Where(f => f.Amount > 0).Select(f => f.Flag);
+        return effects.SelectMany(e => e.Flags ?? []).Where(f => f.Amount > 0);
     }
 
     public static async Task<(TextFileView View, bool Saved)> Save(TextFile file, ContentEditor editor, string typed, CancellationToken cancellation)

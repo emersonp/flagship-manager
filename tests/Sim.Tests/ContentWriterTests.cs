@@ -317,14 +317,15 @@ public class ContentWriterTests : IClassFixture<RepoContentGuard>
         Assert.Equal(name, back.Name);
         Assert.Equal(["tag " + name], back.Tags);
 
-        ContentLoadResult result = edited.Validate();
+        // The loader holds a tag to the inner id rule, so it is given a plain tag; the awkward text above proved the file round trip.
+        ContentLoadResult result = ContentEdits.Upsert(Repo(), ContentKind.Skill, new SkillModel("SKILL_A", name, ["tag"])).Validate();
         bool loaderAccepts = name.Trim().Length is >= 1 and <= 80 && name.Trim().IndexOfAny(['\r', '\n', '\u0085', '\u2028', '\u2029']) < 0;
         if (loaderAccepts)
         {
             Assert.Empty(result.Errors);
             SkillDef skill = result.Pack!.Skills.First(s => s.Id == "SKILL_A");
             Assert.Equal(name.Trim(), skill.Name);
-            Assert.Equal(["tag " + name], skill.Tags);
+            Assert.Equal(["tag"], skill.Tags);
         }
     }
 

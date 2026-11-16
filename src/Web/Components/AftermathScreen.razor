@@ -105,7 +105,7 @@
     [Parameter] public string? StoryletReason { get; set; }
 
     // The words the bus refuses an advance with while a storylet waits.
-    private string? Blocked => Aftermath?.Waiting.Count > 0 ? "A storylet is waiting for an answer." : null;
+    private string? Blocked => Aftermath?.Waiting.Count > 0 ? AnswerStorylet.WaitingReason : null;
 
     private IReadOnlyList<CrewChange> Changes => Aftermath?.Changes ?? [];
 

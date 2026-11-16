@@ -199,7 +199,7 @@ public static class BridgeReader
         }
 
         IReadOnlyList<BeatProse> texts = prose.Log(i => lines[i].Segments);
-        return lines.Select((line, i) => line with { Prose = texts[i].Parts, Tags = BeatLines.Tags(beats[i].Beat), Authored = texts[i].Authored, Script = texts[i].Entries }).ToList();
+        return lines.Select((line, i) => line with { Prose = texts[i].Parts, Tags = BeatLines.Tags(beats[i].Beat, names), Authored = texts[i].Authored, Script = texts[i].Entries }).ToList();
     }
 
     // The lead the team was sent with: a later lead change is in the log, not here.

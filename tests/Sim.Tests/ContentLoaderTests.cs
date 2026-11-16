@@ -24,6 +24,20 @@ public class ContentLoaderTests
         Assert.Equal(new[] { "technical" }, result.Pack.Skills[0].Tags);
     }
 
+    [Fact]
+    public void A_skill_tag_outside_the_inner_rule_is_refused()
+    {
+        ContentLoadResult result = ContentLoader.Load(TestContent.WithCrewFiles(new Dictionary<string, string>
+        {
+            ["pack.yaml"] = Manifest,
+            ["tuning/missions.yaml"] = TestContent.TuningText,
+            ["skills/base.yaml"] = "- id: SKILL_A\n  tags: [Tech-Work]\n",
+        }));
+
+        Assert.Null(result.Pack);
+        Assert.Contains(result.Errors, e => e.File == "skills/base.yaml" && e.Message == "SKILL_A: Tag 'Tech-Work' must be lower case: a letter, then letters, digits, and underscores, at most 40 in all.");
+    }
+
     // The author fixes content in batches, so every problem is reported at once and no pack is returned.
     [Fact]
     public void All_errors_are_reported_together()
