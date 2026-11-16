@@ -52,7 +52,7 @@ internal static class TextFileFlow
         return new TextFileView(file, files.Files.GetValueOrDefault(file.Path, ""), [], notice, false) { Warnings = warnings };
     }
 
-    // Flags that cannot work as written: one a storylet requires that nothing raises, and one an encounter raises that no storylet
+    // Flags that cannot work as written: one a storylet requires above 0 that nothing raises, and one an encounter raises that no storylet
     // requires. A change that can only lower a flag (add below 0, set 0) does not count as setting it.
     internal static IReadOnlyList<string> FlagWarnings(ContentPack pack)
     {
@@ -63,7 +63,8 @@ internal static class TextFileFlow
         var warnings = new List<string>();
         foreach (StoryletDef storylet in pack.Storylets)
         {
-            warnings.AddRange(storylet.Requires.Select(r => r.Flag).Distinct().Where(f => !raised.Contains(f)).Select(f => $"Nothing sets {f}, which {storylet.Id} requires."));
+            // A requirement that holds at 0 (only a max) needs nothing to set its flag.
+            warnings.AddRange(storylet.Requires.Where(r => r.Min > 0).Select(r => r.Flag).Distinct().Where(f => !raised.Contains(f)).Select(f => $"Nothing sets {f}, which {storylet.Id} requires."));
         }
 
         foreach (EncounterDef encounter in pack.Encounters)

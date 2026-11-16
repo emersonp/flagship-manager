@@ -249,6 +249,56 @@ public sealed class StoryletBridgeTests : IDisposable
         Assert.Contains("STORYLET_01_OPTION_A_TEXT", Matters(await Page(id)));
     }
 
+    // A storylet the pack has lost since it was offered blocks nothing and is never drawn; the next aftermath withdraws it.
+    [Fact]
+    public async Task A_waiting_storylet_the_pack_has_lost_gets_no_panel_and_does_not_block_advance()
+    {
+        (Guid id, WebCaptain captain) = await ToAftermath(flag: null);
+        await app.Sessions.Run(app.Live, id, legacy =>
+        {
+            legacy.State.Module<StoryletsState>(StoryletsModule.Name).Waiting.Add(new WaitingStorylet { OfferId = "1:STORYLET_GONE:ship", StoryletId = "STORYLET_GONE", SubjectId = null, EncounterId = "ENCOUNTER_01" });
+            return legacy;
+        });
+
+        string page = await Page(id);
+
+        Assert.DoesNotContain("Matters aboard", page);
+        Assert.DoesNotContain("STORYLET_GONE", page);
+        Assert.DoesNotMatch("<button[^>]*\\sdisabled[\\s>]", AdvanceButton(page));
+        Assert.DoesNotContain("A storylet is waiting for an answer.", page);
+        Assert.Equal("advance", (await captain.Step()).Route);
+        Assert.Equal(CyclePhase.Orders, (await captain.Read()).State.Phase);
+    }
+
+    // A ship storylet has no subject, so a shared line that names #subject# cannot be said: the next line that holds is used, or,
+    // with none, the ids. The page never fails on it.
+    [Theory]
+    [InlineData(false, "STORYLET_03: option_a, option_b.")]
+    [InlineData(true, "PLAIN_SHARED_LINE")]
+    public async Task A_ship_storylet_whose_shared_line_names_a_subject_falls_back(bool plainLine, string shown)
+    {
+        string lines = "- id: LINE_STORYLET_SUBJECT\n  when: { beat: storylet, storylet: STORYLET_03 }\n  text: \"#subject# SUBJECT_SHARED_LINE\"\n"
+            + (plainLine ? "- id: LINE_STORYLET_PLAIN\n  when: { beat: storylet }\n  text: PLAIN_SHARED_LINE\n" : "");
+        using var sharedApp = new TestApp(scratch: true, prepare: root =>
+        {
+            File.WriteAllText(Path.Combine(root, "storylets", "base.yaml"), Bare);
+            File.AppendAllText(Path.Combine(root, "lines", "base.yaml"), lines);
+        });
+        HttpClient sharedClient = sharedApp.NewClient();
+        (Guid id, _) = await ToAftermath(sharedApp, sharedClient);
+
+        HttpResponseMessage response = await sharedClient.GetAsync($"/legacy/{id}");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        string script = Regex.Match(Matters(Entity(await response.Content.ReadAsStringAsync())), "<div class=\"script\">.*?</div>", RegexOptions.Singleline).Value;
+        Assert.Contains(shown, script);
+        Assert.DoesNotContain("SUBJECT_SHARED_LINE", script);
+    }
+
+    private const string Bare = "- id: STORYLET_03\n  stakes: 1\n  scope: ship\n  requires:\n    - { flag: flag_a, min: 1, max: 1 }\n  options:\n"
+        + "    - { id: option_a, label: BARE_A, effects: [{ flag: flag_a, set: 0 }] }\n"
+        + "    - { id: option_b, label: BARE_B, effects: [{ flag: flag_a, set: 2 }] }\n";
+
     [Fact]
     public async Task A_storylet_with_no_words_shows_its_ids_and_can_be_answered()
     {

@@ -383,6 +383,21 @@ public sealed class ContentTextFilesTests(RepoContentGuard guard) : IClassFixtur
         }
     }
 
+    // A requirement with only a max holds while nothing sets its flag, so it is no warning.
+    [Fact]
+    public async Task A_requirement_that_holds_at_zero_is_not_warned_of()
+    {
+        using TestApp app = NewApp();
+        string typed = "- id: STORYLET_09\n  stakes: 1\n  scope: ship\n  requires:\n    - { flag: flag_a, min: 1 }\n    - { flag: flag_y, max: 2 }\n    - { flag: flag_b, min: 0 }\n  options:\n"
+            + "    - { id: option_a, label: LABEL_A, effects: [{ flag: flag_a, set: 0 }] }\n"
+            + "    - { id: option_b, label: LABEL_B, effects: [{ flag: flag_a, set: 0 }] }\n";
+
+        (HttpStatusCode status, string body) = await Post(app.NewClient(), "/dev/content/files/storylets", Body(typed));
+
+        Assert.Equal(HttpStatusCode.OK, status);
+        Assert.DoesNotContain("Nothing sets", body);
+    }
+
     [Fact]
     public async Task The_fixtures_storylets_page_has_no_warnings()
     {
