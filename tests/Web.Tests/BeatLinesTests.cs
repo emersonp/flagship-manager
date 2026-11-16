@@ -152,6 +152,18 @@ public class BeatLinesTests
         Assert.Equal("CREW_01 decided DECISION_2 without calling: chose Safe. Stakes 2.", BeatLines.Line(0, new InitiativeBeat("DECISION_2", 2, 1.5, "CREW_01", CallAnswer.Safe, false)).Text);
     }
 
+    // A check's flags name the crew they landed on; an answer's name what it was written on, since the beat holds the effect as authored.
+    [Fact]
+    public void A_beat_that_changed_a_flag_has_a_tag_for_each_change()
+    {
+        CheckBeat check = (CheckBeat)Samples[2] with { Flags = [new MissionFlag("flag_a", 1, false, null, "ENCOUNTER_03"), new MissionFlag("flag_a", 2, true, "CREW_02", "ENCOUNTER_03")] };
+        var answer = new EffectsBeat(new EffectDef(Progress: 1, Flags: [new FlagChange("flag_a", -1, false, "ship"), new FlagChange("flag_b", 2, true, "lead")]));
+
+        Assert.Equal(["partial −2", "flag_a +1, ship", "flag_a = 2, CREW_02"], BeatLines.Tags(check));
+        Assert.Equal(["progress +1", "flag_a −1, ship", "flag_b = 2, lead"], BeatLines.Tags(answer));
+        Assert.Equal("Progress +1. Flag flag_a −1, ship. Flag flag_b = 2, lead.", BeatLines.Line(0, answer).Text);
+    }
+
     [Fact]
     public void An_effect_of_nothing_reads_no_effect()
     {

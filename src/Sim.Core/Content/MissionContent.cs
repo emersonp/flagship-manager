@@ -13,8 +13,29 @@ public sealed record RequirementDef(string? Skill, int Level, string? Gear);
 public sealed record ApproachDef(string Id, string Skill, int Difficulty, string? GearTag,
     IReadOnlyList<RequirementDef> Requires, IReadOnlyDictionary<string, EffectDef> Outcomes, string? Name = null);
 
-// What a decision option does. Fields are additive, so several effects fold into one record.
-public sealed record EffectDef(int Momentum = 0, int Strain = 0, int Progress = 0, InjurySeverity? InjuryRoll = null, bool Withdraw = false);
+// One change to a story flag. On is "ship", "actor", "lead", or "team" in a mission's effects. Set false means add.
+public sealed record FlagChange(string Flag, int Amount, bool Set, string On);
+
+// What a decision option does. Fields are additive, so several effects fold into one record. Flags is null, never empty, when there are
+// none, so that two effects without flags still compare equal (a record compares a list by reference).
+public sealed record EffectDef(int Momentum = 0, int Strain = 0, int Progress = 0, InjurySeverity? InjuryRoll = null, bool Withdraw = false, IReadOnlyList<FlagChange>? Flags = null);
+
+public static class FlagIds
+{
+    // On is one of these in a mission's effects; actor only in an approach's outcome.
+    public const string Ship = "ship";
+    public const string Actor = "actor";
+    public const string Lead = "lead";
+    public const string Team = "team";
+
+    // A flag id is lower case (docs/conventions.md): a letter, then letters, digits, and underscores, at most 40 in all ("sensors_quirk").
+    public const string Rule = "lower case: a letter, then letters, digits, and underscores, at most 40 in all";
+
+    public static bool IsValid(string id)
+    {
+        return id.Length is >= 1 and <= 40 && id[0] is >= 'a' and <= 'z' && id.All(c => c is (>= 'a' and <= 'z') or (>= '0' and <= '9') or '_');
+    }
+}
 
 // Ids the game itself gives decisions, so no content may use them.
 public static class DecisionIds

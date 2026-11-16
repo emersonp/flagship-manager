@@ -30,6 +30,10 @@
                             <Field Name="@Set.Name(row, "strain")" Label="Strain" AriaLabel="@($"Strain, {which}")" Value="@Rows[row]["strain"]" Error="@View.Error(Set.Name(row, "strain"))" Hint="Whole number." Numeric="true" Narrow="true" />
                             <Field Name="@Set.Name(row, "injury")" Label="Injury roll" AriaLabel="@($"Injury roll, {which}")" Value="@Rows[row]["injury"]" Error="@View.Error(Set.Name(row, "injury"))" Options="@Severities" Placeholder="None" Narrow="true" />
                             <CheckField Name="@Set.Name(row, "withdraw")" Label="Withdraw" AriaLabel="@($"Withdraw, {which}")" Checked="@(Rows[row]["withdraw"] == "true")" />
+                            <Field Name="@Set.Name(row, "flag")" Label="Flag" AriaLabel="@($"Flag, {which}")" Value="@Rows[row]["flag"]" Error="@View.Error(Set.Name(row, "flag"))" Hint="A flag id, or blank for none." Narrow="true" />
+                            <Field Name="@Set.Name(row, "flagMode")" Label="Add or set" AriaLabel="@($"Add or set, {which}")" Value="@Rows[row]["flagMode"]" Error="@View.Error(Set.Name(row, "flagMode"))" Options="EncounterKind.FlagModes" Narrow="true" />
+                            <Field Name="@Set.Name(row, "flagAmount")" Label="Amount" AriaLabel="@($"Flag amount, {which}")" Value="@Rows[row]["flagAmount"]" Error="@View.Error(Set.Name(row, "flagAmount"))" Hint="Whole number; 0 or more to set." Numeric="true" Narrow="true" />
+                            <Field Name="@Set.Name(row, "flagOn")" Label="On" AriaLabel="@($"Flag on, {which}")" Value="@Rows[row]["flagOn"]" Error="@View.Error(Set.Name(row, "flagOn"))" Options="EncounterKind.AnswerTargets" Narrow="true" />
                         </div>
                     </div>
                 </li>

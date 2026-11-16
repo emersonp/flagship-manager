@@ -193,7 +193,10 @@ internal static class ContentReader
         {
             Dictionary<string, YamlNode> e = Map(entry);
             string? injury = Str(Get(e, "injuryRoll"));
-            effects.Add(new EffectModel(RawInt(Get(e, "progress")), RawInt(Get(e, "momentum")), RawInt(Get(e, "strain")), injury, Str(Get(e, "withdraw")) == "true"));
+            bool set = e.ContainsKey("set");
+            effects.Add(new EffectModel(
+                RawInt(Get(e, "progress")), RawInt(Get(e, "momentum")), RawInt(Get(e, "strain")), injury, Str(Get(e, "withdraw")) == "true",
+                Str(Get(e, "flag")), RawInt(Get(e, set ? "set" : "add")), set, Str(Get(e, "on"))));
         }
 
         return effects;

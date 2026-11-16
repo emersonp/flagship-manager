@@ -235,6 +235,83 @@ public class MissionContentTests
         AssertRefused(FastWith("outcomes: { disaster: [{ withdraw: true }] }"), "An outcome cannot withdraw the team.");
     }
 
+    // --- Flags (1e part one, Task 1) ---
+
+    private static string WithFlags(string outcome, string bold)
+    {
+        return FastWith($"outcomes: {{ partial: {outcome} }}").Replace("bold: [{ momentum: 1 }, { strain: 1 }, { injuryRoll: light }]", $"bold: {bold}");
+    }
+
+    [Fact]
+    public void A_flag_change_loads_on_an_outcome_and_on_a_decision()
+    {
+        ContentLoadResult result = Load(WithFlags("[{ strain: 1 }, { flag: flag_a, add: 1, on: ship }, { flag: sensors_quirk, add: -2, on: actor }]", "[{ progress: 1 }, { flag: flag_b, set: 0, on: lead }, { flag: flag_c, set: 2, on: team }]"), Objective);
+
+        Assert.Empty(result.Errors);
+        EncounterDef encounter = result.Pack!.Encounters[0];
+        EffectDef partial = encounter.Approaches[1].Outcomes["partial"];
+        Assert.Equal(1, partial.Strain);
+        Assert.Equal([new FlagChange("flag_a", 1, false, "ship"), new FlagChange("sensors_quirk", -2, false, "actor")], partial.Flags!);
+        Assert.Equal(1, encounter.Decision!.Bold.Progress);
+        Assert.Equal([new FlagChange("flag_b", 0, true, "lead"), new FlagChange("flag_c", 2, true, "team")], encounter.Decision.Bold.Flags!);
+        Assert.Null(encounter.Decision.Safe.Flags);
+        Assert.Null(encounter.Approaches[0].Outcomes.GetValueOrDefault("partial")?.Flags);
+    }
+
+    [Theory]
+    [InlineData("{ flag: flag_a, add: 1, set: 1, on: ship }")]
+    [InlineData("{ flag: flag_a, on: ship }")]
+    public void A_flag_change_with_both_or_neither_of_add_and_set_is_refused(string change)
+    {
+        AssertRefused(WithFlags($"[{change}]", "[]"), "A flag change needs add or set, not both.");
+    }
+
+    [Theory]
+    [InlineData("{ flag: flag_a, add: 1 }")]
+    [InlineData("{ flag: flag_a, add: 1, on: crew }")]
+    public void A_flag_change_with_no_or_an_unknown_on_is_refused(string change)
+    {
+        AssertRefused(WithFlags($"[{change}]", "[]"), "A flag change needs on: ship, actor, lead, or team.");
+    }
+
+    [Fact]
+    public void A_flag_change_on_the_actor_in_a_decision_is_refused()
+    {
+        AssertRefused(WithFlags("[]", "[{ flag: flag_a, add: 1, on: actor }]"), "on: actor is only for an approach's outcome.");
+    }
+
+    [Theory]
+    [InlineData("FLAG_A")]
+    [InlineData("flag a")]
+    [InlineData("flag-a")]
+    [InlineData("1st")]
+    [InlineData("a23456789012345678901234567890123456789012")]
+    public void A_flag_id_outside_the_rule_is_refused(string id)
+    {
+        AssertRefused(WithFlags($"[{{ flag: \"{id}\", add: 1, on: ship }}]", "[]"), $"Flag id '{id}' must be lower case: a letter, then letters, digits, and underscores, at most 40 in all.");
+    }
+
+    [Fact]
+    public void A_flag_set_below_zero_is_refused()
+    {
+        AssertRefused(WithFlags("[{ flag: flag_a, set: -1, on: ship }]", "[]"), "A flag's set must be 0 or more.");
+    }
+
+    [Fact]
+    public void Flag_ids_are_a_lower_case_letter_then_letters_digits_and_underscores_up_to_40()
+    {
+        Assert.True(FlagIds.IsValid("sensors_quirk"));
+        Assert.True(FlagIds.IsValid("flag_a"));
+        Assert.True(FlagIds.IsValid(new string('a', 40)));
+        Assert.False(FlagIds.IsValid(new string('a', 41)));
+        Assert.False(FlagIds.IsValid(""));
+        Assert.False(FlagIds.IsValid("Flag"));
+        Assert.False(FlagIds.IsValid("flag-a"));
+        Assert.False(FlagIds.IsValid("sensors.quirk"));
+        Assert.False(FlagIds.IsValid("_flag"));
+        Assert.False(FlagIds.IsValid("1st"));
+    }
+
     [Fact]
     public void An_encounter_whose_every_approach_has_requirements_is_refused()
     {

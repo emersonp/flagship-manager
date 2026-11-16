@@ -62,7 +62,7 @@ public class CrewModuleTests
 
     private static MissionResult Result(CrewResult[] crew)
     {
-        return new MissionResult(MissionOutcome.FullSuccess, 1, 1, 0, 0, crew);
+        return new MissionResult(MissionOutcome.FullSuccess, 1, 1, 0, 0, crew, []);
     }
 
     private static CrewResult Gained(string id, double xp, string skill = "SKILL_A")

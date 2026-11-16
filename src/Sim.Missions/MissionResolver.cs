@@ -46,6 +46,7 @@ public static class MissionResolver
             Chained = false,
             Calls = 0,
             Initiatives = 0,
+            Flags = [],
         };
 
         ulong draw = drawSeed ?? seed;
@@ -286,6 +287,7 @@ public static class MissionResolver
             State.Strain = Clamp(State.Strain + outcome.Strain);
             State.Progress += outcome.Progress;
 
+            List<MissionFlag>? flags = Flag(outcome, encounter.Id, actor);
             bool mentoring = helper is not null && Skill(helper) - actorSkill >= T.MentorGap;
             double baseExperience = margin >= T.TrivialAtMargin ? 0
                 : Math.Abs(margin) <= T.CloseMargin ? T.ExperienceClose
@@ -301,7 +303,7 @@ public static class MissionResolver
 
             Beats.Add(new CheckBeat(
                 encounter.Id, def.Id, available.Count, def.Skill, actor.Member.Id, helper?.Member.Id, supervised,
-                actorSkill, assist, gear, momentum, strain, score, roll, target, margin, tier, experience, mentoring, helperExperience, State.Momentum, State.Strain));
+                actorSkill, assist, gear, momentum, strain, score, roll, target, margin, tier, experience, mentoring, helperExperience, State.Momentum, State.Strain, flags));
 
             // The roll falls on the actor after the check's beat, under the key the default rolls always used, so its dice do not move.
             if (outcome.InjuryRoll is { } severity)
@@ -380,6 +382,7 @@ public static class MissionResolver
             State.Momentum = Clamp(State.Momentum + effect.Momentum);
             State.Strain = Clamp(State.Strain + effect.Strain);
             State.Progress += effect.Progress;
+            Flag(effect, Current.Encounter.Id, null);
             Beats.Add(new EffectsBeat(effect));
             if (effect.InjuryRoll is { } severity && Active.Count > 0)
             {
@@ -390,6 +393,33 @@ public static class MissionResolver
             {
                 Finish(MissionOutcome.Withdrawal);
             }
+        }
+
+        // Records one flag for each one the change lands on, before any injury roll the same effect makes; nothing else about the
+        // mission changes. actor is who made the check, and null for a decision's answer, where the loader refuses on: actor.
+        private List<MissionFlag>? Flag(EffectDef effect, string encounterId, MemberState? actor)
+        {
+            if (effect.Flags is null)
+            {
+                return null;
+            }
+
+            var made = new List<MissionFlag>();
+            foreach (FlagChange change in effect.Flags)
+            {
+                List<string?> on = change.On switch
+                {
+                    FlagIds.Ship => [null],
+                    FlagIds.Actor => [actor?.Member.Id ?? throw new InvalidOperationException($"{encounterId}: on: actor names no one outside an approach's outcome.")],
+                    FlagIds.Lead => [State.LeadId],
+                    FlagIds.Team => [.. Active.Select(m => m.Member.Id)],
+                    _ => throw new InvalidOperationException($"{encounterId}: a flag change on '{change.On}' names no one."),
+                };
+                made.AddRange(on.Select(id => new MissionFlag(change.Flag, change.Amount, change.Set, id, encounterId)));
+            }
+
+            State.Flags.AddRange(made);
+            return made;
         }
 
         // At the strain cap the mission is lost: one severe roll, and light rolls for the rest.
@@ -442,7 +472,8 @@ public static class MissionResolver
         {
             State.Result = new MissionResult(
                 outcome, State.Progress, State.Need, State.Calls, State.Initiatives,
-                State.Team.Select(m => new CrewResult(m.Member.Id, m.Status, m.Injury, new Dictionary<string, double>(m.Experience), m.Loyalty)).ToList());
+                State.Team.Select(m => new CrewResult(m.Member.Id, m.Status, m.Injury, new Dictionary<string, double>(m.Experience), m.Loyalty)).ToList(),
+                State.Flags.ToList());
             Beats.Add(new ResultBeat(outcome));
         }
 

@@ -3,7 +3,7 @@
   tags: [field, hazard]
   chain: ENCOUNTER_CHAIN
   approaches:
-    - { id: careful, name: APPROACH_A_NAME, skill: SKILL_A, difficulty: 5, gearTag: scanner }
+    - { id: careful, name: APPROACH_A_NAME, skill: SKILL_A, difficulty: 5, gearTag: scanner, outcomes: { partial: [{ strain: 1 }, { flag: flag_a, add: 1, on: ship }] } }
     - { id: fast, name: APPROACH_B_NAME, skill: SKILL_C, difficulty: 6, outcomes: { critical: [{ progress: 1 }, { strain: -1 }, { momentum: 2 }], success: [{ progress: 1 }, { strain: -1 }, { momentum: 1 }] } }
   decision:
     id: DECISION_PROMPT_1
@@ -36,7 +36,7 @@
   tags: [field, hazard]
   chain: ENCOUNTER_CHAIN
   approaches:
-    - { id: careful, name: APPROACH_A_NAME, skill: SKILL_C, difficulty: 5 }
+    - { id: careful, name: APPROACH_A_NAME, skill: SKILL_C, difficulty: 5, outcomes: { disaster: [{ strain: 3 }, { injuryRoll: severe }, { flag: flag_b, add: 1, on: actor }] } }
     - { id: fast, name: APPROACH_B_NAME, skill: SKILL_C, difficulty: 6, outcomes: { critical: [{ progress: 1 }, { strain: -1 }, { momentum: 2 }], success: [{ progress: 1 }, { strain: -1 }, { momentum: 1 }] } }
 - id: ENCOUNTER_05
   tags: [field, technical]

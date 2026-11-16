@@ -182,11 +182,12 @@ public class SimulationTests
     // Re-pinned in slice 1d: check beats gained MomentumAfter and StrainAfter (additive; no rule changed).
     // Re-pinned for authored approaches: a check's approach is written as its id ("careful") where the enum wrote "Careful"; every other field is unchanged.
     // Re-pinned: approaches are chosen by the lead's skill and outcomes are authored (approaches plan, Task 4).
+    // Re-pinned: a mission's result and a check's beat carry the flags they changed (1e part one, Task 1).
     [Fact]
     public void Golden_seed_1_matches_the_accepted_log()
     {
         SimSummary summary = Simulation.Run(new SimOptions(Legacies: 1, Cycles: 10, Seed: 1), Pack);
 
-        Assert.Equal("B58CB64314A3189F18C6E9CAB5A9B57F5A38B4B030C1F186B17925E1FFF8C5E3", summary.Legacies[0].LogHash);
+        Assert.Equal("FED9978BCF33D5F1309D8083A7A1171A93A686359EEB7FB7521F065FD4DB5D50", summary.Legacies[0].LogHash);
     }
 }

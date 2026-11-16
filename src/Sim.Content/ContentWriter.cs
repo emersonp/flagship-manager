@@ -430,6 +430,22 @@ public static class ContentWriter
             entries.Add(("withdraw", "true"));
         }
 
+        // A flag change last, as flag, then add or set, then on.
+        if (effect.Flag is not null)
+        {
+            entries.Add(("flag", Quote(effect.Flag)));
+        }
+
+        if (effect.FlagAmount is { } amount)
+        {
+            entries.Add((effect.FlagSet ? "set" : "add", Num(amount)));
+        }
+
+        if (effect.FlagOn is not null)
+        {
+            entries.Add(("on", Quote(effect.FlagOn)));
+        }
+
         return Map(entries);
     }
 }

@@ -41,7 +41,7 @@ internal static class ContentFaithfulness
     private static readonly HashSet<string> YamlIntKeys = ["seniority", "caution", "discipline", "loadoutLimit", "need", "stakes", "difficulty", "level"];
 
     // Values the loader reads from the raw text with int.TryParse (effects, teamSize, a stage's count).
-    private static readonly HashSet<string> RawIntKeys = ["progress", "momentum", "strain", "teamSize", "count", "min", "max"];
+    private static readonly HashSet<string> RawIntKeys = ["progress", "momentum", "strain", "add", "set", "teamSize", "count", "min", "max"];
 
     // Numbers that read as 0 when absent.
     private static readonly HashSet<string> ZeroKeys = ["seniority", "caution", "discipline", "loadoutLimit", "need", "stakes", "difficulty", "teamSize", "count"];
@@ -86,10 +86,31 @@ internal static class ContentFaithfulness
             Tree original = Convert(entry.Node, null, null);
             Tree written = Convert(Rendered(entry.Model), null, null);
             Diff(original, written, "", problems);
+            problems.AddRange(FormLosses(entry.Model));
             losses.AddRange(problems.Select(p => (i, new ContentLoss(path, label, p))));
         }
 
         return losses;
+    }
+
+    // What the writer keeps but the encounter form cannot: it holds one flag change a tier, so a save from it would drop the rest.
+    private static IEnumerable<string> FormLosses(IContentModel model)
+    {
+        if (model is not EncounterModel encounter)
+        {
+            yield break;
+        }
+
+        for (int i = 0; i < encounter.Approaches.Count; i++)
+        {
+            foreach ((string tier, IReadOnlyList<EffectModel> effects) in encounter.Approaches[i].Outcomes)
+            {
+                if (effects.Count(e => e.Flag is not null) > 1)
+                {
+                    yield return $"has an outcome with more than one flag change, which the form cannot keep: approaches[{i}].outcomes.{tier}.";
+                }
+            }
+        }
     }
 
     private static YamlNode Rendered(IContentModel model)

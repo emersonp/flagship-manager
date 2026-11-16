@@ -117,12 +117,13 @@ public class MissionWalkthroughTests
     // Re-pinned in slice 1d: check beats gained MomentumAfter and StrainAfter (additive; no rule changed).
     // Re-pinned for authored approaches: a check's approach is written as its id ("careful") where the enum wrote "Careful"; every other field is unchanged.
     // Re-pinned: approaches are chosen by the lead's skill and outcomes are authored (approaches plan, Task 4).
+    // Re-pinned: a mission's result and a check's beat carry the flags they changed (1e part one, Task 1).
     [Fact]
     public void Golden_mission_matches_the_accepted_beats()
     {
         (_, List<Beat> beats, _) = TestContent.Play(TestContent.Team(1, 1, 3, 5), seed: 1);
 
-        Assert.Equal("228FC64AB185EC43377F03BC373422874D6DDB54E44EDF3967702858E78202A3", Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(Json(beats)))));
+        Assert.Equal("B0F47763BE1F902201DEF5E2EB7318FEE1A6976F07DEA4975A83A555824E893F", Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(Json(beats)))));
     }
 
     // Replays injuries from the beats to find the score the senior would have had acting as best qualified.

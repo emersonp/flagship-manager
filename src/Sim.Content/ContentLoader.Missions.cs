@@ -179,7 +179,7 @@ public static partial class ContentLoader
                 continue;
             }
 
-            EffectDef effect = Effects(effects, error);
+            EffectDef effect = Effects(effects, error, outcome: true);
             if (effect.Withdraw)
             {
                 error("An outcome cannot withdraw the team.");
@@ -191,35 +191,94 @@ public static partial class ContentLoader
         return outcomes;
     }
 
-    private static EffectDef Effects(List<Dictionary<string, string>?>? items, Action<string> error)
+    // The entries fold into one effect. An entry that names a flag is one flag change, and its add or set and its on belong to it.
+    // outcome: the effect is an approach's outcome, where on: actor has someone to name.
+    private static EffectDef Effects(List<Dictionary<string, string>?>? items, Action<string> error, bool outcome = false)
     {
         var effect = new EffectDef();
-        foreach ((string key, string value) in (items ?? []).SelectMany(i => i ?? []))
+        var flags = new List<FlagChange>();
+        foreach (Dictionary<string, string> entry in (items ?? []).Select(i => i ?? []))
         {
-            switch (key)
+            bool flagged = entry.TryGetValue("flag", out string? flag);
+            if (flagged && FlagChangeOf(entry, flag!, outcome, error) is { } change)
             {
-                case "momentum" when int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out int n):
-                    effect = effect with { Momentum = effect.Momentum + n };
-                    break;
-                case "strain" when int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out int n):
-                    effect = effect with { Strain = effect.Strain + n };
-                    break;
-                case "progress" when int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out int n):
-                    effect = effect with { Progress = effect.Progress + n };
-                    break;
-                case "injuryRoll" when value is "light" or "severe":
-                    effect = effect with { InjuryRoll = value == "light" ? InjurySeverity.Light : InjurySeverity.Severe };
-                    break;
-                case "withdraw" when value == "true":
-                    effect = effect with { Withdraw = true };
-                    break;
-                default:
-                    error($"Unknown effect '{key}: {value}'.");
-                    break;
+                flags.Add(change);
+            }
+
+            foreach ((string key, string value) in entry)
+            {
+                switch (key)
+                {
+                    case "momentum" when int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out int n):
+                        effect = effect with { Momentum = effect.Momentum + n };
+                        break;
+                    case "strain" when int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out int n):
+                        effect = effect with { Strain = effect.Strain + n };
+                        break;
+                    case "progress" when int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out int n):
+                        effect = effect with { Progress = effect.Progress + n };
+                        break;
+                    case "injuryRoll" when value is "light" or "severe":
+                        effect = effect with { InjuryRoll = value == "light" ? InjurySeverity.Light : InjurySeverity.Severe };
+                        break;
+                    case "withdraw" when value == "true":
+                        effect = effect with { Withdraw = true };
+                        break;
+                    case "flag" or "add" or "set" or "on" when flagged:
+                        break;
+                    default:
+                        error($"Unknown effect '{key}: {value}'.");
+                        break;
+                }
             }
         }
 
-        return effect;
+        // Null, not empty, when there are none, so effects without flags compare equal.
+        return flags.Count == 0 ? effect : effect with { Flags = flags };
+    }
+
+    // One flag change, or null when it is refused (each problem reported).
+    private static FlagChange? FlagChangeOf(Dictionary<string, string> entry, string flag, bool outcome, Action<string> error)
+    {
+        bool ok = true;
+        void Refuse(string message)
+        {
+            error(message);
+            ok = false;
+        }
+
+        if (!FlagIds.IsValid(flag))
+        {
+            Refuse($"Flag id '{flag}' must be {FlagIds.Rule}.");
+        }
+
+        bool set = entry.TryGetValue("set", out string? setText);
+        bool add = entry.TryGetValue("add", out string? addText);
+        int amount = 0;
+        if (set == add)
+        {
+            Refuse("A flag change needs add or set, not both.");
+        }
+        else if (!int.TryParse(set ? setText : addText, NumberStyles.Integer, CultureInfo.InvariantCulture, out amount))
+        {
+            Refuse($"Unknown effect '{(set ? "set" : "add")}: {(set ? setText : addText)}'.");
+        }
+        else if (set && amount < 0)
+        {
+            Refuse("A flag's set must be 0 or more.");
+        }
+
+        string? on = entry.GetValueOrDefault("on");
+        if (on is not (FlagIds.Ship or FlagIds.Actor or FlagIds.Lead or FlagIds.Team))
+        {
+            Refuse("A flag change needs on: ship, actor, lead, or team.");
+        }
+        else if (on == FlagIds.Actor && !outcome)
+        {
+            Refuse("on: actor is only for an approach's outcome.");
+        }
+
+        return ok ? new FlagChange(flag, amount, set, on!) : null;
     }
 
     private static List<ObjectiveDef> BuildObjectives(List<(string File, ObjectiveDto Dto)> items, List<EncounterDef> encounters, List<ContentError> errors)
