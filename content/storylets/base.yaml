@@ -1,0 +1,48 @@
+# Generated fiction, by the author's one-time allowance for slice 1e's storylets (GDD section 15, item 37; 2026-11-16).
+# The ids and every number are the placeholders' own; only names and words are new.
+# Flags (docs/conventions.md): sensors_quirk is a stage on the ship (1 new, 2 let ride, 0 fixed), set by the Debris Shoal.
+# shaken is a counter on a crew member, added to by the Collapsed Gallery; shaken_heard is a stage on them (1 heard, 2 turned away).
+- id: STORYLET_01
+  name: A quirk in the sensors
+  stakes: 2
+  scope: ship
+  requires:
+    - { flag: sensors_quirk, min: 1, max: 1 }
+  text: |-
+    > Forward array variance: 0.4 seconds, rising.
+    best SKILL_A: Captain, the forward array is reading ghosts. Contacts that aren't there, and a lag on the ones that are.
+    best SKILL_B: Something in the shoal knocked it off true. A full recalibration takes the off-duty watch, all night.
+    captain: And if we leave it?
+    best SKILL_A: Then we fly half a second blind, and we remember that we do.
+    = The forward array has read false since the Debris Shoal.
+  options:
+    - id: recalibrate
+      label: Recalibrate tonight
+      effects: [{ flag: sensors_quirk, set: 0 }, { loyalty: -1, on: crew }]
+      text: The off-duty watch spent their rest in the sensor bay, and the forward array reads true again.
+    - id: fly_on
+      label: Fly on it
+      effects: [{ flag: sensors_quirk, set: 2 }]
+      text: The forward array stays as it is. Every reading from it now carries a margin, and the bridge knows it.
+- id: STORYLET_02
+  name: Someone shaken
+  stakes: 3
+  scope: crew
+  requires:
+    - { flag: shaken, min: 1 }
+    - { flag: shaken_heard, max: 0 }
+  text: |-
+    > Request from #subject#: a word with the captain, in private.
+    subject: Captain. Have you got a minute? It's about the gallery.
+    subject: I keep feeling the deck go out from under me. I'm on shift in an hour.
+    = #subject# asked the captain for a word after the Collapsed Gallery.
+  options:
+    - id: make_time
+      label: Make the time
+      # Everyone's loyalty dips but the subject's: the captain is seen to have favourites.
+      effects: [{ flag: shaken, add: -1 }, { flag: shaken_heard, set: 1 }, { loyalty: -1, on: crew }, { loyalty: 1, on: subject }]
+      text: "#subject# had the captain's door for the better part of an hour, and the rest of the crew noticed whose it was."
+    - id: carry_on
+      label: Tell them to carry on
+      effects: [{ flag: shaken_heard, set: 2 }, { loyalty: -2, on: subject }]
+      text: "#subject# was told to carry on, and went back on shift without another word."

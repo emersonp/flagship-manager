@@ -85,7 +85,7 @@ A new kind, `content/storylets/`:
     - { flag: flag_b, max: 0 }
   text: |-
     subject: STORYLET_01_LINE_1
-    captain: #captainAsk#
+    captain: #captain_ask#
     = STORYLET_01_REPORT
   options:
     - id: option_a

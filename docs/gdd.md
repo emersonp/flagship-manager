@@ -1,6 +1,6 @@
 # Starship Sim: Game Design Document v1
 
-Status: draft v1.15, 2026-11-15, revised after the author's reviews (section 15), the mission prototype (section 4.7), the author's notes on skills and narrative structure after slice 1c (section 15, items 18 to 21), and the review of slice 1d, which made an encounter's approaches the author's to write (section 15, item 24). Vocabulary follows `GLOSSARY.md`; the games and shows the design draws on are listed in `docs/touchstones.md`. Creative content is placeholder throughout this document (`SPECIES_A`, `OBJECTIVE_TEMPLATE_1`, `SKILL_A`); the game's own pack in `content/` holds generated fiction, by the author's one-time exception (section 15, item 23); numbers are starting points for the balance simulator, not commitments.
+Status: draft v1.16, 2026-11-16, revised after the author's reviews (section 15), the mission prototype (section 4.7), the author's notes on skills and narrative structure after slice 1c (section 15, items 18 to 21), the review of slice 1d, which made an encounter's approaches the author's to write (section 15, item 24), and the first part of slice 1e, which brought story flags and the first storylets (section 15, items 32 to 38). Vocabulary follows `GLOSSARY.md`; ids and names follow `docs/conventions.md`; the games and shows the design draws on are listed in `docs/touchstones.md`. Creative content is placeholder throughout this document (`SPECIES_A`, `OBJECTIVE_TEMPLATE_1`, `SKILL_A`); the game's own pack in `content/` holds generated fiction, by the author's one-time exception (section 15, item 23); numbers are starting points for the balance simulator, not commitments.
 
 ## 1. Summary
 
@@ -205,6 +205,7 @@ approaches:                               # one to four, in the order the author
       - { gear: scanner }                 # the loadout carries gear with this tag
     outcomes:                             # optional: a tier written here replaces that tier's default whole
       success: [{ progress: 1 }, { strain: -1 }, { momentum: 1 }]
+      partial: [{ strain: 1 }, { flag: flag_a, add: 1, on: ship }]   # the default's strain, and a story flag (3.8)
     text:                                 # what is said before this check, and what the log says after, by tier
       attempt: ENCOUNTER_07_APPROACH_A_ATTEMPT_TEXT
       success: ENCOUNTER_07_APPROACH_A_SUCCESS_TEXT
@@ -232,6 +233,8 @@ lines:                                    # any other line that holds only here,
 
 An encounter's approaches are the ways through that suit the situation, named and tuned by the author: one to four, usually two. An approach's `id` is unique within the encounter and is the key in saved beats and in lines. It may carry any number of `requires`, though the editor's form edits three. The loader refuses an encounter in which every approach has a `requires`, so one is always available. A tier an approach does not write takes the tuning file's default for that tier: critical and success add 1 progress and remove 1 strain, critical adds momentum, partial adds strain, failure adds strain and a light injury roll, and disaster adds more strain and a severe one. An injury roll in an outcome falls on the actor. A disaster chains the encounter's follow-on whatever its approach's disaster outcome says.
 
+An effect can also change a story flag (slice 1e): `{ flag: flag_a, add: 1, on: ship }` or `{ flag: flag_b, set: 1, on: lead }`, in an approach's outcome or a decision's answer. `add` changes the flag by a whole number, which may be negative; `set` makes it a number of 0 or more. `on` is required: `ship`, `actor` (the one who made the check; outcomes only), `lead`, or `team` (each member standing). An effect changes at most one flag; an outcome or answer may hold several. The mission's result carries every flag it changed, and the storylets module stores them when the mission ends; a flag set on someone who died on that mission is dropped. Because a written tier replaces the default whole, a tier that only adds a flag writes the default's entries beside it. The mission log tags the beat that changed a flag: "flag_a +1, ship" for an add, "flag_b = 1, CREW_02" for a set.
+
 The fixture's placeholder form, which the tests use, is one line to an approach: `{ id: careful, name: APPROACH_A_NAME, skill: SKILL_A, difficulty: 5, gearTag: scanner }`, and a second whose `outcomes` write the critical and success tiers with the momentum the old fast approach earned.
 
 An encounter carries its own narrative. Its `text` gives the words for its own beats (arriving, each approach before its check and by tier, and its decision, whose `labels` name the call's answer buttons), and its `lines` are ordinary lines (section 6) that hold only at this encounter. Nothing about an encounter is written in the shared lines; those hold what belongs to no encounter, and the fallbacks.
@@ -254,27 +257,59 @@ Gear, like traits, is only modifiers. Gear opens approaches (through `gearTags`)
 
 ### 3.7 Storylet (content)
 
+As built in slice 1e, part one (`content/storylets/`):
+
+```yaml
+- id: STORYLET_01
+  name: STORYLET_01_NAME          # optional display name
+  stakes: 2                       # 1 to 5; orders arrivals, highest first (5.1)
+  scope: crew                     # ship or crew: whose flags it reads, and whether it has a subject
+  requires:                       # one to four entries, all must hold; part three replaces this with the expression language
+    - { flag: flag_b, min: 1 }
+    - { flag: flag_c, max: 0 }
+  text: |-                        # a script (section 6): speech, notes, narration, and a report sentence
+    subject: STORYLET_01_LINE_1
+    captain: STORYLET_01_LINE_2
+    = #subject# STORYLET_01_REPORT
+  options:                        # two to four
+    - id: option_a
+      label: STORYLET_01_OPTION_A_LABEL                     # the answer's button, 1 to 40 characters
+      effects: [{ flag: flag_b, add: -1 }, { flag: flag_c, set: 1 }]
+      text: STORYLET_01_OPTION_A_TEXT                       # what the log says once it is chosen
+    - id: option_b
+      label: STORYLET_01_OPTION_B_LABEL
+      effects: [{ flag: flag_c, set: 2 }, { loyalty: -2, on: subject }]
+      text: "#subject# STORYLET_01_OPTION_B_TEXT"
+```
+
+- **Requires.** Each entry names a flag and a range: `min` is 1 when left out, or 0 when only `max` is given; `max` has no limit when left out. "Has it happened twice" is `min: 2`; "not yet" is `max: 0`. The loader refuses requirements no value can satisfy.
+- **Scope.** A storylet for the ship reads the ship's flags and has no subject; its text and effects may not name one. A storylet for the crew reads one crew member's flags and arrives once for each crew member whose flags hold, as its `subject`.
+- **Text.** Speakers are `subject` (crew scope only), `captain`, and `best SKILL_ID` among the living, fit crew. An option's `text` is what the log says once it is chosen.
+- **Effects.** `loyalty` (a whole number, `on: subject` or `on: crew` for everyone living), and `flag` with `add` or `set`, `on: ship` or `on: subject`, or no `on` for the scope the storylet arrived for. Nothing else; the loader refuses the rest by name.
+- **No hidden memory.** Each option must move the storylet's own flags out of its range, to 0 (dealt with) or onward (to 2, "known and let ride", which another storylet may require). The loader refuses an option that leaves every requirement true, since the storylet would come back every cycle.
+
+Part three replaces `requires` with the expression language over the quality view, and adds casting from the crew in place of the one subject, salience in place of the fixed order, cooldowns, `ifIgnored` with an expiry, and an option settled by a check. Part two adds vignettes on the same shape. The fuller form it is designed towards, as sketched before slice 1e (`cost` is gone: section 15, item 35):
+
 ```yaml
 id: STORYLET_031
 kind: captain                 # captain | vignette
 stakes: 3
-cost: 2                       # captain's time; vignettes cost 0
 tags: [rivalry, department]
 cast:
   a: "crew.status == 'active'"
   b: "rel(a, b).kind == 'rival' and rel(a, b).strength >= 50 and a.departmentId == b.departmentId"
-requires: "not flag('STORYLET_031.done', a, b)"
+requires: "a.flag.rivalry_done == 0"
 cooldown: { perCast: 40, global: 5 }
-text: STORYLET_031_TEXT       # grammar symbol in the content pack
+text: STORYLET_031_TEXT
 options:
-  - id: OPTION_A
+  - id: option_a
     requires: "captain.empathy >= 1"
     effects: [{ relAdjust: [a, b, -20] }, { morale: [a, 5] }]
-  - id: OPTION_B
+  - id: option_b
     effects: [{ transfer: [b, otherDepartment] }, { morale: [b, -10] }]
 ifIgnored:
   afterWeeks: 3
-  effects: [{ relAdjust: [a, b, 15] }, { setFlag: 'rivalry.escalated' }]
+  effects: [{ relAdjust: [a, b, 15] }, { flag: rivalry_escalated, set: 1, on: ship }]
   then: STORYLET_032
 ```
 
@@ -283,18 +318,20 @@ ifIgnored:
 The game is a hybrid: part stats model, part quality-based narrative (section 5).
 
 - **Stats** are typed, numeric, and simulated: skills and their grades (3.10), personality axes, morale, loyalty, renown, and standing. They are the Football Manager half. The rules compute with them, the player sees them in bands, and only the systems that own them change them (content changes them through effect commands).
-- **Story flags** are open-ended: named by content, numeric, and stored generically. They are the Fallen London half. A flag can be a mark (`rivalry.escalated: 1`) or a counter (`owes_the_captain: 3`), and content invents new ones with no code change.
+- **Story flags** are open-ended: named by content, numeric, and stored generically. They are the Fallen London half, and content invents new ones with no code change. **Every flag is a number** (section 15, item 38). A flag nobody has set is 0, a flag never goes below 0, and a flag at 0 is not stored. A flag is either a **counter**, only ever added to ("how many times": `owes_the_captain: 3`), or a **stage**, only ever set ("where this stands": `rivalry_escalated: 1`), never both; a story that needs both uses two flags, which share a prefix (`shaken` and `shaken_heard`). A flag's id is lower case (`docs/conventions.md`), and wherever it is read beside other properties it is read through `flag`: `subject.flag.shaken`, `ship.flag.sensors_quirk`.
 - **Traits and tags** stay typed content (3.2). Testing for one (`a.has('TRAIT_A')`) reads like any other quality.
 
-A **quality** is anything the expression language can read through the read-only quality view, stat or flag alike: `a.skills.SKILL_A`, `a.grade.ATTRIBUTE_A`, `rel(a, b).strength`, `ship.renown`, `chronicle.count('death', dept: a.departmentId, within: 20)`, or `flag('x')`. Only story flags are stored generically:
+A **quality** is anything the expression language can read through the read-only quality view, stat or flag alike: `a.skills.SKILL_A`, `a.grade.ATTRIBUTE_A`, `rel(a, b).strength`, `ship.renown`, `chronicle.count('death', dept: a.departmentId, within: 20)`, or `a.flag.x`. Only story flags are stored generically. As built in slice 1e, part one, a flag is on the ship or on one crew member, held in the storylets module's state:
 
 ```yaml
-legacyId: legacy_01
-key: rivalry.escalated
-scope: [crew_0042, crew_0017]   # empty = legacy-wide
+flag: flag_a
+crewId: null                    # null: the ship
 value: 1
 setAtWeek: 164
+encounterId: ENCOUNTER_01       # the encounter whose effect last changed it, or null for a storylet's answer
 ```
+
+A flag on several crew at once (`scope: [crew_0042, crew_0017]`, for a relationship) waits for part three.
 
 ### 3.9 Event log entry and chronicle entry (state)
 
@@ -449,6 +486,8 @@ One selection engine serves both: requirements gate (quality-based), and a score
 Short's survey names a third structure, waypoint narrative, in which the engine steers content towards an authored target by measuring how far each piece is from it. The game does not use it. Storylines (5.3) and conversations (5.4) get the same result from qualities, and an author can read any storylet and know when it fires.
 
 ### 5.1 Selection each cycle
+
+**As built in slice 1e, part one.** When the aftermath begins, the storylets module finds every storylet whose requirements all hold, on the ship for a storylet for the ship and on each living crew member for a storylet for the crew, and which is not already waiting for that scope. It offers them highest stakes first, then by id, then by the subject's place on the roster, until `storylets.perCycle` (tuning, 2) are waiting; the rest arrive in a later cycle, and nothing is lost. There is no other memory: a storylet comes again whenever its requirements hold, and its own answers are what stop it (3.7). A storylet whose subject dies is withdrawn, and the flags on them are dropped. The aftermath cannot be left while one waits. Nothing draws randomness. The steps below are the engine in full, built in part three.
 
 1. **Index.** Storylets are indexed by the tags and quality kinds they test, so only plausible candidates are evaluated.
 2. **Cast.** For each candidate, find crew bindings that satisfy the cast slots. Bindings are sampled, not enumerated, with a hard cap per storylet.
@@ -634,7 +673,7 @@ text:
   call: |-
     lead: Captain, we're here, and it is worse than the survey said.
     best SKILL_MEDICINE: I'm not detecting any life signs.
-    captain: #captainAsk#
+    captain: #captain_ask#
     lead: We go in, or we wait for the storm to pass. Your call.
     > Signal strength falling.
     = #lead# called in from #encounter#.
@@ -689,6 +728,8 @@ The cliff, as three small pieces in one encounter: an approach's Before the chec
 | `Web` | ASP.NET endpoints and Datastar views | All, through commands and queries |
 | `SimRunner` | Headless balance simulator | All except Web and (optionally) Persistence |
 
+`Sim.Storylets` as built in slice 1e, part one: it owns the story flags and the waiting storylets. It hears of missions only through `MissionEnded`, whose result lists the flags the mission changed, and stores them with the week and the encounter. When the aftermath begins it offers what is due (`StoryletOffered`); `AnswerStorylet` applies an option's effects at once, flags in its own state (`FlagChanged`) and loyalty through the crew module's `AdjustLoyalty` command, and publishes `StoryletAnswered`. A guard on `AdvancePhase` holds the aftermath while a storylet waits. On `CrewDied` it drops the flags on that person and withdraws their storylets (`StoryletWithdrawn`). It reaches crew only through the roster view. Its contracts live in `Sim.Core`, so the bridge and the simulator never reference the module, and the simulator's captain answers each waiting storylet with its first option.
+
 Rules that keep agents from rewriting old code:
 
 - Feature modules never reference each other. They react to events and read through the quality view.
@@ -736,6 +777,7 @@ Built in slice 1c (`src/Web`, run with `./run.sh`):
 - **A legacy played through the browser has exactly the simulator's event log** for the same seed and choices; a test holds the two together.
 - **Everything authored has a display name** (slice 1c-editor): skills, crew, gear, objective templates, encounters, decisions, and assignments. Ids stay the keys in saves, events, and references; the screens and the log show the name and fall back to the id. Two items that share a name show their ids beside it.
 - **The content editor** (slice 1c-editor, `/dev/content`, developer mode only; `run.sh` turns it on): a form for each kind of content, and the tuning and pack files as text. Slice 1d adds lines (with a preview that expands the line as typed against fixed sample missions on the starting crew, and says whether it wins each beat or which line beats it), symbols, pronoun sets, the crew's pronoun pick, and a lint on the lines page that names lines no sample chooses and beats with no line. A save builds the whole pack as it would be, runs the loader on it, and only then writes one file and swaps the pack in the running game; a save the loader refuses writes nothing and shows the reasons. The encounter and objective forms end with "What plays here" (slice 1d authoring): the item's beats in mission order, each with a box for its own words or the line that plays there now, lines of the item's own under their beat with their criteria as rows, live previews of the unsaved form against samples built for the item, and chips that insert what a beat can name. A file holding anything the editor cannot keep faithfully is never rewritten. Names and gear reach games in progress at once; a legacy's crew keep the levels they started with. Git stays the record.
+- **Matters aboard** (slice 1e, part one): while a storylet waits, the aftermath shows a section above the report with one panel for each, in arrival order: its name, where it came from (the encounter that set the flag, and the flag), its script, and its answers as buttons with their authored labels. "Next cycle" is disabled with the reason while any waits. Once answered, the panel stays for the rest of the aftermath in a settled form: the option's text, then tags for what changed ("Loyalty −1 all crew", "flag_a 1 to 0"). The storylets file appears on the editor's index as a text file, validated by the loader on save like the tuning file; the storylet form is part five.
 - **The look** is recorded in `docs/design/` (the mock-up, the tokens, and the component recipes): a blue-slate ground, one azure signal, a serif for headings over a technical grotesk, monospaced figures, and the mission log as one numbered trail that runs into the call. Screens are in `docs/screens/1c/`.
 
 ## 8. Engine recommendation
@@ -876,8 +918,8 @@ What has been built, slice by slice. A phase is cut into slices when it is plann
 | 1. Thinnest game | 1d. Reports | The grammar engine, lines chosen by salience, the log as prose with tags, the aftermath report, and lines, symbols, and pronoun sets in the editor | Done 2026-11-14 |
 | 1. Thinnest game | 1d-authoring. Writing in place | Scripts (speech, notes, a report sentence, an attempt before a check, call scripts and button labels), the "What plays here" panel with live previews, and generated fiction in the game's pack | Done 2026-11-15 |
 | 1. Thinnest game | 1d-review. Authored approaches | An encounter's approaches are the author's to name and tune, with requirements and outcomes of their own; the lead chooses by skill; "notice" becomes "initiative"; risk tolerance is removed; the encounter form gains a tab for each approach; the briefing's away team table restacks instead of scrolling | Done 2026-11-15 |
-| 1. Thinnest game | 1e, part one. A storylet from a mission | An encounter's outcome or a decision's answer changes a story flag (every flag is a number) on the ship, the one who acted, the lead, or the team; a storylet whose flag requirements hold arrives in the aftermath as a dilemma with two to four options and fixed effects (loyalty and flags); at most two a cycle; the simulator's captain answers them | Next |
-| 1. Thinnest game | 1e, part two. Vignettes and morale | Morale for each crew member; vignettes on the same engine, mostly flavour with a small nudge to morale or loyalty, some with one small choice and a default | Later |
+| 1. Thinnest game | 1e, part one. A storylet from a mission | An encounter's outcome or a decision's answer changes a story flag (every flag is a number) on the ship, the one who acted, the lead, or the team; a storylet whose flag requirements hold arrives in the aftermath as a dilemma with two to four options and fixed effects (loyalty and flags); at most two a cycle; the simulator's captain answers them; two storylets in the game's pack | Done 2026-11-16 |
+| 1. Thinnest game | 1e, part two. Vignettes and morale | Morale for each crew member; vignettes on the same engine, mostly flavour with a small nudge to morale or loyalty, some with one small choice and a default | Next |
 | 1. Thinnest game | 1e, part three. The storylet engine in full | The expression language over the quality view (stats, story flags, and recent history such as who was hurt or on a lost mission); casting from the crew; salience ranking in place of a fixed order; cooldowns; `ifIgnored` and expiry; flags that bite on missions (an approach that requires or forbids one; a flag that keeps someone off an away team or makes sending them a broken promise; a flag that moves when a mission launches; a flag that fades with time: the worked example is a shaken crew member stood down from the next away team); an option settled by a check from a crew member the captain names; simulator policies that answer storylets, with fire counts and dead-content alarms | Later |
 | 1. Thinnest game | 1e, part four. The crew file and the chronicle list | A page for each crew member (skills, morale, loyalty, and the flags on them), and a list of what the captain decided and who was lost | Later |
 | 1. Thinnest game | 1e, part five. Writing storylets in the editor | Forms for storylets and vignettes with the "What plays here" panel, live previews against samples, and chips, as encounters have | Later |
@@ -1008,6 +1050,13 @@ Notes from the author on 2026-11-16, before slice 1e (design in `docs/plans/2026
 35. **Captain's time is a different thing from storylets.** It is a menu of good things the captain chooses to do (a poker night, a captain's day or a concert, a drill ordered through the chief of security), mostly mechanical, with some narrative wrapping. A captain storylet therefore does not cost captain's time. Sections 5.2 and 5.4 and the glossary still describe the earlier idea, in which captain's time paid for storylets; they are rewritten when slice 1g is designed.
 36. **Slice 1e is built as one thin thread first, then widened** (section 11.1). The first thread is a storylet from a mission, playable in the browser.
 37. **A little generated narrative is allowed in the game's pack for slice 1e's storylets**, in place of placeholders. The test fixture and this document stay placeholder.
+
+Decided by the author on 2026-11-16, while slice 1e's first part was designed and built:
+
+38. **Every flag is a number, and the first thread is thin.**
+    - Every story flag is a number, after Fallen London: a mark today is a count tomorrow, and "has this happened twice?" must not need a rewrite. A flag is a **counter** (only ever added to) or a **stage** (only ever set), never both; a story that needs both uses two flags. See 3.8.
+    - The first thread is thin. The shaken crew member asks the captain for a word; an earlier draft had them ask to be kept off the next away team, which needs a flag that changes the briefing and one that moves when a mission launches. Those are part three (section 11.1). In part one loyalty has no effect on play yet and no rule reads a flag; that is accepted.
+    - Naming conventions were adopted the same day (`docs/conventions.md`): ids are upper case for items with their own page in the editor and lower case with underscores for what lives inside an item or is typed into text (approaches, options, flags, symbols, tags); `.`, `-`, `#`, `:`, and `|` are never in an id; a flag is read beside other properties through `flag` (`subject.flag.shaken`).
 
 ## 16. Open questions
 

@@ -26,6 +26,7 @@ A `starship-sim.db` from before authored approaches is refused at start with a m
 
 - The editor has a form for each kind of content, and text pages for `pack.yaml` and the two tuning files. An encounter's form lists its approaches (one to four, each with a name, skill, difficulty, and what the team must have for it to be available), then a tab for each approach with its words and the effects of each tier, then "What plays here".
 - Lines are what the mission log and the aftermath report say. Each has a beat, criteria, and text; the most specific line whose criteria hold wins. An encounter's or an objective's own words are written inside it, in its form; the Lines page holds the shared lines, which belong to no one encounter. A line's text is one sentence or a script of speech, notes, and narration. The encounter and objective forms end with "What plays here": every beat the item produces, with a box for its own words or the line that plays there now, and a live preview. The line form previews a shared line against sample missions, and the lines page lints them. The game's own pack in `content/` holds generated fiction for trying this out; the test fixture stays placeholder. Symbols give a line varied words, and pronoun sets give crew their pronouns.
+- Storylets arrive in the aftermath when the story flags they require hold, and are answered there. They are written in `content/storylets/base.yaml`, which the editor shows as a text file and checks on save; an encounter's outcomes and a decision's answers can set the flags.
 - A save is checked as a whole pack first. If it would break the pack, it is refused with the reasons and nothing is written.
 - A saved edit is live at once, with no restart.
 - Names and gear reach games in progress. A legacy's crew keep the levels they started with; a change to a crew member's levels applies to new legacies.
@@ -39,5 +40,5 @@ A `starship-sim.db` from before authored approaches is refused at start with a m
 ## Where things live
 
 - `content/` holds the game content, which can change freely. The tests, golden hashes, bench figures, and scripts use the placeholder pack in `tests/fixtures/content/` instead (see `tests/fixtures/README.md`).
-- `docs/` holds the design, plans, research, and screens; `docs/gdd.md` is the game design document.
+- `docs/` holds the design, plans, research, and screens; `docs/gdd.md` is the game design document, and `docs/conventions.md` says how ids and names are written.
 - `wayfinder/` holds the project map.

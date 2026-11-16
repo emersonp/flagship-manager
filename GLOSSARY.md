@@ -233,13 +233,13 @@ A typed, simulated number owned by a system: a skill, a grade, a personality axi
 _Avoid_: Attribute (that is a grouping of skills)
 
 **Story flag**:
-A free-form numeric quality named by content, stored generically: a mark or a counter that tracks story state.
+A free-form numeric quality named by content, stored generically, that tracks story state on the ship or on a crew member. A flag is either a counter, only ever added to, or a stage, only ever set; never both.
 
 **Storylet**:
 A unit of narrative content with requirements, a cast, and mechanical effects.
 
 **Captain storylet**:
-A storylet that requires a choice and costs captain's time.
+A storylet that arrives and requires a choice.
 
 **Vignette**:
 A short, free storylet that carries information. Usually it has no choice; sometimes it offers one small one, with a default if unanswered.
