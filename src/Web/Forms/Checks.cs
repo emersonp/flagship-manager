@@ -1,23 +1,12 @@
 using System.Globalization;
-using System.Text.RegularExpressions;
 using Sim.Content;
+using Sim.Core.Content;
 
 namespace Web.Forms;
 
 // The field checks every kind shares. Each agrees with the loader: the id rule, the name rule, and whole numbers in a range.
-internal static partial class Checks
+internal static class Checks
 {
-    public const string IdRule = "Upper case letters, digits, and underscores, starting with a letter.";
-
-    // The same pattern as the loader's, but a trailing line break is not let through.
-    [GeneratedRegex("^[A-Z][A-Z0-9_]*\\z")]
-    private static partial Regex IdPattern();
-
-    public const string LowerIdRule = "A lower case letter, then letters, digits, and underscores.";
-
-    [GeneratedRegex("^[a-z][A-Za-z0-9_]*\\z")]
-    private static partial Regex LowerIdPattern();
-
     // Symbols and pronoun sets: named in text, with ids of their own apart from everything else's.
     public static bool LowerCase(ContentKind kind) => kind is ContentKind.Symbol or ContentKind.Pronoun;
 
@@ -27,9 +16,9 @@ internal static partial class Checks
         {
             errors["id"] = "Enter an id.";
         }
-        else if (LowerCase(kind) ? !LowerIdPattern().IsMatch(id) : !IdPattern().IsMatch(id))
+        else if (LowerCase(kind) ? !Ids.IsInnerId(id) : !Ids.IsItemId(id))
         {
-            errors["id"] = LowerCase(kind) ? "An id must start with a lower case letter and hold only letters, digits, and underscores." : "An id must be upper case letters, digits, and underscores, starting with a letter.";
+            errors["id"] = LowerCase(kind) ? Ids.InnerRule : Ids.ItemRule;
         }
         else if (UsedBy(files, id, kind) is { } used)
         {
@@ -50,9 +39,9 @@ internal static partial class Checks
         {
             errors[field] = "Enter an id.";
         }
-        else if (!IdPattern().IsMatch(id))
+        else if (!Ids.IsItemId(id))
         {
-            errors[field] = "An id must be upper case letters, digits, and underscores, starting with a letter.";
+            errors[field] = Ids.ItemRule;
         }
         else if (id == Sim.Core.Content.DecisionIds.Abort)
         {
@@ -118,7 +107,7 @@ internal static partial class Checks
         return values.Get(field).Trim().Length == 0 ? null : Whole(values, field, min, max, errors);
     }
 
-    // Tags typed as text with commas: trimmed, each once, none blank. The loader sets no rule on a tag's characters, and a tag is matched exactly.
+    // Tags typed as text with commas: trimmed, each once, none blank, each an inner id as the loader asks.
     public static List<string> Tags(FormValues values, string field, Dictionary<string, string> errors)
     {
         string text = values.Get(field);
@@ -137,6 +126,12 @@ internal static partial class Checks
         if (tags.Any(t => t.Length == 0))
         {
             errors[field] = "A tag cannot be blank.";
+            return [];
+        }
+
+        if (tags.Any(t => !Ids.IsInnerId(t)))
+        {
+            errors[field] = Ids.InnerRule;
             return [];
         }
 

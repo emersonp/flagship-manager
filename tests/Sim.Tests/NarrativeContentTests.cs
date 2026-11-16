@@ -217,13 +217,21 @@ public class NarrativeContentTests
     [InlineData("- id: a\n  options: [\"#b#\"]\n- id: b\n  options: [\"#a#\"]\n", "uses itself")]
     [InlineData("- id: actor\n  options: [WORD_A]\n", "cannot be called 'actor'")]
     [InlineData("- id: empty\n  options: []\n", "at least one option")]
-    [InlineData("- id: Upper\n  options: [WORD_A]\n", "must start with a lower case letter")]
+    [InlineData("- id: Upper\n  options: [WORD_A]\n", "must be lower case: a letter")]
     [InlineData("- id: broken\n  options: [\"open # mark\"]\n", "never closed")]
     public void A_symbol_that_cannot_expand_is_refused(string text, string message)
     {
         ContentLoadResult result = LoadWith("symbols/base.yaml", text);
 
         Assert.Contains(result.Errors, e => e.File == "symbols/base.yaml" && e.Message.Contains(message, StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void A_symbol_in_mixed_case_is_refused()
+    {
+        ContentLoadResult result = LoadWith("symbols/base.yaml", "- id: captainAsk\n  options: [WORD_A]\n");
+
+        Assert.Contains(result.Errors, e => e.File == "symbols/base.yaml" && e.Message == "Id 'captainAsk' must be lower case: a letter, then letters, digits, and underscores, at most 40 in all.");
     }
 
     [Fact]
@@ -265,7 +273,7 @@ public class NarrativeContentTests
     [Theory]
     [InlineData("- id: she\n  subject: she\n  object: her\n  possessive: her\n  possessivePronoun: hers\n", "reflexive must be one word")]
     [InlineData("- id: she\n  subject: \" she\"\n  object: her\n  possessive: her\n  possessivePronoun: hers\n  reflexive: herself\n", "subject must be one word")]
-    [InlineData("- id: She\n  subject: she\n  object: her\n  possessive: her\n  possessivePronoun: hers\n  reflexive: herself\n", "must start with a lower case letter")]
+    [InlineData("- id: She\n  subject: she\n  object: her\n  possessive: her\n  possessivePronoun: hers\n  reflexive: herself\n", "must be lower case: a letter")]
     public void A_pronoun_set_missing_a_form_is_refused(string text, string message)
     {
         ContentLoadResult result = LoadWith("pronouns/base.yaml", text);

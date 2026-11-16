@@ -1066,6 +1066,8 @@ public sealed class ContentMissionFormsTests(RepoContentGuard guard) : IClassFix
         { "/dev/content/encounters/ENCOUNTER_01", Encounter1, "bold[1].strain=&bold[1].injury=", "Give the effect a value." },
         { "/dev/content/encounters/ENCOUNTER_01", Encounter1, "bold[0].injury=medium", "Choose light or severe." },
         { "/dev/content/encounters/ENCOUNTER_01", Encounter1, "tags=field;hazard,a\nb", "A tag is one line." },
+        { "/dev/content/encounters/ENCOUNTER_01", Encounter1, "tags=field-work", Ids.InnerRule },
+        { "/dev/content/objectives/OBJECTIVE_TEMPLATE_1", Objective1, "tags=Field", Ids.InnerRule },
     };
 
     [Theory]
@@ -1138,13 +1140,13 @@ public sealed class ContentMissionFormsTests(RepoContentGuard guard) : IClassFix
     }
 
     [Fact]
-    public async Task Tags_are_trimmed_kept_in_the_case_typed_and_written_once_each()
+    public async Task Tags_are_trimmed_and_written_once_each()
     {
         using TestApp app = NewApp();
 
-        await Post(app.NewClient(), "/dev/content/objectives/OBJECTIVE_TEMPLATE_1", Merge(Objective1, "tags= science ,  Repair ,science"));
+        await Post(app.NewClient(), "/dev/content/objectives/OBJECTIVE_TEMPLATE_1", Merge(Objective1, "tags= science ,  repair ,science"));
 
-        Assert.Equal(["science", "Repair"], app.Live.Pack.Objectives.Single(o => o.Id == "OBJECTIVE_TEMPLATE_1").Tags);
+        Assert.Equal(["science", "repair"], app.Live.Pack.Objectives.Single(o => o.Id == "OBJECTIVE_TEMPLATE_1").Tags);
     }
 
     [Fact]
@@ -1402,7 +1404,7 @@ public sealed class ContentMissionFormsTests(RepoContentGuard guard) : IClassFix
 
     [Theory]
     [InlineData("", "Enter an id.")]
-    [InlineData("decision_lower", "An id must be upper case letters, digits, and underscores, starting with a letter.")]
+    [InlineData("decision_lower", Ids.ItemRule)]
     [InlineData("DECISION_PROMPT_2", "That id is already used by ENCOUNTER_02.")]
     [InlineData("DECISION_ABORT", "That id is reserved for the abort call.")]
     public async Task A_new_decisions_id_is_checked_beside_the_field(string id, string words)

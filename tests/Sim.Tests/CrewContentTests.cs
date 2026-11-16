@@ -60,7 +60,7 @@ public class CrewContentTests
         Assert.Equal(
             new[]
             {
-                "crew/starting.yaml|Id 'crew 6' must be upper case letters, digits, and underscores, starting with a letter.",
+                "crew/starting.yaml|Id 'crew 6' must be upper case: a letter, then letters, digits, and underscores, at most 40 in all.",
                 "crew/starting.yaml|CREW_01: seniority must be 1 or more.",
                 "crew/starting.yaml|CREW_02: unknown skill 'SKILL_Z'.",
                 "crew/starting.yaml|CREW_03: skill 'SKILL_A' must be 0 to 10, not 11.",
@@ -90,11 +90,19 @@ public class CrewContentTests
         Assert.Equal(
             new[]
             {
-                "gear/base.yaml|Id 'gear 3' must be upper case letters, digits, and underscores, starting with a letter.",
+                "gear/base.yaml|Id 'gear 3' must be upper case: a letter, then letters, digits, and underscores, at most 40 in all.",
                 "gear/base.yaml|GEAR_01: tag must not be empty.",
                 "gear/base.yaml|GEAR_02: tag must not be empty.",
             },
             Errors(result));
+    }
+
+    [Fact]
+    public void A_gear_tag_outside_the_inner_rule_is_refused()
+    {
+        ContentLoadResult result = ContentLoader.Load(Repo("gear/base.yaml", "- { id: GEAR_01, tag: Hand-Tools }\n"));
+
+        Assert.Equal(new[] { "gear/base.yaml|GEAR_01: Tag 'Hand-Tools' must be lower case: a letter, then letters, digits, and underscores, at most 40 in all." }, Errors(result));
     }
 
     [Fact]

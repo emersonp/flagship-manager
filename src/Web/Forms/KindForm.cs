@@ -1,4 +1,5 @@
 using Sim.Content;
+using Sim.Core.Content;
 
 namespace Web.Forms;
 
@@ -100,7 +101,7 @@ internal sealed class GearKind : KindForm
         var errors = new Dictionary<string, string>();
         string? name = Checks.Name(values, errors);
         string tag = values.Get("tag").Trim();
-        // The loader asks only that a tag is not blank; one line keeps the file readable.
+        // A tag is an inner id; the line-break check keeps its own words.
         if (tag.Length == 0)
         {
             errors["tag"] = "Enter a tag.";
@@ -108,6 +109,10 @@ internal sealed class GearKind : KindForm
         else if (tag.IndexOfAny(['\r', '\n', '\u0085', '\u2028', '\u2029']) >= 0)
         {
             errors["tag"] = "A tag is one line.";
+        }
+        else if (!Ids.IsInnerId(tag))
+        {
+            errors["tag"] = Ids.InnerRule;
         }
 
         return new Bound(errors.Count > 0 ? null : _ => new GearModel(id, name, tag), errors);

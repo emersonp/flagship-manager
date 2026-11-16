@@ -111,5 +111,5 @@ public sealed record ItemFormView(
     public string PlaysUrl => IsNew ? $"/dev/content/{Segment}/plays" : $"{Action}/plays";
 
     // Symbols and pronoun sets are named in text, so their ids are lower case.
-    public string IdRule => Checks.LowerCase(Kind) ? Checks.LowerIdRule : Checks.IdRule;
+    public string IdRule => Checks.LowerCase(Kind) ? Ids.InnerRule : Ids.ItemRule;
 }

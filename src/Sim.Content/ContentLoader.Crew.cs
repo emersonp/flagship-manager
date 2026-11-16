@@ -124,6 +124,12 @@ public static partial class ContentLoader
                 continue;
             }
 
+            if (!Ids.IsInnerId(dto.Tag))
+            {
+                errors.Add(new ContentError(file, $"{dto.Id}: Tag '{dto.Tag}' must be {Said(Ids.InnerRule)}"));
+                continue;
+            }
+
             defs.Add(new GearDef(dto.Id!, dto.Tag, name));
         }
 

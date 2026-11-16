@@ -111,6 +111,20 @@ public sealed class ContentNarrativeFormsTests(RepoContentGuard guard) : IClassF
     }
 
     [Fact]
+    public async Task The_id_hint_quotes_the_rule_for_the_kind()
+    {
+        using TestApp app = NewApp();
+        using HttpClient client = app.CreateClient();
+
+        (_, string symbol) = await Get(client, "/dev/content/symbols/new");
+        (_, string skill) = await Get(client, "/dev/content/skills/new");
+
+        Assert.Contains(Ids.InnerRule, symbol, StringComparison.Ordinal);
+        Assert.DoesNotContain(Ids.ItemRule, symbol, StringComparison.Ordinal);
+        Assert.Contains(Ids.ItemRule, skill, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task The_lines_page_shows_the_lint_and_other_kinds_do_not()
     {
         using TestApp app = NewApp();
@@ -132,7 +146,7 @@ public sealed class ContentNarrativeFormsTests(RepoContentGuard guard) : IClassF
 
         (HttpStatusCode refused, string body) = await Post(client, "/dev/content/symbols", "id=Hesitates&options[0].text=WORD_A");
         Assert.Equal(HttpStatusCode.UnprocessableEntity, refused);
-        Assert.Contains("An id must start with a lower case letter", body, StringComparison.Ordinal);
+        Assert.Contains(Ids.InnerRule, body, StringComparison.Ordinal);
 
         (HttpStatusCode status, _) = await Post(client, "/dev/content/symbols", Esc("id=hesitates&options[0].text=WORD_A&options[1].text=#actor.they# pause"));
 

@@ -438,9 +438,9 @@ internal sealed class EncounterKind : KindForm
             return null;
         }
 
-        if (!FlagIds.IsValid(flag))
+        if (!Ids.IsInnerId(flag))
         {
-            errors[name("flag")] = FlagIdRule;
+            errors[name("flag")] = Ids.InnerRule;
         }
 
         if (mode is not ("add" or "set"))
@@ -457,9 +457,6 @@ internal sealed class EncounterKind : KindForm
 
         return new EffectModel(null, null, null, null, false, flag, amount, mode == "set", on);
     }
-
-    // A capital letter starts the rule shown beside the field.
-    public static readonly string FlagIdRule = char.ToUpperInvariant(FlagIds.Rule[0]) + FlagIds.Rule[1..] + ".";
 
     // One row is one approach, in the order shown. The count and the ids are checked here as the loader checks them.
     private static List<ApproachModel> BindApproaches(FormValues values, FormChoices choices, Dictionary<string, string> errors)
@@ -484,9 +481,9 @@ internal sealed class EncounterKind : KindForm
             {
                 errors[idField] = "Enter an id.";
             }
-            else if (!ContentLoader.IsApproachId(approachId))
+            else if (!Ids.IsInnerId(approachId))
             {
-                errors[idField] = ApproachIdRule;
+                errors[idField] = Ids.InnerRule;
             }
             else if (!ids.Add(approachId))
             {
@@ -616,7 +613,7 @@ internal sealed class EncounterKind : KindForm
         return outcomes;
     }
 
-    public const string ApproachIdRule = "1 to 24 lower case letters, digits, and hyphens, unique in this encounter.";
+    public const string ApproachIdRule = Ids.InnerRule + " Unique in this encounter.";
 
     // One row is one entry: a field per key, blank meaning the key is absent.
     private static List<EffectModel> BindEffects(FormValues values, RowSet set, Dictionary<string, string> errors)

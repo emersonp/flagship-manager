@@ -1,5 +1,5 @@
 # Generated fiction (2026-11-15). A symbol gives one of its options wherever a line names it, so a line reads differently from beat to beat.
-- id: captainAsk
+- id: captain_ask
   options:
     - "What are my options?"
     - "Recommendation, #lead#?"
@@ -10,27 +10,27 @@
     - steadily
     - without hurry
     - by the book
-- id: wentWrong
+- id: went_wrong
   options:
     - It did not go as planned.
     - The margin ran out.
     - Nothing about it was clean.
-- id: wentRight
+- id: went_right
   options:
     - It was clean work.
     - It went better than anyone had a right to expect.
     - Nobody watching could have faulted it.
-- id: captainBold
+- id: captain_bold
   options:
     - "Do it. I'll answer for it."
     - "Go. Carefully, but go."
     - "You have my word. Proceed."
-- id: captainSafe
+- id: captain_safe
   options:
     - "Take the careful road. I want all of you back."
     - "No heroics. We do this the slow way."
     - "Hold to the safe option."
-- id: captainHome
+- id: captain_home
   options:
     - "That's enough. Come home."
     - "I'm calling it. Bring everyone back."

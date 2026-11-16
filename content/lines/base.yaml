@@ -9,7 +9,7 @@
   text: "The team was moving well, and passed the #encounter# without stopping."
 - id: LINE_CHAIN
   when: { beat: chain }
-  text: "#wentWrong# What followed was the #encounter#."
+  text: "#went_wrong# What followed was the #encounter#."
 - id: LINE_CHECK
   when: { beat: check }
   text: "#actor# worked the problem at the #encounter# #steadily#."
@@ -21,10 +21,10 @@
   text: "#actor# took the #encounter# under #helper#'s eye."
 - id: LINE_CHECK_CRITICAL
   when: { beat: check, tier: critical }
-  text: "#actor# made short work of the #encounter#. #wentRight#"
+  text: "#actor# made short work of the #encounter#. #went_right#"
 - id: LINE_CHECK_BAD
   when: { beat: check, tier: [failure, disaster] }
-  text: "#actor#'s #skill# fell short at the #encounter#. #wentWrong#"
+  text: "#actor#'s #skill# fell short at the #encounter#. #went_wrong#"
 - id: LINE_CHECK_CAUTIOUS_BAD
   name: A cautious actor fails
   when: { beat: check, tier: [failure, disaster], actor.caution: { min: 1 } }
@@ -68,14 +68,14 @@
   when: { beat: call }
   text: |-
     lead: Captain, I need a decision. #decision#.
-    captain: #captainAsk#
+    captain: #captain_ask#
     = #lead# called in for a decision: #decision#.
 - id: LINE_CALL_ABORT
   name: The lead asks whether to pull out
   when: { beat: call, decision: DECISION_ABORT }
   text: |-
     lead: Captain, we're coming apart down here. I can keep them going, but I won't pretend it's safe.
-    captain: #captainAsk#
+    captain: #captain_ask#
     lead: We push on, or you bring us home.
     = #lead# called in to ask whether the team should be pulled out.
 - id: LINE_INITIATIVE
@@ -84,17 +84,17 @@
 - id: LINE_ANSWER_BOLD
   when: { beat: answer, answer: bold }
   text: |-
-    captain: #captainBold#
+    captain: #captain_bold#
     = The captain ordered the team on.
 - id: LINE_ANSWER_SAFE
   when: { beat: answer, answer: safe }
   text: |-
-    captain: #captainSafe#
+    captain: #captain_safe#
     = The captain ordered caution.
 - id: LINE_ANSWER_WITHDRAW
   when: { beat: answer, answer: withdraw }
   text: |-
-    captain: #captainHome#
+    captain: #captain_home#
     = The captain ordered the team out.
 - id: LINE_ANSWER_OVERRULED
   name: The captain overrules the lead

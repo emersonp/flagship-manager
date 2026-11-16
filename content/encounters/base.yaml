@@ -52,7 +52,7 @@
       call: |-
         lead: Captain, there's a gap in the dense band. It would save us most of an hour.
         best SKILL_C: It's tight. I'd want everyone's hands steady.
-        captain: #captainAsk#
+        captain: #captain_ask#
         lead: We thread it, or we go around the long way. Your call.
         = #lead# called in from the #encounter# about a shortcut through the dense band.
       initiative: "#lead# weighed the gap in the dense band and made the call without raising the ship."
@@ -116,7 +116,7 @@
       call: |-
         lead: Captain, they've drawn a line and they're standing on it.
         best SKILL_D: They're frightened, not hostile. Push them and that changes.
-        captain: #captainAsk#
+        captain: #captain_ask#
         lead: We walk through and dare them to stop us, or we sit down and wait them out.
         = #lead# called in a standoff with the salvagers.
       initiative: "#lead# settled the standoff with the salvagers without calling it in."
@@ -170,7 +170,7 @@
       call: |-
         lead: Captain, the last seal won't release. We can cut it.
         best SKILL_B: Cutting it wakes whatever this door is wired to. I can't tell you what that is.
-        captain: #captainAsk#
+        captain: #captain_ask#
         lead: Cut it and take what comes, or keep working it and lose our momentum.
         = #lead# called in from the #encounter#: the last seal would not release.
       initiative: "#lead# decided how to deal with the last seal of the #encounter# without calling."
@@ -281,7 +281,7 @@
         lead: Captain, we can pull everything it holds in one pass, if we tap it live.
         best SKILL_A: Nothing I've measured says it will tolerate that.
         best SKILL_B: And nothing says it won't. We don't get a second look at this.
-        captain: #captainAsk#
+        captain: #captain_ask#
         lead: Tap it live and risk whoever is holding the line, or shut it down first and take what's left. I need your word, Captain.
         = #lead# called in from the #encounter#: a live tap would take everything it held, at a risk.
       initiative: "#lead# made the decision about the live tap alone, with no time to ask."
@@ -343,7 +343,7 @@
         > Carrier restored. Signal weak.
         lead: Captain, there's a machine down here offering to guide us. A caretaker. It has been alone a long time.
         best SKILL_D: It isn't lying. I don't think it knows how. But it may not know what we can survive.
-        captain: #captainAsk#
+        captain: #captain_ask#
         lead: Follow its route, or trust our own.
         = #lead# called in from the #encounter#: an old caretaker had offered the team a route.
       initiative: |-
@@ -428,7 +428,7 @@
       call: |-
         lead: Captain, the brakes on this car are mechanical. We could release them and ride it down.
         best SKILL_B: They're mechanical and ten thousand years old.
-        captain: #captainAsk#
+        captain: #captain_ask#
         lead: Ride it down, or take the slow way.
         = #lead# called in from the #encounter# about riding the car down unpowered.
       initiative: "#lead# decided about the unpowered descent without calling."

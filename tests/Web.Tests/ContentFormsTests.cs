@@ -204,7 +204,7 @@ public sealed class ContentFormsTests(RepoContentGuard guard) : IClassFixture<Re
 
             Assert.Equal(HttpStatusCode.OK, status);
             Assert.Equal("", Value(body, "id"));
-            Assert.Contains("Upper case letters, digits, and underscores, starting with a letter.", body);
+            Assert.Contains(Ids.ItemRule, body);
             Assert.DoesNotContain("/delete", body);
         }
     }
@@ -582,7 +582,7 @@ public sealed class ContentFormsTests(RepoContentGuard guard) : IClassFixture<Re
 
     public static TheoryData<string, string, string> FieldCases => new()
     {
-        { "/dev/content/skills", "id=skill_x", "An id must be upper case letters, digits, and underscores, starting with a letter." },
+        { "/dev/content/skills", "id=skill_x", Ids.ItemRule },
         { "/dev/content/skills", "id=", "Enter an id." },
         { "/dev/content/skills", "id=SKILL_A", "That id is already used by a skill." },
         { "/dev/content/skills", "id=CREW_01", "That id is already used by a crew member." },
@@ -595,6 +595,7 @@ public sealed class ContentFormsTests(RepoContentGuard guard) : IClassFixture<Re
         { "/dev/content/gear", "id=GEAR_05&tag=", "Enter a tag." },
         { "/dev/content/gear", "id=GEAR_05&tag=%20%20", "Enter a tag." },
         { "/dev/content/gear", "id=GEAR_05&tag=a%0Ab", "A tag is one line." },
+        { "/dev/content/gear", "id=GEAR_05&tag=Scan-ner", Ids.InnerRule },
         { "/dev/content/crew/CREW_01", "seniority=", "Enter a whole number." },
         { "/dev/content/crew/CREW_01", "seniority=abc", "Must be a whole number." },
         { "/dev/content/crew/CREW_01", "seniority=1.5", "Must be a whole number." },
@@ -1212,7 +1213,7 @@ public sealed class ContentFormsTests(RepoContentGuard guard) : IClassFixture<Re
         (HttpStatusCode status, string body) = await Post(app.NewClient(), "/dev/content/skills", "id=" + id);
 
         Assert.Equal(HttpStatusCode.UnprocessableEntity, status);
-        Assert.Contains("An id must be upper case letters", body);
+        Assert.Contains(Ids.ItemRule, body);
         Assert.Equal(before, Everything(app));
     }
 

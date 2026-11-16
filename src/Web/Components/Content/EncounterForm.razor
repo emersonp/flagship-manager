@@ -1,3 +1,4 @@
+@using Sim.Core.Content
 @using Web.Forms
 <FormShell View="View">
     <TagsField Name="tags" Label="Tags" Value="@View.Values.Get("tags")" Error="@View.Error("tags")" Suggestions="View.Choices.EncounterTags" />
@@ -20,7 +21,7 @@
             }
             else
             {
-                <Field Name="decision.id" Label="Decision id" Value="@View.Values.Get("decision.id")" Hint="@Checks.IdRule" Error="@View.Error("decision.id")" Required="true" />
+                <Field Name="decision.id" Label="Decision id" Value="@View.Values.Get("decision.id")" Hint="@Ids.ItemRule" Error="@View.Error("decision.id")" Required="true" />
             }
             <Field Name="decision.name" Label="Decision name" Value="@View.Values.Get("decision.name")" Hint="Optional. 1 to 80 characters." Error="@View.Error("decision.name")" />
             <Field Name="decision.stakes" Label="Stakes" Value="@(View.Values.Has("decision.stakes") ? View.Values.Get("decision.stakes") : "1")" Hint="1 to 5." Error="@View.Error("decision.stakes")" Numeric="true" Narrow="true" Required="true" />

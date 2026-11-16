@@ -28,13 +28,6 @@ public static class FlagIds
     public const string Lead = "lead";
     public const string Team = "team";
 
-    // A flag id is lower case (docs/conventions.md): a letter, then letters, digits, and underscores, at most 40 in all ("sensors_quirk").
-    public const string Rule = "lower case: a letter, then letters, digits, and underscores, at most 40 in all";
-
-    public static bool IsValid(string id)
-    {
-        return id.Length is >= 1 and <= 40 && id[0] is >= 'a' and <= 'z' && id.All(c => c is (>= 'a' and <= 'z') or (>= '0' and <= '9') or '_');
-    }
 }
 
 // Ids the game itself gives decisions, so no content may use them.

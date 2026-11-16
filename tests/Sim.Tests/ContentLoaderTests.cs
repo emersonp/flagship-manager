@@ -42,9 +42,9 @@ public class ContentLoaderTests
         Assert.Equal(
             new[]
             {
-                "pack.yaml|Id 'core' must be upper case letters, digits, and underscores, starting with a letter.",
+                "pack.yaml|Id 'core' must be upper case: a letter, then letters, digits, and underscores, at most 40 in all.",
                 "pack.yaml|version must be 1 or more.",
-                "skills/a.yaml|Id 'skill b' must be upper case letters, digits, and underscores, starting with a letter.",
+                "skills/a.yaml|Id 'skill b' must be upper case: a letter, then letters, digits, and underscores, at most 40 in all.",
                 "skills/b.yaml|Duplicate id 'SKILL_A', first defined in skills/a.yaml.",
                 "skills/d.yaml|Line 2: Property 'tag' not found on type 'Sim.Content.ContentLoader+SkillDto'.",
                 "skils/c.yaml|Unknown content folder 'skils'.",

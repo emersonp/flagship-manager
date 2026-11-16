@@ -115,13 +115,23 @@ public class MissionContentTests
     [Theory]
     [InlineData("Fast")]
     [InlineData("go fast")]
-    [InlineData("a-very-long-approach-id-indeed")]
-    public void An_approach_id_with_a_capital_or_a_space_is_refused(string id)
+    [InlineData("fast-track")]
+    [InlineData("a23456789012345678901234567890123456789012")]
+    public void An_approach_id_outside_the_inner_rule_is_refused(string id)
     {
         ContentLoadResult result = Load(Encounter.Replace("id: fast", $"id: {id}"), Objective);
 
         Assert.Null(result.Pack);
-        Assert.Contains(result.Errors, e => e.Message == $"ENCOUNTER_01: Approach id '{id}' must be 1 to 24 lower case letters, digits, and hyphens.");
+        Assert.Contains(result.Errors, e => e.Message == $"ENCOUNTER_01: Approach id '{id}' must be lower case: a letter, then letters, digits, and underscores, at most 40 in all.");
+    }
+
+    [Fact]
+    public void A_tag_with_a_hyphen_is_refused()
+    {
+        ContentLoadResult result = Load(Encounter.Replace("tags: [field]", "tags: [field-work]"), Objective);
+
+        Assert.Null(result.Pack);
+        Assert.Contains(result.Errors, e => e.Message == "ENCOUNTER_01: Tag 'field-work' must be lower case: a letter, then letters, digits, and underscores, at most 40 in all.");
     }
 
     [Fact]
@@ -295,21 +305,6 @@ public class MissionContentTests
     public void A_flag_set_below_zero_is_refused()
     {
         AssertRefused(WithFlags("[{ flag: flag_a, set: -1, on: ship }]", "[]"), "A flag's set must be 0 or more.");
-    }
-
-    [Fact]
-    public void Flag_ids_are_a_lower_case_letter_then_letters_digits_and_underscores_up_to_40()
-    {
-        Assert.True(FlagIds.IsValid("sensors_quirk"));
-        Assert.True(FlagIds.IsValid("flag_a"));
-        Assert.True(FlagIds.IsValid(new string('a', 40)));
-        Assert.False(FlagIds.IsValid(new string('a', 41)));
-        Assert.False(FlagIds.IsValid(""));
-        Assert.False(FlagIds.IsValid("Flag"));
-        Assert.False(FlagIds.IsValid("flag-a"));
-        Assert.False(FlagIds.IsValid("sensors.quirk"));
-        Assert.False(FlagIds.IsValid("_flag"));
-        Assert.False(FlagIds.IsValid("1st"));
     }
 
     [Fact]

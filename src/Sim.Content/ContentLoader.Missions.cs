@@ -1,5 +1,4 @@
 using System.Globalization;
-using System.Text.RegularExpressions;
 using Sim.Core.Content;
 using Sim.Core.Narrative;
 
@@ -7,15 +6,6 @@ namespace Sim.Content;
 
 public static partial class ContentLoader
 {
-    // An approach id: 1 to 24 lower case letters, digits, and hyphens. It is unique only within its encounter.
-    public static bool IsApproachId(string id)
-    {
-        return ApproachIdPattern().IsMatch(id);
-    }
-
-    [GeneratedRegex("^[a-z0-9-]{1,24}\\z")]
-    private static partial Regex ApproachIdPattern();
-
     private static List<EncounterDef> BuildEncounters(List<(string File, EncounterDto Dto)> items, List<SkillDef> skills, List<GearDef> gear, List<ContentError> errors)
     {
         var skillIds = skills.Select(s => s.Id).ToHashSet();
@@ -52,9 +42,9 @@ public static partial class ContentLoader
                 }
 
                 string label = approach.Id ?? $"approaches[{i + 1}]";
-                if (approach.Id is null || !IsApproachId(approach.Id))
+                if (approach.Id is null || !Ids.IsInnerId(approach.Id))
                 {
-                    Error($"Approach id '{approach.Id}' must be 1 to 24 lower case letters, digits, and hyphens.");
+                    Error($"Approach id '{approach.Id}' must be {Said(Ids.InnerRule)}");
                 }
                 else if (!approachIds.Add(approach.Id))
                 {
@@ -119,6 +109,7 @@ public static partial class ContentLoader
                 decision = new DecisionDef(dto.Decision.Id ?? "", dto.Decision.Stakes, Effects(dto.Decision.Bold, Error), Effects(dto.Decision.Safe, Error), decisionName);
             }
 
+            CheckTags(dto.Tags, Error);
             string? name = CheckName(file, dto.Id!, dto.Name, errors);
             if (errors.Count == before)
             {
@@ -247,9 +238,9 @@ public static partial class ContentLoader
             ok = false;
         }
 
-        if (!FlagIds.IsValid(flag))
+        if (!Ids.IsInnerId(flag))
         {
-            Refuse($"Flag id '{flag}' must be {FlagIds.Rule}.");
+            Refuse($"Flag id '{flag}' must be {Said(Ids.InnerRule)}");
         }
 
         bool set = entry.TryGetValue("set", out string? setText);
@@ -316,6 +307,7 @@ public static partial class ContentLoader
                 }
 
                 List<string> tags = stage.Draw?.Tags ?? [];
+                CheckTags(tags, Error);
                 (int countMin, int countMax) = Range(stage.Count, $"stage '{stage.Slot}' count", Error);
                 int matches = drawable.Count(e => tags.All(e.Tags.Contains));
                 if (matches < countMax)
@@ -335,6 +327,7 @@ public static partial class ContentLoader
                 CheckWorstCase(stages, drawable, Error);
             }
 
+            CheckTags(dto.Tags, Error);
             string? name = CheckName(file, dto.Id!, dto.Name, errors);
             if (errors.Count == before)
             {

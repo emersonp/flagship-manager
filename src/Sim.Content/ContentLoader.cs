@@ -1,4 +1,3 @@
-using System.Text.RegularExpressions;
 using Sim.Core.Content;
 using YamlDotNet.Core;
 using YamlDotNet.Serialization;
@@ -209,17 +208,32 @@ public static partial class ContentLoader
 
     private static bool CheckId(string file, string? id, List<ContentError> errors)
     {
-        if (id is not null && IdPattern().IsMatch(id))
+        if (id is not null && Ids.IsItemId(id))
         {
             return true;
         }
 
-        errors.Add(new ContentError(file, $"Id '{id}' must be upper case letters, digits, and underscores, starting with a letter."));
+        errors.Add(new ContentError(file, $"Id '{id}' must be {Said(Ids.ItemRule)}"));
         return false;
     }
 
-    [GeneratedRegex("^[A-Z][A-Z0-9_]*$")]
-    private static partial Regex IdPattern();
+    // A rule string read mid-sentence: "Lower case: ..." becomes "lower case: ...".
+    private static string Said(string rule)
+    {
+        return char.ToLowerInvariant(rule[0]) + rule[1..];
+    }
+
+    // Tags are matched exactly, so each follows the inner rule like every id typed into text.
+    private static void CheckTags(IEnumerable<string>? tags, Action<string> error)
+    {
+        foreach (string tag in tags ?? [])
+        {
+            if (!Ids.IsInnerId(tag))
+            {
+                error($"Tag '{tag}' must be {Said(Ids.InnerRule)}");
+            }
+        }
+    }
 
     private sealed class PackDto
     {

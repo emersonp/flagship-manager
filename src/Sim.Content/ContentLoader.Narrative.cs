@@ -1,5 +1,4 @@
 using System.Globalization;
-using System.Text.RegularExpressions;
 using Sim.Core.Content;
 using Sim.Core.Narrative;
 
@@ -560,17 +559,14 @@ public static partial class ContentLoader
     // Symbols and pronoun sets are named in text, so their ids are lower case: #hesitates#, pronouns: they.
     private static bool CheckLowerId(string file, string? id, List<ContentError> errors)
     {
-        if (id is not null && LowerIdPattern().IsMatch(id))
+        if (id is not null && Ids.IsInnerId(id))
         {
             return true;
         }
 
-        errors.Add(new ContentError(file, $"Id '{id}' must start with a lower case letter and hold only letters, digits, and underscores."));
+        errors.Add(new ContentError(file, $"Id '{id}' must be {Said(Ids.InnerRule)}"));
         return false;
     }
-
-    [GeneratedRegex("^[a-z][A-Za-z0-9_]*$")]
-    private static partial Regex LowerIdPattern();
 
     internal sealed class LineDto
     {
