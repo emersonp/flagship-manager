@@ -65,6 +65,34 @@ public class CliTests
         Assert.Contains("Encounters (mixed); worst run: seed", output, StringComparison.Ordinal);
     }
 
+    // Approaches are the author's to tune, so the bench says nothing of how one's difficulty compares with another's.
+    [Fact]
+    public void Bench_says_nothing_of_approach_difficulties()
+    {
+        string root = Path.Combine(Path.GetTempPath(), $"content-{Guid.NewGuid():N}");
+        try
+        {
+            foreach (string source in Directory.GetFiles(Content, "*", SearchOption.AllDirectories))
+            {
+                string target = Path.Combine(root, Path.GetRelativePath(Content, source));
+                Directory.CreateDirectory(Path.GetDirectoryName(target)!);
+                File.Copy(source, target);
+            }
+
+            string encounters = Path.Combine(root, "encounters", "base.yaml");
+            File.WriteAllText(encounters, File.ReadAllText(encounters).Replace("skill: SKILL_C, difficulty: 6,", "skill: SKILL_C, difficulty: 9,", StringComparison.Ordinal));
+
+            (int exit, string output, string error) = Run("bench", "--objective", "OBJECTIVE_TEMPLATE_1", "--runs", "5", "--content", root);
+
+            Assert.Equal((0, ""), (exit, error));
+            Assert.DoesNotContain("The second approach", output, StringComparison.Ordinal);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
     // Risk tolerance is gone (approaches plan, Task 4), so the option is unknown.
     [Fact]
     public void Bench_refuses_the_risk_option()

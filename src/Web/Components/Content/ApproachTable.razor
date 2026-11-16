@@ -28,7 +28,7 @@
                 <th scope="col">Difficulty</th>
                 <th scope="col">Gear tag</th>
                 <th scope="col">Available when</th>
-                <th scope="col"><span class="visually-hidden">Remove</span></th>
+                <th scope="col"><span class="visually-hidden">Move or remove</span></th>
             </tr>
         </thead>
         <tbody>
@@ -59,12 +59,26 @@
                         }
                     </td>
                     <td class="approaches__acts">
+                        @if (row > 0)
+                        {
+                            <RowButton Id="@Set.ButtonId("up", row)" Value="@Set.Action("up", row)" Aria="@($"Move {which} up")">Move up</RowButton>
+                        }
+                        @if (row < Rows.Count - 1)
+                        {
+                            <RowButton Id="@Set.ButtonId("down", row)" Value="@Set.Action("down", row)" Aria="@($"Move {which} down")">Move down</RowButton>
+                        }
                         @if (Rows.Count > 1)
                         {
                             <RowButton Id="@Set.ButtonId("remove", row)" Value="@Set.Action("remove", row)" Aria="@($"Remove {which}")">Remove</RowButton>
                         }
                     </td>
                 </tr>
+                @if (Shadows[row] is { } by)
+                {
+                    <tr class="approaches__advice">
+                        <td colspan="7"><p class="hint" id="@($"approach-{row}-advice")">No lead will choose this: @Title(by) checks the same skill and is listed first.</p></td>
+                    </tr>
+                }
             }
         </tbody>
     </table>
@@ -95,8 +109,15 @@
 
     private IReadOnlyDictionary<string, string> RequirementLabels = new Dictionary<string, string>();
 
+    // For each row, the earlier approach a lead always takes instead, or null.
+    private IReadOnlyList<int?> Shadows = [];
+
+    // An approach as the author knows it: its name, or its id while the name is blank.
+    private string Title(int row) => Rows[row]["name"].Trim() is { Length: > 0 } name ? name : Rows[row]["id"].Trim();
+
     protected override void OnParametersSet()
     {
+        Shadows = EncounterKind.ShadowedBy(EncounterKind.Read(View.Values, View.Choices));
         SkillIds = View.Choices.Skills.Select(s => s.Id).ToList();
         SkillLabels = View.Choices.Skills.Where(s => s.Name is { Length: > 0 }).ToDictionary(s => s.Id, s => Checks.Choice(s.Id, s.Name!));
         // A requirement names a skill by its id, or gear by its tag after "gear:".

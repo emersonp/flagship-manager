@@ -416,6 +416,9 @@ internal static class Plays
         {
             switch (c.Fact)
             {
+                // The save refuses such a line; until then it is not shown winning on a check that cannot come.
+                case "approach" when item.Fact == "encounter" && c.Values.FirstOrDefault(v => item.Approaches.All(a => a.Id != v)) is { } missing:
+                    return $"This encounter has no approach '{missing}'.";
                 case "skill" when item.Fact == "encounter":
                     string? approach = when.FirstOrDefault(w => w.Fact == "approach")?.Values.FirstOrDefault();
                     List<string> checkedHere = item.Approaches.Where(a => approach is null || a.Id == approach).Select(a => a.Skill).Where(s => s.Length > 0).ToList();

@@ -190,9 +190,9 @@ public sealed class SqliteLegacyStoreTests : IDisposable
         store.Create(NewRecord(id), []);
         string json = LegacyExport.Export(store, id, ModuleTypes);
 
-        Assert.Contains("\"FormatVersion\": 3", json);
-        Assert.Throws<InvalidOperationException>(() => LegacyExport.Import(store, json.Replace("\"FormatVersion\": 3", "\"FormatVersion\": 1"), ModuleTypes));
-        Assert.Throws<InvalidOperationException>(() => LegacyExport.Import(store, json.Replace("\"FormatVersion\": 3,", ""), ModuleTypes));
+        Assert.Contains("\"FormatVersion\": 4", json);
+        Assert.Throws<InvalidOperationException>(() => LegacyExport.Import(store, json.Replace("\"FormatVersion\": 4", "\"FormatVersion\": 1"), ModuleTypes));
+        Assert.Throws<InvalidOperationException>(() => LegacyExport.Import(store, json.Replace("\"FormatVersion\": 4,", ""), ModuleTypes));
     }
 
     // Name and creation time are record facts, stored as given (time as a UTC instant).
@@ -303,15 +303,18 @@ public sealed class SqliteLegacyStoreTests : IDisposable
         Assert.Empty(store.ReadEvents(id, 7));
     }
 
-    [Fact]
-    public void An_export_at_format_2_is_refused()
+    // Format 3 held the stored events from before authored approaches.
+    [Theory]
+    [InlineData(2)]
+    [InlineData(3)]
+    public void An_export_at_an_earlier_format_is_refused(int format)
     {
         Guid id = Guid.NewGuid();
         SqliteLegacyStore store = NewStore();
         store.Create(NewRecord(id), []);
         string json = LegacyExport.Export(store, id, ModuleTypes);
 
-        Assert.Throws<InvalidOperationException>(() => LegacyExport.Import(store, json.Replace("\"FormatVersion\": 3", "\"FormatVersion\": 2"), ModuleTypes));
+        Assert.Throws<InvalidOperationException>(() => LegacyExport.Import(store, json.Replace("\"FormatVersion\": 4", $"\"FormatVersion\": {format}"), ModuleTypes));
     }
 
     [Fact]

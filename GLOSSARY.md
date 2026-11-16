@@ -161,7 +161,7 @@ The graded result of a check: critical, success, partial, failure, or disaster.
 _Avoid_: Grade, degree of success
 
 **Outcome**:
-What a tier of an approach does to the mission: progress, momentum, strain, or an injury roll.
+What a tier of an approach does to the mission: progress, momentum, strain, or an injury roll. Not the result of a mission or of an injury roll, which keep the word 'result' in prose.
 
 **Momentum**:
 The running advantage a team carries forward from good outcomes within a mission.

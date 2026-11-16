@@ -521,7 +521,11 @@ a.btn { text-decoration: none; }
 .approaches__table .field input[type="text"], .approaches__table .field select { padding: 0 var(--space-xs); font-size: var(--text-sm); }
 .approaches__label { display: none; }
 td.approaches__acts { text-align: right; }
-td.approaches__acts .btn { padding: 0 var(--space-xs); }
+/* Move up, Move down, and Remove stack in their narrow column, and a label wraps rather than spill out of it. */
+td.approaches__acts .btn { display: flex; width: 100%; padding: 0 var(--space-xs); font-size: var(--text-sm); white-space: normal; }
+td.approaches__acts .btn + .btn { margin-top: var(--space-2xs); }
+.approaches__advice td { padding-top: 0; }
+.approaches__advice .hint { margin: 0; }
 .req { display: grid; grid-template-columns: minmax(0, 1fr) 3rem; gap: var(--space-2xs); }
 .req + .req { margin-top: var(--space-2xs); }
 .req:has(option[value=""]:checked), .req:has(option[value^="gear:"]:checked) { grid-template-columns: minmax(0, 1fr); }
@@ -535,8 +539,12 @@ td.approaches__acts .btn { padding: 0 var(--space-xs); }
   .approaches__table td, .approaches__table td:first-child, .approaches__table td:last-child { padding: 0; border-bottom: 0; }
   .approaches__table .field > label { position: static; width: auto; height: auto; overflow: visible; clip-path: none; white-space: normal; }
   td.approaches__conditions, td.approaches__acts { grid-column: 1 / -1; }
-  td.approaches__acts { text-align: left; }
+  td.approaches__acts { width: auto; text-align: left; }
   td.approaches__acts:empty { display: none; }
+  /* In a block the three buttons sit side by side, wrapping as whole buttons. */
+  .approaches__table td.approaches__acts .btn { display: inline-flex; width: auto; margin: 0 var(--space-xs) var(--space-2xs) 0; white-space: nowrap; }
+  /* The advice under an approach reads as part of its block, not as a block of its own. */
+  .approaches__table tr.approaches__advice { display: block; margin-top: calc(-1 * var(--space-sm)); padding: var(--space-2xs) var(--space-md) 0; border: 0; background: none; }
   .approaches__label { display: block; margin-bottom: var(--space-2xs); font-size: var(--text-sm); color: var(--color-muted); }
 }
 .tabs { display: grid; gap: var(--space-sm); min-width: 0; }

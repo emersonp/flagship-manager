@@ -18,6 +18,8 @@ A starship captain management sim, played in the browser, with a headless simula
 
 `./run.sh` (or `./run.ps1` in PowerShell) starts the game and prints its address, `http://127.0.0.1:5080` by default. Set `ASPNETCORE_URLS` to use another address. The database is `starship-sim.db` in the repository root, and git ignores it.
 
+A `starship-sim.db` from before authored approaches is refused at start with a message; delete the file to start fresh.
+
 ## Edit the content
 
 `./run.sh` turns developer mode on, which adds a content editor at `/dev/content` (`http://127.0.0.1:5080/dev/content` by default). Developer mode is off unless a run turns it on, and with it off the editor does not exist.

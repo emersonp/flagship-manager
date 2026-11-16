@@ -177,18 +177,52 @@ internal sealed class EncounterKind : KindForm
         return Math.Clamp(tab, 0, Math.Max(0, count - 1));
     }
 
-    // An approach added shows its own tab; one removed leaves the tab that was shown, or the nearest one left when it was that one.
+    // An approach added or moved shows its own tab; one removed leaves the tab that was shown, or the nearest one left when it was that one.
     public override FormValues AfterRows(FormRows.Applied applied)
     {
-        if (applied.Set != Approaches || applied.Verb is not ("add" or "remove"))
+        if (applied.Set != Approaches || applied.Verb is not ("add" or "remove" or "up" or "down"))
         {
             return applied.Values;
         }
 
         int count = FormRows.Read(applied.Values, Approaches).Count;
         int shown = Tab(applied.Values, count + (applied.Verb == "remove" ? 1 : 0));
-        int tab = applied.Verb == "add" ? applied.Row : shown > applied.Row ? shown - 1 : Math.Max(0, Math.Min(shown, count - 1));
+        int tab = applied.Verb != "remove" ? applied.Row : shown > applied.Row ? shown - 1 : Math.Max(0, Math.Min(shown, count - 1));
         return applied.Values.With(TabField, tab.ToString(System.Globalization.CultureInfo.InvariantCulture));
+    }
+
+    // For each approach, the earlier one that always takes its place, or null. The lead takes the available approach with the
+    // highest skill and a tie goes to the first, so an earlier one on the same skill wins whenever it is available, and it is
+    // whenever this one is if this one needs everything it needs. Advice for the author, not a refusal.
+    public static IReadOnlyList<int?> ShadowedBy(IReadOnlyList<ApproachModel> approaches)
+    {
+        static bool Covers(RequirementModel later, RequirementModel earlier) =>
+            earlier.Gear is { } gear ? later.Gear == gear : later.Skill == earlier.Skill && (later.Level ?? 0) >= (earlier.Level ?? 0);
+
+        var shadowed = new List<int?>();
+        for (int i = 0; i < approaches.Count; i++)
+        {
+            ApproachModel later = approaches[i];
+            int? by = null;
+            for (int e = 0; e < i && by is null; e++)
+            {
+                ApproachModel earlier = approaches[e];
+                if (later.Skill.Length > 0 && earlier.Skill == later.Skill && earlier.Requires.All(r => later.Requires.Any(l => Covers(l, r))))
+                {
+                    by = e;
+                }
+            }
+
+            shadowed.Add(by);
+        }
+
+        return shadowed;
+    }
+
+    // The approaches as the form holds them, for advice drawn on the page; a field that fails its check is read as best it can be.
+    public static List<ApproachModel> Read(FormValues values, FormChoices choices)
+    {
+        return BindApproaches(values, choices, []);
     }
 
     public override string? NameOf(ContentFileSet files, string id)

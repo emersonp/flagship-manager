@@ -99,13 +99,13 @@ public static partial class ContentLoader
             }
         }
 
-        List<EncounterDef> encounterDefs = BuildEncounters(encounters, skills, errors);
+        List<GearDef> gearDefs = BuildGear(gear, errors);
+        List<EncounterDef> encounterDefs = BuildEncounters(encounters, skills, gearDefs, errors);
         List<ObjectiveDef> objectiveDefs = BuildObjectives(objectives, encounterDefs, errors);
         (MissionTuning? tuning, BenchTuning? bench) = LoadTuning(yaml, files, errors);
         CrewTuning? crewTuning = LoadCrewTuning(yaml, files, errors);
         List<PronounSet> pronounSets = BuildPronouns(pronouns, errors);
         List<CrewDef> crewDefs = BuildCrew(crew, skills, crewTuning, pronounSets, errors);
-        List<GearDef> gearDefs = BuildGear(gear, errors);
         List<AssignmentDef> assignmentDefs = BuildAssignments(assignments, objectives.Select(o => o.Dto).ToList(), errors);
         List<SymbolDef> symbolDefs = BuildSymbols(symbols, errors);
         List<LineDef> lineDefs = BuildLines(lines, encounters, objectives, symbolDefs, skills, encounterDefs, objectiveDefs, errors);

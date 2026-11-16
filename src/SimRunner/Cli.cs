@@ -178,13 +178,6 @@ public static class Cli
             output.Write(BenchReport.Encounters(figures));
         }
 
-        IEnumerable<string> uneven = pack.Encounters.Where(e => e.Approaches.Count > 1 && e.Approaches[1].Difficulty != e.Approaches[0].Difficulty + 1).Select(e => e.Id);
-        if (uneven.Any())
-        {
-            output.WriteLine();
-            output.WriteLine($"The second approach is not the first + 1 in: {string.Join(", ", uneven)}.");
-        }
-
         if (line.Has("--out"))
         {
             File.WriteAllText(line.Text("--out", ""), JsonSerializer.Serialize(columns.ToDictionary(c => c.Name, c => c.Figures), Json));

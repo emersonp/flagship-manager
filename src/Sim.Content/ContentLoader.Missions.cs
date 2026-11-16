@@ -16,9 +16,10 @@ public static partial class ContentLoader
     [GeneratedRegex("^[a-z0-9-]{1,24}\\z")]
     private static partial Regex ApproachIdPattern();
 
-    private static List<EncounterDef> BuildEncounters(List<(string File, EncounterDto Dto)> items, List<SkillDef> skills, List<ContentError> errors)
+    private static List<EncounterDef> BuildEncounters(List<(string File, EncounterDto Dto)> items, List<SkillDef> skills, List<GearDef> gear, List<ContentError> errors)
     {
         var skillIds = skills.Select(s => s.Id).ToHashSet();
+        var gearTags = gear.Select(g => g.Tag).ToHashSet();
         var ids = items.Select(i => i.Dto.Id!).ToHashSet();
         var decisionOwners = new Dictionary<string, string>();
         var defs = new List<EncounterDef>();
@@ -71,7 +72,7 @@ public static partial class ContentLoader
                 }
 
                 string? approachName = CheckName(file, $"{dto.Id} approach {label}", approach.Name, errors);
-                List<RequirementDef> requires = Requirements(label, approach.Requires, skillIds, Error);
+                List<RequirementDef> requires = Requirements(label, approach.Requires, skillIds, gearTags, Error);
                 Dictionary<string, EffectDef> outcomes = Outcomes(label, approach.Outcomes, Error);
                 approaches.Add(new ApproachDef(approach.Id ?? "", approach.Skill ?? "", approach.Difficulty, approach.GearTag, requires, outcomes, approachName));
             }
@@ -128,8 +129,8 @@ public static partial class ContentLoader
         return defs;
     }
 
-    // Any number of requirements; each names exactly one of a skill (with a level of 1 or more) and a gear tag.
-    private static List<RequirementDef> Requirements(string label, List<RequirementDto?>? items, HashSet<string> skillIds, Action<string> error)
+    // Any number of requirements; each names exactly one of a skill (with a level of 1 or more) and a gear tag some gear carries.
+    private static List<RequirementDef> Requirements(string label, List<RequirementDto?>? items, HashSet<string> skillIds, HashSet<string> gearTags, Action<string> error)
     {
         var requires = new List<RequirementDef>();
         for (int j = 0; j < (items?.Count ?? 0); j++)
@@ -152,6 +153,12 @@ public static partial class ContentLoader
                 {
                     error($"The {label} approach's requirement {j + 1} needs a level of 1 or more.");
                 }
+            }
+
+            // No team could ever meet it, and the form could not show it to be fixed.
+            if (requirement.Gear is { } tag && !gearTags.Contains(tag))
+            {
+                error($"Requires gear tagged '{tag}', which no gear carries.");
             }
 
             requires.Add(new RequirementDef(requirement.Skill, requirement.Level, requirement.Gear));

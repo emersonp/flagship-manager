@@ -411,12 +411,22 @@ The numbers in this section were set on the throwaway prototype's bench (2,000 m
 - Every number the resolver uses (tier margins, strain and momentum effects, the reach margin, assist values, call-rule weights, experience by margin, and injury targets) lives in one tuning file in the content pack, not in code.
 - In developer mode the file reloads without a restart, and a tuning page edits it and re-runs the mission bench on the same seeds, showing before and after side by side.
 - A running mission keeps the tuning it started with, so a legacy stays deterministic.
+
+Before the 1d review:
+
 - Known and accepted: a reckless lead still loses about 13% of missions at about 3.7 deaths per 100 crew-missions. That is the price of sending them.
 - Built in Phase 1 (slices 1a and 1b): the tuning file is `content/tuning/missions.yaml`, and `SimRunner bench --objective ID --compare FILE` runs the same seeds under the pack's tuning and under `FILE`. On the benchmark crew (10,000 missions per briefing) the C# resolver gives calls per mission of 3.1, 2.5, and 1.3 for a cautious lead across the three autonomy settings, 2.5, 1.3, and 0.6 for an average one, and 0.7, 0.2, and 0.2 for a reckless one. A reckless lead loses about 17% of missions at about 3.6 deaths per 100 crew-missions (the prototype gave 13% and 3.7: skips now belong to a stage, not an encounter, and the dice differ).
 - **The dice seam** (slice 1c): the tuning file holds `check.dice` and `injury.dice`, each `{ count, sides }`, both 2 and 6 today. The resolver rolls only through one dice type, and the reach rule uses its average, so another number and size of dice is a file edit plus a bench. A different mechanic (a pool, advantage, or exploding dice) replaces that one type; the golden values are then re-pinned and the shape tests say whether the game kept its shape.
 - Measured again after slice 1c on the bench's generated mixed team (10,000 missions per briefing): calls per mission are unchanged at 3.1, 2.5, and 1.3 for a cautious lead across the three autonomy settings, 2.5, 1.3, and 0.6 for an average one, and 0.7, 0.2, and 0.2 for a reckless one. A reckless lead of that team loses 15.7% of missions at 3.5 deaths per 100 crew-missions. That is a different team from the fixed benchmark crew behind the 17% above; slice 1c changed neither figure.
 - "Develop juniors" under the carried rule, same team: full success 78.2% against 85.2% for best qualified. The junior's experience goes from 2.0 to 5.2 per mission and the senior's from 12.0 to 10.1. On a veteran team it costs about three points (95.4% against 98.3%); rookies never qualify for supervision, so it changes nothing for them.
 - Whole cycles (slice 1c, `SimRunner cycles`, 20 legacies of 50 cycles): the simulator's captain always sends the strongest fit team and backs the lead. Of 1,000 missions, 882 were full successes, 110 partial, 5 incomplete, 1 withdrawn, and 2 lost, with no deaths and a highest skill level of 7. Over 10,000 missions that captain loses about 4 crew. That is far below the alarm band in section 10, as it should be for the safest policy; the simulator's other policies come with slice 1e.
+
+After the 1d review (authored approaches), fixture content, 2000 runs, rookie / mixed / veteran:
+
+- Loss %: 34.2 / 0.7 / 0.1.
+- Deaths per 100 crew-missions: 3.1 / 0.1 / 0.0.
+- Calls per mission: 1.36 / 1.29 / 1.22.
+- Initiatives per mission: 1.89 / 2.46 / 2.44.
 
 ## 5. Storylet system
 
@@ -965,7 +975,7 @@ Notes from the author on 2026-11-15, in the review of slice 1d (design in `docs/
     - "Notice" is renamed "initiative" throughout.
     - A shared library of approaches, used by many encounters beside an encounter's own, is wanted later and is the author's to design (section 11, unplaced).
     - Saves from before are refused, not converted: the store's schema version is 6.
-    - Two consequences of choosing by skill, measured on the bench and accepted for now. "Develop juniors" costs about 1 point of full success where it cost 2 or more. Crew gain levels more slowly: a test that saw a level in 20 cycles now needs 30. Both are the author's to tune. The bench's figures before and after the change are in the body of commit 03a1ab7.
+    - Two consequences of choosing by skill, measured on the bench and accepted for now. "Develop juniors" costs about 1 point of full success where it cost 2 or more. Crew gain levels more slowly: a test that saw a level in 20 cycles now needs 30. Both are the author's to tune. The bench's figures, before the 1d review and after it, are in section 4.7.
     - The briefing's away team table restacks below 56rem instead of scrolling inside its card.
 
 ## 16. Open questions

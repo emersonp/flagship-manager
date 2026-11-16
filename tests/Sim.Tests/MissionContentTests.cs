@@ -218,6 +218,12 @@ public class MissionContentTests
     }
 
     [Fact]
+    public void A_requirement_on_a_gear_tag_no_gear_carries_is_refused()
+    {
+        AssertRefused(FastWith("requires: [{ gear: cloak }]"), "Requires gear tagged 'cloak', which no gear carries.");
+    }
+
+    [Fact]
     public void An_outcome_under_a_word_that_is_not_a_tier_is_refused()
     {
         AssertRefused(FastWith("outcomes: { triumph: [{ progress: 2 }] }"), "The fast approach has an outcome for 'triumph', which is not a tier: critical, success, partial, failure, or disaster.");

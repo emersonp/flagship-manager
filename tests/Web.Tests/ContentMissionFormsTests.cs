@@ -319,6 +319,35 @@ public sealed class ContentMissionFormsTests(RepoContentGuard guard) : IClassFix
     }
 
     [Fact]
+    public async Task Renaming_an_approach_an_own_line_tests_is_refused_on_that_line()
+    {
+        using TestApp app = NewApp();
+        string fields = Merge(Encounter1, "approaches[1].id=quick") + "&lines[0].beat=check&lines[0].f0=approach&lines[0].v0=fast&lines[0].text=x";
+
+        await RefusedWithNothingWritten(app, fields, "Tests approach 'fast', which this encounter does not have.");
+        (_, string body) = await Post(app.NewClient(), "/dev/content/encounters/ENCOUNTER_01", fields);
+        Assert.Matches("<input id=\"f-lines-0-v0\"[^>]*aria-invalid=\"true\"", body);
+    }
+
+    [Fact]
+    public async Task Opening_and_saving_an_encounter_with_a_stored_empty_outcome_keeps_it()
+    {
+        using TestApp app = NewApp(root =>
+        {
+            string file = Path.Combine(root, "encounters", "base.yaml");
+            File.WriteAllText(file, File.ReadAllText(file).Replace("{ id: careful, name: APPROACH_A_NAME, skill: SKILL_A, difficulty: 5, gearTag: scanner }", "{ id: careful, name: APPROACH_A_NAME, skill: SKILL_A, difficulty: 5, gearTag: scanner, outcomes: { partial: [] } }"));
+        });
+        HttpClient client = app.NewClient();
+        Assert.Contains("outcomes: { partial: [] }", Disk(app, "encounters/base.yaml"), StringComparison.Ordinal);
+
+        (_, string body) = await Get(client, "/dev/content/encounters/ENCOUNTER_01");
+        (HttpStatusCode status, _) = await Post(client, "/dev/content/encounters/ENCOUNTER_01", FormFields(body));
+
+        Assert.Equal(HttpStatusCode.OK, status);
+        Assert.Contains("    - { id: careful, name: APPROACH_A_NAME, skill: SKILL_A, difficulty: 5, gearTag: scanner, outcomes: { partial: [] } }\n", Disk(app, "encounters/base.yaml"), StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task Adding_an_approach_row_redraws_the_form_with_one_more_and_saves_nothing()
     {
         using TestApp app = NewApp();
@@ -356,6 +385,107 @@ public sealed class ContentMissionFormsTests(RepoContentGuard guard) : IClassFix
         Assert.Contains("id=\"row-add-approaches\"", one, StringComparison.Ordinal);
         Assert.DoesNotContain("id=\"row-remove-approaches-0\"", one, StringComparison.Ordinal);
         Assert.Contains("id=\"row-remove-approaches-1\"", two, StringComparison.Ordinal);
+    }
+
+    // --- An approach no lead will choose, and the order of approaches ---
+
+    private static ApproachModel Approach(string id, string skill, params RequirementModel[] requires) => new(id, null, skill, 5, null, requires, new Dictionary<string, IReadOnlyList<EffectModel>>());
+
+    [Fact]
+    public void Shadowed_by_an_earlier_approach_on_the_same_skill_with_no_requirements()
+    {
+        Assert.Equal([null, 0], Web.Forms.EncounterKind.ShadowedBy([Approach("careful", "SKILL_A"), Approach("fast", "SKILL_A")]));
+    }
+
+    [Fact]
+    public void Not_shadowed_by_an_earlier_approach_on_another_skill()
+    {
+        Assert.Equal([null, null], Web.Forms.EncounterKind.ShadowedBy([Approach("careful", "SKILL_A"), Approach("fast", "SKILL_B")]));
+    }
+
+    [Fact]
+    public void Not_shadowed_by_an_earlier_approach_that_needs_what_the_later_one_does_not()
+    {
+        Assert.Equal([null, null], Web.Forms.EncounterKind.ShadowedBy([Approach("careful", "SKILL_A", new RequirementModel(null, null, "scanner")), Approach("fast", "SKILL_A")]));
+        Assert.Equal([null, null], Web.Forms.EncounterKind.ShadowedBy([Approach("careful", "SKILL_A", new RequirementModel("SKILL_B", 3, null)), Approach("fast", "SKILL_A", new RequirementModel("SKILL_B", 2, null))]));
+    }
+
+    [Fact]
+    public void Shadowed_by_an_earlier_approach_whose_every_requirement_the_later_one_has()
+    {
+        Assert.Equal([null, 0], Web.Forms.EncounterKind.ShadowedBy([Approach("careful", "SKILL_A", new RequirementModel(null, null, "scanner")), Approach("fast", "SKILL_A", new RequirementModel(null, null, "scanner"))]));
+        Assert.Equal([null, 0], Web.Forms.EncounterKind.ShadowedBy([Approach("careful", "SKILL_A", new RequirementModel("SKILL_B", 2, null)), Approach("fast", "SKILL_A", new RequirementModel(null, null, "tools"), new RequirementModel("SKILL_B", 3, null))]));
+    }
+
+    [Fact]
+    public void A_third_approach_is_shadowed_by_the_second()
+    {
+        Assert.Equal([null, null, 1], Web.Forms.EncounterKind.ShadowedBy([Approach("careful", "SKILL_A"), Approach("fast", "SKILL_B"), Approach("bold", "SKILL_B")]));
+    }
+
+    [Fact]
+    public async Task Two_approaches_on_one_skill_show_that_no_lead_will_choose_the_second_and_still_save()
+    {
+        using TestApp app = NewApp();
+
+        (HttpStatusCode status, string body) = await Post(app.NewClient(), "/dev/content/encounters/ENCOUNTER_01", Merge(Encounter1, "approaches[1].skill=SKILL_A"));
+
+        Assert.Equal(HttpStatusCode.OK, status);
+        Assert.Equal("SKILL_A", app.Live.Pack.Encounters.Single(e => e.Id == "ENCOUNTER_01").Approaches[1].Skill);
+        string table = Regex.Match(Text(body), "<table class=\"approaches__table\".*?</table>", RegexOptions.Singleline).Value;
+        Assert.Matches("(?s)id=\"approach-1\".*No lead will choose this: APPROACH_A_NAME checks the same skill and is listed first\\.", table);
+        Assert.DoesNotMatch("(?s)id=\"approach-0\".*No lead will choose this.*id=\"approach-1\"", table);
+    }
+
+    [Fact]
+    public async Task Moving_an_approach_up_swaps_it_with_every_field_and_shows_its_tab_and_saves_nothing()
+    {
+        using TestApp app = NewApp();
+        string before = Everything(app);
+        string second = "approaches[1].r0.what=gear:tools&approaches[1].r1.what=SKILL_B&approaches[1].r1.level=2"
+            + "&approaches[1].out.failure.own=true&approaches[1].out.failure.strain=2&approaches[1].text.attempt=actor: Now.&approaches[1].text.success=Done.";
+
+        (HttpStatusCode status, string body) = await Post(app.NewClient(), "/dev/content/encounters/ENCOUNTER_01/rows", Merge(Encounter1, second + "&tab=1&row=up:approaches:1"));
+
+        Assert.Equal(HttpStatusCode.OK, status);
+        Assert.Equal(("fast", "APPROACH_B_NAME", "SKILL_C", "6", ""), (Value(body, "approaches[0].id"), Value(body, "approaches[0].name"), Selected(body, "approaches[0].skill"), Value(body, "approaches[0].difficulty"), Selected(body, "approaches[0].gearTag")));
+        Assert.Equal(("gear:tools", "SKILL_B", "2"), (Selected(body, "approaches[0].r0.what"), Selected(body, "approaches[0].r1.what"), Value(body, "approaches[0].r1.level")));
+        Assert.Equal(["true"], Checked(body, "approaches[0].out.failure.own"));
+        Assert.Equal("2", Value(body, "approaches[0].out.failure.strain"));
+        Assert.Matches("<textarea[^>]*name=\"approaches\\[0\\]\\.text\\.attempt\"[^>]*>actor: Now\\.</textarea>", body);
+        Assert.Matches("<textarea[^>]*name=\"approaches\\[0\\]\\.text\\.success\"[^>]*>Done\\.</textarea>", body);
+        Assert.Equal(("careful", "APPROACH_A_NAME", "SKILL_A", "5", "scanner"), (Value(body, "approaches[1].id"), Value(body, "approaches[1].name"), Selected(body, "approaches[1].skill"), Value(body, "approaches[1].difficulty"), Selected(body, "approaches[1].gearTag")));
+        Assert.Equal("", Selected(body, "approaches[1].r0.what"));
+        Assert.Empty(Checked(body, "approaches[1].out.failure.own"));
+        Assert.Matches("<textarea[^>]*name=\"approaches\\[1\\]\\.text\\.attempt\"[^>]*></textarea>", body);
+        Assert.Contains("data-signals:_tab=\"0\"", body, StringComparison.Ordinal);
+        Assert.DoesNotContain("Saved.", body);
+        Assert.Equal(before, Everything(app));
+    }
+
+    // Each row moves up or down by the rows route's own actions; the first cannot move up and the last cannot move down.
+    [Fact]
+    public async Task Each_approach_row_has_move_buttons_but_the_ends_do_not()
+    {
+        using TestApp app = NewApp();
+
+        (_, string body) = await Get(app.NewClient(), "/dev/content/encounters/ENCOUNTER_01");
+
+        Assert.DoesNotContain("id=\"row-up-approaches-0\"", body, StringComparison.Ordinal);
+        Assert.Matches("<button[^>]*id=\"row-down-approaches-0\"[^>]*value=\"down:approaches:0\"[^>]*aria-label=\"Move approach 1 down\"[^>]*>Move down</button>", body);
+        Assert.Matches("<button[^>]*id=\"row-up-approaches-1\"[^>]*value=\"up:approaches:1\"[^>]*aria-label=\"Move approach 2 up\"[^>]*>Move up</button>", body);
+        Assert.DoesNotContain("id=\"row-down-approaches-1\"", body, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Moving_an_approach_down_shows_its_tab()
+    {
+        using TestApp app = NewApp();
+
+        (_, string body) = await Post(app.NewClient(), "/dev/content/encounters/ENCOUNTER_01/rows", Merge(Encounter1, "tab=0&row=down:approaches:0"));
+
+        Assert.Equal("careful", Value(body, "approaches[1].id"));
+        Assert.Contains("data-signals:_tab=\"1\"", body, StringComparison.Ordinal);
     }
 
     // --- What plays here ---
@@ -409,6 +539,19 @@ public sealed class ContentMissionFormsTests(RepoContentGuard guard) : IClassFix
         Assert.Matches("(?s)id=\"pv-line-0\">.*?CREW_03 was run through at ENCOUNTER_01\\..*?This line wins in this sample\\.", body);
         Assert.Matches("(?s)id=\"pv-line-1\">.*?This cannot happen here: the checks at this encounter are on SKILL_A and SKILL_C\\.", body);
         Assert.Equal(before, Everything(app));
+    }
+
+    // A line that tests an approach the form no longer has can never play, so it is not shown winning.
+    [Fact]
+    public async Task A_line_on_an_approach_the_form_no_longer_has_says_so_instead_of_a_preview()
+    {
+        using TestApp app = NewApp();
+
+        (_, string raw) = await Post(app.NewClient(), "/dev/content/encounters/ENCOUNTER_01/plays", Merge(Encounter1, "approaches[1].id=quick&lines[0].beat=check&lines[0].f0=approach&lines[0].v0=fast&lines[0].text=Gone."), datastar: true);
+
+        string body = Text(raw);
+        Assert.Matches("(?s)id=\"pv-line-0\">.*?This encounter has no approach 'fast'\\.", body);
+        Assert.DoesNotMatch("(?s)id=\"pv-line-0\">((?!id=\"pv-).)*This line wins in this sample\\.", body);
     }
 
     // "Write one for here" starts a line of the encounter's own from what plays at that beat now; its fixed criterion is shown, locked.
