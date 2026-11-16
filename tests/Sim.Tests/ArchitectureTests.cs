@@ -25,6 +25,13 @@ public class ArchitectureTests
         Assert.All(References(project), reference => Assert.Equal("Sim.Core", reference));
     }
 
+    // Named on its own so the rule holds before the folder exists for the theory above to find.
+    [Fact]
+    public void The_storylets_module_references_only_Sim_Core()
+    {
+        Assert.Equal(new[] { "Sim.Core" }, References("Sim.Storylets"));
+    }
+
     [Fact]
     public void Persistence_references_only_Sim_Core()
     {

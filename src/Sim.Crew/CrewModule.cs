@@ -9,9 +9,6 @@ public sealed record SkillRaised(string CrewId, string SkillId, int Level) : IEv
 [EventType("CrewInjured", 1)]
 public sealed record CrewInjured(string CrewId, MemberStatus Outcome, int LightInjuries, int? ReturnsAtWeek) : IEvent;
 
-[EventType("CrewDied", 1)]
-public sealed record CrewDied(string CrewId, string MissionId) : IEvent;
-
 [EventType("CrewRecovered", 1)]
 public sealed record CrewRecovered(string CrewId) : IEvent;
 
@@ -27,6 +24,8 @@ public static class CrewModule
         bus.Module<CrewState>(Name);
         // The factory reads the state on every call: the state may not exist until founding.
         bus.Provide<IRosterView>(state => new RosterView(state.Module<CrewState>(Name)));
+        bus.Guard<AdjustLoyalty>(SubscriberOrder, Name, (command, context) => IsLiving(context, command.CrewId) ? null : $"Crew member '{command.CrewId}' is not on the roster.");
+        bus.Handle<AdjustLoyalty>((command, context) => OnAdjustLoyalty(tuning, command, context));
         bus.Subscribe<LegacyFounded>(SubscriberOrder, "crew-found", (_, context) => OnFounded(pack, context));
         bus.Subscribe<MissionEnded>(SubscriberOrder, "crew-mission-ended", (e, context) => OnMissionEnded(tuning, e, context));
         bus.Subscribe<WeekAdvanced>(SubscriberOrder, "crew-week", (e, context) => OnWeekAdvanced(e, context));
@@ -48,6 +47,23 @@ public static class CrewModule
             Loyalty = pack.CrewTuning.StartingLoyalty,
             AwayMissions = 0,
         }).ToList();
+    }
+
+    private static bool IsLiving(IBusContext context, string crewId)
+    {
+        return context.Module<CrewState>().Members.Any(m => m.Id == crewId && m.Status != CrewStatus.Dead);
+    }
+
+    // Clamped as a mission's loyalty is, but taken as written: an answer's loyalty is not counted in points.
+    private static void OnAdjustLoyalty(CrewTuning tuning, AdjustLoyalty command, IBusContext context)
+    {
+        CrewMember member = context.Module<CrewState>().Members.Single(m => m.Id == command.CrewId);
+        int from = member.Loyalty;
+        member.Loyalty = Math.Clamp(from + command.Delta, tuning.LoyaltyMin, tuning.LoyaltyMax);
+        if (member.Loyalty != from)
+        {
+            context.Publish(new LoyaltyChanged(member.Id, from, member.Loyalty));
+        }
     }
 
     private static void OnMissionEnded(CrewTuning tuning, MissionEnded ended, IBusContext context)

@@ -12,6 +12,8 @@ public enum FactDomain
 
     // The ids of the approaches of the encounter that owns the line.
     Approach,
+
+    Storylet,
 }
 
 // Words is the closed list of values when Domain is Words.
@@ -128,6 +130,10 @@ public static class NarrativeFacts
             ["decision"]),
         Beat("collapse", [], []),
         Beat("result", [new("outcome", FactType.Text, FactDomain.Words, Outcomes)], []),
+        // A storylet arrives in the aftermath, apart from any mission: no objective, encounter, or lead. Its subject is the crew
+        // member it arrived for; a storylet for the ship has none.
+        new BeatSpec("storylet", [new("storylet", FactType.Text, FactDomain.Storylet)], ["subject"], ["storylet"]),
+        new BeatSpec("storyletAnswer", [new("storylet", FactType.Text, FactDomain.Storylet), new("option", FactType.Text)], ["subject"], ["storylet"]),
     }.ToDictionary(b => b.Kind);
 
     public static IReadOnlyList<string> Kinds => Beats.Keys.ToList();

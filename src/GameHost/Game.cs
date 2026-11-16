@@ -3,6 +3,7 @@ using Sim.Core.Content;
 using Sim.Crew;
 using Sim.Cycle;
 using Sim.Missions;
+using Sim.Storylets;
 
 namespace GameHost;
 
@@ -27,7 +28,8 @@ public sealed class Game
         CycleModule.Register(bus);
         CrewModule.Register(bus, pack);
         MissionsModule.Register(bus, pack);
-        EventTypeRegistry events = EventTypeRegistry.FromAssemblies(typeof(LegacyState).Assembly, typeof(CrewModule).Assembly, typeof(MissionsModule).Assembly);
+        StoryletsModule.Register(bus, pack);
+        EventTypeRegistry events = EventTypeRegistry.FromAssemblies(typeof(LegacyState).Assembly, typeof(CrewModule).Assembly, typeof(MissionsModule).Assembly, typeof(StoryletsModule).Assembly);
         return new Game(bus, events);
     }
 }

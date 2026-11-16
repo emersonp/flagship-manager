@@ -22,6 +22,12 @@ public sealed record ContentPack(
 
     public IReadOnlyList<PronounSet> Pronouns { get; init; } = [];
 
+    // Slice 1e. Optional: a pack with no storylets offers none.
+    public IReadOnlyList<StoryletDef> Storylets { get; init; } = [];
+
+    // At most this many storylets wait in one aftermath (tuning storylets.perCycle).
+    public int StoryletsPerCycle { get; init; } = 2;
+
     // What a call's answer buttons say, by decision id and then by answer ("bold", "safe", "withdraw"); an answer with no label shows its own word.
     public IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>> ChoiceLabels { get; init; } = new Dictionary<string, IReadOnlyDictionary<string, string>>();
 

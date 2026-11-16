@@ -4,6 +4,7 @@ using Sim.Core;
 using Sim.Core.Content;
 using Sim.Crew;
 using Sim.Missions;
+using Sim.Storylets;
 using SimRunner;
 
 namespace SimRunner.Tests;
@@ -145,6 +146,24 @@ public class SimulationTests
         Assert.True(deaths > 0, "No death in the run; choose other legacies.");
     }
 
+    // The captain answers every storylet with its first option, so none is left waiting and none is lost. The fixture's flags are
+    // set only by a partial at ENCOUNTER_01 and a disaster at ENCOUNTER_04, which the captain's teams rarely meet: these are the
+    // legacies among the first 60 that see a storylet within 50 cycles.
+    [Theory]
+    [InlineData(5ul)]
+    [InlineData(18ul)]
+    [InlineData(31ul)]
+    public void Fifty_cycles_of_the_fixture_end_with_nothing_waiting_and_every_offer_answered_or_withdrawn(ulong seed)
+    {
+        (_, LegacyState state, List<PublishedEvent> events) = Play(Pack, seed, 50);
+        List<IEvent> log = events.Select(e => e.Event).ToList();
+
+        Assert.True(log.OfType<StoryletOffered>().Any(), "No storylet was offered; choose other legacies.");
+        Assert.True(!state.TryModule(StoryletsModule.Name, out StoryletsState? storylets) || storylets.Waiting.Count == 0);
+        Assert.Equal(log.OfType<StoryletOffered>().Count(), log.OfType<StoryletAnswered>().Count() + log.OfType<StoryletWithdrawn>().Count());
+        Assert.All(log.OfType<StoryletAnswered>(), a => Assert.Equal("option_a", a.OptionId));
+    }
+
     // Names are display only: naming every item leaves the log hash where it was.
     [Fact]
     public void Naming_every_item_does_not_move_the_log_hash()
@@ -155,6 +174,7 @@ public class SimulationTests
             Crew = Pack.Crew.Select(c => c with { Name = "NAME_PLACEHOLDER_1" }).ToList(),
             Gear = Pack.Gear.Select(g => g with { Name = "NAME_PLACEHOLDER_1" }).ToList(),
             Objectives = Pack.Objectives.Select(o => o with { Name = "NAME_PLACEHOLDER_1" }).ToList(),
+            Storylets = Pack.Storylets.Select(s => s with { Name = "NAME_PLACEHOLDER_1" }).ToList(),
             Assignments = Pack.Assignments.Select(a => a with { Name = "NAME_PLACEHOLDER_1" }).ToList(),
             Encounters = Pack.Encounters.Select(e => e with { Name = "NAME_PLACEHOLDER_1", Decision = e.Decision is null ? null : e.Decision with { Name = "NAME_PLACEHOLDER_1" } }).ToList(),
         };

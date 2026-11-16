@@ -29,3 +29,7 @@ public sealed record MissionStarted(string MissionId, string ObjectiveId, string
 
 [EventType("MissionEnded", 1)]
 public sealed record MissionEnded(string MissionId, string ObjectiveId, MissionResult Result) : IEvent;
+
+// Published by the crew module; a contract here so other modules can let go of the dead.
+[EventType("CrewDied", 1)]
+public sealed record CrewDied(string CrewId, string MissionId) : IEvent;

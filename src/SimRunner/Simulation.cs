@@ -17,7 +17,9 @@ public sealed record LegacySummary(
     IReadOnlyDictionary<MissionOutcome, int> Missions,
     int Deaths,
     int Alive,
-    int HighestLevel);
+    int HighestLevel,
+    int StoryletsOffered,
+    int StoryletsAnswered);
 
 public sealed record SimSummary(IReadOnlyList<LegacySummary> Legacies);
 
@@ -55,7 +57,9 @@ public static class Simulation
         int deaths = events.Count(e => e.Event is CrewDied);
         int alive = game.Bus.View<IRosterView>(state).Roster.Count;
         int highest = members.SelectMany(m => m.Skills.Values).Select(s => s.Level).DefaultIfEmpty(0).Max();
-        return new LegacySummary(seed, cycles, events.Count, Hash(events.Select(game.Events.ToEnvelope)), missions, deaths, alive, highest);
+        int offered = events.Count(e => e.Event is StoryletOffered);
+        int answered = events.Count(e => e.Event is StoryletAnswered);
+        return new LegacySummary(seed, cycles, events.Count, Hash(events.Select(game.Events.ToEnvelope)), missions, deaths, alive, highest, offered, answered);
     }
 
     // The golden-seed fingerprint: any change to what happens, or in what order, changes it.

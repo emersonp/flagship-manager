@@ -121,6 +121,7 @@ public static partial class ContentLoader
         List<SkillDef> skills,
         List<EncounterDef> encounters,
         List<ObjectiveDef> objectives,
+        List<StoryletDef> storylets,
         List<ContentError> errors)
     {
         Dictionary<string, SymbolDef> symbolsById = symbols.ToDictionary(s => s.Id);
@@ -131,6 +132,7 @@ public static partial class ContentLoader
             [FactDomain.Encounter] = encounters.Select(e => e.Id).ToHashSet(),
             [FactDomain.Objective] = objectives.Select(o => o.Id).ToHashSet(),
             [FactDomain.Decision] = encounters.Where(e => e.Decision is not null).Select(e => e.Decision!.Id).Append(DecisionIds.Abort).ToHashSet(),
+            [FactDomain.Storylet] = storylets.Select(s => s.Id).ToHashSet(),
         };
 
         Dictionary<string, HashSet<string>> approachIds = encounterItems
@@ -407,7 +409,7 @@ public static partial class ContentLoader
             }
             else if (entry.Speaker is { } role && role != Scripts.Captain && beat is not null && !beat.People.Contains(role))
             {
-                unusable($"speaker '{role}' is not in a {beat.Kind} beat, which has {string.Join(", ", beat.People)}.");
+                unusable($"speaker '{role}' is not in a {beat.Kind} beat, which has {Among(beat)}.");
             }
 
             Check(entry.Text);
@@ -518,7 +520,7 @@ public static partial class ContentLoader
             bool person = beat.People.Contains(token.Head);
             if ((token.Form is not null || token.Singular is not null) && !person)
             {
-                error($"{where}#{token.Raw}# needs a person, and a {beat.Kind} beat has no '{token.Head}' among {string.Join(", ", beat.People)}.");
+                error($"{where}#{token.Raw}# needs a person, and a {beat.Kind} beat has no '{token.Head}' among {Among(beat)}.");
             }
             else if (person || beat.Things.Contains(token.Head))
             {
@@ -540,6 +542,12 @@ public static partial class ContentLoader
                 error($"{where}#{token.Raw}# names no person, thing, or symbol.");
             }
         }
+    }
+
+    // The people a beat has, for a message; a storylet for the ship has none.
+    private static string Among(BeatSpec beat)
+    {
+        return beat.People.Count == 0 ? "no one" : string.Join(", ", beat.People);
     }
 
     private static List<Token>? Tokens(string text, out string? problem)

@@ -4,6 +4,7 @@ using Sim.Core;
 using Sim.Core.Content;
 using Sim.Cycle;
 using Sim.Missions;
+using Sim.Storylets;
 
 namespace SimRunner;
 
@@ -48,7 +49,32 @@ public static class AutoCaptain
             return new AnswerCall(mission.Id, call.CallId, Bench.Answer(CallPolicy.BackLead, call));
         }
 
+        if (state.Phase == CyclePhase.Aftermath && FirstAnswer(state, pack) is { } answer)
+        {
+            return answer;
+        }
+
         return new AdvancePhase();
+    }
+
+    // The first waiting storylet, answered with its first option. One the pack no longer has cannot be answered and does not
+    // hold the aftermath, so it is passed over.
+    private static AnswerStorylet? FirstAnswer(LegacyState state, ContentPack pack)
+    {
+        if (!state.TryModule(StoryletsModule.Name, out StoryletsState? storylets))
+        {
+            return null;
+        }
+
+        foreach (WaitingStorylet waiting in storylets.Waiting)
+        {
+            if (pack.Storylets.FirstOrDefault(s => s.Id == waiting.StoryletId) is { } storylet)
+            {
+                return new AnswerStorylet(waiting.OfferId, storylet.Options[0].Id);
+            }
+        }
+
+        return null;
     }
 
     private static AssignTeam? ChooseTeam(Game game, LegacyState state, ContentPack pack, SiteState site)

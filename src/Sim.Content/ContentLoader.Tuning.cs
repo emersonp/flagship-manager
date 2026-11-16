@@ -11,22 +11,23 @@ public static partial class ContentLoader
     {
         var errors = new List<ContentError>();
         IDeserializer yaml = new DeserializerBuilder().WithDuplicateKeyChecking().Build();
-        (MissionTuning? tuning, BenchTuning? bench) = LoadTuning(yaml, new Dictionary<string, string> { [TuningFile] = text }, errors);
+        (MissionTuning? tuning, BenchTuning? bench, _) = LoadTuning(yaml, new Dictionary<string, string> { [TuningFile] = text }, errors);
         return errors.Count == 0 ? (tuning, bench, errors) : (null, null, errors);
     }
 
-    private static (MissionTuning? Tuning, BenchTuning? Bench) LoadTuning(IDeserializer yaml, IReadOnlyDictionary<string, string> files, List<ContentError> errors)
+    // StoryletsPerCycle is the storylets module's one number; it lives here so the pack keeps one tuning file for the cycle's rules.
+    private static (MissionTuning? Tuning, BenchTuning? Bench, int StoryletsPerCycle) LoadTuning(IDeserializer yaml, IReadOnlyDictionary<string, string> files, List<ContentError> errors)
     {
         if (!files.TryGetValue(TuningFile, out string? text))
         {
             errors.Add(new ContentError(TuningFile, $"The pack has no {TuningFile}."));
-            return (null, null);
+            return (null, null, 0);
         }
 
         Dictionary<object, object>? root = Parse<Dictionary<object, object>>(yaml, TuningFile, text, errors);
         if (root is null)
         {
-            return (null, null);
+            return (null, null, 0);
         }
 
         var values = new Dictionary<string, string>();
@@ -84,6 +85,7 @@ public static partial class ContentLoader
             MaxLight = read.Int("injury.maxLight"),
             PartialAtProgress = read.Int("result.partialAtProgress"),
         };
+        int storyletsPerCycle = read.Int("storylets.perCycle", min: 0);
         var bench = new BenchTuning(BenchTeam(read, "rookie"), BenchTeam(read, "mixed"), BenchTeam(read, "veteran"));
 
         bool ordered = tuning.TierCritical > tuning.TierSuccess && tuning.TierSuccess > tuning.TierPartial && tuning.TierPartial > tuning.TierFailure;
@@ -97,7 +99,7 @@ public static partial class ContentLoader
             CheckRanges(tuning, bench, errors);
         }
 
-        return read.ReportUnused() && errors.Count == errorsBefore ? (tuning, bench) : (null, null);
+        return read.ReportUnused() && errors.Count == errorsBefore ? (tuning, bench, storyletsPerCycle) : (null, null, 0);
     }
 
     // A threshold or range the wrong way round switches a rule off or crashes a draw, so it is a load error.

@@ -34,7 +34,7 @@ public static partial class Scripts
     public const string Silence = "-";
 
     // The person roles any beat can have; a speaker must be one the line's own beat has.
-    public static readonly IReadOnlyList<string> Roles = ["lead", "actor", "helper", "crew"];
+    public static readonly IReadOnlyList<string> Roles = ["lead", "actor", "helper", "crew", "subject"];
 
     public static Script Parse(string text)
     {
@@ -96,6 +96,6 @@ public static partial class Scripts
         return rest.Length > 0 ? rest : throw new NarrativeFormatException(problem);
     }
 
-    [GeneratedRegex(@"^(captain|lead|actor|helper|crew|best [A-Za-z][A-Za-z0-9_]*):\s+(\S.*)$")]
+    [GeneratedRegex(@"^(captain|lead|actor|helper|crew|subject|best [A-Za-z][A-Za-z0-9_]*):\s+(\S.*)$")]
     private static partial Regex SpeechPattern();
 }

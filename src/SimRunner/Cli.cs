@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 using MissionBench;
 using Sim.Content;
@@ -62,10 +63,17 @@ public static class Cli
             return summary.Legacies.Sum(l => l.Missions[outcome]);
         }
 
+        // Per 100 cycles of one legacy, so runs of different sizes compare.
+        string PerHundred(Func<LegacySummary, int> count)
+        {
+            return (summary.Legacies.Sum(count) * 100.0 / (summary.Legacies.Count * (double)options.Cycles)).ToString("0.0", CultureInfo.InvariantCulture);
+        }
+
         output.WriteLine(
             $"Content {pack.Id} v{pack.Version}: {summary.Legacies.Count} legacies x {options.Cycles} cycles, {summary.Legacies.Sum(l => l.Events)} events. "
             + $"Missions: {Total(MissionOutcome.FullSuccess)} full, {Total(MissionOutcome.PartialSuccess)} partial, {Total(MissionOutcome.Incomplete)} incomplete, {Total(MissionOutcome.Withdrawal)} withdrawn, {Total(MissionOutcome.Loss)} lost. "
-            + $"Deaths: {summary.Legacies.Sum(l => l.Deaths)}. OK.");
+            + $"Deaths: {summary.Legacies.Sum(l => l.Deaths)}. "
+            + $"Storylets per 100 cycles: {PerHundred(l => l.StoryletsOffered)} offered, {PerHundred(l => l.StoryletsAnswered)} answered. OK.");
         return 0;
     }
 
