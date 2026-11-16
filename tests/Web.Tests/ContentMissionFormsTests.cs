@@ -483,6 +483,118 @@ public sealed class ContentMissionFormsTests(RepoContentGuard guard) : IClassFix
         Assert.Equal("DECISION_PROMPT_1", live.Decision.Id);
     }
 
+    // --- Requirements and outcomes (approaches plan, Task 4) ---
+
+    [Fact]
+    public async Task The_encounter_form_shows_a_written_outcome_summed_into_one_effect_and_an_unwritten_one_unticked()
+    {
+        using TestApp app = NewApp();
+
+        (_, string body) = await Get(app.NewClient(), "/dev/content/encounters/ENCOUNTER_02");
+
+        Assert.Equal(["true"], Checked(body, "approaches[1].out.success.own"));
+        Assert.Equal(("1", "1", "-1"), (Value(body, "approaches[1].out.success.progress"), Value(body, "approaches[1].out.success.momentum"), Value(body, "approaches[1].out.success.strain")));
+        Assert.Equal("2", Value(body, "approaches[1].out.critical.momentum"));
+        Assert.Empty(Checked(body, "approaches[1].out.partial.own"));
+        Assert.Empty(Checked(body, "approaches[0].out.success.own"));
+    }
+
+    [Fact]
+    public async Task A_written_outcome_with_every_field_blank_saves_as_an_empty_list()
+    {
+        using TestApp app = NewApp();
+
+        (HttpStatusCode status, _) = await Post(app.NewClient(), "/dev/content/encounters/ENCOUNTER_01", Merge(Encounter1, "approaches[0].out.partial.own=true&approaches[0].out.partial.progress=&approaches[0].out.partial.momentum=&approaches[0].out.partial.strain=&approaches[0].out.partial.injury="));
+
+        Assert.Equal(HttpStatusCode.OK, status);
+        Assert.Contains("    - { id: careful, name: APPROACH_A_NAME, skill: SKILL_A, difficulty: 5, gearTag: scanner, outcomes: { partial: [] } }\n", Disk(app, "encounters/base.yaml"), StringComparison.Ordinal);
+        Assert.Equal(new EffectDef(), app.Live.Pack.Encounters.Single(e => e.Id == "ENCOUNTER_01").Approaches[0].Outcomes["partial"]);
+    }
+
+    [Fact]
+    public async Task An_outcome_not_ticked_is_not_written_whatever_its_fields_hold()
+    {
+        using TestApp app = NewApp();
+
+        (HttpStatusCode status, _) = await Post(app.NewClient(), "/dev/content/encounters/ENCOUNTER_01", Merge(Encounter1, "approaches[0].out.partial.progress=2"));
+
+        Assert.Equal(HttpStatusCode.OK, status);
+        Assert.Contains("    - { id: careful, name: APPROACH_A_NAME, skill: SKILL_A, difficulty: 5, gearTag: scanner }\n", Disk(app, "encounters/base.yaml"), StringComparison.Ordinal);
+        Assert.Empty(app.Live.Pack.Encounters.Single(e => e.Id == "ENCOUNTER_01").Approaches[0].Outcomes);
+    }
+
+    [Fact]
+    public async Task A_written_outcome_saves_one_entry_for_each_value_given()
+    {
+        using TestApp app = NewApp();
+
+        (HttpStatusCode status, _) = await Post(app.NewClient(), "/dev/content/encounters/ENCOUNTER_01", Merge(Encounter1, "approaches[1].out.failure.own=true&approaches[1].out.failure.strain=1&approaches[1].out.failure.injury=severe&approaches[1].out.failure.momentum=-1"));
+
+        Assert.Equal(HttpStatusCode.OK, status);
+        Assert.Contains("outcomes: { failure: [{ strain: 1 }, { momentum: -1 }, { injuryRoll: severe }] }", Disk(app, "encounters/base.yaml"), StringComparison.Ordinal);
+        Assert.Equal(new EffectDef(Momentum: -1, Strain: 1, InjuryRoll: InjurySeverity.Severe), app.Live.Pack.Encounters.Single(e => e.Id == "ENCOUNTER_01").Approaches[1].Outcomes["failure"]);
+    }
+
+    [Fact]
+    public async Task Requirements_save_in_the_order_given_and_a_blank_one_is_skipped()
+    {
+        using TestApp app = NewApp();
+
+        (HttpStatusCode status, _) = await Post(app.NewClient(), "/dev/content/encounters/ENCOUNTER_01", Merge(Encounter1, "approaches[1].r0.what=SKILL_B&approaches[1].r0.level=3&approaches[1].r1.what=&approaches[1].r1.level=4&approaches[1].r2.what=gear:tools&approaches[1].r2.level=9"));
+
+        Assert.Equal(HttpStatusCode.OK, status);
+        Assert.Contains("requires: [{ skill: SKILL_B, level: 3 }, { gear: tools }]", Disk(app, "encounters/base.yaml"), StringComparison.Ordinal);
+        Assert.Equal([new RequirementDef("SKILL_B", 3, null), new RequirementDef(null, 0, "tools")], app.Live.Pack.Encounters.Single(e => e.Id == "ENCOUNTER_01").Approaches[1].Requires);
+    }
+
+    [Fact]
+    public async Task The_encounter_form_shows_each_requirement_and_a_saved_one_opens_again_as_it_was()
+    {
+        using TestApp app = NewApp();
+        HttpClient client = app.NewClient();
+        await Post(client, "/dev/content/encounters/ENCOUNTER_01", Merge(Encounter1, "approaches[1].r0.what=gear:scanner&approaches[1].r1.what=SKILL_C&approaches[1].r1.level=2"));
+        string file = Disk(app, "encounters/base.yaml");
+
+        (_, string body) = await Get(client, "/dev/content/encounters/ENCOUNTER_01");
+        (HttpStatusCode status, _) = await Post(client, "/dev/content/encounters/ENCOUNTER_01", FormFields(body));
+
+        Assert.Equal(("gear:scanner", "SKILL_C", "2", ""), (Selected(body, "approaches[1].r0.what"), Selected(body, "approaches[1].r1.what"), Value(body, "approaches[1].r1.level"), Selected(body, "approaches[1].r2.what")));
+        Assert.Equal(HttpStatusCode.OK, status);
+        Assert.Equal(file, Disk(app, "encounters/base.yaml"));
+    }
+
+    [Theory]
+    [InlineData("approaches[1].r0.what=SKILL_Z&approaches[1].r0.level=2", "approaches[1].r0.what", "Unknown skill.")]
+    [InlineData("approaches[1].r0.what=gear:nothing", "approaches[1].r0.what", "Unknown gear tag.")]
+    [InlineData("approaches[1].r0.what=SKILL_B&approaches[1].r0.level=0", "approaches[1].r0.level", "Must be 1 or more.")]
+    [InlineData("approaches[1].out.success.own=true&approaches[1].out.success.strain=lots", "approaches[1].out.success.strain", "Must be a whole number.")]
+    [InlineData("approaches[1].out.success.own=true&approaches[1].out.success.injury=dire", "approaches[1].out.success.injury", "Choose light or severe.")]
+    public async Task A_bad_requirement_or_outcome_is_refused_beside_its_field(string overrides, string field, string words)
+    {
+        using TestApp app = NewApp();
+        string file = Disk(app, "encounters/base.yaml");
+
+        (HttpStatusCode status, string body) = await Post(app.NewClient(), "/dev/content/encounters/ENCOUNTER_01", Merge(Encounter1, overrides));
+
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, status);
+        Assert.Contains(words, ErrorFor(body, field), StringComparison.Ordinal);
+        Assert.Equal(file, Disk(app, "encounters/base.yaml"));
+    }
+
+    // The problem shown beside a field, by the id the form gives it.
+    private static string ErrorFor(string body, string field)
+    {
+        return Text(Regex.Match(body, $"id=\"{Regex.Escape(Web.Forms.FormValues.Slug(field))}-error\">([^<]*)<").Groups[1].Value);
+    }
+
+    [Fact]
+    public async Task Every_approach_with_a_requirement_is_refused_with_a_problem()
+    {
+        using TestApp app = NewApp();
+
+        await RefusedWithNothingWritten(app, Merge(Encounter1, "approaches[0].r0.what=gear:scanner&approaches[1].r0.what=gear:tools"), "At least one approach must have no requirements.");
+    }
+
     [Fact]
     public async Task Creating_an_objective_and_an_encounter_writes_each_and_answers_with_its_form()
     {

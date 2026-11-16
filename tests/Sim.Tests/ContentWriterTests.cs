@@ -11,6 +11,8 @@ public class ContentWriterTests : IClassFixture<RepoContentGuard>
 
     private static ContentFileSet Repo() => ContentFileSet.ReadDirectory(Path.Combine(TestContent.Root, "tests", "fixtures", "content"));
 
+    private static readonly IReadOnlyDictionary<string, IReadOnlyList<EffectModel>> NoOutcomes = new Dictionary<string, IReadOnlyList<EffectModel>>();
+
     [Fact]
     public void A_skill_is_written_with_its_name_and_tags()
     {
@@ -110,9 +112,9 @@ public class ContentWriterTests : IClassFixture<RepoContentGuard>
                     ["field", "hazard"],
                     true,
                     "ENCOUNTER_CHAIN",
-                    [new ApproachModel("careful", null, "SKILL_A", 5, "scanner"), new ApproachModel("fast", null, "SKILL_C", 6, null)],
+                    [new ApproachModel("careful", null, "SKILL_A", 5, "scanner", [], NoOutcomes), new ApproachModel("fast", null, "SKILL_C", 6, null, [], NoOutcomes)],
                     new DecisionModel("DECISION_PROMPT_1", "NAME_PLACEHOLDER", 2, [new EffectModel(1, null, null, null), new EffectModel(null, -1, 2, null), new EffectModel(null, null, null, "light"), new EffectModel(null, null, null, null, true)], [])),
-                new EncounterModel("ENCOUNTER_CHAIN", null, [], false, null, [new ApproachModel("careful", null, "SKILL_C", 6, null), new ApproachModel("fast", null, "SKILL_A", 7, null)], null)));
+                new EncounterModel("ENCOUNTER_CHAIN", null, [], false, null, [new ApproachModel("careful", null, "SKILL_C", 6, null, [], NoOutcomes), new ApproachModel("fast", null, "SKILL_A", 7, null, [], NoOutcomes)], null)));
     }
 
     // An approach with words is a block, one key to a line; one without stays on one line. The order written is kept.
@@ -126,9 +128,9 @@ public class ContentWriterTests : IClassFixture<RepoContentGuard>
             false,
             null,
             [
-                new ApproachModel("careful", "APPROACH_A_NAME", "SKILL_A", 5, "scanner"),
-                new ApproachModel("fast", "APPROACH_B_NAME", "SKILL_C", 6, null, new Dictionary<string, string> { ["attempt"] = "actor: Now.", ["failure"] = "#actor# slipped." }),
-                new ApproachModel("third-way", null, "SKILL_B", 7, null),
+                new ApproachModel("careful", "APPROACH_A_NAME", "SKILL_A", 5, "scanner", [], NoOutcomes),
+                new ApproachModel("fast", "APPROACH_B_NAME", "SKILL_C", 6, null, [], NoOutcomes, new Dictionary<string, string> { ["attempt"] = "actor: Now.", ["failure"] = "#actor# slipped." }),
+                new ApproachModel("third-way", null, "SKILL_B", 7, null, [], NoOutcomes),
             ],
             null);
 
@@ -148,6 +150,54 @@ public class ContentWriterTests : IClassFixture<RepoContentGuard>
                 "        attempt: \"actor: Now.\"",
                 "        failure: \"#actor# slipped.\"",
                 "    - { id: third-way, skill: SKILL_B, difficulty: 7 }"),
+            text);
+        ContentFileSet files = ContentEdits.ReplaceText(Repo(), "encounters/base.yaml", text);
+        EncounterModel read = ContentEdits.Get<EncounterModel>(files, ContentKind.Encounter, "ENCOUNTER_01")!;
+        Assert.Equal(System.Text.Json.JsonSerializer.Serialize(model), System.Text.Json.JsonSerializer.Serialize(read));
+    }
+
+    // Requirements and outcomes, an empty outcome among them, write and read back equal: on one line, and in a block beside words.
+    [Fact]
+    public void Requirements_and_outcomes_write_and_read_back_equal()
+    {
+        RequirementModel[] five = [new("SKILL_A", 4, null), new("SKILL_B", 2, null), new("SKILL_C", 1, null), new("SKILL_D", 3, null), new(null, null, "scanner")];
+        var outcomes = new Dictionary<string, IReadOnlyList<EffectModel>>
+        {
+            ["critical"] = [new EffectModel(1, null, null, null), new EffectModel(null, null, -1, null), new EffectModel(null, 2, null, null)],
+            ["partial"] = [],
+            ["disaster"] = [new EffectModel(null, null, 2, "light")],
+        };
+        var model = new EncounterModel(
+            "ENCOUNTER_01",
+            null,
+            ["field"],
+            false,
+            null,
+            [
+                new ApproachModel("careful", null, "SKILL_A", 5, null, [], new Dictionary<string, IReadOnlyList<EffectModel>>()),
+                new ApproachModel("fast", null, "SKILL_C", 6, null, five, outcomes),
+                new ApproachModel("third-way", null, "SKILL_B", 7, "tools", [new RequirementModel(null, null, "tools")], new Dictionary<string, IReadOnlyList<EffectModel>> { ["success"] = [new EffectModel(null, 1, null, null)] }, new Dictionary<string, string> { ["attempt"] = "actor: Now." }),
+            ],
+            null);
+
+        string text = Render(model);
+
+        Assert.Equal(
+            Lines(
+                "- id: ENCOUNTER_01",
+                "  tags: [field]",
+                "  approaches:",
+                "    - { id: careful, skill: SKILL_A, difficulty: 5 }",
+                "    - { id: fast, skill: SKILL_C, difficulty: 6, requires: [{ skill: SKILL_A, level: 4 }, { skill: SKILL_B, level: 2 }, { skill: SKILL_C, level: 1 }, { skill: SKILL_D, level: 3 }, { gear: scanner }], outcomes: { critical: [{ progress: 1 }, { strain: -1 }, { momentum: 2 }], partial: [], disaster: [{ strain: 2, injuryRoll: light }] } }",
+                "    - id: third-way",
+                "      skill: SKILL_B",
+                "      difficulty: 7",
+                "      gearTag: tools",
+                "      requires: [{ gear: tools }]",
+                "      outcomes:",
+                "        success: [{ momentum: 1 }]",
+                "      text:",
+                "        attempt: \"actor: Now.\""),
             text);
         ContentFileSet files = ContentEdits.ReplaceText(Repo(), "encounters/base.yaml", text);
         EncounterModel read = ContentEdits.Get<EncounterModel>(files, ContentKind.Encounter, "ENCOUNTER_01")!;

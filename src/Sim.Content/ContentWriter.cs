@@ -317,14 +317,56 @@ public static class ContentWriter
             keys.Add(("gearTag", Quote(approach.GearTag)));
         }
 
+        if (approach.Requires.Count > 0)
+        {
+            keys.Add(("requires", $"[{string.Join(", ", approach.Requires.Select(Requirement))}]"));
+        }
+
+        // The tiers in their fixed order, then any other key as read, so the loader can name it.
+        List<(string Key, string Value)> outcomes = Sim.Core.Narrative.NarrativeFacts.Tiers.Where(approach.Outcomes.ContainsKey)
+            .Concat(approach.Outcomes.Keys.Where(k => !Sim.Core.Narrative.NarrativeFacts.Tiers.Contains(k)))
+            .Select(k => (Quote(k), Effects(approach.Outcomes[k])))
+            .ToList();
         if (approach.Text is not { Count: > 0 })
         {
+            if (outcomes.Count > 0)
+            {
+                keys.Add(("outcomes", Map(outcomes)));
+            }
+
             return [$"- {Map(keys)}"];
         }
 
         var lines = keys.Select((k, i) => $"{(i == 0 ? "- " : "  ")}{k.Key}: {k.Value}").ToList();
+        if (outcomes.Count > 0)
+        {
+            lines.Add("  outcomes:");
+            lines.AddRange(outcomes.Select(o => $"    {o.Key}: {o.Value}"));
+        }
+
         lines.AddRange(Texts(approach.Text, Sim.Core.Narrative.NarrativeFacts.ApproachTexts).Select(l => "  " + l));
         return lines;
+    }
+
+    private static string Requirement(RequirementModel requirement)
+    {
+        var entries = new List<(string, string)>();
+        if (requirement.Skill is not null)
+        {
+            entries.Add(("skill", Quote(requirement.Skill)));
+        }
+
+        if (requirement.Level is { } level)
+        {
+            entries.Add(("level", Num(level)));
+        }
+
+        if (requirement.Gear is not null)
+        {
+            entries.Add(("gear", Quote(requirement.Gear)));
+        }
+
+        return Map(entries);
     }
 
     // An item's own words: one key to a line, the known keys in their fixed order and then any others as they were read. Nothing when there are none.

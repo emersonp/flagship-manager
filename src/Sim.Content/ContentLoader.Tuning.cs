@@ -46,7 +46,6 @@ public static partial class ContentLoader
             AssistDivisor = read.Int("check.assistDivisor", min: 1),
             Cap = read.Int("compounding.cap", min: 1),
             MomentumCritical = read.Int("compounding.momentum.critical"),
-            MomentumFastSuccess = read.Int("compounding.momentum.fastSuccess"),
             StrainPartial = read.Int("compounding.strain.partial"),
             StrainFailure = read.Int("compounding.strain.failure"),
             StrainDisaster = read.Int("compounding.strain.disaster"),

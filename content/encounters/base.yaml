@@ -35,6 +35,9 @@
       name: Fast
       skill: SKILL_C
       difficulty: 6
+      outcomes:
+        critical: [{ progress: 1 }, { strain: -1 }, { momentum: 2 }]
+        success: [{ progress: 1 }, { strain: -1 }, { momentum: 1 }]
       text:
         attempt: "actor: No time to chart it. Stay on my thrusters and do exactly what I do."
         success: "#actor# took the team through the #encounter# on instinct and nerve."
@@ -93,6 +96,9 @@
       name: Fast
       skill: SKILL_B
       difficulty: 6
+      outcomes:
+        critical: [{ progress: 1 }, { strain: -1 }, { momentum: 2 }]
+        success: [{ progress: 1 }, { strain: -1 }, { momentum: 1 }]
       text:
         attempt: "actor: Their lockout is forty years out of date. I can be through it before they finish arguing."
         success: "#actor# slipped the salvagers' lockout while they were still arguing."
@@ -148,6 +154,9 @@
       name: Fast
       skill: SKILL_A
       difficulty: 7
+      outcomes:
+        critical: [{ progress: 1 }, { strain: -1 }, { momentum: 2 }]
+        success: [{ progress: 1 }, { strain: -1 }, { momentum: 1 }]
       text:
         attempt: "actor: There's a pattern in the hum. If I'm right, I can skip the whole sequence."
         success: "#actor# read the pattern in the #encounter# and skipped the sequence entirely."
@@ -200,6 +209,9 @@
       name: Fast
       skill: SKILL_C
       difficulty: 6
+      outcomes:
+        critical: [{ progress: 1 }, { strain: -1 }, { momentum: 2 }]
+        success: [{ progress: 1 }, { strain: -1 }, { momentum: 1 }]
       text:
         attempt: "actor: Captain, there's a sheer face here. I'm going to try to climb it."
         critical: |-
@@ -251,6 +263,9 @@
       name: Fast
       skill: SKILL_B
       difficulty: 7
+      outcomes:
+        critical: [{ progress: 1 }, { strain: -1 }, { momentum: 2 }]
+        success: [{ progress: 1 }, { strain: -1 }, { momentum: 1 }]
       text:
         attempt: "actor: I'm not going to study it. I'm going to clamp a regulator on it and hope the Cartographers built to code."
         success: "#actor# clamped a regulator onto the #encounter# and it held."
@@ -307,6 +322,9 @@
       name: Fast
       skill: SKILL_D
       difficulty: 7
+      outcomes:
+        critical: [{ progress: 1 }, { strain: -1 }, { momentum: 2 }]
+        success: [{ progress: 1 }, { strain: -1 }, { momentum: 1 }]
       text:
         attempt: "actor: It's not interference. It's a voice. Let me answer it."
         critical: |-
@@ -362,6 +380,9 @@
       name: Fast
       skill: SKILL_D
       difficulty: 7
+      outcomes:
+        critical: [{ progress: 1 }, { strain: -1 }, { momentum: 2 }]
+        success: [{ progress: 1 }, { strain: -1 }, { momentum: 1 }]
       text:
         attempt: "actor: I'll tell them the truth. We're on a clock, and we mean them no harm."
         success: "#actor# was plain with the pilgrims, and plainness was enough."
@@ -390,6 +411,9 @@
       name: Fast
       skill: SKILL_C
       difficulty: 6
+      outcomes:
+        critical: [{ progress: 1 }, { strain: -1 }, { momentum: 2 }]
+        success: [{ progress: 1 }, { strain: -1 }, { momentum: 1 }]
       text:
         attempt: "actor: Forget the car. We rope down the shaft."
         success: "#actor# took the team down the shaft of the #encounter# on ropes."
@@ -435,6 +459,9 @@
       name: Fast
       skill: SKILL_A
       difficulty: 7
+      outcomes:
+        critical: [{ progress: 1 }, { strain: -1 }, { momentum: 2 }]
+        success: [{ progress: 1 }, { strain: -1 }, { momentum: 1 }]
       text:
         attempt: "actor: The venting has a pattern. Go when I say go."
         success: "#actor# timed the venting, and the team crossed the breach between breaths."

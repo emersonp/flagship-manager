@@ -77,10 +77,11 @@ public class SimulationTests
         Assert.Equal(CyclePhase.Resolution, state.Phase);
     }
 
+    // 30 cycles since the lead chooses by skill (approaches plan, Task 4): experience goes to members' best skills, which take longer to raise.
     [Fact]
     public void A_cycle_run_plays_missions_and_keeps_the_books()
     {
-        SimSummary summary = Simulation.Run(new SimOptions(Legacies: 3, Cycles: 20, Seed: 1), Pack);
+        SimSummary summary = Simulation.Run(new SimOptions(Legacies: 3, Cycles: 30, Seed: 1), Pack);
 
         Assert.Equal(new ulong[] { 1, 2, 3 }, summary.Legacies.Select(l => l.Seed));
         int levelsGained = 0;
@@ -88,7 +89,7 @@ public class SimulationTests
         {
             Assert.True(l.Missions.Values.Sum() > 0);
             Assert.Equal(8, l.Alive + l.Deaths);
-            List<PublishedEvent> events = Play(Pack, l.Seed, 20).Events;
+            List<PublishedEvent> events = Play(Pack, l.Seed, 30).Events;
             Assert.Equal(events.Count(e => e.Event is MissionStarted), l.Missions.Values.Sum());
             levelsGained += events.Count(e => e.Event is SkillRaised);
         });
@@ -180,11 +181,12 @@ public class SimulationTests
     // Golden seed: this hash changes only when behaviour changes. If the change is intended, update it in the same commit and say why. Re-pinned: the notice beat is named initiative.
     // Re-pinned in slice 1d: check beats gained MomentumAfter and StrainAfter (additive; no rule changed).
     // Re-pinned for authored approaches: a check's approach is written as its id ("careful") where the enum wrote "Careful"; every other field is unchanged.
+    // Re-pinned: approaches are chosen by the lead's skill and outcomes are authored (approaches plan, Task 4).
     [Fact]
     public void Golden_seed_1_matches_the_accepted_log()
     {
         SimSummary summary = Simulation.Run(new SimOptions(Legacies: 1, Cycles: 10, Seed: 1), Pack);
 
-        Assert.Equal("62963D7EE85A33E8CD4514720BEBC6491D76353DE772F43E65CD4F38B6039484", summary.Legacies[0].LogHash);
+        Assert.Equal("B58CB64314A3189F18C6E9CAB5A9B57F5A38B4B030C1F186B17925E1FFF8C5E3", summary.Legacies[0].LogHash);
     }
 }

@@ -183,7 +183,10 @@ public class ContentEditsTests : IClassFixture<RepoContentGuard>
         Assert.Equal(new[] { "field", "hazard" }, model.Tags);
         Assert.True(model.CommsBlocked);
         Assert.Equal("ENCOUNTER_CHAIN", model.Chain);
-        Assert.Equal([new ApproachModel("careful", "APPROACH_A_NAME", "SKILL_C", 6, null), new ApproachModel("fast", "APPROACH_B_NAME", "SKILL_D", 7, null)], model.Approaches);
+        Assert.Equal([("careful", "APPROACH_A_NAME", "SKILL_C", 6, (string?)null), ("fast", "APPROACH_B_NAME", "SKILL_D", 7, null)], model.Approaches.Select(a => (a.Id, a.Name, a.Skill, a.Difficulty, a.GearTag)));
+        Assert.Empty(model.Approaches[0].Outcomes);
+        Assert.Equal(["critical", "success"], model.Approaches[1].Outcomes.Keys);
+        Assert.Equal([new EffectModel(1, null, null, null), new EffectModel(null, null, -1, null), new EffectModel(null, 1, null, null)], model.Approaches[1].Outcomes["success"]);
         Assert.Equal("DECISION_PROMPT_5", model.Decision!.Id);
         Assert.Equal(3, model.Decision.Stakes);
         Assert.Equal(new[] { new EffectModel(1, null, null, null), new EffectModel(null, null, 1, null) }, model.Decision.Bold);
@@ -257,7 +260,7 @@ public class ContentEditsTests : IClassFixture<RepoContentGuard>
             (ContentKind.Skill, new SkillModel("SKILL_A", null, []), "skills/base.yaml"),
             (ContentKind.Assignment, new AssignmentModel("ASSIGNMENT_1", null, [], new Dictionary<int, int> { [1] = 1 }, 0), "assignments/base.yaml"),
             (ContentKind.Objective, new ObjectiveModel("OBJECTIVE_1", null, [], 1, 1, 1, null, []), "objectives/base.yaml"),
-            (ContentKind.Encounter, new EncounterModel("ENCOUNTER_1", null, [], false, null, [new ApproachModel("careful", null, "SKILL_A", 5, null), new ApproachModel("fast", null, "SKILL_A", 6, null)], null), "encounters/base.yaml"),
+            (ContentKind.Encounter, new EncounterModel("ENCOUNTER_1", null, [], false, null, [new ApproachModel("careful", null, "SKILL_A", 5, null, [], new Dictionary<string, IReadOnlyList<EffectModel>>()), new ApproachModel("fast", null, "SKILL_A", 6, null, [], new Dictionary<string, IReadOnlyList<EffectModel>>())], null), "encounters/base.yaml"),
         })
         {
             Assert.Contains(path, ContentEdits.Upsert(new ContentFileSet(new Dictionary<string, string>()), kind, model).Files.Keys);

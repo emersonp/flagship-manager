@@ -26,6 +26,34 @@
                     <Field Name="@Set.Name(row, "difficulty")" Label="Difficulty" AriaLabel="@($"Difficulty, {which}")" Value="@Approaches[row]["difficulty"]" Hint="1 or more." Error="@View.Error(Set.Name(row, "difficulty"))" Numeric="true" Narrow="true" Required="true" />
                     <Field Name="@Set.Name(row, "gearTag")" Label="Gear tag" AriaLabel="@($"Gear tag, {which}")" Value="@Approaches[row]["gearTag"]" Options="View.Choices.GearTags" Placeholder="None" Hint="Gear with this tag helps." Error="@View.Error(Set.Name(row, "gearTag"))" />
                 </div>
+                @* Plain inputs for every requirement and outcome field; their layout is the approaches plan's Task 5. *@
+                <h4 class="sub">Available when</h4>
+                <p class="hint">Every requirement given must hold for the team as it stands. A skill needs its level; gear needs none.</p>
+                @for (int r = 0; r < EncounterKind.RequirementRows; r++)
+                {
+                    string what = Set.Name(row, EncounterKind.RequirementField(r, "what"));
+                    string level = Set.Name(row, EncounterKind.RequirementField(r, "level"));
+                    string requirement = $"requirement {r + 1}, {which}";
+                    <div class="field-grid">
+                        <Field Name="@what" Label="@($"Requirement {r + 1}")" AriaLabel="@($"Skill or gear, {requirement}")" Value="@Approaches[row][EncounterKind.RequirementField(r, "what")]" Options="RequirementOptions" Labels="RequirementLabels" Placeholder="None" Error="@View.Error(what)" />
+                        <Field Name="@level" Label="Level" AriaLabel="@($"Level, {requirement}")" Value="@Approaches[row][EncounterKind.RequirementField(r, "level")]" Hint="1 or more, for a skill." Error="@View.Error(level)" Numeric="true" Narrow="true" />
+                    </div>
+                }
+                <h4 class="sub">Outcomes</h4>
+                <p class="hint">A tier ticked here replaces what the tier does by default. A blank value is 0, or no injury roll.</p>
+                @foreach (string tier in NarrativeFacts.Tiers)
+                {
+                    string Name(string field) => Set.Name(row, EncounterKind.OutcomeField(tier, field));
+                    string Value(string field) => Approaches[row][EncounterKind.OutcomeField(tier, field)];
+                    string outcome = $"{tier}, {which}";
+                    <CheckField Name="@Name("own")" Label="@($"Write {tier}")" AriaLabel="@($"Write {outcome}")" Checked="@(Value("own") == "true")" />
+                    <div class="field-grid">
+                        <Field Name="@Name("progress")" Label="Progress" AriaLabel="@($"Progress, {outcome}")" Value="@Value("progress")" Error="@View.Error(Name("progress"))" Numeric="true" Narrow="true" />
+                        <Field Name="@Name("momentum")" Label="Momentum" AriaLabel="@($"Momentum, {outcome}")" Value="@Value("momentum")" Error="@View.Error(Name("momentum"))" Numeric="true" Narrow="true" />
+                        <Field Name="@Name("strain")" Label="Strain" AriaLabel="@($"Strain, {outcome}")" Value="@Value("strain")" Error="@View.Error(Name("strain"))" Numeric="true" Narrow="true" />
+                        <Field Name="@Name("injury")" Label="Injury roll" AriaLabel="@($"Injury roll, {outcome}")" Value="@Value("injury")" Options="Severities" Placeholder="None" Error="@View.Error(Name("injury"))" Narrow="true" />
+                    </div>
+                }
                 @if (Approaches.Count > 1)
                 {
                     <div class="rowset__add">
@@ -87,6 +115,13 @@
     private List<Dictionary<string, string>> Approaches => FormRows.Read(View.Values, Set);
 
     private IReadOnlyList<string> SkillIds => View.Choices.Skills.Select(s => s.Id).ToList();
+
+    private static readonly string[] Severities = ["light", "severe"];
+
+    // A requirement names a skill by its id, or gear by its tag after "gear:".
+    private IReadOnlyList<string> RequirementOptions => [.. SkillIds, .. View.Choices.GearTags.Select(t => EncounterKind.GearPrefix + t)];
+
+    private IReadOnlyDictionary<string, string> RequirementLabels => new Dictionary<string, string>(SkillLabels.Concat(View.Choices.GearTags.Select(t => KeyValuePair.Create(EncounterKind.GearPrefix + t, $"Gear: {t}"))));
 
     private IReadOnlyDictionary<string, string> SkillLabels => View.Choices.Skills.Where(s => s.Name is { Length: > 0 }).ToDictionary(s => s.Id, s => Checks.Choice(s.Id, s.Name!));
 

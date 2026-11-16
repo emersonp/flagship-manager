@@ -23,8 +23,6 @@ public sealed record MissionTuning
 
     public required int MomentumCritical { get; init; }
 
-    public required int MomentumFastSuccess { get; init; }
-
     public required int StrainPartial { get; init; }
 
     public required int StrainFailure { get; init; }

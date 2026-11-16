@@ -4,7 +4,7 @@
   chain: ENCOUNTER_CHAIN
   approaches:
     - { id: careful, name: APPROACH_A_NAME, skill: SKILL_A, difficulty: 5, gearTag: scanner }
-    - { id: fast, name: APPROACH_B_NAME, skill: SKILL_C, difficulty: 6 }
+    - { id: fast, name: APPROACH_B_NAME, skill: SKILL_C, difficulty: 6, outcomes: { critical: [{ progress: 1 }, { strain: -1 }, { momentum: 2 }], success: [{ progress: 1 }, { strain: -1 }, { momentum: 1 }] } }
   decision:
     id: DECISION_PROMPT_1
     stakes: 1
@@ -15,7 +15,7 @@
   chain: ENCOUNTER_CHAIN
   approaches:
     - { id: careful, name: APPROACH_A_NAME, skill: SKILL_D, difficulty: 5 }
-    - { id: fast, name: APPROACH_B_NAME, skill: SKILL_B, difficulty: 6 }
+    - { id: fast, name: APPROACH_B_NAME, skill: SKILL_B, difficulty: 6, outcomes: { critical: [{ progress: 1 }, { strain: -1 }, { momentum: 2 }], success: [{ progress: 1 }, { strain: -1 }, { momentum: 1 }] } }
   decision:
     id: DECISION_PROMPT_2
     stakes: 2
@@ -26,7 +26,7 @@
   chain: ENCOUNTER_CHAIN
   approaches:
     - { id: careful, name: APPROACH_A_NAME, skill: SKILL_B, difficulty: 6, gearTag: tools }
-    - { id: fast, name: APPROACH_B_NAME, skill: SKILL_A, difficulty: 7 }
+    - { id: fast, name: APPROACH_B_NAME, skill: SKILL_A, difficulty: 7, outcomes: { critical: [{ progress: 1 }, { strain: -1 }, { momentum: 2 }], success: [{ progress: 1 }, { strain: -1 }, { momentum: 1 }] } }
   decision:
     id: DECISION_PROMPT_3
     stakes: 3
@@ -37,13 +37,13 @@
   chain: ENCOUNTER_CHAIN
   approaches:
     - { id: careful, name: APPROACH_A_NAME, skill: SKILL_C, difficulty: 5 }
-    - { id: fast, name: APPROACH_B_NAME, skill: SKILL_C, difficulty: 6 }
+    - { id: fast, name: APPROACH_B_NAME, skill: SKILL_C, difficulty: 6, outcomes: { critical: [{ progress: 1 }, { strain: -1 }, { momentum: 2 }], success: [{ progress: 1 }, { strain: -1 }, { momentum: 1 }] } }
 - id: ENCOUNTER_05
   tags: [field, technical]
   chain: ENCOUNTER_CHAIN
   approaches:
     - { id: careful, name: APPROACH_A_NAME, skill: SKILL_A, difficulty: 6, gearTag: scanner }
-    - { id: fast, name: APPROACH_B_NAME, skill: SKILL_B, difficulty: 7 }
+    - { id: fast, name: APPROACH_B_NAME, skill: SKILL_B, difficulty: 7, outcomes: { critical: [{ progress: 1 }, { strain: -1 }, { momentum: 2 }], success: [{ progress: 1 }, { strain: -1 }, { momentum: 1 }] } }
   decision:
     id: DECISION_PROMPT_4
     stakes: 4
@@ -55,7 +55,7 @@
   chain: ENCOUNTER_CHAIN
   approaches:
     - { id: careful, name: APPROACH_A_NAME, skill: SKILL_C, difficulty: 6 }
-    - { id: fast, name: APPROACH_B_NAME, skill: SKILL_D, difficulty: 7 }
+    - { id: fast, name: APPROACH_B_NAME, skill: SKILL_D, difficulty: 7, outcomes: { critical: [{ progress: 1 }, { strain: -1 }, { momentum: 2 }], success: [{ progress: 1 }, { strain: -1 }, { momentum: 1 }] } }
   decision:
     id: DECISION_PROMPT_5
     stakes: 3
@@ -66,13 +66,13 @@
   chain: ENCOUNTER_CHAIN
   approaches:
     - { id: careful, name: APPROACH_A_NAME, skill: SKILL_D, difficulty: 6 }
-    - { id: fast, name: APPROACH_B_NAME, skill: SKILL_D, difficulty: 7 }
+    - { id: fast, name: APPROACH_B_NAME, skill: SKILL_D, difficulty: 7, outcomes: { critical: [{ progress: 1 }, { strain: -1 }, { momentum: 2 }], success: [{ progress: 1 }, { strain: -1 }, { momentum: 1 }] } }
 - id: ENCOUNTER_08
   tags: [field, technical]
   chain: ENCOUNTER_CHAIN
   approaches:
     - { id: careful, name: APPROACH_A_NAME, skill: SKILL_B, difficulty: 5, gearTag: tools }
-    - { id: fast, name: APPROACH_B_NAME, skill: SKILL_C, difficulty: 6 }
+    - { id: fast, name: APPROACH_B_NAME, skill: SKILL_C, difficulty: 6, outcomes: { critical: [{ progress: 1 }, { strain: -1 }, { momentum: 2 }], success: [{ progress: 1 }, { strain: -1 }, { momentum: 1 }] } }
   decision:
     id: DECISION_PROMPT_6
     stakes: 2
@@ -82,4 +82,4 @@
   tags: [chained, hazard]
   approaches:
     - { id: careful, name: APPROACH_A_NAME, skill: SKILL_C, difficulty: 6 }
-    - { id: fast, name: APPROACH_B_NAME, skill: SKILL_A, difficulty: 7 }
+    - { id: fast, name: APPROACH_B_NAME, skill: SKILL_A, difficulty: 7, outcomes: { critical: [{ progress: 1 }, { strain: -1 }, { momentum: 2 }], success: [{ progress: 1 }, { strain: -1 }, { momentum: 1 }] } }

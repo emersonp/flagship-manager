@@ -26,6 +26,7 @@ public sealed record SkipBeat(string EncounterId) : Beat;
 public sealed record CheckBeat(
     string EncounterId,
     string Approach,
+    int Offered,
     string Skill,
     string ActorId,
     string? HelperId,

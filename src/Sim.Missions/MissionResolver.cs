@@ -97,6 +97,49 @@ public static class MissionResolver
         return (tuning.BoldPriorityWeight * parameters.Priority) - (tuning.BoldCautionWeight * lead.Caution) > 0 ? CallAnswer.Bold : CallAnswer.Safe;
     }
 
+    // What a tier does when the approach has not written it: the tuning file's numbers and nothing else.
+    internal static EffectDef DefaultOutcome(MissionTuning tuning, Tier tier)
+    {
+        return tier switch
+        {
+            Tier.Critical => new EffectDef(Momentum: tuning.MomentumCritical, Strain: -tuning.StrainReliefOnSuccess, Progress: 1),
+            Tier.Success => new EffectDef(Strain: -tuning.StrainReliefOnSuccess, Progress: 1),
+            Tier.Partial => new EffectDef(Strain: tuning.StrainPartial),
+            Tier.Failure => new EffectDef(Strain: tuning.StrainFailure, InjuryRoll: InjurySeverity.Light),
+            _ => new EffectDef(Strain: tuning.StrainDisaster, InjuryRoll: InjurySeverity.Severe),
+        };
+    }
+
+    // The approaches whose every requirement holds for the team as it stands, in the encounter's order.
+    internal static IReadOnlyList<ApproachDef> Available(EncounterDef encounter, IReadOnlyList<MemberState> standing, IReadOnlyCollection<string> gearTags)
+    {
+        bool Holds(RequirementDef requirement)
+        {
+            return requirement.Skill is { } skill
+                ? standing.Any(m => m.Member.Skills.GetValueOrDefault(skill) - m.Injury >= requirement.Level)
+                : gearTags.Contains(requirement.Gear!);
+        }
+
+        return encounter.Approaches.Where(a => a.Requires.All(Holds)).ToList();
+    }
+
+    // The lead takes what they are best at, after injury; the earliest listed wins a tie.
+    internal static ApproachDef Choose(IReadOnlyList<ApproachDef> available, MemberState lead)
+    {
+        ApproachDef best = available[0];
+        int bestSkill = -1;
+        foreach (ApproachDef approach in available)
+        {
+            int skill = Math.Max(0, lead.Member.Skills.GetValueOrDefault(approach.Skill) - lead.Injury);
+            if (skill > bestSkill)
+            {
+                (best, bestSkill) = (approach, skill);
+            }
+        }
+
+        return best;
+    }
+
     private sealed class Run(MissionState state)
     {
         public MissionState State { get; } = state;
@@ -198,9 +241,8 @@ public static class MissionResolver
         private void Check(EncounterDef encounter)
         {
             Parameters p = State.Parameters;
-            // Interim until Task 4 of the approaches plan.
-            int position = Lead.Member.Caution - p.Risk >= 0 ? 0 : Math.Min(1, encounter.Approaches.Count - 1);
-            ApproachDef def = encounter.Approaches[position];
+            IReadOnlyList<ApproachDef> available = Available(encounter, Active, State.GearTags);
+            ApproachDef def = Choose(available, Lead);
             int Skill(MemberState m)
             {
                 return Math.Max(0, m.Member.Skills.GetValueOrDefault(def.Skill) - m.Injury);
@@ -239,24 +281,10 @@ public static class MissionResolver
                 : margin >= T.TierFailure ? Tier.Failure
                 : Tier.Disaster;
 
-            switch (tier)
-            {
-                case Tier.Critical or Tier.Success:
-                    State.Strain = Clamp(State.Strain - T.StrainReliefOnSuccess);
-                    State.Progress++;
-                    // Interim until Task 4 of the approaches plan.
-                    State.Momentum = Clamp(State.Momentum + (tier == Tier.Critical ? T.MomentumCritical : 0) + (position == 1 ? T.MomentumFastSuccess : 0));
-                    break;
-                case Tier.Partial:
-                    State.Strain = Clamp(State.Strain + T.StrainPartial);
-                    break;
-                case Tier.Failure:
-                    State.Strain = Clamp(State.Strain + T.StrainFailure);
-                    break;
-                default:
-                    State.Strain = Clamp(State.Strain + T.StrainDisaster);
-                    break;
-            }
+            EffectDef outcome = def.Outcomes.TryGetValue(BeatSituations.Word(tier), out EffectDef? written) ? written : DefaultOutcome(T, tier);
+            State.Momentum = Clamp(State.Momentum + outcome.Momentum);
+            State.Strain = Clamp(State.Strain + outcome.Strain);
+            State.Progress += outcome.Progress;
 
             bool mentoring = helper is not null && Skill(helper) - actorSkill >= T.MentorGap;
             double baseExperience = margin >= T.TrivialAtMargin ? 0
@@ -272,22 +300,21 @@ public static class MissionResolver
             }
 
             Beats.Add(new CheckBeat(
-                encounter.Id, def.Id, def.Skill, actor.Member.Id, helper?.Member.Id, supervised,
+                encounter.Id, def.Id, available.Count, def.Skill, actor.Member.Id, helper?.Member.Id, supervised,
                 actorSkill, assist, gear, momentum, strain, score, roll, target, margin, tier, experience, mentoring, helperExperience, State.Momentum, State.Strain));
 
-            if (tier == Tier.Failure)
+            // The roll falls on the actor after the check's beat, under the key the default rolls always used, so its dice do not move.
+            if (outcome.InjuryRoll is { } severity)
             {
-                InjuryRoll(actor, InjurySeverity.Light, $"checkinj:{encounter.Id}");
+                InjuryRoll(actor, severity, $"checkinj:{encounter.Id}");
             }
-            else if (tier == Tier.Disaster)
+
+            // The chain is the encounter's, whatever the approach's disaster outcome says.
+            if (tier == Tier.Disaster && !State.Chained && encounter.Chain is not null && State.Chains.TryGetValue(encounter.Chain, out EncounterDef? chain))
             {
-                InjuryRoll(actor, InjurySeverity.Severe, $"checkinj:{encounter.Id}");
-                if (!State.Chained && encounter.Chain is not null && State.Chains.TryGetValue(encounter.Chain, out EncounterDef? chain))
-                {
-                    State.Chained = true;
-                    State.Encounters.Insert(State.Cursor + 1, new DrawnEncounter("chain", false, chain));
-                    Beats.Add(new ChainBeat(chain.Id));
-                }
+                State.Chained = true;
+                State.Encounters.Insert(State.Cursor + 1, new DrawnEncounter("chain", false, chain));
+                Beats.Add(new ChainBeat(chain.Id));
             }
         }
 

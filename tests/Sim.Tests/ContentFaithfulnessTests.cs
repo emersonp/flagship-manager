@@ -225,7 +225,7 @@ public class ContentFaithfulnessTests : IClassFixture<RepoContentGuard>
     {
         ContentFileSet repo = Repo();
         string text = EditBlock(repo.Files["encounters/base.yaml"], Enc2, b => b.Replace(
-            "    - { id: fast, name: APPROACH_B_NAME, skill: SKILL_B, difficulty: 6 }\n",
+            "    - { id: fast, name: APPROACH_B_NAME, skill: SKILL_B, difficulty: 6, outcomes: { critical: [{ progress: 1 }, { strain: -1 }, { momentum: 2 }], success: [{ progress: 1 }, { strain: -1 }, { momentum: 1 }] } }\n",
             "    - id: fast\n      name: APPROACH_B_NAME\n      skill: SKILL_B\n      difficulty: 6\n      gearTag: tools\n      text:\n        attempt: \"actor: Now.\"\n        failure: \"#actor# slipped.\"\n    - { id: third-way, skill: SKILL_A, difficulty: 7 }\n"));
         ContentFileSet files = ContentEdits.ReplaceText(repo, "encounters/base.yaml", text);
         EncounterModel model = (EncounterModel)ModelOf(files, ContentKind.Encounter, "ENCOUNTER_02");
@@ -235,6 +235,43 @@ public class ContentFaithfulnessTests : IClassFixture<RepoContentGuard>
         ContentFileSet canonical = ContentEdits.Canonicalize(files);
         Assert.Equal(JsonSerializer.Serialize(model), JsonSerializer.Serialize(ModelOf(canonical, ContentKind.Encounter, "ENCOUNTER_02")));
         Assert.Equal(JsonSerializer.Serialize(files.Validate().Pack, SimJson.Options), JsonSerializer.Serialize(canonical.Validate().Pack, SimJson.Options));
+    }
+
+    // Five requirements and outcomes, an empty one among them, survive a rewrite: an empty outcome is kept apart from an absent one.
+    [Fact]
+    public void Requirements_and_outcomes_including_an_empty_one_write_and_read_back_equal()
+    {
+        ContentFileSet repo = Repo();
+        string text = EditBlock(repo.Files["encounters/base.yaml"], Enc2, b => b.Replace(
+            "    - { id: careful, name: APPROACH_A_NAME, skill: SKILL_D, difficulty: 5 }\n",
+            "    - id: careful\n      name: APPROACH_A_NAME\n      skill: SKILL_D\n      difficulty: 5\n"
+            + "      requires:\n        - { skill: SKILL_A, level: 4 }\n        - { skill: SKILL_B, level: 2 }\n        - { skill: SKILL_C, level: 1 }\n        - { skill: SKILL_D, level: 3 }\n        - { gear: scanner }\n"
+            + "      outcomes:\n        critical: [{ progress: 1 }, { strain: -1 }, { momentum: 2 }]\n        partial: []\n"));
+        ContentFileSet files = ContentEdits.ReplaceText(repo, "encounters/base.yaml", text);
+        EncounterModel model = (EncounterModel)ModelOf(files, ContentKind.Encounter, "ENCOUNTER_02");
+
+        Assert.Empty(ContentEdits.Losses(files, "encounters/base.yaml"));
+        Assert.Equal(5, model.Approaches[0].Requires.Count);
+        Assert.Equal(2, model.Approaches[0].Requires[1].Level);
+        Assert.Empty(model.Approaches[0].Outcomes["partial"]);
+        ContentFileSet canonical = ContentEdits.Canonicalize(files);
+        Assert.Equal(JsonSerializer.Serialize(model), JsonSerializer.Serialize(ModelOf(canonical, ContentKind.Encounter, "ENCOUNTER_02")));
+        Assert.Equal(JsonSerializer.Serialize(files.Validate().Pack, SimJson.Options), JsonSerializer.Serialize(canonical.Validate().Pack, SimJson.Options));
+        Assert.True(files.Validate().Pack!.Encounters.Single(e => e.Id == "ENCOUNTER_02").Approaches[0].Outcomes.ContainsKey("partial"));
+    }
+
+    // An outcome the file lists empty is not the same as one it leaves out, so dropping it would be a loss.
+    [Fact]
+    public void An_empty_outcome_is_not_dropped_as_if_absent()
+    {
+        ContentFileSet repo = Repo();
+        string text = EditBlock(repo.Files["encounters/base.yaml"], Enc2, b => b.Replace(
+            "{ id: careful, name: APPROACH_A_NAME, skill: SKILL_D, difficulty: 5 }",
+            "{ id: careful, name: APPROACH_A_NAME, skill: SKILL_D, difficulty: 5, outcomes: { failure: [] }, requires: [] }"));
+        ContentFileSet files = ContentEdits.ReplaceText(repo, "encounters/base.yaml", text);
+
+        Assert.Empty(ContentEdits.Losses(files, "encounters/base.yaml"));
+        Assert.Contains("outcomes: { failure: [] }", ContentEdits.Canonicalize(files).Files["encounters/base.yaml"], StringComparison.Ordinal);
     }
 
     // Integers the loader reads in another notation are kept exactly as the loader reads them, or refused; never changed silently.

@@ -28,10 +28,11 @@ public class MissionWalkthroughTests
         Assert.Contains(beats.OfType<InitiativeBeat>(), n => n.Blocked && n.Stakes >= n.Threshold);
     }
 
+    // Seed 3 since the lead chooses by skill (approaches plan, Task 4): at seed 1 the lead now takes their best skill and the team comes home.
     [Fact]
     public void A_weak_team_under_a_reckless_lead_can_collapse()
     {
-        (_, List<Beat> beats, MissionResult result) = TestContent.Play(TestContent.Team(2, 2, 7, 8), seed: 1);
+        (_, List<Beat> beats, MissionResult result) = TestContent.Play(TestContent.Team(2, 2, 7, 8), seed: 3);
 
         Assert.Single(beats.OfType<CollapseBeat>());
         Assert.Equal(MissionOutcome.Loss, result.Outcome);
@@ -40,7 +41,7 @@ public class MissionWalkthroughTests
     [Fact]
     public void The_same_weak_team_is_offered_the_abort_first_when_strain_builds_slowly()
     {
-        (_, List<Beat> beats, _) = TestContent.Play(TestContent.Team(2, 2, 7, 8), seed: 1);
+        (_, List<Beat> beats, _) = TestContent.Play(TestContent.Team(2, 2, 7, 8), seed: 3);
 
         Assert.Contains(beats.OfType<CallBeat>(), c => c.Call.DecisionId == DecisionIds.Abort);
     }
@@ -115,12 +116,13 @@ public class MissionWalkthroughTests
     // Golden mission: this hash changes only when the resolver's behaviour changes. If the change is intended, update it in the same commit and say why. Re-pinned: the notice beat is named initiative.
     // Re-pinned in slice 1d: check beats gained MomentumAfter and StrainAfter (additive; no rule changed).
     // Re-pinned for authored approaches: a check's approach is written as its id ("careful") where the enum wrote "Careful"; every other field is unchanged.
+    // Re-pinned: approaches are chosen by the lead's skill and outcomes are authored (approaches plan, Task 4).
     [Fact]
     public void Golden_mission_matches_the_accepted_beats()
     {
         (_, List<Beat> beats, _) = TestContent.Play(TestContent.Team(1, 1, 3, 5), seed: 1);
 
-        Assert.Equal("CAF06DDA86A228B49ACCE27B0F4A1ED4571A45826A15F2C920D02EEE8DC7A670", Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(Json(beats)))));
+        Assert.Equal("228FC64AB185EC43377F03BC373422874D6DDB54E44EDF3967702858E78202A3", Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(Json(beats)))));
     }
 
     // Replays injuries from the beats to find the score the senior would have had acting as best qualified.

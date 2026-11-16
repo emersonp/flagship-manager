@@ -6,8 +6,12 @@ public enum InjurySeverity
     Severe,
 }
 
+// Exactly one of Skill and Gear is set. Skill with Level: someone standing has that level after injury. Gear: the loadout carries the tag.
+public sealed record RequirementDef(string? Skill, int Level, string? Gear);
+
 // One way to take an encounter. Id is unique within its encounter and is what beats and lines name.
-public sealed record ApproachDef(string Id, string Skill, int Difficulty, string? GearTag, string? Name = null);
+public sealed record ApproachDef(string Id, string Skill, int Difficulty, string? GearTag,
+    IReadOnlyList<RequirementDef> Requires, IReadOnlyDictionary<string, EffectDef> Outcomes, string? Name = null);
 
 // What a decision option does. Fields are additive, so several effects fold into one record.
 public sealed record EffectDef(int Momentum = 0, int Strain = 0, int Progress = 0, InjurySeverity? InjuryRoll = null, bool Withdraw = false);

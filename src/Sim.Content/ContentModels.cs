@@ -52,7 +52,17 @@ public sealed record ObjectiveModel(
     IReadOnlyDictionary<string, string>? Text = null,
     IReadOnlyList<OwnLineModel>? Lines = null) : IContentModel;
 
-public sealed record ApproachModel(string Id, string? Name, string Skill, int Difficulty, string? GearTag, IReadOnlyDictionary<string, string>? Text = null);
+public sealed record RequirementModel(string? Skill, int? Level, string? Gear);
+
+public sealed record ApproachModel(
+    string Id,
+    string? Name,
+    string Skill,
+    int Difficulty,
+    string? GearTag,
+    IReadOnlyList<RequirementModel> Requires,
+    IReadOnlyDictionary<string, IReadOnlyList<EffectModel>> Outcomes,
+    IReadOnlyDictionary<string, string>? Text = null);
 
 // One entry of a bold or safe list. The loader adds the entries together, so the list's order and split are kept as written.
 public sealed record EffectModel(int? Progress, int? Momentum, int? Strain, string? InjuryRoll, bool Withdraw = false);

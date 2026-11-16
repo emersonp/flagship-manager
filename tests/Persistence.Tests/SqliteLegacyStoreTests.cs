@@ -375,6 +375,7 @@ public sealed class SqliteLegacyStoreTests : IDisposable
     [InlineData(2)]
     [InlineData(3)]
     [InlineData(4)]
+    [InlineData(5)]
     public void A_database_from_another_schema_is_refused(int version)
     {
         using (var connection = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={path}"))
@@ -387,7 +388,7 @@ public sealed class SqliteLegacyStoreTests : IDisposable
 
         var ex = Assert.Throws<InvalidOperationException>(() => NewStore());
 
-        Assert.Equal($"This database is from a different build (schema {version}, this build reads 5). Delete it or export its legacies with the build that wrote it.", ex.Message);
+        Assert.Equal($"This database is from a different build (schema {version}, this build reads 6). Delete it or export its legacies with the build that wrote it.", ex.Message);
     }
 
     // A phase stored as a number would parse as a member by accident; the store refuses it.
@@ -410,7 +411,7 @@ public sealed class SqliteLegacyStoreTests : IDisposable
 
     // A fresh database must carry the version later builds check.
     [Fact]
-    public void A_new_database_is_created_at_schema_version_5()
+    public void A_new_database_is_created_at_schema_version_6()
     {
         NewStore();
 
@@ -418,7 +419,7 @@ public sealed class SqliteLegacyStoreTests : IDisposable
         connection.Open();
         using Microsoft.Data.Sqlite.SqliteCommand command = connection.CreateCommand();
         command.CommandText = "PRAGMA user_version";
-        Assert.Equal(5L, command.ExecuteScalar());
+        Assert.Equal(6L, command.ExecuteScalar());
     }
 
     // Every module the state no longer holds is dropped from storage with the commit.

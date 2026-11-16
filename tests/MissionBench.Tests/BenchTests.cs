@@ -47,7 +47,25 @@ public class BenchTests
             Assert.Equal(e.Checks, e.ByPosition.Sum());
             Assert.Equal(0, e.ByPosition[2] + e.ByPosition[3]);
         });
-        Assert.Matches(@"^Encounter\s+checks\s+1st %\s+2nd %\s+3rd %\s+4th %\s+crit %", BenchReport.Encounters(figures));
+        Assert.Matches(@"^Encounter\s+checks\s+1st %\s+2nd %\s+3rd %\s+4th %\s+narrowed %\s+crit %", BenchReport.Encounters(figures));
+    }
+
+    // A check is narrowed when a requirement left fewer approaches on offer than the encounter has.
+    [Fact]
+    public void Checks_with_an_approach_unavailable_are_counted_as_narrowed()
+    {
+        ContentPack narrowed = Pack with
+        {
+            Encounters = Pack.Encounters.Select(e => e with { Approaches = [e.Approaches[0], e.Approaches[1] with { Requires = [new RequirementDef(null, 0, "nothing")] }] }).ToList(),
+        };
+
+        BenchFigures open = Bench.Run(Pack, Pack.Tuning, new BenchOptions("OBJECTIVE_TEMPLATE_1") { Runs = 50 });
+        BenchFigures closed = Bench.Run(narrowed, narrowed.Tuning, new BenchOptions("OBJECTIVE_TEMPLATE_1") { Runs = 50 });
+
+        Assert.All(open.Encounters, e => Assert.Equal(0, e.Narrowed));
+        Assert.All(closed.Encounters, e => Assert.Equal((e.Checks, e.Checks, 0), (e.Narrowed, e.ByPosition[0], e.ByPosition[1])));
+        Assert.Matches(@"^Encounter\s+checks\s+1st %\s+2nd %\s+3rd %\s+4th %\s+narrowed %\s+crit %", BenchReport.Encounters(closed));
+        Assert.Matches(@"\n\S+\s+\d+\s+100\s+0\s+0\s+0\s+100\s", BenchReport.Encounters(closed));
     }
 
     [Fact]

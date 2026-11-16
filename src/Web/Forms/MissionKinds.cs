@@ -127,10 +127,25 @@ internal sealed class ObjectiveKind : KindForm
 
 internal sealed class EncounterKind : KindForm
 {
-    // An approach's words post with its row, as approaches[0].text.attempt, so they move and go with it.
+    // The form edits this many requirements of an approach. The author writes no more until it edits more, so it does nothing special for them.
+    public const int RequirementRows = 3;
+
+    // A requirement's "what" for a gear tag; any other value is a skill id.
+    public const string GearPrefix = "gear:";
+
+    // own is "true" when the tier is written; the other four are then its one effect, a blank meaning 0 or no roll.
+    public static readonly IReadOnlyList<string> OutcomeFields = ["own", "progress", "momentum", "strain", "injury"];
+
+    // An approach's requirements, outcomes, and words post with its row, as approaches[0].r0.what, approaches[0].out.success.own,
+    // and approaches[0].text.attempt, so they move and go with it.
     public static readonly RowSet Approaches = new(
         "approaches",
-        ["id", "name", "skill", "difficulty", "gearTag", .. NarrativeFacts.ApproachTexts.Select(TextField)],
+        [
+            "id", "name", "skill", "difficulty", "gearTag",
+            .. Enumerable.Range(0, RequirementRows).SelectMany(r => new[] { RequirementField(r, "what"), RequirementField(r, "level") }),
+            .. NarrativeFacts.Tiers.SelectMany(t => OutcomeFields.Select(f => OutcomeField(t, f))),
+            .. NarrativeFacts.ApproachTexts.Select(TextField),
+        ],
         Qualified: true,
         Noun: "approach",
         Defaults: new Dictionary<string, string> { ["difficulty"] = "1" });
@@ -145,6 +160,12 @@ internal sealed class EncounterKind : KindForm
 
     // The row field that holds an approach's text for this key.
     public static string TextField(string key) => OwnedText.Field("", key);
+
+    // what is a skill id, GearPrefix and a tag, or empty; level is used only with a skill.
+    public static string RequirementField(int row, string field) => string.Create(System.Globalization.CultureInfo.InvariantCulture, $"r{row}.{field}");
+
+    // A field of a tier's outcome: one of OutcomeFields.
+    public static string OutcomeField(string tier, string field) => $"out.{tier}.{field}";
 
     public override string? NameOf(ContentFileSet files, string id)
     {
@@ -276,6 +297,29 @@ internal sealed class EncounterKind : KindForm
         fields.Add(new(Approaches.Name(row, "skill"), approach.Skill));
         fields.Add(new(Approaches.Name(row, "difficulty"), Checks.Text(approach.Difficulty)));
         fields.Add(new(Approaches.Name(row, "gearTag"), approach.GearTag ?? ""));
+        for (int r = 0; r < Math.Min(RequirementRows, approach.Requires.Count); r++)
+        {
+            RequirementModel requirement = approach.Requires[r];
+            fields.Add(new(Approaches.Name(row, RequirementField(r, "what")), requirement.Skill ?? (requirement.Gear is { } gear ? GearPrefix + gear : "")));
+            fields.Add(new(Approaches.Name(row, RequirementField(r, "level")), requirement.Skill is not null && requirement.Level is { } level ? Checks.Text(level) : ""));
+        }
+
+        // The form edits one effect a tier, so a tier written as several entries shows as their sum, as the loader adds them.
+        foreach ((string tier, IReadOnlyList<EffectModel> effects) in approach.Outcomes)
+        {
+            static string Sum(IEnumerable<int?> values)
+            {
+                List<int> given = values.OfType<int>().ToList();
+                return given.Count == 0 ? "" : Checks.Text(given.Sum());
+            }
+
+            fields.Add(new(Approaches.Name(row, OutcomeField(tier, "own")), "true"));
+            fields.Add(new(Approaches.Name(row, OutcomeField(tier, "progress")), Sum(effects.Select(e => e.Progress))));
+            fields.Add(new(Approaches.Name(row, OutcomeField(tier, "momentum")), Sum(effects.Select(e => e.Momentum))));
+            fields.Add(new(Approaches.Name(row, OutcomeField(tier, "strain")), Sum(effects.Select(e => e.Strain))));
+            fields.Add(new(Approaches.Name(row, OutcomeField(tier, "injury")), effects.LastOrDefault(e => e.InjuryRoll is not null)?.InjuryRoll ?? ""));
+        }
+
         OwnedText.Add(fields, Approaches.Name(row, ""), NarrativeFacts.ApproachTexts, approach.Text);
     }
 
@@ -347,10 +391,101 @@ internal sealed class EncounterKind : KindForm
                 errors[gearField] = "Unknown gear tag.";
             }
 
-            approaches.Add(new ApproachModel(approachId, name, skill, difficulty, gearTag.Length == 0 ? null : gearTag, OwnedText.Bind(values, Approaches.Name(i, ""), NarrativeFacts.ApproachTexts, errors)));
+            List<RequirementModel> requires = BindRequirements(values, i, choices, errors);
+            Dictionary<string, IReadOnlyList<EffectModel>> outcomes = BindOutcomes(values, i, errors);
+            approaches.Add(new ApproachModel(approachId, name, skill, difficulty, gearTag.Length == 0 ? null : gearTag, requires, outcomes, OwnedText.Bind(values, Approaches.Name(i, ""), NarrativeFacts.ApproachTexts, errors)));
+        }
+
+        if (!errors.ContainsKey(Approaches.Prefix) && approaches.Count > 0 && approaches.All(a => a.Requires.Count > 0))
+        {
+            errors[Approaches.Prefix] = "At least one approach must have no requirements.";
         }
 
         return approaches;
+    }
+
+    // The requirements in the order of their boxes; a box left empty is skipped.
+    private static List<RequirementModel> BindRequirements(FormValues values, int row, FormChoices choices, Dictionary<string, string> errors)
+    {
+        var requires = new List<RequirementModel>();
+        for (int r = 0; r < RequirementRows; r++)
+        {
+            string whatField = Approaches.Name(row, RequirementField(r, "what"));
+            string what = values.Get(whatField);
+            if (what.Length == 0)
+            {
+                continue;
+            }
+
+            if (what.StartsWith(GearPrefix, StringComparison.Ordinal))
+            {
+                string tag = what[GearPrefix.Length..];
+                if (!choices.GearTags.Contains(tag))
+                {
+                    errors[whatField] = "Unknown gear tag.";
+                }
+
+                requires.Add(new RequirementModel(null, null, tag));
+                continue;
+            }
+
+            if (choices.Skills.All(s => s.Id != what))
+            {
+                errors[whatField] = "Unknown skill.";
+            }
+
+            requires.Add(new RequirementModel(what, Checks.Whole(values, Approaches.Name(row, RequirementField(r, "level")), 1, null, errors), null));
+        }
+
+        return requires;
+    }
+
+    // Each written tier as one entry per value given, in the default's order (progress, strain, momentum, injury); none given is an empty list.
+    private static Dictionary<string, IReadOnlyList<EffectModel>> BindOutcomes(FormValues values, int row, Dictionary<string, string> errors)
+    {
+        var outcomes = new Dictionary<string, IReadOnlyList<EffectModel>>();
+        foreach (string tier in NarrativeFacts.Tiers)
+        {
+            string Field(string field) => Approaches.Name(row, OutcomeField(tier, field));
+            if (values.Get(Field("own")) != "true")
+            {
+                continue;
+            }
+
+            int? progress = Checks.OptionalWhole(values, Field("progress"), null, null, errors);
+            int? momentum = Checks.OptionalWhole(values, Field("momentum"), null, null, errors);
+            int? strain = Checks.OptionalWhole(values, Field("strain"), null, null, errors);
+            string injury = values.Get(Field("injury"));
+            if (injury.Length > 0 && injury is not ("light" or "severe"))
+            {
+                errors[Field("injury")] = "Choose light or severe.";
+            }
+
+            var effects = new List<EffectModel>();
+            if (progress is { } p)
+            {
+                effects.Add(new EffectModel(p, null, null, null));
+            }
+
+            if (strain is { } s)
+            {
+                effects.Add(new EffectModel(null, null, s, null));
+            }
+
+            if (momentum is { } m)
+            {
+                effects.Add(new EffectModel(null, m, null, null));
+            }
+
+            if (injury.Length > 0)
+            {
+                effects.Add(new EffectModel(null, null, null, injury));
+            }
+
+            outcomes[tier] = effects;
+        }
+
+        return outcomes;
     }
 
     public const string ApproachIdRule = "1 to 24 lower case letters, digits, and hyphens, unique in this encounter.";

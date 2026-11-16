@@ -157,7 +157,18 @@ internal static class ContentReader
     private static ApproachModel Approach(YamlNode? node)
     {
         Dictionary<string, YamlNode> a = Map(node);
-        return new ApproachModel(Str(Get(a, "id")) ?? "", Str(Get(a, "name")), Str(Get(a, "skill")) ?? "", Int(Get(a, "difficulty")) ?? 0, Str(Get(a, "gearTag")), Texts(Get(a, "text")));
+        return new ApproachModel(Str(Get(a, "id")) ?? "", Str(Get(a, "name")), Str(Get(a, "skill")) ?? "", Int(Get(a, "difficulty")) ?? 0, Str(Get(a, "gearTag")), Requirements(Get(a, "requires")), Outcomes(Get(a, "outcomes")), Texts(Get(a, "text")));
+    }
+
+    private static List<RequirementModel> Requirements(YamlNode? node)
+    {
+        return Sequence(node).Select(Map).Select(r => new RequirementModel(Str(Get(r, "skill")), Int(Get(r, "level")), Str(Get(r, "gear")))).ToList();
+    }
+
+    // In the order written; a tier listed with no entries is kept, empty.
+    private static Dictionary<string, IReadOnlyList<EffectModel>> Outcomes(YamlNode? node)
+    {
+        return Map(node).ToDictionary(o => o.Key, o => (IReadOnlyList<EffectModel>)Effects(o.Value));
     }
 
     // An item's own words by key, or null when it has none. A key with no value is not kept.

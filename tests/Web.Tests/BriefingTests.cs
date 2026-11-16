@@ -70,9 +70,9 @@ public sealed class BriefingTests : IDisposable
         return Regex.Matches(html, $"name=\"{field}\" value=\"([^\"]+)\"").Select(m => m.Groups[1].Value).ToList();
     }
 
-    private static List<KeyValuePair<string, string>> Valid(string objective, IEnumerable<string> crew, string lead, IEnumerable<string>? gear = null, string risk = "0")
+    private static List<KeyValuePair<string, string>> Valid(string objective, IEnumerable<string> crew, string lead, IEnumerable<string>? gear = null, string priority = "0")
     {
-        var form = new List<KeyValuePair<string, string>> { new("objective", objective), new("lead", lead), new("priority", "0"), new("risk", risk), new("autonomy", "0") };
+        var form = new List<KeyValuePair<string, string>> { new("objective", objective), new("lead", lead), new("priority", priority), new("autonomy", "0") };
         form.AddRange(crew.Select(c => new KeyValuePair<string, string>("crew", c)));
         form.AddRange((gear ?? []).Select(g => new KeyValuePair<string, string>("gear", g)));
         return form;
@@ -190,7 +190,7 @@ public sealed class BriefingTests : IDisposable
         { "lead off the team", "is not on the team." },
         { "unfit crew", "is not fit." },
         { "too much gear", "The loadout holds at most" },
-        { "bad parameter", "Risk 7 is outside -1 to 1." },
+        { "bad parameter", "Priority 7 is outside -1 to 1." },
         { "second launch", "A team can only be assigned in the briefing." },
     };
 
@@ -207,7 +207,7 @@ public sealed class BriefingTests : IDisposable
             "lead off the team" => Valid(objective, crew.Take(2), crew[5]),
             "unfit crew" => Valid(objective, crew.Take(2), crew[0]),
             "too much gear" => Valid(objective, crew.Take(2), crew[0], gear.Concat(gear).Distinct().Take(gear.Count)),
-            "bad parameter" => Valid(objective, crew.Take(2), crew[0], risk: "7"),
+            "bad parameter" => Valid(objective, crew.Take(2), crew[0], priority: "7"),
             _ => form,
         };
         if (kind == "unfit crew")
@@ -231,6 +231,28 @@ public sealed class BriefingTests : IDisposable
         Assert.Equal(before, Snapshot(id));
     }
 
+    // Risk tolerance is gone (approaches plan, Task 4): the briefing does not ask for it.
+    [Fact]
+    public async Task The_briefing_has_no_risk_tolerance()
+    {
+        string html = await Page(await NewBriefing());
+
+        Assert.DoesNotContain("name=\"risk\"", html, StringComparison.Ordinal);
+        Assert.DoesNotContain("Risk tolerance", html, StringComparison.Ordinal);
+    }
+
+    // A form from an older page may still post risk; it is ignored, not refused.
+    [Fact]
+    public async Task A_posted_risk_field_is_ignored()
+    {
+        (Guid id, var form, _, _) = await Ready();
+        form.Add(new("risk", "7"));
+
+        await Post(id, "launch", form);
+
+        Assert.Contains(app.Game.Store.ReadEvents(id), e => e.Type == "TeamAssigned");
+    }
+
     [Fact]
     public async Task Sending_nobody_reaches_resolution_with_no_mission()
     {
@@ -246,7 +268,7 @@ public sealed class BriefingTests : IDisposable
     [Theory]
     [InlineData("objective")]
     [InlineData("lead")]
-    [InlineData("risk")]
+    [InlineData("autonomy")]
     public async Task A_form_missing_a_field_is_refused_as_incomplete_and_stores_nothing(string missing)
     {
         (Guid id, var form, _, _) = await Ready();
@@ -263,8 +285,8 @@ public sealed class BriefingTests : IDisposable
     public async Task A_parameter_that_is_not_a_number_is_refused_as_incomplete()
     {
         (Guid id, var form, _, _) = await Ready();
-        form.RemoveAll(f => f.Key == "risk");
-        form.Add(new("risk", "high"));
+        form.RemoveAll(f => f.Key == "autonomy");
+        form.Add(new("autonomy", "high"));
 
         AssertRefusal(await Post(id, "launch", form), "The form was not complete.");
     }

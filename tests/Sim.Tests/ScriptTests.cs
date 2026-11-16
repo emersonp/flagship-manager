@@ -110,7 +110,7 @@ public sealed class ScriptTests
         for (ulong seed = 1; seed <= 300 && checkedBeats == 0; seed++)
         {
             Team team = TestContent.Team(1, 1, 3, 5);
-            MissionState start = MissionResolver.Start(TestContent.Objective, TestContent.Pack.Encounters, team, TestContent.Gear, new Parameters(Risk: 1), TestContent.Tuning, seed);
+            MissionState start = MissionResolver.Start(TestContent.Objective, TestContent.Pack.Encounters, team, TestContent.Gear, new Parameters(), TestContent.Tuning, seed);
             MissionStep step = MissionResolver.Advance(start);
             var beats = new List<Beat>(step.Beats);
             while (step.Pending is { } call)

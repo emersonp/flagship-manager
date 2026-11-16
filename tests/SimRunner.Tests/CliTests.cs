@@ -45,7 +45,7 @@ public class CliTests
             (int exit, string output, _) = Run("cycles", "--legacies", "2", "--cycles", "3", "--content", Content, "--out", file);
 
             Assert.Equal(0, exit);
-            Assert.Equal("Content CORE v1: 2 legacies x 3 cycles, 180 events. Missions: 4 full, 2 partial, 0 incomplete, 0 withdrawn, 0 lost. Deaths: 0. OK.", output.Trim());
+            Assert.Equal("Content CORE v1: 2 legacies x 3 cycles, 183 events. Missions: 3 full, 2 partial, 0 incomplete, 1 withdrawn, 0 lost. Deaths: 0. OK.", output.Trim());
             Assert.Contains("LogHash", File.ReadAllText(file), StringComparison.Ordinal);
         }
         finally
@@ -60,9 +60,20 @@ public class CliTests
         (int exit, string output, string error) = Run("bench", "--objective", "OBJECTIVE_TEMPLATE_1", "--runs", "50", "--lead", "cautious", "--autonomy", "-1", "--gear", "scanner,tools", "--content", Content);
 
         Assert.Equal((0, ""), (exit, error));
-        Assert.Contains("OBJECTIVE_TEMPLATE_1: 50 missions from seed 1. Team mixed, lead Cautious, policy BackLead. Priority 0, risk 0, autonomy -1, develop juniors off. Gear: scanner, tools. Draw: fresh each run.", output, StringComparison.Ordinal);
+        Assert.Contains("OBJECTIVE_TEMPLATE_1: 50 missions from seed 1. Team mixed, lead Cautious, policy BackLead. Priority 0, autonomy -1, develop juniors off. Gear: scanner, tools. Draw: fresh each run.", output, StringComparison.Ordinal);
         Assert.Contains("Full success %", output, StringComparison.Ordinal);
         Assert.Contains("Encounters (mixed); worst run: seed", output, StringComparison.Ordinal);
+    }
+
+    // Risk tolerance is gone (approaches plan, Task 4), so the option is unknown.
+    [Fact]
+    public void Bench_refuses_the_risk_option()
+    {
+        (int exit, _, string error) = Run("bench", "--objective", "OBJECTIVE_TEMPLATE_1", "--runs", "5", "--risk", "1", "--content", Content);
+
+        Assert.Equal(2, exit);
+        Assert.Contains("--risk", error, StringComparison.Ordinal);
+        Assert.DoesNotContain("--risk", Cli.Usage, StringComparison.Ordinal);
     }
 
     [Fact]

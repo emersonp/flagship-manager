@@ -52,14 +52,10 @@ public class MissionRulesTests
             foreach (CheckBeat check in TestContent.Play(TestContent.Team(2, 2, 7, 8), seed).Beats.OfType<CheckBeat>())
             {
                 seen.Add(check.Tier);
-                (int momentum, int strain) = check.Tier switch
-                {
-                    Tier.Critical or Tier.Success => (Clamp(check.Momentum + (check.Tier == Tier.Critical ? t.MomentumCritical : 0) + (check.Approach == "fast" ? t.MomentumFastSuccess : 0)), Clamp(check.Strain - t.StrainReliefOnSuccess)),
-                    Tier.Partial => (check.Momentum, Clamp(check.Strain + t.StrainPartial)),
-                    Tier.Failure => (check.Momentum, Clamp(check.Strain + t.StrainFailure)),
-                    _ => (check.Momentum, Clamp(check.Strain + t.StrainDisaster)),
-                };
-                Assert.Equal((momentum, strain), (check.MomentumAfter, check.StrainAfter));
+                ApproachDef approach = TestContent.Pack.Encounters.Single(e => e.Id == check.EncounterId).Approaches.Single(a => a.Id == check.Approach);
+                string word = check.Tier.ToString().ToLowerInvariant();
+                EffectDef effect = approach.Outcomes.TryGetValue(word, out EffectDef? written) ? written : MissionResolver.DefaultOutcome(t, check.Tier);
+                Assert.Equal((Clamp(check.Momentum + effect.Momentum), Clamp(check.Strain + effect.Strain)), (check.MomentumAfter, check.StrainAfter));
             }
         }
 
@@ -103,24 +99,13 @@ public class MissionRulesTests
     }
 
     [Fact]
-    public void Risk_is_tolerance_so_a_higher_risk_pushes_the_lead_toward_the_fast_approach()
+    public void An_encounter_with_one_approach_takes_it()
     {
-        Assert.Equal(
-            new[] { "careful", "careful", "fast" },
-            new[] { -1, 0, 1 }.Select(r => ApproachFor(TestContent.Team(3, 3, 5), r)));
-        Assert.Equal("careful", ApproachFor(TestContent.Team(1, 1, 3), 1));
-        Assert.Equal("fast", ApproachFor(TestContent.Team(2, 2, 3), 0));
-    }
+        EncounterDef encounter = new("ENCOUNTER_01", ["field"], false, null, [Approach("only", "SKILL_A")], null);
 
-    // Interim until Task 4 of the approaches plan: the first approach or the second, and the only one when there is one.
-    [Fact]
-    public void An_encounter_with_one_approach_takes_it_whatever_the_risk()
-    {
-        EncounterDef encounter = new("ENCOUNTER_01", ["field"], false, null, [new ApproachDef("only", "SKILL_A", 5, null)], null);
+        CheckBeat check = MissionResolver.Advance(Start(TestContent.Team(2, 2, 3), new Parameters(), encounter)).Beats.OfType<CheckBeat>().Single();
 
-        Assert.Equal(
-            new[] { "only", "only", "only" },
-            new[] { -1, 0, 1 }.Select(r => MissionResolver.Advance(Start(TestContent.Team(2, 2, 3), new Parameters(Risk: r), encounter)).Beats.OfType<CheckBeat>().Single().Approach));
+        Assert.Equal(("only", 1), (check.Approach, check.Offered));
     }
 
     [Fact]
@@ -345,7 +330,7 @@ public class MissionRulesTests
     [Fact]
     public void A_check_gives_its_experience_to_the_actor_and_helper_under_the_approachs_skill()
     {
-        EncounterDef encounter = new("ENCOUNTER_01", ["field"], false, null, [new ApproachDef("careful", "SKILL_A", 7, null), new ApproachDef("fast", "SKILL_B", 8, null)], null);
+        EncounterDef encounter = new("ENCOUNTER_01", ["field"], false, null, [Approach("careful", "SKILL_A", 7), Approach("fast", "SKILL_B", 8)], null);
 
         MissionStep step = MissionResolver.Advance(Start(TestContent.Team(2, 2, 3), new Parameters(), encounter));
 
@@ -494,6 +479,210 @@ public class MissionRulesTests
         Assert.Throws<System.Text.Json.JsonException>(() => MissionJson.Deserialize(json.Replace("\"Skippable\":false,", "", StringComparison.Ordinal)));
     }
 
+    // --- The lead's choice, availability, and outcomes (approaches plan, Task 4) ---
+
+    [Fact]
+    public void The_lead_takes_the_approach_they_are_best_at()
+    {
+        var team = new Team([Skilled("CREW_01", 5, ("SKILL_A", 2), ("SKILL_C", 5))], "CREW_01");
+
+        Assert.Equal("c", CheckOf(team, AOrC()).Approach);
+    }
+
+    [Fact]
+    public void Equal_or_absent_skill_takes_the_first_listed()
+    {
+        var none = new Team([Skilled("CREW_01", 5)], "CREW_01");
+        var equal = new Team([Skilled("CREW_01", 5, ("SKILL_A", 3), ("SKILL_C", 3))], "CREW_01");
+
+        Assert.Equal("a", CheckOf(none, AOrC()).Approach);
+        Assert.Equal("a", CheckOf(equal, AOrC()).Approach);
+    }
+
+    // Injury lowers every skill by the same amount, so it never changes which is highest until it floors them all at 0.
+    [Fact]
+    public void The_leads_injury_counts_against_every_skill_alike_so_the_choice_holds()
+    {
+        EncounterDef encounter = AOrC();
+        TeamMember lead = Skilled("CREW_01", 5, ("SKILL_A", 2), ("SKILL_C", 5));
+
+        Assert.Equal(
+            new[] { "c", "c", "c", "a" },
+            new[] { 0, 1, 4, 5 }.Select(injury => MissionResolver.Choose(encounter.Approaches, Standing(lead, injury)).Id));
+    }
+
+    [Fact]
+    public void A_new_lead_chooses_by_their_own_skills()
+    {
+        // The first lead is best at A and the next most senior at C. The first encounter cannot be met, so its disaster's severe roll
+        // falls on the first lead; at the seeds where it downs them, the second encounter is the new lead's choice.
+        var team = new Team([Skilled("CREW_01", 5, ("SKILL_A", 6), ("SKILL_C", 1)), Skilled("CREW_02", 4, ("SKILL_A", 1), ("SKILL_C", 6))], "CREW_01");
+        EncounterDef first = AOrC(difficulty: 40, tags: ["first"]);
+        EncounterDef second = AOrC(id: "ENCOUNTER_02", tags: ["second"]);
+        var objective = new ObjectiveDef("OBJECTIVE_TEMPLATE_1", [], 1, 4, 1, [new StageDef("one", ["first"], 1, 1, false), new StageDef("two", ["second"], 1, 1, false)]);
+        int changed = 0;
+        for (ulong seed = 1; seed <= 60; seed++)
+        {
+            MissionStep step = MissionResolver.Advance(MissionResolver.Start(objective, [first, second], team, TestContent.Gear, new Parameters(), TestContent.Tuning, seed));
+            // Only what happens before the second check counts: a change after it cannot steer it.
+            List<Beat> beats = step.Beats.ToList();
+            List<CheckBeat> checks = beats.OfType<CheckBeat>().ToList();
+            Assert.Equal(("a", "CREW_01"), (checks[0].Approach, checks[0].ActorId));
+            if (checks.Count < 2)
+            {
+                continue;
+            }
+
+            bool before = beats.Take(beats.IndexOf(checks[1])).OfType<LeadChangeBeat>().Any(b => b.CrewId == "CREW_02");
+            Assert.Equal(before ? "c" : "a", checks[1].Approach);
+            changed += before ? 1 : 0;
+        }
+
+        Assert.True(changed > 0);
+    }
+
+    // Skill C: the lead has 3 and the other member 2, so nobody standing reaches 4.
+    [Fact]
+    public void An_approach_is_unavailable_below_its_skill_level()
+    {
+        var team = new Team([Skilled("CREW_01", 5, ("SKILL_A", 1), ("SKILL_C", 3)), Skilled("CREW_02", 4, ("SKILL_A", 2), ("SKILL_C", 2))], "CREW_01");
+
+        CheckBeat below = CheckOf(team, AOrC(requiresC: [new RequirementDef("SKILL_C", 4, null)]));
+        CheckBeat at = CheckOf(team, AOrC(requiresC: [new RequirementDef("SKILL_C", 3, null)]));
+
+        Assert.Equal(("a", 1), (below.Approach, below.Offered));
+        Assert.Equal(("c", 2), (at.Approach, at.Offered));
+    }
+
+    // A level is held after injury: 4 with one injury is 3.
+    [Fact]
+    public void A_skill_requirement_counts_injury()
+    {
+        EncounterDef encounter = AOrC(requiresC: [new RequirementDef("SKILL_C", 4, null)]);
+        TeamMember member = Skilled("CREW_01", 5, ("SKILL_C", 4));
+
+        Assert.Equal(["a", "c"], MissionResolver.Available(encounter, [Standing(member)], []).Select(a => a.Id));
+        Assert.Equal(["a"], MissionResolver.Available(encounter, [Standing(member, 1)], []).Select(a => a.Id));
+    }
+
+    [Fact]
+    public void A_gear_requirement_holds_when_the_loadout_carries_the_tag()
+    {
+        var team = new Team([Skilled("CREW_01", 5, ("SKILL_A", 1), ("SKILL_C", 5))], "CREW_01");
+        EncounterDef encounter = AOrC(requiresC: [new RequirementDef(null, 0, "scanner")]);
+
+        CheckBeat with = CheckOf(team, encounter, ["scanner"]);
+        CheckBeat without = CheckOf(team, encounter, ["tools"]);
+
+        Assert.Equal(("c", 2), (with.Approach, with.Offered));
+        Assert.Equal(("a", 1), (without.Approach, without.Offered));
+    }
+
+    [Fact]
+    public void An_approach_with_five_requirements_needs_all_five()
+    {
+        RequirementDef[] five = [new("SKILL_A", 2, null), new("SKILL_B", 2, null), new("SKILL_C", 2, null), new("SKILL_D", 2, null), new(null, 0, "scanner")];
+        var encounter = new EncounterDef("ENCOUNTER_01", ["field"], false, null, [Approach("a", "SKILL_A"), Approach("all", "SKILL_C", requires: five)], null);
+        MemberState[] team = [Standing(Skilled("CREW_01", 5, ("SKILL_A", 2), ("SKILL_B", 2))), Standing(Skilled("CREW_02", 4, ("SKILL_C", 2), ("SKILL_D", 2)))];
+
+        Assert.Equal(["a", "all"], MissionResolver.Available(encounter, team, ["scanner"]).Select(a => a.Id));
+        Assert.Equal(["a"], MissionResolver.Available(encounter, team, ["tools"]).Select(a => a.Id));
+        Assert.Equal(["a"], MissionResolver.Available(encounter, [team[0]], ["scanner"]).Select(a => a.Id));
+        Assert.Equal(["a"], MissionResolver.Available(encounter, [team[0], Standing(team[1].Member, 1)], ["scanner"]).Select(a => a.Id));
+    }
+
+    [Fact]
+    public void The_best_at_the_chosen_skill_makes_the_check_not_the_lead()
+    {
+        var team = new Team([Skilled("CREW_01", 5, ("SKILL_A", 1), ("SKILL_C", 5)), Skilled("CREW_02", 4, ("SKILL_A", 2), ("SKILL_C", 7))], "CREW_01");
+
+        CheckBeat check = CheckOf(team, AOrC());
+
+        Assert.Equal(("c", "CREW_02", "CREW_01"), (check.Approach, check.ActorId, check.HelperId));
+    }
+
+    // Each tuning value is set apart from the others, so a value read from the wrong place shows.
+    [Fact]
+    public void An_unwritten_outcome_is_the_default_for_every_tier()
+    {
+        MissionTuning t = TestContent.Tuning with { StrainReliefOnSuccess = 2, MomentumCritical = 3, StrainPartial = 4, StrainFailure = 5, StrainDisaster = 6 };
+
+        Assert.Equal(new EffectDef(Momentum: 3, Strain: -2, Progress: 1), MissionResolver.DefaultOutcome(t, Tier.Critical));
+        Assert.Equal(new EffectDef(Strain: -2, Progress: 1), MissionResolver.DefaultOutcome(t, Tier.Success));
+        Assert.Equal(new EffectDef(Strain: 4), MissionResolver.DefaultOutcome(t, Tier.Partial));
+        Assert.Equal(new EffectDef(Strain: 5, InjuryRoll: InjurySeverity.Light), MissionResolver.DefaultOutcome(t, Tier.Failure));
+        Assert.Equal(new EffectDef(Strain: 6, InjuryRoll: InjurySeverity.Severe), MissionResolver.DefaultOutcome(t, Tier.Disaster));
+    }
+
+    // Difficulty 1 is always met, so the check is a success or a critical, and both are written.
+    [Fact]
+    public void A_written_outcome_replaces_the_default_whole()
+    {
+        var outcomes = new Dictionary<string, EffectDef> { ["critical"] = new(Momentum: 2), ["success"] = new(Momentum: 2) };
+        MissionState state = Start(TestContent.Team(1, 1, 3), new Parameters(), AOrC(difficulty: 1, outcomes: outcomes));
+        state.Strain = 2;
+
+        MissionStep step = MissionResolver.Advance(state);
+
+        CheckBeat check = step.Beats.OfType<CheckBeat>().Single();
+        Assert.True(check.Tier is Tier.Critical or Tier.Success);
+        Assert.Equal((0, 2, 2), (step.Result!.Progress, step.State.Strain, step.State.Momentum));
+    }
+
+    [Fact]
+    public void An_empty_outcome_does_nothing()
+    {
+        var outcomes = new Dictionary<string, EffectDef> { ["failure"] = new() };
+        int failures = 0;
+        for (int difficulty = 1; difficulty <= 16; difficulty++)
+        {
+            for (ulong seed = 1; seed <= 10; seed++)
+            {
+                MissionStep step = MissionResolver.Advance(Start(TestContent.Team(1, 1, 3), new Parameters(), TestContent.Gear, false, seed, AOrC(difficulty, outcomes: outcomes)));
+                CheckBeat check = step.Beats.OfType<CheckBeat>().Single();
+                if (check.Tier == Tier.Failure)
+                {
+                    failures++;
+                    Assert.Equal((0, 0), (check.StrainAfter, step.State.Strain));
+                    Assert.Empty(step.Beats.OfType<InjuryBeat>());
+                }
+            }
+        }
+
+        Assert.True(failures > 0);
+    }
+
+    // An injury roll in an outcome falls on the actor, after the check's beat, as the default's does.
+    [Fact]
+    public void An_injury_roll_in_a_written_outcome_falls_on_the_actor_after_the_check()
+    {
+        var outcomes = new Dictionary<string, EffectDef> { ["critical"] = new(InjuryRoll: InjurySeverity.Light), ["success"] = new(InjuryRoll: InjurySeverity.Light) };
+        var team = new Team([Skilled("CREW_01", 5, ("SKILL_A", 1)), Skilled("CREW_02", 4, ("SKILL_A", 6))], "CREW_01");
+
+        MissionStep step = MissionResolver.Advance(Start(team, new Parameters(), AOrC(difficulty: 1, outcomes: outcomes)));
+
+        List<Beat> beats = step.Beats.ToList();
+        int check = beats.FindIndex(b => b is CheckBeat);
+        Assert.Equal("CREW_02", ((CheckBeat)beats[check]).ActorId);
+        Assert.Equal("CREW_02", Assert.IsType<InjuryBeat>(beats[check + 1]).CrewId);
+    }
+
+    // Difficulty 40 cannot be met, so the check is a disaster; its written outcome adds no strain and rolls no injury.
+    [Fact]
+    public void A_disaster_still_chains_when_its_outcome_is_written()
+    {
+        var outcomes = new Dictionary<string, EffectDef> { ["disaster"] = new(Momentum: 1) };
+        EncounterDef chain = AOrC(5, id: "ENCOUNTER_CHAIN", tags: ["chained"]);
+        MissionState state = Start(TestContent.Team(1, 1, 3, 5, 7), new Parameters(), AOrC(40, outcomes: outcomes, chain: "ENCOUNTER_CHAIN"), chain);
+
+        MissionStep step = MissionResolver.Advance(state);
+
+        CheckBeat disaster = step.Beats.OfType<CheckBeat>().First();
+        Assert.Equal((Tier.Disaster, 1, 0), (disaster.Tier, disaster.MomentumAfter, disaster.StrainAfter));
+        Assert.Equal("ENCOUNTER_CHAIN", step.Beats.OfType<ChainBeat>().Single().EncounterId);
+        Assert.Equal(2, step.Beats.OfType<CheckBeat>().Count());
+    }
+
     private static TeamMember Flat(string id, int seniority, int skill)
     {
         return new TeamMember(id, seniority, new Dictionary<string, int> { ["SKILL_A"] = skill }, 0, 0);
@@ -504,14 +693,9 @@ public class MissionRulesTests
         return new CallReply(step.Pending!.CallId, answer);
     }
 
-    private static string ApproachFor(Team team, int risk)
-    {
-        return MissionResolver.Advance(Start(team, new Parameters(Risk: risk), Encounter(5))).Beats.OfType<CheckBeat>().Single().Approach;
-    }
-
     private static EncounterDef Encounter(int difficulty, DecisionDef? decision = null, bool commsBlocked = false, string? gearTag = null, string id = "ENCOUNTER_01", string[]? tags = null, string? chain = null)
     {
-        return new EncounterDef(id, tags ?? ["field"], commsBlocked, chain, [new ApproachDef("careful", "SKILL_A", difficulty, gearTag), new ApproachDef("fast", "SKILL_A", difficulty + 1, null)], decision);
+        return new EncounterDef(id, tags ?? ["field"], commsBlocked, chain, [Approach("careful", "SKILL_A", difficulty, gearTag), Approach("fast", "SKILL_A", difficulty + 1)], decision);
     }
 
     private static MissionState Start(Team team, Parameters parameters, params EncounterDef[] pool)
@@ -527,7 +711,39 @@ public class MissionRulesTests
     // One stage that draws the single encounter tagged "field".
     private static MissionState Start(Team team, Parameters parameters, string[] gear, bool skippable, params EncounterDef[] pool)
     {
+        return Start(team, parameters, gear, skippable, 1, pool);
+    }
+
+    private static MissionState Start(Team team, Parameters parameters, string[] gear, bool skippable, ulong seed, params EncounterDef[] pool)
+    {
         var objective = new ObjectiveDef("OBJECTIVE_TEMPLATE_1", [], 1, 4, 1, [new StageDef("stage", ["field"], 1, 1, skippable)]);
-        return MissionResolver.Start(objective, pool, team, gear, parameters, TestContent.Tuning, seed: 1);
+        return MissionResolver.Start(objective, pool, team, gear, parameters, TestContent.Tuning, seed);
+    }
+
+    private static ApproachDef Approach(string id, string skill, int difficulty = 5, string? gearTag = null, RequirementDef[]? requires = null, Dictionary<string, EffectDef>? outcomes = null)
+    {
+        return new ApproachDef(id, skill, difficulty, gearTag, requires ?? [], outcomes ?? []);
+    }
+
+    // A member with only the skills given, so which skill is highest is plain.
+    private static TeamMember Skilled(string id, int seniority, params (string Skill, int Level)[] skills)
+    {
+        return new TeamMember(id, seniority, skills.ToDictionary(s => s.Skill, s => s.Level), 0, 0);
+    }
+
+    private static MemberState Standing(TeamMember member, int injury = 0)
+    {
+        return new MemberState { Member = member, Injury = injury, Status = MemberStatus.Active, Experience = [], Loyalty = 0 };
+    }
+
+    // Two approaches, a on skill A and c on skill C, either of which may carry requirements or outcomes.
+    private static EncounterDef AOrC(int difficulty = 5, RequirementDef[]? requiresC = null, Dictionary<string, EffectDef>? outcomes = null, string id = "ENCOUNTER_01", string[]? tags = null, string? chain = null)
+    {
+        return new EncounterDef(id, tags ?? ["field"], false, chain, [Approach("a", "SKILL_A", difficulty, outcomes: outcomes), Approach("c", "SKILL_C", difficulty, requires: requiresC, outcomes: outcomes)], null);
+    }
+
+    private static CheckBeat CheckOf(Team team, EncounterDef encounter, string[]? gear = null)
+    {
+        return MissionResolver.Advance(Start(team, new Parameters(), gear ?? TestContent.Gear, encounter)).Beats.OfType<CheckBeat>().Single();
     }
 }

@@ -126,7 +126,7 @@ public sealed class PhaseBoundTests : IDisposable
         var team = (AssignTeam)SimRunner.AutoCaptain.NextCommand(app.Live.Game, legacy.State, app.Live.Pack);
         var form = new List<KeyValuePair<string, string>>
         {
-            new("objective", team.ObjectiveId), new("lead", team.LeadId), new("priority", "0"), new("risk", "0"), new("autonomy", "0"),
+            new("objective", team.ObjectiveId), new("lead", team.LeadId), new("priority", "0"), new("autonomy", "0"),
             new("cycle", (legacy.State.Cycle + cycleOffset).ToString(System.Globalization.CultureInfo.InvariantCulture)), new("phase", phase),
         };
         form.AddRange(team.CrewIds.Select(c => new KeyValuePair<string, string>("crew", c)));

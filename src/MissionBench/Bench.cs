@@ -58,6 +58,7 @@ public static class Bench
                         tally.Checks++;
                         int position = positions[check.EncounterId].IndexOf(check.Approach);
                         tally.ByPosition[position]++;
+                        tally.Narrowed += check.Offered < positions[check.EncounterId].Count ? 1 : 0;
                         tally.Tiers[check.Tier]++;
                         break;
                     case InjuryBeat { Outcome: InjuryOutcome.Dead } injury:
@@ -81,7 +82,7 @@ public static class Bench
             calls,
             initiatives,
             experience.ToDictionary(e => e.Key, e => e.Value / options.Runs),
-            encounters.Select(e => new EncounterFigures(e.Key, e.Value.Checks, e.Value.ByPosition, e.Value.Tiers, e.Value.Deaths, e.Value.Incapacitated)).ToList(),
+            encounters.Select(e => new EncounterFigures(e.Key, e.Value.Checks, e.Value.ByPosition, e.Value.Narrowed, e.Value.Tiers, e.Value.Deaths, e.Value.Incapacitated)).ToList(),
             stages.Select((s, i) => new StageFigures(i + 1, s.Reached, s.Momentum / s.Reached, s.Strain / s.Reached)).ToList(),
             worstSeed);
     }
@@ -132,6 +133,8 @@ public static class Bench
         public int Checks { get; set; }
 
         public int[] ByPosition { get; } = new int[EncounterDef.MaxApproaches];
+
+        public int Narrowed { get; set; }
 
         public int Deaths { get; set; }
 

@@ -65,7 +65,7 @@ public class FiguresTests
         Assert.Equal("<span class=\"nw\">SKILL_A</span> and <span class=\"nw\">SKILL_B</span>", Figures.Items(["SKILL_A", "SKILL_B"]).Value);
     }
 
-    private static readonly Sim.Missions.CheckBeat Check = new("ENCOUNTER_03", "careful", "SKILL_A", "CREW_02", null, false, 3, 0, 0, 0, 0, 3, 6, 11, -2, Sim.Missions.Tier.Partial, 0, false, 0);
+    private static readonly Sim.Missions.CheckBeat Check = new("ENCOUNTER_03", "careful", 2, "SKILL_A", "CREW_02", null, false, 3, 0, 0, 0, 0, 3, 6, 11, -2, Sim.Missions.Tier.Partial, 0, false, 0);
 
     private static Web.Bridge.Names NamedCrew02(string name)
     {

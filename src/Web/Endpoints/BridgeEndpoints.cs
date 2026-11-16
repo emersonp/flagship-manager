@@ -343,12 +343,12 @@ public static class BridgeEndpoints
 
         string? objective = Single(form, "objective");
         string? lead = Single(form, "lead");
-        if (string.IsNullOrEmpty(objective) || string.IsNullOrEmpty(lead) || !Number(form, "priority", out int priority) || !Number(form, "risk", out int risk) || !Number(form, "autonomy", out int autonomy))
+        if (string.IsNullOrEmpty(objective) || string.IsNullOrEmpty(lead) || !Number(form, "priority", out int priority) || !Number(form, "autonomy", out int autonomy))
         {
             return null;
         }
 
-        return new AssignTeam(objective, form["crew"].OfType<string>().ToList(), lead, form["gear"].OfType<string>().ToList(), new Parameters(priority, risk, autonomy));
+        return new AssignTeam(objective, form["crew"].OfType<string>().ToList(), lead, form["gear"].OfType<string>().ToList(), new Parameters(priority, autonomy));
     }
 
     private static AnswerCall? BindAnswer(IFormCollection? form)

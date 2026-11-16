@@ -809,7 +809,7 @@ public sealed class ResolutionTests : IDisposable
         await captain.Post("advance", []);
         LoadedLegacy legacy = await captain.Read();
         var team = (AssignTeam)SimRunner.AutoCaptain.NextCommand(slow.Live.Game, legacy.State, slow.Live.Pack);
-        var form = new List<KeyValuePair<string, string>> { new("objective", team.ObjectiveId), new("lead", team.LeadId), new("priority", "0"), new("risk", "0"), new("autonomy", "0") };
+        var form = new List<KeyValuePair<string, string>> { new("objective", team.ObjectiveId), new("lead", team.LeadId), new("priority", "0"), new("autonomy", "0") };
         form.AddRange(team.CrewIds.Select(c => new KeyValuePair<string, string>("crew", c)));
         using var request = new HttpRequestMessage(HttpMethod.Post, $"/legacy/{id}/launch") { Content = new FormUrlEncodedContent(slow.Stamped(id, form)) };
         using var cts = new CancellationTokenSource();

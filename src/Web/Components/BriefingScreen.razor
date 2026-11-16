@@ -175,12 +175,11 @@
         return row.Fit ? $"{control} {who}" : $"{control} {who}, unavailable while {row.Status.ToLowerInvariant()}";
     }
 
-    // The values stay -1, 0, and 1; the words follow the rules: risk is tolerance, autonomy is how readily the lead calls,
+    // The values stay -1, 0, and 1; the words follow the rules: autonomy is how readily the lead calls,
     // and a higher priority leans the lead toward the bold answer.
     private static readonly (string Name, string Legend, string[] Words)[] Parameters =
     [
         ("priority", "Priority", ["Thorough", "Balanced", "Fast"]),
-        ("risk", "Risk tolerance", ["Low", "Medium", "High"]),
         ("autonomy", "Autonomy", ["Ask often", "Balanced", "Act alone"]),
     ];
 

@@ -31,6 +31,7 @@ public class ShapeTests
         Assert.True(cautious.Outcomes[MissionOutcome.Loss] < reckless.Outcomes[MissionOutcome.Loss]);
     }
 
+    // The floor was 2 until the lead chose by skill (approaches plan, Task 4); the cost then measured about 1 point at 1000 and at 5000 runs.
     [Fact]
     public void Develop_juniors_costs_some_success_and_teaches_the_juniors()
     {
@@ -38,7 +39,7 @@ public class ShapeTests
         BenchFigures develop = Run(3, [3, 5, 6], new Parameters(DevelopJuniors: true));
 
         double gap = 100.0 * (best.Outcomes[MissionOutcome.FullSuccess] - develop.Outcomes[MissionOutcome.FullSuccess]) / best.Runs;
-        Assert.InRange(gap, 2, 25);
+        Assert.InRange(gap, 0.5, 25);
         Assert.True(develop.ExperienceByMember["CREW_05"] > 1.3 * best.ExperienceByMember["CREW_05"]);
         Assert.True(develop.ExperienceByMember["CREW_03"] < best.ExperienceByMember["CREW_03"]);
     }

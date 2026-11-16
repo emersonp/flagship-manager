@@ -52,7 +52,6 @@ internal sealed class WebCaptain(TestApp app, HttpClient client, Guid id, Func<L
             new("objective", team.ObjectiveId),
             new("lead", team.LeadId),
             new("priority", team.Parameters.Priority.ToString()),
-            new("risk", team.Parameters.Risk.ToString()),
             new("autonomy", team.Parameters.Autonomy.ToString()),
         };
         form.AddRange(team.CrewIds.Select(c => new KeyValuePair<string, string>("crew", c)));

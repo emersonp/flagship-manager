@@ -91,7 +91,7 @@ public static class MissionsModule
             return $"Objective '{command.ObjectiveId}' is not at this site.";
         }
 
-        foreach ((string name, int value) in new[] { ("Priority", command.Parameters.Priority), ("Risk", command.Parameters.Risk), ("Autonomy", command.Parameters.Autonomy) })
+        foreach ((string name, int value) in new[] { ("Priority", command.Parameters.Priority), ("Autonomy", command.Parameters.Autonomy) })
         {
             if (value is < -1 or > 1)
             {

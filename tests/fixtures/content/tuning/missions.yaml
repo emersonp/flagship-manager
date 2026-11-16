@@ -13,7 +13,6 @@ compounding:
   cap: 5
   momentum:
     critical: 1
-    fastSuccess: 1           # a fast critical earns both
   strain:
     partial: 1
     failure: 2

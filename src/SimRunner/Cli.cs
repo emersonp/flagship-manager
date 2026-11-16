@@ -15,7 +15,7 @@ public static class Cli
           SimRunner cycles [--legacies N] [--cycles N] [--seed N] [--content DIR] [--out FILE]
           SimRunner bench --objective ID [--runs N] [--seed N]
                           [--team rookie|mixed|veteran|sweep] [--lead cautious|average|reckless]
-                          [--autonomy -1|0|1] [--risk -1|0|1] [--priority -1|0|1] [--develop]
+                          [--autonomy -1|0|1] [--priority -1|0|1] [--develop]
                           [--gear TAG,TAG] [--policy back-lead|bold|safe|withdraw]
                           [--fixed-draw] [--compare TUNING_FILE] [--replay SEED]
                           [--content DIR] [--out FILE]
@@ -73,7 +73,7 @@ public static class Cli
     {
         var line = new CommandLine(
             args,
-            ["--objective", "--runs", "--seed", "--team", "--lead", "--autonomy", "--risk", "--priority", "--gear", "--policy", "--compare", "--replay", "--content", "--out"],
+            ["--objective", "--runs", "--seed", "--team", "--lead", "--autonomy", "--priority", "--gear", "--policy", "--compare", "--replay", "--content", "--out"],
             ["--develop", "--fixed-draw"]);
         if (!line.Has("--objective"))
         {
@@ -91,7 +91,7 @@ public static class Cli
             Runs = line.Int("--runs", 10000, 1, 10_000_000),
             Seed = line.Seed("--seed", 1),
             Lead = line.Choice("--lead", LeadStyle.Average),
-            Parameters = new Parameters(line.Int("--priority", 0, -1, 1), line.Int("--risk", 0, -1, 1), line.Int("--autonomy", 0, -1, 1), line.Has("--develop")),
+            Parameters = new Parameters(line.Int("--priority", 0, -1, 1), line.Int("--autonomy", 0, -1, 1), line.Has("--develop")),
             GearTags = line.Text("--gear", "").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries),
             Policy = line.Choice("--policy", CallPolicy.BackLead),
             FixedDraw = line.Has("--fixed-draw"),
@@ -166,7 +166,7 @@ public static class Cli
         string gear = options.GearTags.Count == 0 ? "none" : string.Join(", ", options.GearTags);
         output.WriteLine(
             $"{options.ObjectiveId}: {options.Runs} missions from seed {options.Seed}. Team {team}, lead {options.Lead}, policy {options.Policy}. "
-            + $"Priority {options.Parameters.Priority}, risk {options.Parameters.Risk}, autonomy {options.Parameters.Autonomy}, develop juniors {(options.Parameters.DevelopJuniors ? "on" : "off")}. "
+            + $"Priority {options.Parameters.Priority}, autonomy {options.Parameters.Autonomy}, develop juniors {(options.Parameters.DevelopJuniors ? "on" : "off")}. "
             + $"Gear: {gear}. Draw: {(options.FixedDraw ? "fixed" : "fresh each run")}.");
         output.Write(benchNote);
         output.WriteLine();

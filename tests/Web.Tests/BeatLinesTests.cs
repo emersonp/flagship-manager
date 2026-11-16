@@ -15,7 +15,7 @@ public class BeatLinesTests
     [
         new StageBeat(0, "ENCOUNTER_03", "SLOT_1", true, 1, 2),
         new SkipBeat("ENCOUNTER_04"),
-        new CheckBeat("ENCOUNTER_03", "careful", "SKILL_A", "CREW_02", null, false, 3, 0, 1, 0, 0, 3, 6, 11, -2, Tier.Partial, 0.5, false, 0),
+        new CheckBeat("ENCOUNTER_03", "careful", 2, "SKILL_A", "CREW_02", null, false, 3, 0, 1, 0, 0, 3, 6, 11, -2, Tier.Partial, 0.5, false, 0),
         new EffectsBeat(new EffectDef(Momentum: 1, Strain: -1, Progress: 2, InjuryRoll: InjurySeverity.Light, Withdraw: true)),
         new InjuryBeat("CREW_02", "ENCOUNTER_03", InjurySeverity.Severe, 4, InjuryOutcome.LightInjury),
         new LeadChangeBeat("CREW_03"),
@@ -54,7 +54,7 @@ public class BeatLinesTests
 
     private static CheckBeat Check(string? helper, bool supervised, string approach, int margin, Tier tier)
     {
-        return new CheckBeat("ENCOUNTER_03", approach, "SKILL_A", "CREW_02", helper, supervised, 3, 0, 0, 0, 0, 3, 6, 11, margin, tier, 0, false, 0);
+        return new CheckBeat("ENCOUNTER_03", approach, 2, "SKILL_A", "CREW_02", helper, supervised, 3, 0, 0, 0, 0, 3, 6, 11, margin, tier, 0, false, 0);
     }
 
     [Fact]
@@ -87,8 +87,8 @@ public class BeatLinesTests
         {
             Encounters =
             [
-                new EncounterDef("ENCOUNTER_03", [], false, null, [new ApproachDef("careful", "SKILL_A", 1, null, "APPROACH_A_NAME"), new ApproachDef("fast", "SKILL_A", 2, null)], null),
-                new EncounterDef("ENCOUNTER_04", [], false, null, [new ApproachDef("careful", "SKILL_A", 1, null, "APPROACH_C_NAME")], null),
+                new EncounterDef("ENCOUNTER_03", [], false, null, [new ApproachDef("careful", "SKILL_A", 1, null, [], new Dictionary<string, EffectDef>(), "APPROACH_A_NAME"), new ApproachDef("fast", "SKILL_A", 2, null, [], new Dictionary<string, EffectDef>())], null),
+                new EncounterDef("ENCOUNTER_04", [], false, null, [new ApproachDef("careful", "SKILL_A", 1, null, [], new Dictionary<string, EffectDef>(), "APPROACH_C_NAME")], null),
             ],
         };
         var names = new Names(pack);
@@ -195,7 +195,7 @@ public class BeatLinesTests
             CultureInfo.CurrentCulture = new CultureInfo("sv-SE");
             Assert.NotEqual("-", (-1).ToString());
             Assert.DoesNotContain('-', string.Concat(BeatLines.Line(0, new EffectsBeat(new EffectDef(Momentum: -1))).Text));
-            var check = new CheckBeat("ENCOUNTER_03", "careful", "SKILL_A", "CREW_02", null, false, 0, 0, 0, 0, 0, -5, 1, 11, -15, Tier.Disaster, 0, false, 0);
+            var check = new CheckBeat("ENCOUNTER_03", "careful", 2, "SKILL_A", "CREW_02", null, false, 0, 0, 0, 0, 0, -5, 1, 11, -15, Tier.Disaster, 0, false, 0);
             var stage = new StageBeat(0, "ENCOUNTER_03", "SLOT_1", false, -1, 2);
             var effects = new EffectsBeat(new EffectDef(Momentum: -1, Strain: -2, Progress: -3));
 
@@ -216,7 +216,7 @@ public class BeatLinesTests
     // Names for every id the samples use: crew, skill, encounters, and the two decisions (carried on encounters).
     private static Names SampleNames(string crew02 = "NAME_PLACEHOLDER_CREW_02")
     {
-        ApproachDef[] approach = [new ApproachDef("careful", "SKILL_A", 1, null), new ApproachDef("fast", "SKILL_A", 2, null)];
+        ApproachDef[] approach = [new ApproachDef("careful", "SKILL_A", 1, null, [], new Dictionary<string, EffectDef>()), new ApproachDef("fast", "SKILL_A", 2, null, [], new Dictionary<string, EffectDef>())];
         ContentPack pack = BridgePack.Load() with
         {
             Crew = SampleCrew.Select(id => new CrewDef(id, 1, new Dictionary<string, int>(), 0, 0, id == "CREW_02" ? crew02 : "NAME_PLACEHOLDER_" + id)).ToList(),
@@ -271,7 +271,7 @@ public class BeatLinesTests
     public void The_parts_hold_each_name_whole_and_join_to_the_text()
     {
         Names names = SampleNames("NAME 7, <b> & -3");
-        var beat = new CheckBeat("ENCOUNTER_03", "careful", "SKILL_A", "CREW_02", "CREW_01", false, 3, 0, 0, 0, 0, 3, 6, 11, 4, Tier.Success, 0, false, 0);
+        var beat = new CheckBeat("ENCOUNTER_03", "careful", 2, "SKILL_A", "CREW_02", "CREW_01", false, 3, 0, 0, 0, 0, 3, 6, 11, 4, Tier.Success, 0, false, 0);
 
         LogLine line = BeatLines.Line(0, beat, 0, names);
 

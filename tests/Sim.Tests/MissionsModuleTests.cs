@@ -293,8 +293,6 @@ public class MissionsModuleTests
     [Theory]
     [InlineData("Priority", 2)]
     [InlineData("Priority", -2)]
-    [InlineData("Risk", 2)]
-    [InlineData("Risk", -2)]
     [InlineData("Autonomy", 2)]
     [InlineData("Autonomy", -2)]
     public void Parameters_outside_minus_one_to_one_are_refused_by_name(string name, int value)
@@ -303,7 +301,6 @@ public class MissionsModuleTests
         Parameters parameters = name switch
         {
             "Priority" => new Parameters(Priority: value),
-            "Risk" => new Parameters(Risk: value),
             _ => new Parameters(Autonomy: value),
         };
 

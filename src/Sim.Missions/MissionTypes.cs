@@ -27,8 +27,8 @@ public enum InjuryOutcome
     Dead,
 }
 
-// Operational parameters, each from -1 to +1. Risk is risk tolerance: +1 favours an encounter's second approach.
-public sealed record Parameters(int Priority = 0, int Risk = 0, int Autonomy = 0, bool DevelopJuniors = false);
+// Operational parameters, each from -1 to +1.
+public sealed record Parameters(int Priority = 0, int Autonomy = 0, bool DevelopJuniors = false);
 
 public sealed record PendingCall(
     string DecisionId,

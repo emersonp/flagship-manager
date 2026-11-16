@@ -45,7 +45,10 @@ public class MissionContentTests
         ContentPack pack = Load(Encounter, Objective).Pack!;
 
         EncounterDef encounter = Assert.Single(pack.Encounters);
-        Assert.Equal(new ApproachDef("careful", "SKILL_A", 5, "scanner"), encounter.Approaches[0]);
+        ApproachDef careful = encounter.Approaches[0];
+        Assert.Equal(("careful", "SKILL_A", 5, "scanner", (string?)null), (careful.Id, careful.Skill, careful.Difficulty, careful.GearTag, careful.Name));
+        Assert.Empty(careful.Requires);
+        Assert.Empty(careful.Outcomes);
         Assert.Equal(new EffectDef(Momentum: 1, Strain: 1, InjuryRoll: InjurySeverity.Light), encounter.Decision!.Bold);
         Assert.True(encounter.Decision.Safe.Withdraw);
         ObjectiveDef objective = Assert.Single(pack.Objectives);
@@ -138,6 +141,100 @@ public class MissionContentTests
 
         Assert.Null(result.Pack);
         Assert.Contains(result.Errors, e => e.Message == "ENCOUNTER_01 approach fast: name must be 1 to 80 characters with no line break.");
+    }
+
+    // --- Requirements and outcomes (approaches plan, Task 4) ---
+
+    private static string FastWith(string keys)
+    {
+        return Encounter.Replace("{ id: fast, skill: SKILL_A, difficulty: 6 }", $"{{ id: fast, skill: SKILL_A, difficulty: 6, {keys} }}");
+    }
+
+    private static void AssertRefused(string encounter, string message)
+    {
+        ContentLoadResult result = Load(encounter, Objective);
+
+        Assert.Null(result.Pack);
+        Assert.Contains(result.Errors, e => e.Message == $"ENCOUNTER_01: {message}");
+    }
+
+    [Fact]
+    public void Requirements_and_outcomes_load()
+    {
+        ContentPack pack = Load(FastWith("requires: [{ skill: SKILL_A, level: 3 }, { gear: scanner }], outcomes: { success: [{ progress: 1 }, { momentum: 2 }], failure: [{ strain: 1 }, { injuryRoll: severe }] }"), Objective).Pack!;
+
+        ApproachDef fast = pack.Encounters[0].Approaches[1];
+        Assert.Equal([new RequirementDef("SKILL_A", 3, null), new RequirementDef(null, 0, "scanner")], fast.Requires);
+        Assert.Equal(new EffectDef(Momentum: 2, Progress: 1), fast.Outcomes["success"]);
+        Assert.Equal(new EffectDef(Strain: 1, InjuryRoll: InjurySeverity.Severe), fast.Outcomes["failure"]);
+        Assert.Equal(["failure", "success"], fast.Outcomes.Keys.Order(StringComparer.Ordinal));
+    }
+
+    // The data has no limit on requirements; only the form edits a fixed number.
+    [Fact]
+    public void An_approach_may_have_five_requirements()
+    {
+        string five = string.Join(", ", Enumerable.Range(1, 4).Select(n => $"{{ skill: SKILL_A, level: {n} }}").Append("{ gear: scanner }"));
+
+        ContentLoadResult result = Load(FastWith($"requires: [{five}]"), Objective);
+
+        Assert.Empty(result.Errors);
+        Assert.Equal(5, result.Pack!.Encounters[0].Approaches[1].Requires.Count);
+    }
+
+    [Fact]
+    public void An_empty_outcome_loads_as_no_effect_not_as_absent()
+    {
+        ApproachDef fast = Load(FastWith("outcomes: { partial: [] }"), Objective).Pack!.Encounters[0].Approaches[1];
+
+        Assert.True(fast.Outcomes.ContainsKey("partial"));
+        Assert.Equal(new EffectDef(), fast.Outcomes["partial"]);
+    }
+
+    [Fact]
+    public void A_requirement_naming_both_a_skill_and_gear_is_refused()
+    {
+        AssertRefused(FastWith("requires: [{ skill: SKILL_A, level: 1, gear: scanner }]"), "The fast approach's requirement 1 must name one of skill and gear.");
+    }
+
+    [Fact]
+    public void A_requirement_naming_neither_a_skill_nor_gear_is_refused()
+    {
+        AssertRefused(FastWith("requires: [{ gear: scanner }, { level: 2 }]"), "The fast approach's requirement 2 must name one of skill and gear.");
+    }
+
+    [Theory]
+    [InlineData("{ skill: SKILL_A }")]
+    [InlineData("{ skill: SKILL_A, level: 0 }")]
+    public void A_skill_requirement_below_level_1_is_refused(string requirement)
+    {
+        AssertRefused(FastWith($"requires: [{requirement}]"), "The fast approach's requirement 1 needs a level of 1 or more.");
+    }
+
+    [Fact]
+    public void A_skill_requirement_on_an_unknown_skill_is_refused()
+    {
+        AssertRefused(FastWith("requires: [{ skill: SKILL_Z, level: 2 }]"), "The fast approach requires unknown skill 'SKILL_Z'.");
+    }
+
+    [Fact]
+    public void An_outcome_under_a_word_that_is_not_a_tier_is_refused()
+    {
+        AssertRefused(FastWith("outcomes: { triumph: [{ progress: 2 }] }"), "The fast approach has an outcome for 'triumph', which is not a tier: critical, success, partial, failure, or disaster.");
+    }
+
+    [Fact]
+    public void An_outcome_that_withdraws_is_refused()
+    {
+        AssertRefused(FastWith("outcomes: { disaster: [{ withdraw: true }] }"), "An outcome cannot withdraw the team.");
+    }
+
+    [Fact]
+    public void An_encounter_whose_every_approach_has_requirements_is_refused()
+    {
+        string encounter = FastWith("requires: [{ gear: tools }]").Replace("difficulty: 5, gearTag: scanner }", "difficulty: 5, gearTag: scanner, requires: [{ gear: scanner }] }");
+
+        AssertRefused(encounter, "At least one approach must have no requirements.");
     }
 
     // Decision ids key the game's calls and its display names, so each is used once in the whole pack.

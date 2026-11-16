@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text.RegularExpressions;
 using Sim.Core.Content;
+using Sim.Core.Narrative;
 
 namespace Sim.Content;
 
@@ -70,7 +71,15 @@ public static partial class ContentLoader
                 }
 
                 string? approachName = CheckName(file, $"{dto.Id} approach {label}", approach.Name, errors);
-                approaches.Add(new ApproachDef(approach.Id ?? "", approach.Skill ?? "", approach.Difficulty, approach.GearTag, approachName));
+                List<RequirementDef> requires = Requirements(label, approach.Requires, skillIds, Error);
+                Dictionary<string, EffectDef> outcomes = Outcomes(label, approach.Outcomes, Error);
+                approaches.Add(new ApproachDef(approach.Id ?? "", approach.Skill ?? "", approach.Difficulty, approach.GearTag, requires, outcomes, approachName));
+            }
+
+            // So the lead always has an approach to take, whatever team is sent.
+            if (approaches.Count > 0 && approaches.All(a => a.Requires.Count > 0))
+            {
+                Error("At least one approach must have no requirements.");
             }
 
             if (dto.Chain is not null && !ids.Contains(dto.Chain))
@@ -117,6 +126,62 @@ public static partial class ContentLoader
         }
 
         return defs;
+    }
+
+    // Any number of requirements; each names exactly one of a skill (with a level of 1 or more) and a gear tag.
+    private static List<RequirementDef> Requirements(string label, List<RequirementDto?>? items, HashSet<string> skillIds, Action<string> error)
+    {
+        var requires = new List<RequirementDef>();
+        for (int j = 0; j < (items?.Count ?? 0); j++)
+        {
+            RequirementDto requirement = items![j] ?? new RequirementDto();
+            if ((requirement.Skill is null) == (requirement.Gear is null))
+            {
+                error($"The {label} approach's requirement {j + 1} must name one of skill and gear.");
+                continue;
+            }
+
+            if (requirement.Skill is { } skill)
+            {
+                if (!skillIds.Contains(skill))
+                {
+                    error($"The {label} approach requires unknown skill '{skill}'.");
+                }
+
+                if (requirement.Level < 1)
+                {
+                    error($"The {label} approach's requirement {j + 1} needs a level of 1 or more.");
+                }
+            }
+
+            requires.Add(new RequirementDef(requirement.Skill, requirement.Level, requirement.Gear));
+        }
+
+        return requires;
+    }
+
+    // An outcome written under a tier word replaces that tier's default whole; an empty list is an outcome that does nothing.
+    private static Dictionary<string, EffectDef> Outcomes(string label, Dictionary<string, List<Dictionary<string, string>?>?>? items, Action<string> error)
+    {
+        var outcomes = new Dictionary<string, EffectDef>();
+        foreach ((string tier, List<Dictionary<string, string>?>? effects) in items ?? [])
+        {
+            if (!NarrativeFacts.Tiers.Contains(tier))
+            {
+                error($"The {label} approach has an outcome for '{tier}', which is not a tier: {string.Join(", ", NarrativeFacts.Tiers.Take(NarrativeFacts.Tiers.Count - 1))}, or {NarrativeFacts.Tiers[^1]}.");
+                continue;
+            }
+
+            EffectDef effect = Effects(effects, error);
+            if (effect.Withdraw)
+            {
+                error("An outcome cannot withdraw the team.");
+            }
+
+            outcomes[tier] = effect;
+        }
+
+        return outcomes;
     }
 
     private static EffectDef Effects(List<Dictionary<string, string>?>? items, Action<string> error)
@@ -286,7 +351,20 @@ public static partial class ContentLoader
 
         public string? GearTag { get; set; }
 
+        public List<RequirementDto?>? Requires { get; set; }
+
+        public Dictionary<string, List<Dictionary<string, string>?>?>? Outcomes { get; set; }
+
         public Dictionary<string, string?>? Text { get; set; }
+    }
+
+    private sealed class RequirementDto
+    {
+        public string? Skill { get; set; }
+
+        public int Level { get; set; }
+
+        public string? Gear { get; set; }
     }
 
     private sealed class DecisionDto
