@@ -876,8 +876,13 @@ What has been built, slice by slice. A phase is cut into slices when it is plann
 | 1. Thinnest game | 1d. Reports | The grammar engine, lines chosen by salience, the log as prose with tags, the aftermath report, and lines, symbols, and pronoun sets in the editor | Done 2026-11-14 |
 | 1. Thinnest game | 1d-authoring. Writing in place | Scripts (speech, notes, a report sentence, an attempt before a check, call scripts and button labels), the "What plays here" panel with live previews, and generated fiction in the game's pack | Done 2026-11-15 |
 | 1. Thinnest game | 1d-review. Authored approaches | An encounter's approaches are the author's to name and tune, with requirements and outcomes of their own; the lead chooses by skill; "notice" becomes "initiative"; risk tolerance is removed; the encounter form gains a tab for each approach; the briefing's away team table restacks instead of scrolling | Done 2026-11-15 |
-| 1. Thinnest game | 1e. Life aboard | Quality-gated, salience-ranked storylets, vignettes (some with a small choice), morale, captain's time, the inbox and crew file, and the chronicle list | Next |
+| 1. Thinnest game | 1e, part one. A storylet from a mission | An encounter's outcome or a decision's answer changes a story flag (every flag is a number) on the ship, the one who acted, the lead, or the team; a storylet whose flag requirements hold arrives in the aftermath as a dilemma with two to four options and fixed effects (loyalty and flags); at most two a cycle; the simulator's captain answers them | Next |
+| 1. Thinnest game | 1e, part two. Vignettes and morale | Morale for each crew member; vignettes on the same engine, mostly flavour with a small nudge to morale or loyalty, some with one small choice and a default | Later |
+| 1. Thinnest game | 1e, part three. The storylet engine in full | The expression language over the quality view (stats, story flags, and recent history such as who was hurt or on a lost mission); casting from the crew; salience ranking in place of a fixed order; cooldowns; `ifIgnored` and expiry; flags that bite on missions (an approach that requires or forbids one; a flag that keeps someone off an away team or makes sending them a broken promise; a flag that moves when a mission launches; a flag that fades with time: the worked example is a shaken crew member stood down from the next away team); an option settled by a check from a crew member the captain names; simulator policies that answer storylets, with fire counts and dead-content alarms | Later |
+| 1. Thinnest game | 1e, part four. The crew file and the chronicle list | A page for each crew member (skills, morale, loyalty, and the flags on them), and a list of what the captain decided and who was lost | Later |
+| 1. Thinnest game | 1e, part five. Writing storylets in the editor | Forms for storylets and vignettes with the "What plays here" panel, live previews against samples, and chips, as encounters have | Later |
 | 1. Thinnest game | 1f. Tuning in play | The mission bench and the tuning page in the browser | Later |
+| 1. Thinnest game | 1g. Captain's time | A budget each cycle spent from a menu of good things to do aboard, mostly mechanical with some narrative wrapping: a poker night, a captain's day or a concert (one or the other), a drill ordered through a named post. Needs a few named posts on the starting crew; departments and the org chart stay in Phase 5 | Later |
 | 1. Thinnest game | Playtest | Three legacies of 20 to 30 cycles against the checklist below | Later |
 | 2. Growth and loss | Not yet cut | Mentoring, memorials, several objectives at some sites, and mandates (experience, injuries, death, and unattended objectives arrived early, in 1c) | Not started |
 | 3. Who you send | Not yet cut | Gear and requisition (personality-driven calls and operational parameters arrived early, in 1a) | Not started |
@@ -994,6 +999,15 @@ Answered by the author on 2026-11-15, from the open questions:
 29. **A vignette nobody answers.** The default option applies, authored per vignette and usually the quiet one: see 5.2.
 30. **Generated characters in the editor.** Eventually the editor previews and samples against a testing and sample pool of crew that never appears in the main game. Built when crew generation is designed.
 31. **A long speech in a script.** Deferred to much later: it is on the roadmap's "Later" row (section 11). Until then a script entry is one line.
+
+Notes from the author on 2026-11-16, before slice 1e (design in `docs/plans/2026-11-16-phase-1e-design.md`):
+
+32. **Storylets come to the captain.** They are not shopped for from a menu. Expect none to two a cycle. A storylet is often a choice between two bad options.
+33. **Many storylets grow out of missions.** An encounter leaves a quality on the ship or on a crew member, and a storylet fires because it is there.
+34. **Vignettes are mostly flavour**, with a small +1 or -1 here and there.
+35. **Captain's time is a different thing from storylets.** It is a menu of good things the captain chooses to do (a poker night, a captain's day or a concert, a drill ordered through the chief of security), mostly mechanical, with some narrative wrapping. A captain storylet therefore does not cost captain's time. Sections 5.2 and 5.4 and the glossary still describe the earlier idea, in which captain's time paid for storylets; they are rewritten when slice 1g is designed.
+36. **Slice 1e is built as one thin thread first, then widened** (section 11.1). The first thread is a storylet from a mission, playable in the browser.
+37. **A little generated narrative is allowed in the game's pack for slice 1e's storylets**, in place of placeholders. The test fixture and this document stay placeholder.
 
 ## 16. Open questions
 
