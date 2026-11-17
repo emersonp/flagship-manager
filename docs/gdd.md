@@ -166,15 +166,20 @@ ifUnattended:
   check: { difficulty: 6 }    # rolled with no team; omit for a fixed result
   onFail: [{ shipRenown: -1 }, { chronicle: UNATTENDED_TEXT_1 }]
                               # the author sets this per objective; the default is the roll
-stages:
+stages:                       # in order; each draws encounters with every listed tag
   - slot: approach
-    draw: { tags: [travel, planetary], count: 1 }
+    draw: { tags: [travel, planetary] }
+    count: 1
   - slot: complication
-    draw: { tags: [hazard], count: [1, 2] }
+    draw: { tags: [hazard] }
+    count: [1, 2]             # how many: rolled from 1 to 2 when the mission is drawn
   - slot: objective
-    draw: { tags: [science, objective], count: 1 }
+    draw: { tags: [science, objective] }
+    count: 1
   - slot: extraction
-    draw: { tags: [travel], count: 1, skipIf: "mission.momentum >= 3" }
+    draw: { tags: [travel] }
+    count: 1
+    skippable: true           # momentum may skip what this stage draws (section 4.3)
 rewards: { shipRenown: 2, admiraltyStanding: 1 }
 text:                         # the objective's own words for how it ends, by outcome (section 6)
   fullSuccess: OBJECTIVE_TEMPLATE_1_SUCCESS_TEXT
@@ -184,7 +189,9 @@ lines:                        # any other line that holds only on missions for t
     text: OBJECTIVE_TEMPLATE_1_COLLAPSE_TEXT
 ```
 
-An objective template does not list encounters. It lists slots that draw from the encounter pool by tag, so every new encounter is automatically available to every template whose tags match.
+An objective template does not list encounters. It lists stages that draw from the encounter pool by tag, so every new encounter is automatically available to every template whose tags match.
+
+A stage is a draw rule, not a pool of its own. Every stage draws from the one encounter pool, an encounter is drawn at most once per mission, and an encounter that another chains to is never drawn. The loader refuses an objective whose stages, each drawing its most in order, could run out of matching encounters, so a stage always finds its count. Once drawn, the mission is a single list of encounters, played one at a time, and each encounter carries its stage's `slot` and `skippable` mark. The slot is a free label: it changes nothing in play, but lines can test it (section 6) and the bench reports it.
 
 ### 3.5 Encounter (content)
 
@@ -396,14 +403,14 @@ Two dice give a bell curve, so skill differences matter more than luck and the s
 
 Momentum and strain are the "dungeon" memory. Both carry between encounters and both are capped at 5.
 
-- Momentum can skip a stage (`skipIf`), and adds to checks.
+- Momentum adds to checks, and can skip an encounter that a skippable stage drew. At momentum 4 or more (`skipAtMomentum` in the tuning file) the team pays 2 momentum (`skipCost`), gains 1 progress, and moves on without a check. The test is made at each encounter, so a skippable stage that drew two encounters may skip both, one, or neither.
 - Strain subtracts from checks. A success or critical removes one strain.
 - At strain 4 the abort decision is always a call, whatever the lead is like, unless comms are blocked. At strain 5 the mission collapses: one member takes a severe injury roll and the rest take light rolls.
 - The collapse is checked after the encounter's decision, so a call at the strain cap can still pull the team out by withdrawing. This is the order the prototype played in. Checking first would cost weak teams under a lead who calls (an average lead with a rookie team: 21% lost becomes 28%); it is one condition in the resolver.
 - An approach may write its own outcomes, so a bolder approach can pay in momentum; a tier it does not write takes the tuning file's default. The prototype's rule that fast earns momentum on success is gone from the tuning file: the converted `fast` approaches carry it as written outcomes.
 - Disasters can chain a follow-on encounter that was not in the original draw.
 
-A mission ends in one of five results: full success, partial success, incomplete, withdrawal, or loss. Incomplete means the team played every stage and achieved too little; withdrawal means only that someone chose to pull out. Withdrawing when the lead preferred the safe option does not count as overruling them. Death comes only from a failed severe injury roll: on a disaster, on a bold option that risks one, or in a collapse.
+A mission ends in one of five results: full success, partial success, incomplete, withdrawal, or loss. Incomplete means the team played every encounter and achieved too little; withdrawal means only that someone chose to pull out. Withdrawing when the lead preferred the safe option does not count as overruling them. Death comes only from a failed severe injury roll: on a disaster, on a bold option that risks one, or in a collapse.
 
 ### 4.4 Decisions: call or initiative
 
@@ -459,7 +466,7 @@ The numbers in this section were set on the throwaway prototype's bench (2,000 m
 Before the 1d review:
 
 - Known and accepted: a reckless lead still loses about 13% of missions at about 3.7 deaths per 100 crew-missions. That is the price of sending them.
-- Built in Phase 1 (slices 1a and 1b): the tuning file is `content/tuning/missions.yaml`, and `SimRunner bench --objective ID --compare FILE` runs the same seeds under the pack's tuning and under `FILE`. On the benchmark crew (10,000 missions per briefing) the C# resolver gives calls per mission of 3.1, 2.5, and 1.3 for a cautious lead across the three autonomy settings, 2.5, 1.3, and 0.6 for an average one, and 0.7, 0.2, and 0.2 for a reckless one. A reckless lead loses about 17% of missions at about 3.6 deaths per 100 crew-missions (the prototype gave 13% and 3.7: skips now belong to a stage, not an encounter, and the dice differ).
+- Built in Phase 1 (slices 1a and 1b): the tuning file is `content/tuning/missions.yaml`, and `SimRunner bench --objective ID --compare FILE` runs the same seeds under the pack's tuning and under `FILE`. On the benchmark crew (10,000 missions per briefing) the C# resolver gives calls per mission of 3.1, 2.5, and 1.3 for a cautious lead across the three autonomy settings, 2.5, 1.3, and 0.6 for an average one, and 0.7, 0.2, and 0.2 for a reckless one. A reckless lead loses about 17% of missions at about 3.6 deaths per 100 crew-missions (the prototype gave 13% and 3.7: the skippable mark moved from the encounter to the stage that draws it, and the dice differ).
 - **The dice seam** (slice 1c): the tuning file holds `check.dice` and `injury.dice`, each `{ count, sides }`, both 2 and 6 today. The resolver rolls only through one dice type, and the reach rule uses its average, so another number and size of dice is a file edit plus a bench. A different mechanic (a pool, advantage, or exploding dice) replaces that one type; the golden values are then re-pinned and the shape tests say whether the game kept its shape.
 - Measured again after slice 1c on the bench's generated mixed team (10,000 missions per briefing): calls per mission are unchanged at 3.1, 2.5, and 1.3 for a cautious lead across the three autonomy settings, 2.5, 1.3, and 0.6 for an average one, and 0.7, 0.2, and 0.2 for a reckless one. A reckless lead of that team loses 15.7% of missions at 3.5 deaths per 100 crew-missions. That is a different team from the fixed benchmark crew behind the 17% above; slice 1c changed neither figure.
 - "Develop juniors" under the carried rule, same team: full success 78.2% against 85.2% for best qualified. The junior's experience goes from 2.0 to 5.2 per mission and the senior's from 12.0 to 10.1. On a veteran team it costs about three points (95.4% against 98.3%); rookies never qualify for supervision, so it changes nothing for them.
@@ -562,7 +569,7 @@ Register: reports read as a ship's log (clipped, factual, attributed), which sit
 
 Built in slice 1d (`Sim.Narrative`; design and plan in `docs/plans/2026-11-14-phase-1d-*.md`):
 
-- **Situations.** Each beat becomes a situation: a flat set of facts (the encounter and its tags, the stage, momentum, strain, and the beat's own facts, such as a check's tier and margin) and the people in it by role (`actor`, `helper`, `lead`, `crew`), with their stats as facts (`actor.caution`). `Sim.Core` lists the facts of every beat kind; the loader, the editor, and the mapping in `Sim.Missions` all read that one catalogue. `Sim.Narrative` knows nothing of missions, so vignettes and the chronicle can build situations of their own.
+- **Situations.** Each beat becomes a situation: a flat set of facts (the encounter and its tags, the stage number, momentum, strain, and the beat's own facts, such as a check's tier and margin) and the people in it by role (`actor`, `helper`, `lead`, `crew`), with their stats as facts (`actor.caution`). `Sim.Core` lists the facts of every beat kind; the loader, the editor, and the mapping in `Sim.Missions` all read that one catalogue. `Sim.Narrative` knows nothing of missions, so vignettes and the chronicle can build situations of their own.
 - **Lines** have a beat, criteria, and text. A criterion is a value, any of several values, or a range (`actor.caution: { min: 1 }`). The most specific line whose criteria all hold wins; a line already used in the mission loses to an equally specific fresh one; ties break by a stable hash of the legacy seed, the mission, and the beat.
 - **Where lines live** (revised after slice 1d, on the author's note that an encounter's narrative belongs in the encounter). There is one pool and one rule of selection, but two places to write. A line about one encounter or one objective is written inside that item: as `text` for its own beats (an encounter's arrival, each approach by tier, a decision's call, initiative, and the effects of each choice; an objective's result by outcome), or as an entry in its `lines` for any other beat, with criteria of its own. The item is an implied criterion, so its own words outrank a shared line that tests the same things. The shared lines (`content/lines/`) hold only what belongs to no one item (injuries, the lead, the captain's answers, words keyed to personality) and the general fallbacks.
 - **Scripts** (slice 1d authoring, `docs/plans/2026-11-15-phase-1d-authoring-design.md`). A line's text is one sentence or a script, one entry to a line: `lead: words` is speech, `> words` a system note, anything else narration, and a last line `= sentence` is what the report says. A speaker is one of the beat's people, `captain`, or `best SKILL_ID`: whoever still standing is best at that skill, the lead aside. An entry whose speaker is not there is left out and the rest plays. A text of `-` alone says nothing. An approach's `attempt` text is said before its check's result is shown. A call's script is shown on the call itself, and the decision's `labels` name its answer buttons.
@@ -571,7 +578,7 @@ Built in slice 1d (`Sim.Narrative`; design and plan in `docs/plans/2026-11-14-ph
 - **Never stored, never random.** Text is regenerated on every view from the beats and the current pack, so a grammar edit shows at once, even in old missions. It draws from no RNG stream: the event log is identical with or without lines.
 - **Fallback.** A beat no authored line holds for shows the structural systems line, so a pack with no lines still plays. The loader refuses criteria and text that can never hold for their beat kind.
 - **Tags.** Every log line ends with generated figures for what its beat changed (a check's tier and margin, and its momentum and strain changes, from two members the check beat gained in this slice). Lines never author them, so every line cites what changed (risk 2).
-- **The report** in the aftermath: three to eight of the log's sentences, in order, chosen from the beats that mattered (injuries and deaths, calls, initiatives, answers, the collapse, and the result always; then failures and lead changes; then stage openers to make three), and each call and initiative with its answer.
+- **The report** in the aftermath: three to eight of the log's sentences, in order, chosen from the beats that mattered (injuries and deaths, calls, initiatives, answers, the collapse, and the result always; then failures and lead changes; then arrivals at encounters, the stage beats, to make three), and each call and initiative with its answer.
 - **Not yet**: encounter variants and assignment contexts as criteria, relationship-aware inserts, species forms, repetition memory across missions, and the expression language as a criterion (slice 1e).
 
 ### 6.1 Writing lines
@@ -640,11 +647,11 @@ Two tie-breakers sit underneath. **Freshness:** between equally specific lines, 
 
 Some facts are lists, such as an encounter's tags, and for those the criterion asks whether the list holds the value: `encounterTags` with `hazard` means the encounter is tagged hazard, and `hazard, social` means it has either. Yes-or-no facts take `true` or `false`.
 
-**The facts to test.** Every beat has the objective and its tags (`objective`, `objectiveTags`), the encounter in play and its tags (`encounter`, `encounterTags`), the `stage` number, the team's `momentum` and `strain`, `commsBlocked`, `teamStanding` (how many of the team can still act; on an injury beat, counted after the injury), and the `lead`. Each kind of beat adds its own:
+**The facts to test.** Every beat has the objective and its tags (`objective`, `objectiveTags`), the encounter in play and its tags (`encounter`, `encounterTags`), the `stage` number (how many encounters the team has reached, this one included: it counts encounters, not the objective's stages), the team's `momentum` and `strain`, `commsBlocked`, `teamStanding` (how many of the team can still act; on an injury beat, counted after the injury), and the `lead`. Each kind of beat adds its own:
 
 | Beat | When it happens | Its own facts | People |
 |---|---|---|---|
-| stage | The team arrives at a new stage | `slot`, the stage's role, such as approach or extraction | lead |
+| stage | The team arrives at the next encounter | `slot`, the label of the stage that drew it, such as approach or extraction (`chain` for a follow-on encounter) | lead |
 | attempt | The moment before a check's result is known | `approach`, `skill`, `helped`, `supervised`, `mentoring` | actor, helper (when there is one), lead |
 | check | Someone attempts something | `approach` (the approach's id), `skill`, `tier` (critical, success, partial, failure, or disaster), `margin`, `helped`, `supervised`, `mentoring` | actor, helper (when there is one), lead |
 | injury | Someone rolls against injury | `severity` (light or severe), `outcome` (unharmed, lightInjury, incapacitated, or dead) | crew, lead |
@@ -653,7 +660,7 @@ Some facts are lists, such as an encounter's tags, and for those the criterion a
 | answer | The captain replies | `decision`, `answer`, `standing` (backed, overruled, or neutral) | lead |
 | effects | A decision takes effect | `decision`, `chose` (bold, safe, or withdraw), `progress`, `momentumChange`, `strainChange`, `injuryRoll`, `withdraw` | lead |
 | lead | Someone takes over as lead | | crew (the new lead), lead |
-| skip, chain, collapse | A stage is skipped on momentum; a disaster leads to a follow-on encounter; the team collapses | | lead |
+| skip, chain, collapse | An encounter is skipped on momentum; a disaster leads to a follow-on encounter; the team collapses | | lead |
 | result | The mission ends | `outcome` (fullSuccess, partialSuccess, incomplete, withdrawal, or loss) | lead |
 
 Every person in a beat also has stats to test: `id`, `caution`, `discipline`, `seniority`, and `isLead`, written as `actor.caution` or `lead.discipline`. That is how lines reflect personality: `actor.caution` with `1..` means the person acting leans cautious, so the line can have them hesitate, while a reckless actor gets a line where they charge in. The form suggests exactly the chosen beat's facts, and the game refuses a fact the beat does not have.
@@ -693,7 +700,7 @@ The cliff, as three small pieces in one encounter: an approach's Before the chec
 
 **The numbers take care of themselves.** No line needs figures. Every log line ends with small tags for what changed (the check's tier and margin, a momentum or strain change, an injury outcome), and the full roll is one click away under "Roll". Sentences can stay purely narrative.
 
-**What the report uses.** In mission order: always injuries that hurt someone, deaths, calls, initiatives, the captain's answers, a collapse, critical and disastrous checks, and the result; then failed checks and changes of lead while there is room, up to eight sentences; then arrivals at stages to make at least three. For each it uses the line's report sentence: the sentence itself for a one-sentence line, the `=` line for a script. Plain successes and partials never reach the report.
+**What the report uses.** In mission order: always injuries that hurt someone, deaths, calls, initiatives, the captain's answers, a collapse, critical and disastrous checks, and the result; then failed checks and changes of lead while there is room, up to eight sentences; then arrivals at encounters (stage beats) to make at least three. For each it uses the line's report sentence: the sentence itself for a one-sentence line, the `=` line for a script. Plain successes and partials never reach the report.
 
 **A sensible way to work.**
 
@@ -773,7 +780,7 @@ Built in slice 1c (`src/Web`, run with `./run.sh`):
 - **Briefing is one form,** sent whole at launch. Sending nobody just moves the phase on.
 - **Beats are paced by the server.** A launch or an answer resolves the mission to its next call or its end and commits; the response then sends the log one beat longer each time, with a pause that is a setting. The roster, the meters, the call, and the outcome hold back until the log reaches them, so nothing gives the ending away. A dropped connection loses nothing.
 - **The screens so far:** the list of legacies, orders, briefing, resolution, and aftermath, with the top bar (week, cycle, and the five phases) and the roster beside each. The inbox and the crew file come with slice 1e.
-- **Beat lines are prose** (slice 1d): an authored line, then its tags in the mono figure style, then a disclosure ("Roll" on a check) with the structural line: `CREW_02 checks SKILL_B at ENCOUNTER_01, helped by CREW_05: 6 + 3 against 15, failure (−6).` A stage line keeps its "Stage N:" head before the prose. The aftermath opens with the report. A refused call answer says what happened in plain words.
+- **Beat lines are prose** (slice 1d): an authored line, then its tags in the mono figure style, then a disclosure ("Roll" on a check) with the structural line: `CREW_02 checks SKILL_B at ENCOUNTER_01, helped by CREW_05: 6 + 3 against 15, failure (−6).` A stage line keeps its "Stage N:" head before the prose; N counts encounters, so an objective whose stages draw two encounters each runs past its own number of stages. The aftermath opens with the report. A refused call answer says what happened in plain words.
 - **A legacy played through the browser has exactly the simulator's event log** for the same seed and choices; a test holds the two together.
 - **Everything authored has a display name** (slice 1c-editor): skills, crew, gear, objective templates, encounters, decisions, and assignments. Ids stay the keys in saves, events, and references; the screens and the log show the name and fall back to the id. Two items that share a name show their ids beside it.
 - **The content editor** (slice 1c-editor, `/dev/content`, developer mode only; `run.sh` turns it on): a form for each kind of content, and the tuning and pack files as text. Slice 1d adds lines (with a preview that expands the line as typed against fixed sample missions on the starting crew, and says whether it wins each beat or which line beats it), symbols, pronoun sets, the crew's pronoun pick, and a lint on the lines page that names lines no sample chooses and beats with no line. A save builds the whole pack as it would be, runs the loader on it, and only then writes one file and swaps the pack in the running game; a save the loader refuses writes nothing and shows the reasons. The encounter and objective forms end with "What plays here" (slice 1d authoring): the item's beats in mission order, each with a box for its own words or the line that plays there now, lines of the item's own under their beat with their criteria as rows, live previews of the unsaved form against samples built for the item, and chips that insert what a beat can name. A file holding anything the editor cannot keep faithfully is never rewritten. Names and gear reach games in progress at once; a legacy's crew keep the levels they started with. Git stays the record.
@@ -872,7 +879,7 @@ A second simulator mode that answers one question: is this mission balanced? It 
   - Calls and initiatives per run.
   - Experience earned per team member.
   - Per-encounter tier distribution, and how often each approach was chosen: the share of checks by approach position ("1st %" to "4th %", in the order the encounter lists them), and "narrowed %", the checks where an approach was unavailable.
-  - Momentum and strain at each stage, to show where runs are won or lost.
+  - Momentum and strain at each encounter, to show where runs are won or lost.
   - The same alarms as the full simulator, applied to this one mission.
   - With a sweep: the results side by side, so the gap between rookie and veteran teams is visible.
 - **Reproducing a run**: every run is identified by its seed. Any single run, such as the worst one, can be replayed to read its full report.
