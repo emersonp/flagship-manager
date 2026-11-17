@@ -2,10 +2,10 @@
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
 <style>
-/* Layout: a service-record binder. Fixed section index on the left, one reading column on the right. */
+/* Layout: a ship's technical manual. A fixed binder index on the left (parts, chapters, and the open chapter's sections); one chapter at a time in the reading column. */
 :root {
   --bg: #eceff3; --panel: #f7f8fa; --fg: #17212c; --muted: #566575; --line: #cfd6de;
-  --accent: #0d6e7a; --accent-soft: #d6eaec; --code-bg: #e2e7ed;
+  --accent: #0d6e7a; --accent-soft: #d6eaec; --code-bg: #e2e7ed; --mark: #f2dc8a;
   --t-crit: #1f7a4d; --t-succ: #5aa37c; --t-part: #c79a2b; --t-fail: #c8683a; --t-dis: #a23232;
   --display: "Barlow Condensed", "Arial Narrow", sans-serif;
   --body: "IBM Plex Sans", system-ui, sans-serif;
@@ -13,36 +13,62 @@
 }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
   --bg: #111922; --panel: #18222d; --fg: #dde4ea; --muted: #93a2b1; --line: #2b3947;
-  --accent: #5cc3cf; --accent-soft: #17343a; --code-bg: #1e2a36;
+  --accent: #5cc3cf; --accent-soft: #17343a; --code-bg: #1e2a36; --mark: #5c4d16;
   --t-crit: #3fae77; --t-succ: #2f7d57; --t-part: #b98f2a; --t-fail: #b85f37; --t-dis: #9c3a3a;
   color-scheme: dark } }
 :root[data-theme="dark"] {
   --bg: #111922; --panel: #18222d; --fg: #dde4ea; --muted: #93a2b1; --line: #2b3947;
-  --accent: #5cc3cf; --accent-soft: #17343a; --code-bg: #1e2a36;
+  --accent: #5cc3cf; --accent-soft: #17343a; --code-bg: #1e2a36; --mark: #5c4d16;
   --t-crit: #3fae77; --t-succ: #2f7d57; --t-part: #b98f2a; --t-fail: #b85f37; --t-dis: #9c3a3a;
   color-scheme: dark }
 body { background: var(--bg); color: var(--fg); font: 16px/1.6 var(--body); }
-.wrap { display: grid; grid-template-columns: 15rem minmax(0, 1fr); gap: 3rem; max-width: 74rem; margin: 0 auto;
-  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 2.5rem 5rem; }
-nav { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 1.5rem); align-self: start; display: flex; flex-direction: column; gap: 1px; font-size: .875rem; }
-nav a { display: flex; gap: .75rem; padding: .3rem .5rem; color: var(--muted); text-decoration: none; border-left: 2px solid var(--line); }
-nav a span { font-family: var(--mono); font-size: .75rem; padding-top: .1rem; }
-nav a:hover, nav a.on { color: var(--fg); border-left-color: var(--accent); }
-nav a:focus-visible, button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-main { min-width: 0; display: flex; flex-direction: column; gap: 3.5rem; }
-header .eyebrow { font: 500 .75rem var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 0 0 .5rem; }
-h1 { font: 600 3.25rem/1 var(--display); letter-spacing: .01em; margin: 0 0 1rem; text-wrap: balance; }
-header p { max-width: 62ch; margin: 0 0 .75rem; }
-header .lede { font-size: 1.2rem; line-height: 1.5; }
-header .status { color: var(--muted); font-size: .9rem; }
-section { display: flex; flex-direction: column; gap: 1rem; scroll-margin-top: 1rem; }
-section > * { margin: 0; }
-h2 { font: 600 2rem/1.1 var(--display); display: flex; align-items: baseline; gap: .75rem; padding-bottom: .5rem; border-bottom: 1px solid var(--line); text-wrap: balance; }
+a { color: var(--accent); }
+.wrap { display: grid; grid-template-columns: 17rem minmax(0, 1fr); gap: 3rem; max-width: 80rem; margin: 0 auto;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 0 5rem; }
+
+/* Binder index */
+.side { position: sticky; top: env(safe-area-inset-top, 0px); align-self: start; max-height: 100vh; overflow-y: auto; padding-block: 1.75rem 2rem; display: flex; flex-direction: column; gap: 1rem; }
+.brand { display: flex; align-items: baseline; justify-content: space-between; gap: .5rem; }
+.brand a { font: 600 1.5rem/1 var(--display); color: var(--fg); text-decoration: none; letter-spacing: .01em; }
+.brand span { font: .72rem var(--mono); color: var(--muted); }
+#q { font: .9rem var(--body); width: 100%; box-sizing: border-box; padding: .45rem .6rem; background: var(--panel); color: var(--fg); border: 1px solid var(--line); border-radius: 3px; }
+#navtoggle { display: none; }
+.navlist { display: flex; flex-direction: column; gap: .2rem; font-size: .875rem; }
+.navlist a { color: var(--muted); text-decoration: none; }
+.navlist a:hover { color: var(--fg); }
+.navlist .home { padding: .3rem .5rem; border-left: 2px solid var(--line); }
+.part { font: 500 .7rem var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin: .9rem 0 .2rem; }
+.chs, .secs { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 1px; }
+.chs > li > a, .navlist .home { display: flex; gap: .6rem; padding: .3rem .5rem; border-left: 2px solid var(--line); }
+.chs > li > a span { font: .75rem var(--mono); padding-top: .1rem; min-width: 1.2rem; }
+.secs { display: none; padding: .15rem 0 .35rem 1.9rem; border-left: 2px solid var(--accent); }
+.secs a { display: flex; gap: .5rem; padding: .15rem 0; font-size: .82rem; }
+.secs a span { font: .72rem var(--mono); padding-top: .1rem; min-width: 2.1rem; }
+li.on > a, .navlist .home.on { color: var(--fg); border-left-color: var(--accent); font-weight: 500; }
+li.on > .secs { display: flex; }
+.secs a.on { color: var(--fg); }
+
+/* Reading column */
+main { min-width: 0; padding-top: 1.75rem; }
+.js article.chapter:not(.on) { display: none; }
+article.chapter { display: flex; flex-direction: column; gap: 1rem; }
+article.chapter > * { margin: 0; }
+.intro, .sec { display: flex; flex-direction: column; gap: 1rem; }
+.intro:empty { display: none; }
+.intro > *, .sec > * { margin: 0; }
+.sec { scroll-margin-top: 1rem; padding-top: 1.25rem; }
+.eyebrow { font: 500 .75rem var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 0; }
+h1 { font: 600 3.25rem/1 var(--display); letter-spacing: .01em; margin: 0; text-wrap: balance; display: flex; align-items: baseline; gap: .9rem; }
+h1 .num { font: 500 1.1rem var(--mono); color: var(--accent); }
+.chead { display: flex; flex-direction: column; gap: .6rem; padding-bottom: 1rem; border-bottom: 1px solid var(--line); }
+.chead .desc { color: var(--muted); max-width: 62ch; margin: 0; }
+h2 { font: 600 1.7rem/1.1 var(--display); display: flex; align-items: baseline; gap: .75rem; text-wrap: balance; margin: 0; }
 h2 .num { font: 500 .85rem var(--mono); color: var(--accent); }
 h3 { font: 600 1.05rem var(--body); margin-top: 1rem; }
 p, li { max-width: 68ch; }
 ul, ol { padding-left: 1.3rem; display: flex; flex-direction: column; gap: .35rem; }
 li > ul, li > ol { margin-top: .35rem; }
+a.xref { text-decoration-thickness: 1px; text-underline-offset: 2px; }
 code { font: .86em var(--mono); background: var(--code-bg); padding: .08em .3em; border-radius: 3px; overflow-wrap: anywhere; }
 .scroll { overflow-x: auto; max-width: 100%; }
 pre { margin: 0; background: var(--panel); border: 1px solid var(--line); border-radius: 4px; padding: .9rem 1rem; width: max-content; min-width: 100%; box-sizing: border-box; }
@@ -50,13 +76,66 @@ pre code { background: none; padding: 0; font-size: .8rem; line-height: 1.55; ov
 table { border-collapse: collapse; width: 100%; font-size: .9rem; }
 th { text-align: left; font: 500 .72rem var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
 th, td { padding: .5rem .75rem .5rem 0; border-bottom: 1px solid var(--line); vertical-align: top; min-width: 7rem; }
+td:first-child { font-weight: 500; }
 .st { display: inline-block; padding: 0 .5rem; border: 1px solid var(--line); border-radius: 4px; font-size: .8rem; line-height: 1.7; white-space: nowrap; color: var(--muted); }
 .st-done { border-color: var(--accent); background: var(--accent-soft); color: var(--fg); }
 .st-now { border-color: var(--accent); color: var(--accent); font-weight: 600; }
 .st-next { color: var(--fg); border-color: var(--muted); }
 tr.row-later td, tr.row-later td code { color: var(--muted); }
-td:first-child { font-weight: 500; }
-.widget { background: var(--panel); border: 1px solid var(--line); border-radius: 4px; padding: 1rem 1.1rem; display: flex; flex-direction: column; gap: .8rem; }
+.cfoot { display: flex; flex-direction: column; gap: 1rem; margin-top: 2.5rem; padding-top: 1rem; border-top: 1px solid var(--line); }
+.src { font-size: .82rem; color: var(--muted); margin: 0; }
+.pager { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+.pager a { display: flex; flex-direction: column; padding: .7rem .9rem; border: 1px solid var(--line); border-radius: 4px; text-decoration: none; color: var(--fg); font-weight: 500; }
+.pager a:hover { border-color: var(--accent); }
+.pager .next { text-align: right; }
+.pager small { font: .7rem var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 400; }
+
+/* Overview */
+.hero { display: flex; flex-direction: column; gap: .75rem; }
+.hero h1 { font-size: 3.6rem; }
+.lede { font-size: 1.2rem; line-height: 1.5; max-width: 62ch; margin: 0; }
+.status { color: var(--muted); font-size: .9rem; margin: 0; }
+.where { background: var(--panel); border: 1px solid var(--line); border-radius: 4px; padding: 1.1rem 1.25rem; display: flex; flex-direction: column; gap: .8rem; margin-top: 1.5rem; }
+.where > * { margin: 0; }
+.where h2 { font-size: 1.35rem; }
+.phase { font-size: .95rem; }
+.ticks { display: grid; grid-template-columns: repeat(auto-fit, minmax(.9rem, 1fr)); gap: 3px; }
+.ticks i { height: .6rem; border-radius: 2px; background: var(--line); }
+.ticks .t-done { background: var(--accent); }
+.ticks .t-now, .ticks .t-next { background: transparent; box-shadow: inset 0 0 0 2px var(--accent); }
+.slice { display: flex; flex-direction: column; gap: .2rem; }
+.slice > * { margin: 0; }
+.slice .label { font: 500 .7rem var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.slice.now .label { color: var(--accent); }
+.slice .name { font-weight: 600; }
+.slice p:last-child:not(.name) { font-size: .92rem; }
+.more { font-size: .9rem; }
+.parts { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 19rem), 1fr)); gap: 2rem 2.5rem; margin-top: 1.5rem; }
+.partcard { display: flex; flex-direction: column; gap: .5rem; }
+.partcard > * { margin: 0; }
+.partcard h2 { font-size: 1.5rem; padding-bottom: .4rem; border-bottom: 1px solid var(--line); }
+.partcard > p { color: var(--muted); font-size: .9rem; }
+.partcard ul { list-style: none; padding: 0; gap: 0; }
+.partcard li a { display: grid; grid-template-columns: 1.8rem minmax(0, 1fr); padding: .5rem 0; border-bottom: 1px solid var(--line); text-decoration: none; color: var(--fg); }
+.partcard li a:hover .t { color: var(--accent); }
+.partcard .n { font: .8rem var(--mono); color: var(--accent); padding-top: .15rem; grid-row: span 2; }
+.partcard .t { font-weight: 600; }
+.partcard .d { font-size: .85rem; color: var(--muted); }
+
+/* Search results */
+#results { display: flex; flex-direction: column; gap: 1rem; }
+#results[hidden] { display: none; }
+.js.searching article.chapter { display: none; }
+#results ol { list-style: none; padding: 0; gap: 0; }
+#results li a { display: flex; flex-direction: column; gap: .15rem; padding: .7rem 0; border-bottom: 1px solid var(--line); text-decoration: none; color: var(--fg); max-width: 72ch; }
+#results li a:hover .rt { color: var(--accent); }
+.rt { font-weight: 600; }
+.rc { font: .72rem var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.rs { font-size: .9rem; color: var(--muted); }
+mark { background: var(--mark); color: var(--fg); border-radius: 2px; padding: 0 .1em; }
+
+/* Widgets */
+.widget { background: var(--panel); border: 1px solid var(--line); border-radius: 4px; padding: 1rem 1.1rem; display: flex; flex-direction: column; gap: .8rem; margin-top: .5rem; }
 .widget > * { margin: 0; }
 .wlabel { font: 500 .72rem var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
 .wgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr)); gap: .75rem 1rem; }
@@ -74,6 +153,8 @@ td:first-child { font-weight: 500; }
 .stakes div { border: 1px solid var(--line); border-radius: 3px; padding: .45rem .3rem; text-align: center; font: .78rem var(--mono); color: var(--muted); }
 .stakes div b { display: block; font-size: 1rem; color: var(--fg); }
 .stakes div.call { background: var(--accent-soft); border-color: var(--accent); color: var(--fg); }
+
+/* Open questions */
 .qtools { display: flex; flex-wrap: wrap; gap: .6rem; align-items: center; }
 button { font: 500 .9rem var(--body); padding: .5rem .9rem; border-radius: 3px; border: 1px solid var(--accent); background: var(--accent); color: var(--bg); cursor: pointer; }
 button#q-rec { background: transparent; color: var(--accent); }
@@ -90,36 +171,139 @@ fieldset.q legend { font-weight: 600; padding: 0; display: flex; gap: .6rem; ali
 .opt em { font: normal .7rem var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--accent); margin-left: .3rem; }
 .why { color: var(--muted); font-size: .92rem; clear: both; margin: 0; }
 .note { font: .9rem var(--body); padding: .4rem .6rem; background: var(--panel); color: var(--fg); border: 1px solid var(--line); border-radius: 3px; max-width: 68ch; }
+
+a:focus-visible, button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+@media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
+
 @media (max-width: 56rem) {
-  .wrap { grid-template-columns: minmax(0, 1fr); gap: 1.5rem; padding-block: 1.25rem 4rem; }
-  nav { position: static; flex-direction: row; overflow-x: auto; gap: .25rem; padding-bottom: .4rem; }
-  nav a { border-left: 0; border-bottom: 2px solid var(--line); white-space: nowrap; gap: .4rem; }
-  nav a:hover, nav a.on { border-bottom-color: var(--accent); }
-  h1 { font-size: 2.4rem; } h2 { font-size: 1.6rem; }
+  .wrap { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg); }
+  .side { max-height: none; overflow: visible; padding-block: 1rem; gap: .6rem; background: var(--bg); z-index: 5; border-bottom: 1px solid var(--line); }
+  .js .side { max-height: 100vh; overflow-y: auto; }
+  #navtoggle { display: block; background: transparent; color: var(--accent); }
+  .tools { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .5rem; }
+  .js .navlist { display: none; }
+  .js.navopen .navlist { display: flex; padding-bottom: .5rem; }
+  main { padding-top: 1.25rem; }
+  h1, .hero h1 { font-size: 2.4rem; } h2 { font-size: 1.45rem; }
+  .pager { grid-template-columns: minmax(0, 1fr); }
 }
 </style>
+<script>document.documentElement.classList.add('js');</script>
 <div class="wrap">
-<nav aria-label="Sections">{{NAV}}</nav>
+<aside class="side">
+<div class="brand"><a href="#home">Starship Sim</a><span>GDD {{VERSION}}</span></div>
+<div class="tools">
+<input type="search" id="q" placeholder="Search the GDD" aria-label="Search the GDD" autocomplete="off">
+<button type="button" id="navtoggle" aria-expanded="false" aria-controls="navlist">Chapters</button>
+</div>
+<nav class="navlist" id="navlist" aria-label="Chapters">{{NAV}}</nav>
+</aside>
 <main>
-<header>
-<p class="eyebrow">Game design document · v1.16 · a storylet from a mission done; vignettes and morale next · 2026-11-16</p>
-<h1>Starship Sim</h1>
-<p class="lede">Hold the chair of a ship. Choose who goes, who leads, and who stays; then live with what follows aboard. Skill, experience, loyalty, and the crew's own qualities all pull on every choice, and the consequences stay. One player's whole game is a legacy.</p>
-<p class="status">Creative content is placeholder throughout (<code>SPECIES_A</code>, <code>MISSION_TEMPLATE_1</code>). Numbers are starting points for the balance simulator, not commitments. Source: <code>docs/gdd.md</code>.</p>
-</header>
+<section id="results" hidden aria-live="polite"></section>
 {{BODY}}
 </main>
 </div>
 <script>
 (function () {
   var $ = function (id) { return document.getElementById(id); };
+  var root = document.documentElement;
   function num(id) { var v = parseFloat($(id).value); return isNaN(v) ? 0 : v; }
 
-  // Check calculator: score + 2d6 against difficulty + 7
+  // ---- Routing: #home, #s4 (chapter 4), #s4-2 (section 4.2), #s16-q3 (open question 3)
+  var chapters = Array.prototype.slice.call(document.querySelectorAll('article.chapter'));
+  var navItems = Array.prototype.slice.call(document.querySelectorAll('.chs > li'));
+  var home = document.querySelector('.navlist .home');
+  function route() {
+    var h = location.hash.slice(1), m = h.match(/^s(\d+)/), target = h && document.getElementById(h);
+    var ch = m && $('s' + m[1]) && $('s' + m[1]).tagName === 'ARTICLE' ? $('s' + m[1]) : $('home');
+    clearSearch();
+    chapters.forEach(function (a) { a.classList.toggle('on', a === ch); });
+    navItems.forEach(function (li) { li.classList.toggle('on', li.dataset.ch === ch.id); });
+    home.classList.toggle('on', ch.id === 'home');
+    root.classList.remove('navopen'); $('navtoggle').setAttribute('aria-expanded', 'false');
+    document.title = ch.id === 'home' ? 'Starship Sim GDD' : ch.querySelector('h1 .num').textContent + '. ' + ch.dataset.title + ' · Starship Sim GDD';
+    if (target && target !== ch) target.scrollIntoView(); else window.scrollTo(0, 0);
+    markSection();
+  }
+  window.addEventListener('hashchange', route);
+
+  // The section in view is marked in the index
+  function markSection() {
+    var ch = document.querySelector('article.chapter.on'), on = null;
+    if (ch) ch.querySelectorAll('.sec').forEach(function (s) { if (s.getBoundingClientRect().top < window.innerHeight * 0.3) on = s.id; });
+    document.querySelectorAll('.secs a').forEach(function (a) { a.classList.toggle('on', a.getAttribute('href') === '#' + on); });
+  }
+  var ticking = false;
+  window.addEventListener('scroll', function () { if (!ticking) { ticking = true; requestAnimationFrame(function () { ticking = false; markSection(); }); } }, { passive: true });
+
+  $('navtoggle').addEventListener('click', function () {
+    var open = root.classList.toggle('navopen');
+    this.setAttribute('aria-expanded', open ? 'true' : 'false');
+  });
+
+  // ---- Search over every section, indexed from the page itself
+  var index = null;
+  function buildIndex() {
+    index = [];
+    chapters.forEach(function (a) {
+      if (a.id === 'home') return;
+      var chTitle = a.querySelector('h1 .num').textContent + '. ' + a.dataset.title;
+      var intro = a.querySelector('.intro');
+      if (intro && intro.textContent.trim()) index.push({ href: a.id, ch: chTitle, title: chTitle, text: a.querySelector('.desc').textContent + ' ' + intro.textContent });
+      a.querySelectorAll('.sec, fieldset.q').forEach(function (s) {
+        var head = s.querySelector('h2, legend');
+        index.push({ href: s.id, ch: chTitle, title: head.textContent.replace(/^(\d+(\.\d+)?)/, '$1 '), text: s.textContent.slice(head.textContent.length) });
+      });
+    });
+  }
+  function esc(t) { return t.replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  function highlight(t, terms) {
+    var e = esc(t);
+    terms.forEach(function (w) { e = e.replace(new RegExp('(' + esc(w).replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'ig'), '<mark>$1</mark>'); });
+    return e;
+  }
+  function search(q) {
+    if (!index) buildIndex();
+    var terms = q.toLowerCase().split(/\s+/).filter(Boolean), hits = [];
+    index.forEach(function (e) {
+      var tl = e.title.toLowerCase(), xl = e.text.toLowerCase(), score = 0;
+      for (var i = 0; i < terms.length; i++) {
+        var inT = tl.indexOf(terms[i]) >= 0, inX = xl.indexOf(terms[i]) >= 0;
+        if (!inT && !inX) return;
+        score += (inT ? 10 : 0) + (inX ? 1 : 0);
+      }
+      var at = xl.indexOf(terms[0]), from = Math.max(0, at - 70);
+      var snip = (at < 0 ? e.text.slice(0, 160) : (from ? '…' : '') + e.text.slice(from, at + 110) + '…').replace(/\s+/g, ' ');
+      hits.push({ e: e, score: score, snip: snip });
+    });
+    hits.sort(function (a, b) { return b.score - a.score; });
+    var r = $('results');
+    r.innerHTML = '<p class="eyebrow">' + hits.length + (hits.length === 1 ? ' section' : ' sections') + ' match “' + esc(q) + '”</p>' +
+      (hits.length ? '<ol>' + hits.slice(0, 60).map(function (h) {
+        return '<li><a href="#' + h.e.href + '"><span class="rc">' + esc(h.e.ch) + '</span><span class="rt">' + highlight(h.e.title, terms) + '</span><span class="rs">' + highlight(h.snip, terms) + '</span></a></li>';
+      }).join('') + '</ol>' : '<p>Nothing matches. Try fewer words, or a field name such as <code>stakes</code>.</p>');
+    r.hidden = false; root.classList.add('searching');
+  }
+  function clearSearch() { $('results').hidden = true; root.classList.remove('searching'); if ($('q').value) $('q').value = ''; }
+  var timer = null;
+  $('q').addEventListener('input', function () {
+    var q = this.value.trim(); clearTimeout(timer);
+    if (q.length < 2) { $('results').hidden = true; root.classList.remove('searching'); return; }
+    timer = setTimeout(function () { search(q); window.scrollTo(0, 0); }, 120);
+  });
+  $('q').addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') { clearSearch(); this.blur(); }
+    if (e.key === 'Enter') { var a = document.querySelector('#results a'); if (a) location.hash = a.getAttribute('href'); }
+  });
+  $('results').addEventListener('click', function (e) {
+    var a = e.target.closest('a'); if (a && a.getAttribute('href') === location.hash) { e.preventDefault(); route(); }
+  });
+
+  // ---- The check: score + 2d6 against difficulty + 7 (section 4.2)
   var tiers = [['Critical', '--t-crit'], ['Success', '--t-succ'], ['Partial', '--t-part'], ['Failure', '--t-fail'], ['Disaster', '--t-dis']];
   function check() {
-    var skill = num('c-skill'), second = num('c-assist');
-    var score = skill + Math.floor(second / 2) + num('c-gear') + num('c-mom') - num('c-strain');
+    var score = num('c-skill') + Math.floor(num('c-assist') / 2) + num('c-gear') + num('c-mom') - num('c-strain');
     var target = num('c-diff') + 7, p = [0, 0, 0, 0, 0];
     for (var a = 1; a <= 6; a++) for (var b = 1; b <= 6; b++) {
       var m = score + a + b - target;
@@ -129,26 +313,24 @@ fieldset.q legend { font-weight: 600; padding: 0; display: flex; gap: .6rem; ali
     $('c-bar').innerHTML = p.map(function (v, i) { return '<i style="width:' + (v * 100) + '%;background:var(' + tiers[i][1] + ')"></i>'; }).join('');
     $('c-legend').innerHTML = p.map(function (v, i) { return '<li><b style="background:var(' + tiers[i][1] + ')"></b>' + tiers[i][0] + ' ' + Math.round(v * 100) + '%</li>'; }).join('');
   }
-  ['c-skill', 'c-assist', 'c-gear', 'c-mom', 'c-strain', 'c-diff'].forEach(function (id) { $(id).addEventListener('input', check); });
-  check();
+  if ($('c-skill')) { ['c-skill', 'c-assist', 'c-gear', 'c-mom', 'c-strain', 'c-diff'].forEach(function (id) { $(id).addEventListener('input', check); }); check(); }
 
-  // Call rule: threshold = 3 - caution - discipline/2 + autonomy
+  // ---- The call rule: askThreshold = 3 - caution/2 - discipline/4 + autonomy (section 4.4)
   function sign(v) { return (v > 0 ? '+' : '') + v; }
   function call() {
     var c = num('k-caution'), d = num('k-disc'), a = num('k-auto');
     $('k-caution-o').textContent = sign(c); $('k-disc-o').textContent = sign(d); $('k-auto-o').textContent = sign(a);
-    var thr = 3 - c - d / 2 + a, calls = 0, h = '';
+    var thr = 3 - c / 2 - d / 4 + a, calls = 0, h = '';
     for (var s = 1; s <= 5; s++) {
       var isCall = s >= thr; if (isCall) calls++;
       h += '<div class="' + (isCall ? 'call' : '') + '">Stakes<b>' + s + '</b>' + (isCall ? 'Call' : 'Initiative') + '</div>';
     }
-    $('k-thr').textContent = 'Ask threshold ' + thr + '. This lead calls on ' + calls + ' of 5 stakes levels.';
+    $('k-thr').textContent = 'Ask threshold ' + (+thr.toFixed(2)) + '. This lead calls on ' + calls + ' of 5 stakes levels.';
     $('k-stakes').innerHTML = h;
   }
-  ['k-caution', 'k-disc', 'k-auto'].forEach(function (id) { $(id).addEventListener('input', call); });
-  call();
+  if ($('k-caution')) { ['k-caution', 'k-disc', 'k-auto'].forEach(function (id) { $(id).addEventListener('input', call); }); call(); }
 
-  // Open questions: remembered per browser, copied out as text
+  // ---- Open questions: remembered per browser, copied out as text
   var KEY = 'gdd-open-questions-v4', saved = {};
   try { saved = JSON.parse(localStorage.getItem(KEY) || '{}') || {}; } catch (e) { saved = {}; }
   var sets = Array.prototype.slice.call(document.querySelectorAll('fieldset.q'));
@@ -167,11 +349,11 @@ fieldset.q legend { font-weight: 600; padding: 0; display: flex; gap: .6rem; ali
     }
     f.addEventListener('input', store);
   });
-  $('q-rec').addEventListener('click', function () {
+  if ($('q-rec')) $('q-rec').addEventListener('click', function () {
     sets.forEach(function (f) { if (f.dataset.rec) { var r = f.querySelector('input[value="' + f.dataset.rec + '"]'); if (r) r.checked = true; } });
     store(); $('q-status').textContent = 'Recommendations selected.';
   });
-  $('q-copy').addEventListener('click', function () {
+  if ($('q-copy')) $('q-copy').addEventListener('click', function () {
     store();
     var lines = sets.map(function (f) {
       var s = saved[f.dataset.q] || {}, bits = [];
@@ -186,15 +368,6 @@ fieldset.q legend { font-weight: 600; padding: 0; display: flex; gap: .6rem; ali
     } else { fallback(); }
   });
 
-  // Section index highlight
-  var links = Array.prototype.slice.call(document.querySelectorAll('nav a'));
-  if ('IntersectionObserver' in window) {
-    var io = new IntersectionObserver(function (es) {
-      es.forEach(function (e) {
-        if (e.isIntersecting) links.forEach(function (a) { a.classList.toggle('on', a.getAttribute('href') === '#' + e.target.id); });
-      });
-    }, { rootMargin: '-10% 0px -80% 0px' });
-    document.querySelectorAll('main section').forEach(function (s) { io.observe(s); });
-  }
+  route();
 })();
 </script>

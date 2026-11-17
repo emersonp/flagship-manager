@@ -1,0 +1,75 @@
+# 11. Roadmap
+
+A chapter of the [Starship Sim GDD](../gdd.md). Section numbers are permanent ids; cross-references such as "section 4.3" find their chapter through the index.
+
+Each phase ends with something playable, a simulator run, and a short list of what the author learnt by playing. Art and online are separate tracks that can start whenever convenient.
+
+| Phase | Adds | Playable result |
+|---|---|---|
+| 0. Skeleton | Core, bus, event log, content loader and validator, RNG streams, `SimRunner` running an empty cycle | Nothing to play; a green simulator run |
+| 1. Thinnest game | 8 crew, 1 skill set, 1 single-cycle assignment template, 2 objective templates, 1 team, 6 encounters, checks with tiers, momentum and strain, 1 decision with the call rule, text report; mission bench (command line, then developer page) with the tuning file and tuning page; morale; 5 vignettes and 2 captain storylets; captain's time; inbox and crew file; chronicle list | A full cycle of both layers in the browser |
+| 2. Growth and loss | Experience, mentoring, injuries, death, memorials, several objectives at some sites, unattended objectives, mandates | The central trade-off exists |
+| 3. Who you send | Personality-driven calls and initiatives, operational parameters, gear and requisition | Team choice changes what you are asked |
+| 4. Life aboard | Relationships, storylines with `ifIgnored` and progress flags, ready-room talks, vignette budget, discretionary actions | Ignored problems get worse |
+| 5. Roster | Departments, org chart, duty roster, shipboard training, department heads, digest, insight; finer skills grouped by department and attribute, with grades seen through insight | Football Manager's weekday |
+| 6. Careers | Ageing, ranks and promotion, ambitions, poaching, personal and ship renown, Admiralty standing | Rosters turn over |
+| 7. Split teams and long assignments | Two to three missions at once on an interleaved timeline; assignments of several cycles with carried state; transit cycles | One strong team or two thin ones |
+| 8. Succession | Hull loss and succession, captain succession and pool, chronicle screen | A legacy survives its first disaster |
+| 9. Scale | Larger hulls up to roughly 500, salience tuning, casting performance | Management by exception |
+| 10. Families | Relatives of crew (siblings, cousins, and proteges) can arrive at any time; children join the fleet after real ageing | Names recur in the chronicle |
+| Unplaced: skills, attributes, and gear overhaul | A fuller skill list with attributes, and gear reworked to match. Risk tolerance, removed from the operational parameters in the 1d review, returns with it. Not yet designed, and not yet given a phase | Not yet known |
+| Unplaced: a shared library of approaches | Approaches defined once and used by many encounters, while an encounter can still write one of its own. The author will design this; not enough is known yet | Not yet known |
+| Track: online | Accounts, hosted Postgres, one legacy per player | Play from anywhere |
+| Track: portraits | Paper-doll spec, compositor, first part set | Faces in crew files |
+| Later | Dry dock, diplomacy, tactical grid, shared universe; much later, a way to write a speech of more than one paragraph in a script | |
+
+Phase 1 uses the real architecture at the smallest size. Nothing in it is thrown away.
+
+## 11.1 Progress
+
+What has been built, slice by slice. A phase is cut into slices when it is planned, so later phases have one row until then. Every slice ends with `./check.sh` green and a review. Detail for Phase 1's slices is in `docs/plans/phase-1-outline.md`.
+
+| Phase | Slice | What it adds | Status |
+|---|---|---|---|
+| 0. Skeleton | Whole phase | Core, event bus, event log, SQLite store, content loader, RNG streams, and an empty cycle in `SimRunner` | Done 2026-11-13 |
+| 1. Thinnest game | 1a. Mission resolver | Checks with tiers, momentum and strain, decisions with the call rule, and the tuning file | Done 2026-11-14 |
+| 1. Thinnest game | 1b. Mission bench | One mission run thousands of times from the command line, with before and after comparison | Done 2026-11-14 |
+| 1. Thinnest game | 1c, part one. A whole cycle, headless | Crew that grow, are hurt, heal, and die; missions on the event bus; module state stored; the simulator plays real cycles | Done 2026-11-14 |
+| 1. Thinnest game | 1c, part two. The cycle in the browser | Legacy selection, orders, briefing, resolution with paced beats and calls, aftermath, and the visual design | Done 2026-11-14 |
+| 1. Thinnest game | 1c-editor. Content editor | Developer-mode pages that write the content files, validated on save; display names for crew, skills, gear, objectives, encounters, and assignments | Done 2026-11-14 |
+| 1. Thinnest game | 1d. Reports | The grammar engine, lines chosen by salience, the log as prose with tags, the aftermath report, and lines, symbols, and pronoun sets in the editor | Done 2026-11-14 |
+| 1. Thinnest game | 1d-authoring. Writing in place | Scripts (speech, notes, a report sentence, an attempt before a check, call scripts and button labels), the "What plays here" panel with live previews, and generated fiction in the game's pack | Done 2026-11-15 |
+| 1. Thinnest game | 1d-review. Authored approaches | An encounter's approaches are the author's to name and tune, with requirements and outcomes of their own; the lead chooses by skill; "notice" becomes "initiative"; risk tolerance is removed; the encounter form gains a tab for each approach; the briefing's away team table restacks instead of scrolling | Done 2026-11-15 |
+| 1. Thinnest game | 1e, part one. A storylet from a mission | An encounter's outcome or a decision's answer changes a story flag (every flag is a number) on the ship, the one who acted, the lead, or the team; a storylet whose flag requirements hold arrives in the aftermath as a dilemma with two to four options and fixed effects (loyalty and flags); at most two a cycle; the simulator's captain answers them; two storylets in the game's pack | Done 2026-11-16 |
+| 1. Thinnest game | 1e, part two. Vignettes and morale | Morale for each crew member; vignettes on the same engine, mostly flavour with a small nudge to morale or loyalty, some with one small choice and a default | Next |
+| 1. Thinnest game | 1e, part three. The storylet engine in full | The expression language over the quality view (stats, story flags, and recent history such as who was hurt or on a lost mission); casting from the crew; salience ranking in place of a fixed order; cooldowns; `ifIgnored` and expiry; flags that bite on missions (an approach that requires or forbids one; a flag that keeps someone off an away team or makes sending them a broken promise; a flag that moves when a mission launches; a flag that fades with time: the worked example is a shaken crew member stood down from the next away team); an option settled by a check from a crew member the captain names; simulator policies that answer storylets, with fire counts and dead-content alarms | Later |
+| 1. Thinnest game | 1e, part four. The crew file and the chronicle list | A page for each crew member (skills, morale, loyalty, and the flags on them), and a list of what the captain decided and who was lost | Later |
+| 1. Thinnest game | 1e, part five. Writing storylets in the editor | Forms for storylets and vignettes with the "What plays here" panel, live previews against samples, and chips, as encounters have | Later |
+| 1. Thinnest game | 1f. Tuning in play | The mission bench and the tuning page in the browser | Later |
+| 1. Thinnest game | 1g. Captain's time | A budget each cycle spent from a menu of good things to do aboard, mostly mechanical with some narrative wrapping: a poker night, a captain's day or a concert (one or the other), a drill ordered through a named post. Needs a few named posts on the starting crew; departments and the org chart stay in Phase 5 | Later |
+| 1. Thinnest game | Playtest | Three legacies of 20 to 30 cycles against the checklist below | Later |
+| 2. Growth and loss | Not yet cut | Mentoring, memorials, several objectives at some sites, and mandates (experience, injuries, death, and unattended objectives arrived early, in 1c) | Not started |
+| 3. Who you send | Not yet cut | Gear and requisition (personality-driven calls and operational parameters arrived early, in 1a) | Not started |
+| 4. Life aboard | Not yet cut | Relationships, storylines and ready-room talks, the vignette budget, and discretionary actions | Not started |
+| 5. Roster | Not yet cut | Departments, org chart, duty roster, training, department heads, digest, and insight; finer skills with department and attribute grades | Not started |
+| 6. Careers | Not yet cut | Ageing, ranks and promotion, ambitions, poaching, renown, and Admiralty standing | Not started |
+| 7. Split teams and long assignments | Not yet cut | Several missions at once, assignments of several cycles, and transit | Not started |
+| 8. Succession | Not yet cut | Hull loss and succession, captain succession, and the chronicle screen | Not started |
+| 9. Scale | Not yet cut | Larger hulls, salience tuning, and casting performance | Not started |
+| 10. Families | Not yet cut | Relatives and children of crew | Not started |
+| Unplaced | Skills, attributes, and gear overhaul | A fuller skill list with attributes, gear reworked to match, and the return of risk tolerance | Not yet designed |
+| Unplaced | A shared library of approaches | Approaches shared between encounters, beside an encounter's own | Not yet designed; the author's to design |
+| Track: online | Not yet cut | Accounts, hosted database, and one legacy per player | Not started |
+| Track: portraits | Not yet cut | Paper-doll spec, compositor, and the first part set | Not started |
+
+Before Phase 2 starts, the Phase 1 playtest should show all of these:
+
+1. The central trade-off bites: the author has hesitated between sending the best crew and developing a junior.
+2. A loss landed: someone died or a mission was lost, and it mattered.
+3. Calls feel right: zero to two per mission, and who was sent changed what was asked.
+4. The numbers have been tuned in play at least once, including the dice.
+5. Both layers feed each other: a storylet changed who was sent, and a mission outcome reached the inbox.
+6. Authoring is sustainable: an encounter or a storylet takes minutes to add.
+7. The author wants to play one more cycle.
+
+The throwaway mission prototype (risk 1) was built and played on 2026-11-13. The author's verdict: it does not feel passive. Its balance findings are in section 4.

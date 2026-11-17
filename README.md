@@ -40,5 +40,5 @@ A `starship-sim.db` from an earlier build is refused at start with a message; de
 ## Where things live
 
 - `content/` holds the game content, which can change freely. The tests, golden hashes, bench figures, and scripts use the placeholder pack in `tests/fixtures/content/` instead (see `tests/fixtures/README.md`).
-- `docs/` holds the design, plans, research, and screens; `docs/gdd.md` is the game design document, and `docs/conventions.md` says how ids and names are written.
+- `docs/` holds the design, plans, research, and screens; `docs/gdd.md` is the index of the game design document, whose chapters are in `docs/gdd/`, and `docs/conventions.md` says how ids and names are written.
 - `wayfinder/` holds the project map.

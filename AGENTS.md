@@ -8,6 +8,10 @@ It is the list of games and media to take mechanical and thematic inspiration fr
 
 Ids, reserved characters, flags, YAML keys, display names, and files. Follow it in content, code, tests, and documents, and quote it in loader messages and editor hints rather than restating a rule.
 
+## The GDD is one file per chapter
+
+`docs/gdd.md` is the index: the status line and the table of chapters by part. Each chapter is `docs/gdd/NN-slug.md`. Section numbers are permanent ids that code, tests, and plans cite ("GDD 4.2"): never renumber a section, give a new chapter the next unused number, and list it in the index under its part with a one-line description. After a change, rebuild and republish the page (`tools/gdd-page/README.md`).
+
 ## `docs/personal_todo.md` is Parker's
 
 It is Parker's own to-do list. Never edit it. Whenever you see uncommitted changes to it (new, modified, or untracked), commit them as they are, in a commit of their own with a plain message such as "Update the personal to-do list". Do not fold them into another commit, and do not wait to be asked.
