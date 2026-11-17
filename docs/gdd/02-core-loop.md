@@ -14,13 +14,14 @@ What happens at one site can change the objectives offered at the next.
 
 ## 2.2 One cycle
 
-One cycle has five strict phases. The **duty roster** sits outside them and can be edited at any time.
+One cycle has six strict phases. The **duty roster** sits outside them and can be edited at any time.
 
-1. **Orders.** The inbox shows the current site and its objectives. Between assignments it shows the assignments on offer, or the mandate. Declining a mandate needs enough Admiralty standing, and costs some of it.
-2. **Briefing.** The player chooses which objectives to attempt and builds one away team for each, up to three. For each team they name the lead, choose a loadout from requisition, and set **operational parameters**.
-3. **Resolution.** Missions advance encounter by encounter on one interleaved timeline. **Calls** pause a mission until answered; **initiatives** arrive as they happen. Unattended objectives resolve at the end.
-4. **Aftermath.** Reports, injuries, and growth land. Storylets fire. The player spends **captain's time**. Department heads resolve what falls below their threshold and file a **digest**.
-5. **Advance.** Unattended storylines progress, time moves on by the cycle's length, offers expire, and the event log is committed.
+1. **Captain's itinerary.** Storylets that grew out of the last cycle wait for an answer, and vignettes arrive, to be read or answered in any order; the captain's time is shown here. Built in slice 1e, part two: every storylet must be answered before the orders, and a vignette left alone takes its default.
+2. **Orders.** The inbox shows the current site and its objectives. Between assignments it shows the assignments on offer, or the mandate. Declining a mandate needs enough Admiralty standing, and costs some of it.
+3. **Briefing.** The player chooses which objectives to attempt and builds one away team for each, up to three. For each team they name the lead, choose a loadout from requisition, and set **operational parameters**.
+4. **Resolution.** Missions advance encounter by encounter on one interleaved timeline. **Calls** pause a mission until answered; **initiatives** arrive as they happen. Unattended objectives resolve at the end.
+5. **Aftermath.** Reports, injuries, and growth land. Since slice 1e, part two, storylets fire at the next itinerary instead, where the player will spend **captain's time** (slice 1g). Department heads resolve what falls below their threshold and file a **digest**.
+6. **Advance.** Unattended storylines progress, time moves on by the cycle's length, offers expire, and the event log is committed.
 
 Crew who are away are not cast in shipboard storylets that cycle.
 

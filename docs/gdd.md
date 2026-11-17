@@ -19,7 +19,7 @@ What the player does, and why it is interesting. Read these first.
 | # | Chapter | What it holds |
 |---|---|---|
 | 1 | [Summary](gdd/01-summary.md) | The pitch, what choosing an away team weighs, and the settled decisions |
-| 2 | [Core loop](gdd/02-core-loop.md) | Assignments, sites, objectives, and missions; the five phases of a cycle; cycle length and transit |
+| 2 | [Core loop](gdd/02-core-loop.md) | Assignments, sites, objectives, and missions; the six phases of a cycle; cycle length and transit |
 | 9 | [Combinatorics](gdd/09-combinatorics.md) | How content multiplies, and what each new item yields |
 | 12 | [Art](gdd/12-art.md) | Portraits, the interface, icons, and ageing |
 
