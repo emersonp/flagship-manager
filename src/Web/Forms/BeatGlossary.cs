@@ -19,12 +19,20 @@ internal static class BeatGlossary
         ["injury"] = "A crew member is hurt, and how badly.",
         ["lead"] = "The lead can no longer act, and the most senior crew member still standing takes over.",
         ["call"] = "The lead calls the captain about a decision, and the mission waits for the answer.",
-        ["notice"] = "The lead decides alone, because the stakes are under their threshold or comms are blocked.",
+        ["initiative"] ="The lead decides alone, because the stakes are under their threshold or comms are blocked.",
         ["answer"] = "The captain answers a call, backing or overruling the lead.",
         ["collapse"] = "Strain reaches its cap and the team collapses. The mission is lost.",
         ["result"] = "The mission ends, with its outcome.",
+        ["storylet"] = "A storylet arrives in the aftermath, apart from any mission, for a crew member (its subject) or for the ship.",
+        ["storyletAnswer"] = "The captain picks one of a storylet's options.",
     };
 
+    // Names for the beats the "What plays here" panel never shows.
+    private static readonly IReadOnlyDictionary<string, string> Titles = new Dictionary<string, string>
+    {
+        ["storylet"] = "A storylet",
+        ["storyletAnswer"] = "A storylet answered",
+    };
     private static readonly HashSet<string> CommonFacts = NarrativeFacts.Common.Select(f => f.Name).ToHashSet();
 
     public static IReadOnlyList<string> SharedFacts => NarrativeFacts.Common.Select(f => f.Name).ToList();
@@ -37,7 +45,7 @@ internal static class BeatGlossary
             BeatSpec spec = NarrativeFacts.Beats[kind];
             return new BeatEntry(
                 kind,
-                Plays.Title(kind),
+                Titles.GetValueOrDefault(kind) ?? Plays.Title(kind),
                 Whens.GetValueOrDefault(kind, ""),
                 spec.Facts.Select(f => f.Name).Where(f => !CommonFacts.Contains(f)).ToList(),
                 spec.People.Where(p => p != "lead").ToList(),

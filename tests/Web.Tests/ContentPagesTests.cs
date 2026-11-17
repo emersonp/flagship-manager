@@ -127,6 +127,7 @@ public sealed class ContentPagesTests : IClassFixture<RepoContentGuard>
             Assert.Contains($"<span class=\"m\">{beat}</span>", lines);
         }
 
+        Assert.All(Web.Forms.BeatGlossary.Entries, entry => Assert.False(string.IsNullOrEmpty(entry.When), $"The glossary does not say when {entry.Kind} plays."));
         Assert.Contains("A check's result, by tier and margin.", lines);
         Assert.Contains("tier, margin", lines);
         Assert.DoesNotContain("id=\"beats\"", (await Get(client, "/dev/content/encounters")).Body);
