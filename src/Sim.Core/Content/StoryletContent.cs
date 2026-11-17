@@ -73,3 +73,12 @@ public static class LastCycleFacts
 
     public static readonly IReadOnlyList<string> All = [Sent, Hurt, Rested, LostCrewmate];
 }
+
+// A vignette (1e part two, design 4.3): a short storylet with no stakes. Either Effects, applied when it arrives, or exactly two
+// Options and a Default naming one of them, taken when the itinerary closes unanswered. Its words are lines of the storylet beats.
+public sealed record VignetteDef(string Id, string Scope, IReadOnlyList<Requirement> Requires, IReadOnlyList<StoryletEffect> Effects,
+    IReadOnlyList<StoryletOption> Options, string? Default, string? Name = null)
+{
+    // The first fact about the last cycle it reads, for its head ("lost a crewmate"); null when it reads none.
+    public string? Fact => Requires.OfType<LastCycle>().FirstOrDefault(f => !f.Not)?.Fact;
+}

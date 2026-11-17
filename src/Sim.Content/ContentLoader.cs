@@ -45,6 +45,7 @@ public static partial class ContentLoader
         var symbols = new List<(string File, SymbolDto Dto)>();
         var pronouns = new List<(string File, PronounDto Dto)>();
         var storylets = new List<(string File, StoryletDto Dto)>();
+        var vignettes = new List<(string File, StoryletDto Dto)>();
         var seenIn = new Dictionary<string, string>();
         // Symbols and pronoun sets are named in text, apart from the ids of everything else.
         var symbolsSeenIn = new Dictionary<string, string>();
@@ -94,6 +95,9 @@ public static partial class ContentLoader
                 case "storylets":
                     storylets.AddRange(Items<StoryletDto>(yaml, path, text, d => d.Id, seenIn, errors).Select(d => (path, d)));
                     break;
+                case "vignettes":
+                    vignettes.AddRange(Items<StoryletDto>(yaml, path, text, d => d.Id, seenIn, errors).Select(d => (path, d)));
+                    break;
                 case "tuning":
                     errors.Add(new ContentError(path, $"Unknown tuning file. The only tuning files are {TuningFile} and {CrewTuningFile}."));
                     break;
@@ -106,16 +110,18 @@ public static partial class ContentLoader
         List<GearDef> gearDefs = BuildGear(gear, errors);
         List<EncounterDef> encounterDefs = BuildEncounters(encounters, skills, gearDefs, errors);
         List<ObjectiveDef> objectiveDefs = BuildObjectives(objectives, encounterDefs, errors);
-        (MissionTuning? tuning, BenchTuning? bench, int storyletsPerCycle) = LoadTuning(yaml, files, errors);
+        (MissionTuning? tuning, BenchTuning? bench, CycleNumbers cycle) = LoadTuning(yaml, files, errors);
         CrewTuning? crewTuning = LoadCrewTuning(yaml, files, errors);
         List<PronounSet> pronounSets = BuildPronouns(pronouns, errors);
         List<CrewDef> crewDefs = BuildCrew(crew, skills, crewTuning, pronounSets, errors);
         List<AssignmentDef> assignmentDefs = BuildAssignments(assignments, objectives.Select(o => o.Dto).ToList(), errors);
         List<SymbolDef> symbolDefs = BuildSymbols(symbols, errors);
         List<StoryletDef> storyletDefs = BuildStorylets(storylets, errors);
-        List<LineDef> lineDefs = BuildLines(lines, encounters, objectives, symbolDefs, skills, encounterDefs, objectiveDefs, storyletDefs, errors);
+        List<VignetteDef> vignetteDefs = BuildVignettes(vignettes, errors);
+        List<LineDef> lineDefs = BuildLines(lines, encounters, objectives, symbolDefs, skills, encounterDefs, objectiveDefs, storylets.Concat(vignettes).Select(s => s.Dto.Id!), errors);
         lineDefs.AddRange(BuildOwnedLines(encounters, objectives, symbolDefs, skills, errors));
         lineDefs.AddRange(BuildStoryletLines(storylets, symbolDefs, skills, errors));
+        lineDefs.AddRange(BuildStoryletLines(vignettes, symbolDefs, skills, errors));
         Dictionary<string, IReadOnlyDictionary<string, string>> choiceLabels = BuildChoiceLabels(encounters, errors);
 
         ContentPack? pack = errors.Count == 0
@@ -126,7 +132,11 @@ public static partial class ContentLoader
                 Pronouns = pronounSets,
                 ChoiceLabels = choiceLabels,
                 Storylets = storyletDefs,
-                StoryletsPerCycle = storyletsPerCycle,
+                StoryletsPerCycle = cycle.StoryletsPerCycle,
+                Vignettes = vignetteDefs,
+                VignettesPerCycle = cycle.VignettesPerCycle,
+                VignetteCooldown = cycle.VignetteCooldown,
+                CaptainsTimePerCycle = cycle.CaptainsTime,
             }
             : null;
         return new ContentLoadResult(pack, errors);

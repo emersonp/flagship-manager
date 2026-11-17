@@ -21,7 +21,7 @@ public static class BridgeReader
     public static BridgeView Read(LegacyRecord record, ContentPack pack, IReadOnlyList<IEvent> cycleEvents, Names names)
     {
         LegacyState state = record.State;
-        IReadOnlyList<CrewRow> roster = Roster(state, names);
+        IReadOnlyList<CrewRow> roster = Roster(state, pack, names);
         SiteState? site = state.TryModule(MissionsModule.Name, out MissionsState? missions) ? missions.Site : null;
         CyclePhase phase = state.Phase;
 
@@ -29,9 +29,8 @@ public static class BridgeReader
         bool showBriefing = site is not null && phase == CyclePhase.Briefing;
         bool showMission = site?.Mission is not null && phase is CyclePhase.Resolution or CyclePhase.Aftermath;
         bool afterwards = phase is CyclePhase.Aftermath or CyclePhase.Advance;
-        (List<StoryletView> waiting, List<SettledStoryletView> settled) = afterwards ? Storylets(state, pack, cycleEvents, names) : ([], []);
-        // Storylets can wait on a legacy with no site, so they show the aftermath too.
-        bool showAftermath = afterwards && (site is not null || waiting.Count > 0 || settled.Count > 0);
+        bool showAftermath = afterwards && site is not null;
+        ItineraryView? itinerary = phase == CyclePhase.Itinerary ? Itinerary(state, pack, cycleEvents, names) : null;
 
         List<ObjectiveView> objectives = site is null ? [] : site.Objectives.Select(o => Objective(pack, names, site, o)).ToList();
         MissionInFlight? inFlight = site?.Mission;
@@ -47,7 +46,8 @@ public static class BridgeReader
             showSite ? new SiteView(site!.AssignmentId, objectives, names.Assignment(site.AssignmentId)) : null,
             showBriefing ? Briefing(pack, names, site!, objectives, roster) : null,
             mission,
-            showAftermath ? Aftermath(site, state, cycleEvents, names) with { Report = prose is null ? null : Report.Build(beats, prose.Log(_ => []), names), Waiting = waiting, Settled = settled } : null);
+            showAftermath ? Aftermath(site, state, pack, cycleEvents, names) with { Report = prose is null ? null : Report.Build(beats, prose.Log(_ => []), names) } : null,
+            itinerary);
     }
 
     // Rows in view that share a shown name also show their ids; a row shown by its id never repeats it.
@@ -86,7 +86,7 @@ public static class BridgeReader
         return new TopBarView(record.Name, record.State.Week, record.State.Cycle, record.State.Phase, warning);
     }
 
-    private static IReadOnlyList<CrewRow> Roster(LegacyState state, Names names)
+    private static IReadOnlyList<CrewRow> Roster(LegacyState state, ContentPack pack, Names names)
     {
         if (!state.TryModule(CrewModule.Name, out CrewState? crew))
         {
@@ -94,10 +94,10 @@ public static class BridgeReader
         }
 
         // Stable sort: the dead go last, the rest keep roster order.
-        return MarkShared(crew.Members.OrderBy(m => m.Status == CrewStatus.Dead).Select(m => Row(m, names)).ToList());
+        return MarkShared(crew.Members.OrderBy(m => m.Status == CrewStatus.Dead).Select(m => Row(m, pack.CrewTuning, names)).ToList());
     }
 
-    private static CrewRow Row(CrewMember member, Names names)
+    private static CrewRow Row(CrewMember member, CrewTuning tuning, Names names)
     {
         int injuries = member.LightInjuriesHealAtWeek.Count;
         List<SkillCell> skills = member.Skills
@@ -114,7 +114,8 @@ public static class BridgeReader
             member.ReturnsAtWeek,
             member.Loyalty,
             member.AwayMissions,
-            Name: names.Crew(member.Id));
+            Name: names.Crew(member.Id),
+            Morale: MoraleWord(tuning, member.Morale));
     }
 
     private static ObjectiveView Objective(ContentPack pack, Names names, SiteState site, SiteObjective objective)
@@ -232,7 +233,7 @@ public static class BridgeReader
         return new CrewChange(crewId, kind, string.Concat(parts.Select(p => p.Text)), parts);
     }
 
-    private static AftermathView Aftermath(SiteState? site, LegacyState state, IReadOnlyList<IEvent> cycleEvents, Names names)
+    private static AftermathView Aftermath(SiteState? site, LegacyState state, ContentPack pack, IReadOnlyList<IEvent> cycleEvents, Names names)
     {
         CrewState? crew = state.TryModule(CrewModule.Name, out CrewState? found) ? found : null;
         string? outcome = null;
@@ -282,7 +283,131 @@ public static class BridgeReader
             }
         }
 
+        // Each member's morale change from the mission, net of its result, hurt, and deaths, after the rest (1e part two).
+        IEnumerable<IGrouping<string, MoraleChanged>> morale = cycleEvents.OfType<MoraleChanged>()
+            .Where(m => m.Cause is MoraleCauses.Mission or MoraleCauses.Hurt or MoraleCauses.Death)
+            .GroupBy(m => m.CrewId);
+        foreach (IGrouping<string, MoraleChanged> moved in morale)
+        {
+            int from = moved.First().From;
+            int to = moved.Last().To;
+            if (to != from)
+            {
+                string word = MoraleWord(pack.CrewTuning, to).ToLowerInvariant();
+                changes.Add(Change(moved.Key, "morale", names, c => BeatLines.Compose($"{c} morale {BeatLines.Signed(to - from)}, now {word}.")));
+            }
+        }
+
         return new AftermathView(outcome ?? site?.Mission?.State.Result?.Outcome.ToString(), changes, unattended);
+    }
+
+    // The captain's itinerary (1e part two): the storylets, the vignettes that arrived this cycle in arrival order, and the
+    // captain's time.
+    private static ItineraryView Itinerary(LegacyState state, ContentPack pack, IReadOnlyList<IEvent> cycleEvents, Names names)
+    {
+        (List<StoryletView> waiting, List<SettledStoryletView> settled) = Storylets(state, pack, cycleEvents, names);
+        return new ItineraryView(pack.CaptainsTimePerCycle, waiting, settled, Vignettes(state, pack, cycleEvents, names));
+    }
+
+    // Words for the fact that brought a vignette, in its head.
+    private static readonly Dictionary<string, string> FactWords = new()
+    {
+        [LastCycleFacts.Sent] = "back from the mission",
+        [LastCycleFacts.Hurt] = "hurt on the mission",
+        [LastCycleFacts.Rested] = "rested",
+        [LastCycleFacts.LostCrewmate] = "lost a crewmate",
+    };
+
+    private static List<VignetteView> Vignettes(LegacyState state, ContentPack pack, IReadOnlyList<IEvent> cycleEvents, Names names)
+    {
+        StoryletsState? storylets = state.TryModule(StoryletsModule.Name, out StoryletsState? found) ? found : null;
+        List<CrewMember> crew = state.TryModule(CrewModule.Name, out CrewState? members) ? members.Members : [];
+        (HashSet<string> living, Func<string, string> shown) = Living(crew, names);
+        string seed = state.Seed.ToString(CultureInfo.InvariantCulture);
+        var views = new List<VignetteView>();
+        foreach (VignetteArrived arrived in cycleEvents.OfType<VignetteArrived>())
+        {
+            VignetteDef? vignette = pack.Vignettes.FirstOrDefault(v => v.Id == arrived.VignetteId);
+            bool waiting = storylets?.Vignettes.Any(v => v.OfferId == arrived.OfferId) == true;
+            int at = Index(cycleEvents, e => e is VignetteAnswered a && a.OfferId == arrived.OfferId);
+            if (vignette is null || (!waiting && at < 0))
+            {
+                // One the pack has lost, or one dropped unanswered: nothing to show or answer.
+                continue;
+            }
+
+            string? about = Join(arrived.SubjectId is null ? null : shown(arrived.SubjectId), arrived.Fact is null ? null : FactWords.GetValueOrDefault(arrived.Fact));
+            Situation situation = Prose.StoryletSituation(pack, names, crew, vignette.Id, arrived.SubjectId);
+            IReadOnlyList<ProseEntry> script = Prose.Storylet(pack, situation, $"{seed}|{arrived.OfferId}")?.Entries ?? [Systems(vignette.Id)];
+            List<StoryletOptionView> options = vignette.Options.Select(o => new StoryletOptionView(o.Id, o.Label.Length > 0 ? o.Label : o.Id)).ToList();
+            string? defaultLabel = options.FirstOrDefault(o => o.Id == vignette.Default)?.Label;
+            if (waiting)
+            {
+                views.Add(new VignetteView(arrived.OfferId, names.Storylet(vignette.Id), about, script, options, defaultLabel, false, [], []));
+                continue;
+            }
+
+            var answered = (VignetteAnswered)cycleEvents[at];
+            IReadOnlyList<ProseEntry> said = [];
+            if (answered.OptionId is { } optionId)
+            {
+                Situation saying = Prose.StoryletSituation(pack, names, crew, vignette.Id, arrived.SubjectId, optionId);
+                said = Prose.Storylet(pack, saying, $"{seed}|{arrived.OfferId}|{optionId}")?.Entries ?? [Systems(optionId)];
+            }
+
+            views.Add(new VignetteView(arrived.OfferId, names.Storylet(vignette.Id), about, script, options, defaultLabel, true, said, StoryletTags(ChangesBefore(cycleEvents, at), living, shown), answered.Defaulted));
+        }
+
+        return views;
+    }
+
+    private static string? Join(string? a, string? b)
+    {
+        return a is null ? b : b is null ? a : $"{a}, {b}";
+    }
+
+    private static int Index(IReadOnlyList<IEvent> events, Func<IEvent, bool> match)
+    {
+        for (int i = 0; i < events.Count; i++)
+        {
+            if (match(events[i]))
+            {
+                return i;
+            }
+        }
+
+        return -1;
+    }
+
+    // An answer's own changes are published just before it: loyalty, morale it caused, and flags with no encounter.
+    private static List<IEvent> ChangesBefore(IReadOnlyList<IEvent> events, int answer)
+    {
+        int start = answer;
+        while (start > 0 && events[start - 1] is LoyaltyChanged or MoraleChanged { Cause: MoraleCauses.Answer } or FlagChanged { EncounterId: null })
+        {
+            start--;
+        }
+
+        return events.Skip(start).Take(answer - start).ToList();
+    }
+
+    // The living, and how a crew member is named in a tag: by name, with the id when another shares it.
+    private static (HashSet<string> Living, Func<string, string> Shown) Living(List<CrewMember> crew, Names names)
+    {
+        HashSet<string> living = crew.Where(m => m.Status != CrewStatus.Dead).Select(m => m.Id).ToHashSet();
+        HashSet<string> shared = Shared(crew.Select(m => names.Crew(m.Id)));
+        return (living, id =>
+        {
+            string name = names.Crew(id);
+            return name != id && shared.Contains(name) ? $"{name} ({id})" : name;
+        });
+    }
+
+    // The words for a morale figure: the band that changes a check.
+    public static string MoraleWord(CrewTuning tuning, int morale)
+    {
+        int bonus = tuning.MoraleBonus(morale);
+        return bonus < 0 ? "Low" : bonus > 0 ? "High" : "Steady";
     }
 
     // The storylets waiting (those the pack still has, in arrival order) and those answered this cycle (in the order answered).
@@ -312,13 +437,7 @@ public static class BridgeReader
         }
 
         var settled = new List<SettledStoryletView>();
-        HashSet<string> living = crew.Where(m => m.Status != CrewStatus.Dead).Select(m => m.Id).ToHashSet();
-        HashSet<string> shared = Shared(crew.Select(m => names.Crew(m.Id)));
-        string Crew(string id)
-        {
-            string name = names.Crew(id);
-            return name != id && shared.Contains(name) ? $"{name} ({id})" : name;
-        }
+        (HashSet<string> living, Func<string, string> Crew) = Living(crew, names);
 
         for (int i = 0; i < cycleEvents.Count; i++)
         {
@@ -327,14 +446,7 @@ public static class BridgeReader
                 continue;
             }
 
-            // An answer's own changes are published just before it: loyalty, and flags with no encounter.
-            int start = i;
-            while (start > 0 && cycleEvents[start - 1] is LoyaltyChanged or FlagChanged { EncounterId: null })
-            {
-                start--;
-            }
-
-            List<IEvent> changes = cycleEvents.Skip(start).Take(i - start).ToList();
+            List<IEvent> changes = ChangesBefore(cycleEvents, i);
             Situation situation = Prose.StoryletSituation(pack, names, crew, answered.StoryletId, answered.SubjectId, answered.OptionId);
             IReadOnlyList<ProseEntry> said = Prose.Storylet(pack, situation, $"{seed}|{answered.OfferId}|{answered.OptionId}")?.Entries ?? [Systems(answered.OptionId)];
             settled.Add(new SettledStoryletView(names.Storylet(answered.StoryletId), said, StoryletTags(changes, living, Crew)));
@@ -364,16 +476,21 @@ public static class BridgeReader
         return $"From {names.Encounter(encounter)} · {flag}";
     }
 
-    // Tags in the log's figure style. A loyalty change shared alike by every living crew member is one tag for all crew.
+    // Tags in the log's figure style. A loyalty or morale change shared alike by every living crew member is one tag for all crew.
     private static List<string> StoryletTags(IReadOnlyList<IEvent> changes, IReadOnlySet<string> living, Func<string, string> crew)
     {
         var tags = new List<string>();
-        List<LoyaltyChanged> loyalty = changes.OfType<LoyaltyChanged>().ToList();
-        foreach (IGrouping<int, LoyaltyChanged> delta in loyalty.GroupBy(l => l.To - l.From))
+        void Stat(string word, IEnumerable<(string CrewId, int Delta)> moved)
         {
-            bool everyone = living.Count > 1 && delta.Select(l => l.CrewId).ToHashSet().SetEquals(living);
-            tags.AddRange(everyone ? [$"Loyalty {BeatLines.Signed(delta.Key)} all crew"] : delta.Select(l => $"Loyalty {BeatLines.Signed(delta.Key)} {crew(l.CrewId)}"));
+            foreach (IGrouping<int, (string CrewId, int Delta)> delta in moved.GroupBy(m => m.Delta))
+            {
+                bool everyone = living.Count > 1 && delta.Select(m => m.CrewId).ToHashSet().SetEquals(living);
+                tags.AddRange(everyone ? [$"{word} {BeatLines.Signed(delta.Key)} all crew"] : delta.Select(m => $"{word} {BeatLines.Signed(delta.Key)} {crew(m.CrewId)}"));
+            }
         }
+
+        Stat("Loyalty", changes.OfType<LoyaltyChanged>().Select(l => (l.CrewId, l.To - l.From)));
+        Stat("Morale", changes.OfType<MoraleChanged>().Select(m => (m.CrewId, m.To - m.From)));
 
         foreach (FlagChanged flag in changes.OfType<FlagChanged>())
         {

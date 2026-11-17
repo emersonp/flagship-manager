@@ -25,7 +25,10 @@ public sealed class BriefingTests : IDisposable
     private async Task<Guid> NewLegacy()
     {
         HttpResponseMessage created = await client.PostAsync("/legacies", new FormUrlEncodedContent([new KeyValuePair<string, string>("name", "LEGACY_ONE")]));
-        return Guid.Parse(created.Headers.Location!.ToString().Split('/')[^1]);
+        Guid id = Guid.Parse(created.Headers.Location!.ToString().Split('/')[^1]);
+        // A cycle opens on the captain's itinerary (1e part two); these tests start at its orders.
+        await Post(id, "advance");
+        return id;
     }
 
     private async Task<string> Post(Guid id, string action, IEnumerable<KeyValuePair<string, string>>? form = null)
@@ -292,7 +295,7 @@ public sealed class BriefingTests : IDisposable
     }
 
     [Fact]
-    public async Task Advancing_from_aftermath_lands_on_the_next_cycles_orders_at_week_2()
+    public async Task Advancing_from_aftermath_lands_on_the_next_cycles_itinerary_at_week_2()
     {
         Guid id = await NewBriefing();
         await Post(id, "advance");
@@ -309,11 +312,11 @@ public sealed class BriefingTests : IDisposable
         string stream = await Post(id, "advance");
 
         var after = Snapshot(id);
-        Assert.Equal((CyclePhase.Orders, 2, 2), (after.Phase, after.Cycle, after.Week));
+        Assert.Equal((CyclePhase.Itinerary, 2, 2), (after.Phase, after.Cycle, after.Week));
         Assert.Contains("<dt>Week</dt><dd>2</dd>", stream);
         Assert.Contains("<dt>Cycle</dt><dd>2</dd>", stream);
-        Assert.Matches("aria-current=\"step\"[^>]*><span class=\"phase__no\">1</span><span class=\"phase__name\">Orders</span>", stream);
-        Assert.Contains("To briefing", stream);
+        Assert.Matches("aria-current=\"step\"[^>]*><span class=\"phase__no\">1</span><span class=\"phase__name\">Itinerary</span>", stream);
+        Assert.Contains("To orders", stream);
     }
 
     [Fact]

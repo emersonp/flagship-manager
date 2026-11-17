@@ -11,6 +11,7 @@
                     {
                         <th scope="col" class="n">@SkillName(skill)</th>
                     }
+                    <th scope="col">Morale</th>
                     <th scope="col" class="n">Loyalty</th>
                     <th scope="col" class="n">Away</th>
                 </tr>
@@ -31,6 +32,7 @@
                         {
                             <td class="n"><SkillLevel Row="row" Skill="@skill" /></td>
                         }
+                        <td class="morale">@row.Morale</td>
                         <td class="n">@row.Loyalty</td>
                         <td class="n">@row.AwayMissions</td>
                     </tr>

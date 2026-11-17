@@ -65,12 +65,12 @@ public class StoryletsModuleTests
             return Send(new EndMission(new MissionResult(MissionOutcome.PartialSuccess, 1, 2, 0, 0, crew, flags)));
         }
 
-        // A mission that changes these flags, then the aftermath it leads to; the events of both.
+        // A mission that changes these flags, then the next cycle's itinerary, where its storylets arrive; the events of both.
         public List<IEvent> Mission(params MissionFlag[] flags)
         {
             var events = To(CyclePhase.Resolution);
             events.AddRange(End(flags));
-            events.AddRange(To(CyclePhase.Aftermath));
+            events.AddRange(To(CyclePhase.Itinerary));
             return events;
         }
 
@@ -94,7 +94,8 @@ public class StoryletsModuleTests
 
     private static ContentPack Pack(int perCycle, params StoryletDef[] storylets)
     {
-        return TestContent.Pack with { Storylets = storylets, StoryletsPerCycle = perCycle };
+        // No vignettes: their arrivals and effects belong to their own tests.
+        return TestContent.Pack with { Storylets = storylets, StoryletsPerCycle = perCycle, Vignettes = [] };
     }
 
     private static StoryletDef Ship(string id, int stakes, Requirement[] requires, params StoryletOption[] options)
@@ -195,7 +196,7 @@ public class StoryletsModuleTests
         h.To(CyclePhase.Resolution);
 
         List<IEvent> events = h.End([Raise("flag_b", 1, "CREW_02"), Raise("flag_b", 1, "CREW_03")], Died("CREW_02"));
-        events.AddRange(h.To(CyclePhase.Aftermath));
+        events.AddRange(h.To(CyclePhase.Itinerary));
 
         Assert.Contains(new CrewDied("CREW_02", "MISSION_1"), events);
         Assert.Equal([new FlagChanged("flag_b", "CREW_03", 0, 1, Encounter)], events.OfType<FlagChanged>());
@@ -204,18 +205,18 @@ public class StoryletsModuleTests
     }
 
     [Fact]
-    public void A_storylet_whose_requirements_hold_is_offered_when_the_aftermath_begins()
+    public void A_storylet_whose_requirements_hold_is_offered_when_the_itinerary_opens()
     {
         var h = new Harness(Pack(2, Quirk));
         h.To(CyclePhase.Resolution);
 
         List<IEvent> ended = h.End([Raise("flag_a", 1)]);
-        List<IEvent> aftermath = h.To(CyclePhase.Aftermath);
+        List<IEvent> itinerary = h.To(CyclePhase.Itinerary);
 
         Assert.DoesNotContain(ended, e => e is StoryletOffered);
-        Assert.Equal([new StoryletOffered("1:STORYLET_QUIRK:ship", "STORYLET_QUIRK", null, Encounter)], aftermath.OfType<StoryletOffered>());
+        Assert.Equal([new StoryletOffered("2:STORYLET_QUIRK:ship", "STORYLET_QUIRK", null, Encounter)], itinerary.OfType<StoryletOffered>());
         WaitingStorylet waiting = Assert.Single(h.Storylets.Waiting);
-        Assert.Equal(("1:STORYLET_QUIRK:ship", "STORYLET_QUIRK", (string?)null, (string?)Encounter), (waiting.OfferId, waiting.StoryletId, waiting.SubjectId, waiting.EncounterId));
+        Assert.Equal(("2:STORYLET_QUIRK:ship", "STORYLET_QUIRK", (string?)null, (string?)Encounter), (waiting.OfferId, waiting.StoryletId, waiting.SubjectId, waiting.EncounterId));
     }
 
     [Fact]
@@ -237,15 +238,15 @@ public class StoryletsModuleTests
         // The flags are reported in another order than the roster's: the order of the offers is the roster's.
         List<IEvent> first = h.Mission(Raise("flag_a", 1), Raise("flag_b", 1, "CREW_03"), Raise("flag_b", 1, "CREW_01"));
 
-        Assert.Equal(["1:STORYLET_SHAKEN:CREW_01", "1:STORYLET_SHAKEN:CREW_03"], first.OfType<StoryletOffered>().Select(o => o.OfferId));
-        Assert.Equal(["1:STORYLET_SHAKEN:CREW_01", "1:STORYLET_SHAKEN:CREW_03"], h.Waiting);
+        Assert.Equal(["2:STORYLET_SHAKEN:CREW_01", "2:STORYLET_SHAKEN:CREW_03"], first.OfType<StoryletOffered>().Select(o => o.OfferId));
+        Assert.Equal(["2:STORYLET_SHAKEN:CREW_01", "2:STORYLET_SHAKEN:CREW_03"], h.Waiting);
 
-        h.Send(new AnswerStorylet("1:STORYLET_SHAKEN:CREW_01", "calm"));
-        h.Send(new AnswerStorylet("1:STORYLET_SHAKEN:CREW_03", "calm"));
-        List<IEvent> next = h.To(CyclePhase.Aftermath);
+        h.Send(new AnswerStorylet("2:STORYLET_SHAKEN:CREW_01", "calm"));
+        h.Send(new AnswerStorylet("2:STORYLET_SHAKEN:CREW_03", "calm"));
+        List<IEvent> next = h.To(CyclePhase.Itinerary);
 
-        Assert.Equal(2, h.State.Cycle);
-        Assert.Equal(["2:STORYLET_QUIRK:ship"], next.OfType<StoryletOffered>().Select(o => o.OfferId));
+        Assert.Equal(3, h.State.Cycle);
+        Assert.Equal(["3:STORYLET_QUIRK:ship"], next.OfType<StoryletOffered>().Select(o => o.OfferId));
     }
 
     [Fact]
@@ -255,23 +256,23 @@ public class StoryletsModuleTests
         var h = new Harness(Pack(2, storylet));
         h.Mission(Raise("flag_a", 1));
 
-        List<IEvent> events = h.Send(new AnswerStorylet("1:STORYLET_ORDER:ship", "first"));
+        List<IEvent> events = h.Send(new AnswerStorylet("2:STORYLET_ORDER:ship", "first"));
 
         Assert.Equal(
             [
                 new FlagChanged("flag_a", null, 1, 5, null),
                 new FlagChanged("flag_a", null, 5, 0, null),
                 new FlagChanged("flag_b", null, 0, 1, null),
-                new StoryletAnswered("1:STORYLET_ORDER:ship", "STORYLET_ORDER", null, "first"),
+                new StoryletAnswered("2:STORYLET_ORDER:ship", "STORYLET_ORDER", null, "first"),
             ],
             events);
         Assert.Empty(h.Waiting);
         Assert.Equal((0, 1), (h.Flag("flag_a"), h.Flag("flag_b")));
         StoredFlag stored = h.Storylets.Flags.Single();
-        Assert.Equal((1, (string?)null), (stored.SetAtWeek, stored.EncounterId));
+        Assert.Equal((2, (string?)null), (stored.SetAtWeek, stored.EncounterId));
 
-        List<IEvent> later = h.To(CyclePhase.Aftermath);
-        later.AddRange(h.To(CyclePhase.Aftermath));
+        List<IEvent> later = h.To(CyclePhase.Itinerary);
+        later.AddRange(h.To(CyclePhase.Itinerary));
 
         Assert.DoesNotContain(later, e => e is StoryletOffered);
     }
@@ -283,13 +284,13 @@ public class StoryletsModuleTests
         var h = new Harness(Pack(2, Quirk, known));
         h.Mission(Raise("flag_a", 1));
 
-        h.Send(new AnswerStorylet("1:STORYLET_QUIRK:ship", "ride"));
-        List<IEvent> next = h.To(CyclePhase.Aftermath);
+        h.Send(new AnswerStorylet("2:STORYLET_QUIRK:ship", "ride"));
+        List<IEvent> next = h.To(CyclePhase.Itinerary);
 
         Assert.Equal(2, h.Flag("flag_a"));
         StoredFlag stored = h.Storylets.Flags.Single();
         Assert.Equal(Encounter, stored.EncounterId);
-        Assert.Equal([new StoryletOffered("2:STORYLET_KNOWN:ship", "STORYLET_KNOWN", null, Encounter)], next.OfType<StoryletOffered>());
+        Assert.Equal([new StoryletOffered("3:STORYLET_KNOWN:ship", "STORYLET_KNOWN", null, Encounter)], next.OfType<StoryletOffered>());
     }
 
     [Fact]
@@ -299,11 +300,11 @@ public class StoryletsModuleTests
         var h = new Harness(Pack(2, storylet));
         h.To(CyclePhase.Resolution);
         h.End([Raise("flag_b", 1, "CREW_02")], Died("CREW_08"));
-        h.To(CyclePhase.Aftermath);
+        h.To(CyclePhase.Itinerary);
         h.Crew.Members.Single(m => m.Id == "CREW_01").Loyalty = 1;
         h.Crew.Members.Single(m => m.Id == "CREW_02").Loyalty = 99;
 
-        List<IEvent> events = h.Send(new AnswerStorylet("1:STORYLET_LOYAL:CREW_02", "everyone"));
+        List<IEvent> events = h.Send(new AnswerStorylet("2:STORYLET_LOYAL:CREW_02", "everyone"));
 
         List<LoyaltyChanged> changes = events.OfType<LoyaltyChanged>().ToList();
         Assert.Equal(
@@ -334,30 +335,30 @@ public class StoryletsModuleTests
         h.Mission(Raise("flag_a", 1));
         string before = JsonSerializer.Serialize(h.Storylets, SimJson.Options);
 
-        Assert.Equal("That storylet is not waiting for an answer.", h.Refused(new AnswerStorylet("1:STORYLET_OTHER:ship", "clear")));
-        Assert.Equal("That is not one of its answers.", h.Refused(new AnswerStorylet("1:STORYLET_QUIRK:ship", "option_z")));
+        Assert.Equal("That storylet is not waiting for an answer.", h.Refused(new AnswerStorylet("2:STORYLET_OTHER:ship", "clear")));
+        Assert.Equal("That is not one of its answers.", h.Refused(new AnswerStorylet("2:STORYLET_QUIRK:ship", "option_z")));
         Assert.Equal(before, JsonSerializer.Serialize(h.Storylets, SimJson.Options));
 
-        h.Send(new AnswerStorylet("1:STORYLET_QUIRK:ship", "clear"));
+        h.Send(new AnswerStorylet("2:STORYLET_QUIRK:ship", "clear"));
         string after = JsonSerializer.Serialize(h.Storylets, SimJson.Options);
 
-        Assert.Equal("That storylet is not waiting for an answer.", h.Refused(new AnswerStorylet("1:STORYLET_QUIRK:ship", "clear")));
+        Assert.Equal("That storylet is not waiting for an answer.", h.Refused(new AnswerStorylet("2:STORYLET_QUIRK:ship", "clear")));
         Assert.Equal(after, JsonSerializer.Serialize(h.Storylets, SimJson.Options));
     }
 
     [Fact]
-    public void The_aftermath_cannot_be_left_while_a_storylet_waits()
+    public void The_itinerary_cannot_be_left_while_a_storylet_waits()
     {
         var h = new Harness(Pack(2, Quirk));
         h.Mission(Raise("flag_a", 1));
 
         Assert.Equal("A storylet is waiting for an answer.", h.Refused(new AdvancePhase()));
-        Assert.Equal(CyclePhase.Aftermath, h.State.Phase);
+        Assert.Equal(CyclePhase.Itinerary, h.State.Phase);
 
-        h.Send(new AnswerStorylet("1:STORYLET_QUIRK:ship", "clear"));
+        h.Send(new AnswerStorylet("2:STORYLET_QUIRK:ship", "clear"));
         h.Send(new AdvancePhase());
 
-        Assert.Equal(CyclePhase.Advance, h.State.Phase);
+        Assert.Equal(CyclePhase.Orders, h.State.Phase);
     }
 
     [Fact]
@@ -366,18 +367,18 @@ public class StoryletsModuleTests
         StoryletDef second = Ship("STORYLET_SECOND", 1, [new FlagRange("flag_b", 1, null)], Option("clear", Set("flag_b", 0)), Option("also", Set("flag_b", 0)));
         var h = new Harness(Pack(1, Quirk, second));
         h.Mission(Raise("flag_a", 1), Raise("flag_b", 1));
-        Assert.Equal(["1:STORYLET_QUIRK:ship"], h.Waiting);
-        h.Send(new AnswerStorylet("1:STORYLET_QUIRK:ship", "clear"));
+        Assert.Equal(["2:STORYLET_QUIRK:ship"], h.Waiting);
+        h.Send(new AnswerStorylet("2:STORYLET_QUIRK:ship", "clear"));
 
         // Cycle 2: nobody is sent, and no mission ends.
-        List<IEvent> events = h.To(CyclePhase.Aftermath);
+        List<IEvent> events = h.To(CyclePhase.Itinerary);
 
         Assert.DoesNotContain(events, e => e is MissionEnded);
-        Assert.Equal(["2:STORYLET_SECOND:ship"], h.Waiting);
+        Assert.Equal(["3:STORYLET_SECOND:ship"], h.Waiting);
         Assert.Equal("A storylet is waiting for an answer.", h.Refused(new AdvancePhase()));
-        h.Send(new AnswerStorylet("2:STORYLET_SECOND:ship", "clear"));
+        h.Send(new AnswerStorylet("3:STORYLET_SECOND:ship", "clear"));
         h.Send(new AdvancePhase());
-        Assert.Equal(CyclePhase.Advance, h.State.Phase);
+        Assert.Equal(CyclePhase.Orders, h.State.Phase);
     }
 
     [Fact]
@@ -387,12 +388,12 @@ public class StoryletsModuleTests
         h.Mission(Raise("flag_a", 1));
         h.Rebuild(Pack(2));
 
-        // It can no longer be answered, and it does not hold the legacy in the aftermath.
-        Assert.Equal("That storylet is not waiting for an answer.", h.Refused(new AnswerStorylet("1:STORYLET_QUIRK:ship", "clear")));
+        // It can no longer be answered, and it does not hold the legacy in the itinerary.
+        Assert.Equal("That storylet is not waiting for an answer.", h.Refused(new AnswerStorylet("2:STORYLET_QUIRK:ship", "clear")));
         h.Send(new AdvancePhase());
-        List<IEvent> next = h.To(CyclePhase.Aftermath);
+        List<IEvent> next = h.To(CyclePhase.Itinerary);
 
-        Assert.Equal([new StoryletWithdrawn("1:STORYLET_QUIRK:ship", "STORYLET_QUIRK", null)], next.OfType<StoryletWithdrawn>());
+        Assert.Equal([new StoryletWithdrawn("2:STORYLET_QUIRK:ship", "STORYLET_QUIRK", null)], next.OfType<StoryletWithdrawn>());
         Assert.Empty(h.Waiting);
         Assert.Equal(1, h.Flag("flag_a"));
     }
@@ -402,20 +403,20 @@ public class StoryletsModuleTests
     {
         var h = new Harness(Pack(2, Shaken));
         h.Mission(Raise("flag_b", 1, "CREW_02"), Raise("flag_c", 2, "CREW_02"), Raise("flag_b", 1, "CREW_03"), Raise("flag_a", 1));
-        Assert.Equal(["1:STORYLET_SHAKEN:CREW_02", "1:STORYLET_SHAKEN:CREW_03"], h.Waiting);
+        Assert.Equal(["2:STORYLET_SHAKEN:CREW_02", "2:STORYLET_SHAKEN:CREW_03"], h.Waiting);
 
         List<IEvent> events = h.End([], Died("CREW_02"));
 
-        Assert.Equal([new StoryletWithdrawn("1:STORYLET_SHAKEN:CREW_02", "STORYLET_SHAKEN", "CREW_02")], events.OfType<StoryletWithdrawn>());
-        Assert.Equal(["1:STORYLET_SHAKEN:CREW_03"], h.Waiting);
+        Assert.Equal([new StoryletWithdrawn("2:STORYLET_SHAKEN:CREW_02", "STORYLET_SHAKEN", "CREW_02")], events.OfType<StoryletWithdrawn>());
+        Assert.Equal(["2:STORYLET_SHAKEN:CREW_03"], h.Waiting);
         Assert.Equal([("flag_b", "CREW_03"), ("flag_a", (string?)null)], h.Storylets.Flags.Select(f => (f.Flag, f.CrewId)));
     }
     [Fact]
-    public void A_developers_flag_is_its_own_event_keeps_where_the_flag_came_from_and_brings_its_storylet_at_the_next_aftermath()
+    public void A_developers_flag_is_its_own_event_keeps_where_the_flag_came_from_and_brings_its_storylet_at_the_next_itinerary()
     {
         var h = new Harness(Pack(2, Quirk, Shaken));
         h.Mission(Raise("flag_a", 1));
-        h.Send(new AnswerStorylet("1:STORYLET_QUIRK:ship", "clear"));
+        h.Send(new AnswerStorylet("2:STORYLET_QUIRK:ship", "clear"));
         h.To(CyclePhase.Orders);
 
         List<IEvent> ship = h.Send(new SetFlag("flag_a", null, 1));
@@ -425,9 +426,9 @@ public class StoryletsModuleTests
         Assert.Equal([new FlagSetByDeveloper("flag_b", "CREW_03", 2), new FlagChanged("flag_b", "CREW_03", 0, 2, null)], crew);
         Assert.Empty(h.Waiting);
 
-        List<IEvent> aftermath = h.To(CyclePhase.Aftermath);
+        List<IEvent> itinerary = h.To(CyclePhase.Itinerary);
 
-        Assert.Equal(["2:STORYLET_SHAKEN:CREW_03", "2:STORYLET_QUIRK:ship"], aftermath.OfType<StoryletOffered>().Select(o => o.OfferId));
+        Assert.Equal(["3:STORYLET_SHAKEN:CREW_03", "3:STORYLET_QUIRK:ship"], itinerary.OfType<StoryletOffered>().Select(o => o.OfferId));
         h.Send(new SetFlag("flag_b", "CREW_03", 0));
         Assert.Equal(0, h.Flag("flag_b", "CREW_03"));
     }
@@ -475,7 +476,7 @@ public class StoryletsModuleTests
 
         h.Mission(Raise("flag_b", 1, "CREW_01"), Raise("flag_b", 1, "CREW_02"));
 
-        Assert.Equal(["1:STORYLET_LOW:CREW_02"], h.Waiting);
+        Assert.Equal(["2:STORYLET_LOW:CREW_02"], h.Waiting);
     }
 
     // Review focus 1: the dead hold no fact; the living each lost a crewmate.
@@ -487,7 +488,7 @@ public class StoryletsModuleTests
         h.To(CyclePhase.Resolution);
         h.End([], Home("CREW_01"), Home("CREW_02", injury: 1), Died("CREW_03"));
 
-        h.To(CyclePhase.Aftermath);
+        h.To(CyclePhase.Itinerary);
 
         Dictionary<string, List<string>> waiting = WaitingBySubject(h);
         Assert.Equal(["CREW_01", "CREW_02"], waiting["STORYLET_SENT"]);
@@ -502,7 +503,7 @@ public class StoryletsModuleTests
     {
         var h = new Harness(Pack(100, Fact(LastCycleFacts.Rested), Fact(LastCycleFacts.Sent)));
 
-        h.To(CyclePhase.Aftermath);
+        h.To(CyclePhase.Itinerary);
 
         Assert.Equal(8, WaitingBySubject(h)["STORYLET_RESTED"].Count);
         Assert.False(WaitingBySubject(h).ContainsKey("STORYLET_SENT"));
@@ -512,7 +513,7 @@ public class StoryletsModuleTests
     public void The_last_cycle_is_forgotten_when_the_next_orders_open()
     {
         var h = new Harness(Pack(100));
-        h.To(CyclePhase.Aftermath);
+        h.To(CyclePhase.Itinerary);
         Assert.NotNull(h.Storylets.LastCycle);
 
         h.To(CyclePhase.Orders);
@@ -533,5 +534,119 @@ public class StoryletsModuleTests
         Assert.Contains(new MoraleChanged("CREW_02", 50, 53, MoraleCauses.Answer), events);
         Assert.Equal(52, h.Crew.Members.Single(m => m.Id == "CREW_02").Morale);
         Assert.Equal(49, h.Crew.Members.Single(m => m.Id == "CREW_05").Morale);
+    }
+
+    // 1e part two (design 4.3): vignettes arrive when the itinerary opens and leave when it closes.
+    private static ContentPack Vignettes(int perCycle, int cooldown, params VignetteDef[] vignettes)
+    {
+        return TestContent.Pack with { Storylets = [], Vignettes = vignettes, VignettesPerCycle = perCycle, VignetteCooldown = cooldown };
+    }
+
+    private static VignetteDef Rested(string id, params StoryletOption[] options)
+    {
+        return options.Length == 0
+            ? new VignetteDef(id, StoryletScopes.Crew, [new LastCycle(LastCycleFacts.Rested, false)], [new StoryletEffect(Morale: 1, MoraleOn: "subject")], [], null)
+            : new VignetteDef(id, StoryletScopes.Crew, [new LastCycle(LastCycleFacts.Rested, false)], [], options, options[^1].Id);
+    }
+
+    private static List<string> Arrived(IEnumerable<IEvent> events)
+    {
+        return events.OfType<VignetteArrived>().Select(a => $"{a.VignetteId}:{a.SubjectId ?? "ship"}").ToList();
+    }
+
+    [Fact]
+    public void A_vignette_with_effects_applies_them_when_it_arrives_and_waits_for_nothing()
+    {
+        var glance = new VignetteDef("VIGNETTE_GLANCE", StoryletScopes.Ship, [new FlagRange("flag_a", 1, null)], [new StoryletEffect(Morale: 2, MoraleOn: "crew")], [], null);
+        var h = new Harness(Vignettes(3, 6, glance));
+
+        List<IEvent> events = h.Mission(Raise("flag_a", 1));
+
+        int at = events.FindIndex(e => e is VignetteArrived);
+        Assert.Equal(new VignetteArrived("2:VIGNETTE_GLANCE:ship", "VIGNETTE_GLANCE", null, null), events[at]);
+        Assert.Equal(8, events.Skip(at + 1).TakeWhile(e => e is MoraleChanged).Count());
+        Assert.Equal(new VignetteAnswered("2:VIGNETTE_GLANCE:ship", "VIGNETTE_GLANCE", null, null, false), events[at + 9]);
+        Assert.Empty(h.Storylets.Vignettes);
+        Assert.Equal(52, h.Crew.Members[0].Morale);
+    }
+
+    // Review focus 3: the cooldown is for one scope; with one a cycle, the next crew member on the roster has it meanwhile.
+    [Fact]
+    public void A_vignette_in_its_cooldown_does_not_arrive_for_that_scope_only()
+    {
+        var h = new Harness(Vignettes(1, 6, Rested("VIGNETTE_REST")));
+        var arrived = new List<string>();
+
+        for (int cycle = 2; cycle <= 8; cycle++)
+        {
+            arrived.AddRange(Arrived(h.To(CyclePhase.Itinerary)));
+        }
+
+        Assert.Equal(["CREW_01", "CREW_02", "CREW_03", "CREW_04", "CREW_05", "CREW_06", "CREW_01"], arrived.Select(a => a.Split(':')[1]));
+    }
+
+    [Fact]
+    public void At_most_the_cycles_limit_of_vignettes_arrive_and_the_one_away_longest_comes_first()
+    {
+        var h = new Harness(Vignettes(3, 0, Rested("VIGNETTE_A"), Rested("VIGNETTE_B")));
+
+        List<string> second = Arrived(h.To(CyclePhase.Itinerary));
+        List<string> third = Arrived(h.To(CyclePhase.Itinerary));
+        List<string> fourth = Arrived(h.To(CyclePhase.Itinerary));
+
+        Assert.Equal(["VIGNETTE_A:CREW_01", "VIGNETTE_A:CREW_02", "VIGNETTE_A:CREW_03"], second);
+        Assert.Equal(["VIGNETTE_B:CREW_01", "VIGNETTE_B:CREW_02", "VIGNETTE_B:CREW_03"], third);
+        Assert.Equal(["VIGNETTE_A:CREW_01", "VIGNETTE_A:CREW_02", "VIGNETTE_A:CREW_03"], fourth);
+    }
+
+    // Review focus 4.
+    [Fact]
+    public void Leaving_the_itinerary_applies_each_unanswered_default_once_and_vignettes_do_not_hold_it()
+    {
+        VignetteDef word = Rested("VIGNETTE_WORD", Option("speak", new StoryletEffect(Morale: 3, MoraleOn: "subject")), Option("quiet", Loyalty(-1, "subject")));
+        var h = new Harness(Vignettes(2, 6, word));
+        h.To(CyclePhase.Itinerary);
+        Assert.Equal(["2:VIGNETTE_WORD:CREW_01", "2:VIGNETTE_WORD:CREW_02"], h.Storylets.Vignettes.Select(v => v.OfferId));
+
+        List<IEvent> answered = h.Send(new AnswerVignette("2:VIGNETTE_WORD:CREW_01", "speak"));
+        List<IEvent> left = h.Send(new AdvancePhase());
+        List<IEvent> later = h.To(CyclePhase.Aftermath);
+
+        Assert.Equal(new VignetteAnswered("2:VIGNETTE_WORD:CREW_01", "VIGNETTE_WORD", "CREW_01", "speak", false), answered[^1]);
+        Assert.Contains(new MoraleChanged("CREW_01", 50, 53, MoraleCauses.Answer), answered);
+        Assert.Contains(new PhaseEntered(2, CyclePhase.Orders), left);
+        Assert.Equal([new LoyaltyChanged("CREW_02", 50, 49), new VignetteAnswered("2:VIGNETTE_WORD:CREW_02", "VIGNETTE_WORD", "CREW_02", "quiet", true)], left.Where(e => e is LoyaltyChanged or VignetteAnswered));
+        Assert.Empty(h.Storylets.Vignettes);
+        Assert.DoesNotContain(later, e => e is VignetteAnswered);
+    }
+
+    [Fact]
+    public void A_vignette_answer_is_refused_unless_it_waits_and_names_one_of_its_options()
+    {
+        VignetteDef word = Rested("VIGNETTE_WORD", Option("speak"), Option("quiet"));
+        var h = new Harness(Vignettes(1, 6, word));
+        h.To(CyclePhase.Itinerary);
+        string before = JsonSerializer.Serialize(h.Storylets, SimJson.Options);
+
+        Assert.Equal("That is not one of its answers.", h.Refused(new AnswerVignette("2:VIGNETTE_WORD:CREW_01", "shout")));
+        Assert.Equal("That vignette is not waiting for an answer.", h.Refused(new AnswerVignette("2:VIGNETTE_WORD:CREW_02", "speak")));
+        Assert.Equal(before, JsonSerializer.Serialize(h.Storylets, SimJson.Options));
+
+        h.Send(new AnswerVignette("2:VIGNETTE_WORD:CREW_01", "speak"));
+
+        Assert.Equal("That vignette is not waiting for an answer.", h.Refused(new AnswerVignette("2:VIGNETTE_WORD:CREW_01", "quiet")));
+    }
+
+    [Fact]
+    public void A_dead_subjects_waiting_vignette_is_dropped_and_takes_no_default()
+    {
+        var h = new Harness(Vignettes(1, 6, Rested("VIGNETTE_WORD", Option("speak"), Option("quiet", Loyalty(-1, "subject")))));
+        h.To(CyclePhase.Itinerary);
+
+        h.End([], Died("CREW_01"));
+        List<IEvent> left = h.Send(new AdvancePhase());
+
+        Assert.Empty(h.Storylets.Vignettes);
+        Assert.DoesNotContain(left, e => e is VignetteAnswered or LoyaltyChanged);
     }
 }

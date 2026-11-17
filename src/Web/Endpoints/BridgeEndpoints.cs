@@ -22,7 +22,10 @@ public static class BridgeEndpoints
         app.MapPost("/legacy/{id}/advance", Advance);
         app.MapPost("/legacy/{id}/launch", Launch);
         app.MapPost("/legacy/{id}/answer", Answer);
-        app.MapPost("/legacy/{id}/storylet", Storylet);
+        app.MapPost("/legacy/{id}/storylet", (string id, HttpContext http, GameServices game, LegacySession sessions, Render render, CancellationToken cancellation)
+            => AnswerItinerary(id, http, game, sessions, render, (offer, option) => new AnswerStorylet(offer, option), cancellation));
+        app.MapPost("/legacy/{id}/vignette", (string id, HttpContext http, GameServices game, LegacySession sessions, Render render, CancellationToken cancellation)
+            => AnswerItinerary(id, http, game, sessions, render, (offer, option) => new AnswerVignette(offer, option), cancellation));
     }
 
     private static async Task<IResult> Page(string id, HttpContext http, GameServices game, LegacySession sessions, Render render, CancellationToken cancellation)
@@ -99,9 +102,9 @@ public static class BridgeEndpoints
         }, cancellation);
     }
 
-    // A storylet's answer. Any refusal redraws the page from the stored state, with the reason beside the storylets when they are on
-    // screen, else in the bar.
-    private static async Task<IResult> Storylet(string id, HttpContext http, GameServices game, LegacySession sessions, Render render, CancellationToken cancellation)
+    // A storylet's or a vignette's answer. Any refusal redraws the page from the stored state, with the reason beside the
+    // itinerary's panels when they are on screen, else in the bar.
+    private static async Task<IResult> AnswerItinerary(string id, HttpContext http, GameServices game, LegacySession sessions, Render render, Func<string, string, ICommand> command, CancellationToken cancellation)
     {
         IFormCollection? form = await ReadForm(http.Request, cancellation);
         Stamp? stamp = StampOf(form);
@@ -124,7 +127,7 @@ public static class BridgeEndpoints
                     throw new CommandRejectedException(Incomplete);
                 }
 
-                legacy.Send(new AnswerStorylet(offer, option));
+                legacy.Send(command(offer, option));
                 return View(game, live, legacy);
             }, cancellation);
         }
@@ -140,7 +143,7 @@ public static class BridgeEndpoints
             }
 
             BridgeView corrected = View(game, live, current);
-            bool shown = corrected.TopBar.Phase == CyclePhase.Aftermath && corrected.Aftermath is { HasMatters: true };
+            bool shown = corrected.Itinerary is { IsEmpty: false };
             return await Patches(render, legacyId, corrected, shown ? null : rejected.Message, storyletReason: shown ? rejected.Message : null, status: RefusedStatus(http));
         }
 

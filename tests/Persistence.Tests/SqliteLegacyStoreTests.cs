@@ -193,9 +193,9 @@ public sealed class SqliteLegacyStoreTests : IDisposable
         store.Create(NewRecord(id), []);
         string json = LegacyExport.Export(store, id, ModuleTypes);
 
-        Assert.Contains("\"FormatVersion\": 7", json);
-        Assert.Throws<InvalidOperationException>(() => LegacyExport.Import(store, json.Replace("\"FormatVersion\": 7", "\"FormatVersion\": 1"), ModuleTypes));
-        Assert.Throws<InvalidOperationException>(() => LegacyExport.Import(store, json.Replace("\"FormatVersion\": 7,", ""), ModuleTypes));
+        Assert.Contains("\"FormatVersion\": 8", json);
+        Assert.Throws<InvalidOperationException>(() => LegacyExport.Import(store, json.Replace("\"FormatVersion\": 8", "\"FormatVersion\": 1"), ModuleTypes));
+        Assert.Throws<InvalidOperationException>(() => LegacyExport.Import(store, json.Replace("\"FormatVersion\": 8,", ""), ModuleTypes));
     }
 
     // Name and creation time are record facts, stored as given (time as a UTC instant).
@@ -306,13 +306,14 @@ public sealed class SqliteLegacyStoreTests : IDisposable
         Assert.Empty(store.ReadEvents(id, 7));
     }
 
-    // Format 3 held the stored events from before authored approaches, format 4 a mission result with no flags, format 5 no storylets, and format 6 no morale.
+    // Format 3 held the stored events from before authored approaches, format 4 a mission result with no flags, format 5 no storylets, format 6 no morale, and format 7 no itinerary.
     [Theory]
     [InlineData(2)]
     [InlineData(3)]
     [InlineData(4)]
     [InlineData(5)]
     [InlineData(6)]
+    [InlineData(7)]
     public void An_export_at_an_earlier_format_is_refused(int format)
     {
         Guid id = Guid.NewGuid();
@@ -320,7 +321,7 @@ public sealed class SqliteLegacyStoreTests : IDisposable
         store.Create(NewRecord(id), []);
         string json = LegacyExport.Export(store, id, ModuleTypes);
 
-        Assert.Throws<InvalidOperationException>(() => LegacyExport.Import(store, json.Replace("\"FormatVersion\": 7", $"\"FormatVersion\": {format}"), ModuleTypes));
+        Assert.Throws<InvalidOperationException>(() => LegacyExport.Import(store, json.Replace("\"FormatVersion\": 8", $"\"FormatVersion\": {format}"), ModuleTypes));
     }
 
     [Fact]
@@ -388,6 +389,7 @@ public sealed class SqliteLegacyStoreTests : IDisposable
     [InlineData(6)]
     [InlineData(7)]
     [InlineData(8)]
+    [InlineData(9)]
     public void A_database_from_another_schema_is_refused(int version)
     {
         using (var connection = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={path}"))
@@ -400,7 +402,7 @@ public sealed class SqliteLegacyStoreTests : IDisposable
 
         var ex = Assert.Throws<InvalidOperationException>(() => NewStore());
 
-        Assert.Equal($"This database is from a different build (schema {version}, this build reads 9). Delete it or export its legacies with the build that wrote it.", ex.Message);
+        Assert.Equal($"This database is from a different build (schema {version}, this build reads 10). Delete it or export its legacies with the build that wrote it.", ex.Message);
     }
 
     // A phase stored as a number would parse as a member by accident; the store refuses it.
@@ -423,7 +425,7 @@ public sealed class SqliteLegacyStoreTests : IDisposable
 
     // A fresh database must carry the version later builds check.
     [Fact]
-    public void A_new_database_is_created_at_schema_version_9()
+    public void A_new_database_is_created_at_schema_version_10()
     {
         NewStore();
 
@@ -431,7 +433,7 @@ public sealed class SqliteLegacyStoreTests : IDisposable
         connection.Open();
         using Microsoft.Data.Sqlite.SqliteCommand command = connection.CreateCommand();
         command.CommandText = "PRAGMA user_version";
-        Assert.Equal(9L, command.ExecuteScalar());
+        Assert.Equal(10L, command.ExecuteScalar());
     }
 
     // Every module the state no longer holds is dropped from storage with the commit.

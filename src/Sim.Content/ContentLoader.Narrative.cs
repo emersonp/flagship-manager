@@ -121,7 +121,7 @@ public static partial class ContentLoader
         List<SkillDef> skills,
         List<EncounterDef> encounters,
         List<ObjectiveDef> objectives,
-        List<StoryletDef> storylets,
+        IEnumerable<string> storyletIds,
         List<ContentError> errors)
     {
         Dictionary<string, SymbolDef> symbolsById = symbols.ToDictionary(s => s.Id);
@@ -132,7 +132,8 @@ public static partial class ContentLoader
             [FactDomain.Encounter] = encounters.Select(e => e.Id).ToHashSet(),
             [FactDomain.Objective] = objectives.Select(o => o.Id).ToHashSet(),
             [FactDomain.Decision] = encounters.Where(e => e.Decision is not null).Select(e => e.Decision!.Id).Append(DecisionIds.Abort).ToHashSet(),
-            [FactDomain.Storylet] = storylets.Select(s => s.Id).ToHashSet(),
+            // Vignettes speak through the storylet beats (1e part two), so their ids are storylet facts too.
+            [FactDomain.Storylet] = storyletIds.ToHashSet(),
         };
 
         Dictionary<string, HashSet<string>> approachIds = encounterItems

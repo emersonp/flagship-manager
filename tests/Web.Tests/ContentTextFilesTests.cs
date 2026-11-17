@@ -13,6 +13,7 @@ public sealed class ContentTextFilesTests(RepoContentGuard guard) : IClassFixtur
         { "crew-tuning", "tuning/crew.yaml" },
         { "pack", "pack.yaml" },
         { "storylets", "storylets/base.yaml" },
+        { "vignettes", "vignettes/base.yaml" },
     };
 
     // The text area's text as the browser sees it: decoded. A literal line break straight after the tag would be dropped, so none may be there.
@@ -324,7 +325,7 @@ public sealed class ContentTextFilesTests(RepoContentGuard guard) : IClassFixtur
 
         (_, string body) = await Get(app.NewClient(), "/dev/content");
 
-        foreach ((string name, string path) in new[] { ("pack", "pack.yaml"), ("missions", "tuning/missions.yaml"), ("crew-tuning", "tuning/crew.yaml"), ("storylets", "storylets/base.yaml") })
+        foreach ((string name, string path) in new[] { ("pack", "pack.yaml"), ("missions", "tuning/missions.yaml"), ("crew-tuning", "tuning/crew.yaml"), ("storylets", "storylets/base.yaml"), ("vignettes", "vignettes/base.yaml") })
         {
             Assert.Contains($"<a href=\"/dev/content/files/{name}\">{path}</a>", body);
         }
@@ -345,6 +346,22 @@ public sealed class ContentTextFilesTests(RepoContentGuard guard) : IClassFixtur
         string text = WebUtility.HtmlDecode(body);
         Assert.Contains("The storylet form comes later.", text);
         Assert.Contains("Saving checks this file with the rest of the pack.", text);
+    }
+
+    // 1e part two: the vignettes file is a text file too, checked by the loader on save.
+    [Fact]
+    public async Task A_vignettes_save_the_loader_refuses_shows_its_reason_and_writes_nothing()
+    {
+        using TestApp app = NewApp();
+        string before = Everything(app);
+        string typed = Disk(app, "vignettes/base.yaml").Replace("  default: option_b\n", "", StringComparison.Ordinal);
+
+        (HttpStatusCode status, string body) = await Post(app.NewClient(), "/dev/content/files/vignettes", Body(typed));
+
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, status);
+        Assert.Contains("VIGNETTE_02: A vignette with options needs a default, and it must be one of them.", WebUtility.HtmlDecode(body));
+        Assert.Contains("The vignette form comes later.", WebUtility.HtmlDecode(body));
+        Assert.Equal(before, Everything(app));
     }
 
     [Fact]

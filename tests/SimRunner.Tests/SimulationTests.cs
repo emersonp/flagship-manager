@@ -165,6 +165,20 @@ public class SimulationTests
         Assert.All(log.OfType<StoryletAnswered>(), a => Assert.Equal("option_a", a.OptionId));
     }
 
+    // 1e part two: vignettes arrive in the itinerary; the captain leaves every one with a choice to its default when it closes.
+    [Fact]
+    public void Vignettes_arrive_and_each_is_settled_once_by_its_effects_or_its_default()
+    {
+        (_, LegacyState state, List<PublishedEvent> events) = Play(Pack, 1, 30);
+        List<IEvent> log = events.Select(e => e.Event).ToList();
+        int waiting = state.TryModule(StoryletsModule.Name, out StoryletsState? storylets) ? storylets.Vignettes.Count : 0;
+
+        Assert.True(log.OfType<VignetteArrived>().Count() > 10);
+        Assert.Equal(log.OfType<VignetteArrived>().Count(), log.OfType<VignetteAnswered>().Count() + waiting);
+        Assert.Equal(log.OfType<VignetteAnswered>().Count(), log.OfType<VignetteAnswered>().Select(a => a.OfferId).Distinct().Count());
+        Assert.All(log.OfType<VignetteAnswered>().Where(a => a.OptionId is not null), a => Assert.True(a.Defaulted));
+    }
+
     // Names are display only: naming every item leaves the log hash where it was.
     [Fact]
     public void Naming_every_item_does_not_move_the_log_hash()
@@ -205,11 +219,12 @@ public class SimulationTests
     // Re-pinned: approaches are chosen by the lead's skill and outcomes are authored (approaches plan, Task 4).
     // Re-pinned: a mission's result and a check's beat carry the flags they changed (1e part one, Task 1).
     // Re-pinned: morale changes after missions and each week, and moves checks at its thresholds (1e part two, Task 1).
+    // Re-pinned: the cycle opens on the captain's itinerary, where storylets and vignettes arrive (1e part two, Task 3).
     [Fact]
     public void Golden_seed_1_matches_the_accepted_log()
     {
         SimSummary summary = Simulation.Run(new SimOptions(Legacies: 1, Cycles: 10, Seed: 1), Pack);
 
-        Assert.Equal("C80E6B757932865C414C238C938C948ED3E736009E8B735780BF44642E739B22", summary.Legacies[0].LogHash);
+        Assert.Equal("07807F61D433D2770B989B97B49EF5A4815E6D066A91B47B4A0613761CA3FDE8", summary.Legacies[0].LogHash);
     }
 }

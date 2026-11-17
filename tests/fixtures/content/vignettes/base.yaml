@@ -1,0 +1,27 @@
+# Placeholders. The author replaces these. VIGNETTE_01 has effects and no choice, VIGNETTE_02 one small choice with a default,
+# and VIGNETTE_03 is for the ship.
+- id: VIGNETTE_01
+  scope: crew
+  requires:
+    - { last: rested }
+  text: |-
+    subject: VIGNETTE_01_LINE_1
+    = #subject# VIGNETTE_01_REPORT
+  effects: [{ morale: 2, on: subject }]
+- id: VIGNETTE_02
+  scope: crew
+  requires:
+    - { last: lost_crewmate }
+  text: |-
+    subject: VIGNETTE_02_LINE_1
+  default: option_b
+  options:
+    - { id: option_a, label: VIGNETTE_02_OPTION_A_LABEL, effects: [{ morale: 3, on: subject }, { loyalty: 1, on: subject }], text: "#subject# VIGNETTE_02_OPTION_A_TEXT" }
+    - { id: option_b, label: VIGNETTE_02_OPTION_B_LABEL, effects: [], text: VIGNETTE_02_OPTION_B_TEXT }
+- id: VIGNETTE_03
+  scope: ship
+  requires:
+    - { flag: flag_a, min: 2, max: 2 }
+  text: |-
+    best SKILL_A: VIGNETTE_03_LINE_1
+  effects: [{ morale: -1, on: crew }]

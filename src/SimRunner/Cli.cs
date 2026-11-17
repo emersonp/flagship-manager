@@ -73,7 +73,9 @@ public static class Cli
             $"Content {pack.Id} v{pack.Version}: {summary.Legacies.Count} legacies x {options.Cycles} cycles, {summary.Legacies.Sum(l => l.Events)} events. "
             + $"Missions: {Total(MissionOutcome.FullSuccess)} full, {Total(MissionOutcome.PartialSuccess)} partial, {Total(MissionOutcome.Incomplete)} incomplete, {Total(MissionOutcome.Withdrawal)} withdrawn, {Total(MissionOutcome.Loss)} lost. "
             + $"Deaths: {summary.Legacies.Sum(l => l.Deaths)}. "
-            + $"Storylets per 100 cycles: {PerHundred(l => l.StoryletsOffered)} offered, {PerHundred(l => l.StoryletsAnswered)} answered. OK.");
+            + $"Storylets per 100 cycles: {PerHundred(l => l.StoryletsOffered)} offered, {PerHundred(l => l.StoryletsAnswered)} answered. "
+            + $"Vignettes per 100 cycles: {PerHundred(l => l.VignettesArrived)} arrived, {PerHundred(l => l.VignettesDefaulted)} left to their default. "
+            + $"Morale at the end: {summary.Legacies.Sum(l => l.MoraleLow)} low, {summary.Legacies.Sum(l => l.MoraleSteady)} steady, {summary.Legacies.Sum(l => l.MoraleHigh)} high. OK.");
         return 0;
     }
 

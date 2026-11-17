@@ -60,7 +60,7 @@ public sealed class PhaseBoundTests : IDisposable
     // Orders, then send nobody: resolution with no mission, offering "To aftermath".
     private async Task<Guid> ResolutionWithNobodySent()
     {
-        Guid id = await app.Sessions.CreateLegacy(app.Live, "LEGACY", 1);
+        Guid id = await app.CreateAtOrders("LEGACY", 1);
         await Post(id, "advance", app.Stamp(id));
         await Post(id, "advance", app.Stamp(id));
         Assert.Equal(CyclePhase.Resolution, Snapshot(id).Phase);
@@ -70,7 +70,7 @@ public sealed class PhaseBoundTests : IDisposable
     [Fact]
     public async Task A_double_click_on_to_briefing_moves_one_phase_and_the_second_click_refreshes_the_page()
     {
-        Guid id = await app.Sessions.CreateLegacy(app.Live, "LEGACY", 1);
+        Guid id = await app.CreateAtOrders("LEGACY", 1);
         List<KeyValuePair<string, string>> stamp = app.Stamp(id);
         await Post(id, "advance", stamp);
         var before = Snapshot(id);
@@ -110,9 +110,9 @@ public sealed class PhaseBoundTests : IDisposable
 
         string second = await Post(id, "advance", stamp);
 
-        Assert.Equal((CyclePhase.Orders, 2), (Snapshot(id).Phase, Snapshot(id).Cycle));
+        Assert.Equal((CyclePhase.Itinerary, 2), (Snapshot(id).Phase, Snapshot(id).Cycle));
         Assert.Equal(before, Snapshot(id));
-        AssertRefreshed(second, CyclePhase.Orders);
+        AssertRefreshed(second, CyclePhase.Itinerary);
     }
 
     [Theory]
@@ -120,7 +120,7 @@ public sealed class PhaseBoundTests : IDisposable
     [InlineData("Briefing", 1)]
     public async Task A_launch_posted_from_a_stale_page_stores_nothing(string phase, int cycleOffset)
     {
-        Guid id = await app.Sessions.CreateLegacy(app.Live, "LEGACY", 1);
+        Guid id = await app.CreateAtOrders("LEGACY", 1);
         await Post(id, "advance", app.Stamp(id));
         LoadedLegacy legacy = (await app.Sessions.Read(app.Live, id))!;
         var team = (AssignTeam)SimRunner.AutoCaptain.NextCommand(app.Live.Game, legacy.State, app.Live.Pack);
@@ -167,7 +167,7 @@ public sealed class PhaseBoundTests : IDisposable
     [MemberData(nameof(BadStamps))]
     public async Task A_missing_or_unparseable_cycle_or_phase_is_an_incomplete_form_and_stores_nothing(string route, string? cycle, string? phase)
     {
-        Guid id = await app.Sessions.CreateLegacy(app.Live, "LEGACY", 1);
+        Guid id = await app.CreateAtOrders("LEGACY", 1);
         var form = new List<KeyValuePair<string, string>>();
         if (cycle is not null)
         {
@@ -211,7 +211,7 @@ public sealed class PhaseBoundTests : IDisposable
     [Fact]
     public async Task Every_advance_button_posts_the_pages_cycle_and_phase_and_is_disabled_in_flight()
     {
-        Guid id = await app.Sessions.CreateLegacy(app.Live, "LEGACY", 1);
+        Guid id = await app.CreateAtOrders("LEGACY", 1);
         string orders = System.Net.WebUtility.HtmlDecode(await client.GetStringAsync($"/legacy/{id}"));
         AssertStamped(FormAround(orders, "To briefing"), 1, CyclePhase.Orders);
         Assert.Contains($"data-on:submit=\"@post('/legacy/{id}/advance', {{contentType: 'form'}})\"", FormAround(orders, "To briefing"));
@@ -232,7 +232,7 @@ public sealed class PhaseBoundTests : IDisposable
     [Fact]
     public async Task The_briefing_posts_its_stamp_with_launch_and_send_nobody_and_disables_both_while_either_is_in_flight()
     {
-        Guid id = await app.Sessions.CreateLegacy(app.Live, "LEGACY", 1);
+        Guid id = await app.CreateAtOrders("LEGACY", 1);
         await Post(id, "advance", app.Stamp(id));
 
         string html = System.Net.WebUtility.HtmlDecode(await client.GetStringAsync($"/legacy/{id}"));
@@ -253,7 +253,7 @@ public sealed class PhaseBoundTests : IDisposable
     {
         for (ulong seed = 1; seed < 200; seed++)
         {
-            Guid id = await app.Sessions.CreateLegacy(app.Live, $"LEGACY_{seed}", seed);
+            Guid id = await app.CreateAtOrders($"LEGACY_{seed}", seed);
             var captain = new WebCaptain(app, client, id);
             for (int steps = 0; steps < 50 && (await captain.Read()).State.Phase != CyclePhase.Resolution; steps++)
             {

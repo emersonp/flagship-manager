@@ -40,6 +40,18 @@ public sealed class TestApp(int beatDelayMs = 0, bool wideDice = false, bool noC
         return CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
     }
 
+    // A new legacy moved on past its first itinerary (1e part two) to the orders, where most tests begin.
+    public async Task<Guid> CreateAtOrders(string name, ulong seed)
+    {
+        Guid id = await Sessions.CreateLegacy(Live, name, seed);
+        await Sessions.Run(Live, id, legacy =>
+        {
+            legacy.Send(new Sim.Core.AdvancePhase());
+            return legacy;
+        });
+        return id;
+    }
+
     // The cycle and phase a page drawn now carries in its action forms.
     public List<KeyValuePair<string, string>> Stamp(Guid id)
     {

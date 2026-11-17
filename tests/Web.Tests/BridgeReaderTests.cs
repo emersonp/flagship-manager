@@ -348,7 +348,28 @@ public class BridgeReaderTests
                 _ => [],
             })
             .ToArray();
-        Assert.Equal(expected, changes.Select(c => (c.CrewId, c.Kind)));
+        Assert.Equal(expected, changes.TakeWhile(c => c.Kind != "morale").Select(c => (c.CrewId, c.Kind)));
+
+        // 1e part two: then each member's net morale change from the mission, in the order their changes began.
+        string[] moved = played.CycleEvents().OfType<MoraleChanged>().GroupBy(m => m.CrewId).Where(g => g.Last().To != g.First().From).Select(g => g.Key).ToArray();
+        Assert.NotEmpty(moved);
+        Assert.Equal(moved, changes.SkipWhile(c => c.Kind != "morale").Select(c => c.CrewId));
+        Assert.All(changes.SkipWhile(c => c.Kind != "morale"), c => Assert.Equal("morale", c.Kind));
+    }
+
+    [Fact]
+    public void A_morale_change_line_gives_the_net_change_and_the_word_play_shows()
+    {
+        Played played = Until(Pack, p => p.State.Phase == CyclePhase.Aftermath && p.CycleEvents().OfType<MoraleChanged>().Any());
+        MoraleChanged first = played.CycleEvents().OfType<MoraleChanged>().First();
+        List<MoraleChanged> theirs = played.CycleEvents().OfType<MoraleChanged>().Where(m => m.CrewId == first.CrewId).ToList();
+        int to = theirs[^1].To;
+
+        CrewChange line = Assert.IsType<AftermathView>(Read(played).Aftermath).Changes.Single(c => c.Kind == "morale" && c.CrewId == first.CrewId);
+
+        string word = BridgeReader.MoraleWord(Pack.CrewTuning, to).ToLowerInvariant();
+        Assert.Equal($"{first.CrewId} morale {BeatLines.Signed(to - theirs[0].From)}, now {word}.", line.Text);
+        Assert.Equal(BridgeReader.MoraleWord(Pack.CrewTuning, to), Read(played).Roster.Single(r => r.Id == first.CrewId).Morale);
     }
 
     // Injury and death lines in the design's voice, built from the events and the stored heal weeks.

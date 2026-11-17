@@ -15,7 +15,7 @@ public sealed class LegacySessionTests : IDisposable
     [Fact]
     public async Task A_second_run_waits_for_the_first_and_both_runs_events_are_stored_in_order()
     {
-        Guid id = await app.Sessions.CreateLegacy(app.Live, "LEGACY");
+        Guid id = await app.CreateAtOrders("LEGACY", 1);
         var firstEntered = new TaskCompletionSource();
         var gate = new TaskCompletionSource();
         int secondEntered = 0;
@@ -85,7 +85,7 @@ public sealed class LegacySessionTests : IDisposable
         LoadedLegacy loaded = (await app.Sessions.Read(app.Live, id))!;
         Assert.NotEmpty(events);
         Assert.Equal(events.Count + 1, loaded.State.NextSequence);
-        Assert.Equal(CyclePhase.Orders, loaded.State.Phase);
+        Assert.Equal(CyclePhase.Itinerary, loaded.State.Phase);
         await Assert.ThrowsAsync<CommandRejectedException>(() => app.Sessions.Run<object>(app.Live, id, legacy =>
         {
             legacy.Send(new FoundLegacy());

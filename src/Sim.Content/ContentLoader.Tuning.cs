@@ -6,6 +6,12 @@ namespace Sim.Content;
 
 public static partial class ContentLoader
 {
+    // The tuning file's numbers for the itinerary (1e parts one and two).
+    private sealed record CycleNumbers(int StoryletsPerCycle, int VignettesPerCycle, int VignetteCooldown, int CaptainsTime)
+    {
+        public static readonly CycleNumbers None = new(0, 0, 0, 0);
+    }
+
     // One tuning file on its own, for comparing against the pack's.
     public static (MissionTuning? Tuning, BenchTuning? Bench, IReadOnlyList<ContentError> Errors) LoadTuningText(string text)
     {
@@ -15,19 +21,19 @@ public static partial class ContentLoader
         return errors.Count == 0 ? (tuning, bench, errors) : (null, null, errors);
     }
 
-    // StoryletsPerCycle is the storylets module's one number; it lives here so the pack keeps one tuning file for the cycle's rules.
-    private static (MissionTuning? Tuning, BenchTuning? Bench, int StoryletsPerCycle) LoadTuning(IDeserializer yaml, IReadOnlyDictionary<string, string> files, List<ContentError> errors)
+    // The storylets module's numbers and the captain's time live here, so the pack keeps one tuning file for the cycle's rules.
+    private static (MissionTuning? Tuning, BenchTuning? Bench, CycleNumbers Cycle) LoadTuning(IDeserializer yaml, IReadOnlyDictionary<string, string> files, List<ContentError> errors)
     {
         if (!files.TryGetValue(TuningFile, out string? text))
         {
             errors.Add(new ContentError(TuningFile, $"The pack has no {TuningFile}."));
-            return (null, null, 0);
+            return (null, null, CycleNumbers.None);
         }
 
         Dictionary<object, object>? root = Parse<Dictionary<object, object>>(yaml, TuningFile, text, errors);
         if (root is null)
         {
-            return (null, null, 0);
+            return (null, null, CycleNumbers.None);
         }
 
         var values = new Dictionary<string, string>();
@@ -85,7 +91,11 @@ public static partial class ContentLoader
             MaxLight = read.Int("injury.maxLight"),
             PartialAtProgress = read.Int("result.partialAtProgress"),
         };
-        int storyletsPerCycle = read.Int("storylets.perCycle", min: 0);
+        var cycle = new CycleNumbers(
+            read.Int("storylets.perCycle", min: 0),
+            read.Int("vignettes.perCycle", min: 0),
+            read.Int("vignettes.cooldown", min: 0),
+            read.Int("captainsTime.perCycle", min: 0));
         var bench = new BenchTuning(BenchTeam(read, "rookie"), BenchTeam(read, "mixed"), BenchTeam(read, "veteran"));
 
         bool ordered = tuning.TierCritical > tuning.TierSuccess && tuning.TierSuccess > tuning.TierPartial && tuning.TierPartial > tuning.TierFailure;
@@ -99,7 +109,7 @@ public static partial class ContentLoader
             CheckRanges(tuning, bench, errors);
         }
 
-        return read.ReportUnused() && errors.Count == errorsBefore ? (tuning, bench, storyletsPerCycle) : (null, null, 0);
+        return read.ReportUnused() && errors.Count == errorsBefore ? (tuning, bench, cycle) : (null, null, cycle);
     }
 
     // A threshold or range the wrong way round switches a rule off or crashes a draw, so it is a load error.

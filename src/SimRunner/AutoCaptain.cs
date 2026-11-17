@@ -49,7 +49,7 @@ public static class AutoCaptain
             return new AnswerCall(mission.Id, call.CallId, Bench.Answer(CallPolicy.BackLead, call));
         }
 
-        if (state.Phase == CyclePhase.Aftermath && FirstAnswer(state, pack) is { } answer)
+        if (state.Phase == CyclePhase.Itinerary && FirstAnswer(state, pack) is { } answer)
         {
             return answer;
         }
@@ -58,7 +58,7 @@ public static class AutoCaptain
     }
 
     // The first waiting storylet, answered with its first option. One the pack no longer has cannot be answered and does not
-    // hold the aftermath, so it is passed over.
+    // hold the itinerary, so it is passed over. Vignettes are left to their defaults.
     private static AnswerStorylet? FirstAnswer(LegacyState state, ContentPack pack)
     {
         if (!state.TryModule(StoryletsModule.Name, out StoryletsState? storylets))

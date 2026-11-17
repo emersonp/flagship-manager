@@ -27,6 +27,8 @@ public class MissionsModuleTests
             Bus = NewBus(pack);
             State = new LegacyState { LegacyId = Guid.Empty, Seed = seed };
             Events.AddRange(Bus.Send(State, new FoundLegacy()));
+            // A cycle opens on the captain's itinerary (1e part two); these tests start at its orders, where the site arrives.
+            Events.AddRange(Bus.Send(State, new AdvancePhase()));
         }
 
         public EventBus Bus { get; private set; }
@@ -248,7 +250,7 @@ public class MissionsModuleTests
     public void A_site_offers_one_objective_more_often_than_two_and_never_repeats_a_template()
     {
         var h = new Harness(7);
-        while (h.State.Cycle < 300)
+        while (h.State.Cycle <= 300)
         {
             h.Send(new AdvancePhase());
         }
@@ -266,7 +268,7 @@ public class MissionsModuleTests
     }
 
     [Fact]
-    public void Founding_the_legacy_draws_the_first_site()
+    public void The_first_orders_draw_the_first_site()
     {
         var h = new Harness();
 
@@ -518,7 +520,9 @@ public class MissionsModuleTests
         MissionsModule.Register(bus, empty);
         var state = new LegacyState { LegacyId = Guid.Empty, Seed = 1 };
 
-        var error = Assert.Throws<InvalidOperationException>(() => bus.Send(state, new FoundLegacy()));
+        bus.Send(state, new FoundLegacy());
+
+        var error = Assert.Throws<InvalidOperationException>(() => bus.Send(state, new AdvancePhase()));
 
         Assert.Contains(TestContent.Pack.Assignments[0].Id, error.Message, StringComparison.Ordinal);
     }

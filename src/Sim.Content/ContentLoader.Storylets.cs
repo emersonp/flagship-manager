@@ -10,6 +10,7 @@ public static partial class ContentLoader
     private const int MaxRequirements = 4;
     private const int MinOptions = 2;
     private const int MaxOptions = 4;
+    private const int MaxVignetteEntries = 3;
 
     private static List<StoryletDef> BuildStorylets(List<(string File, StoryletDto Dto)> items, List<ContentError> errors)
     {
@@ -35,6 +36,11 @@ public static partial class ContentLoader
 
             List<Requirement> requires = Requirements(dto.Requires, scope, Error);
             List<StoryletOption> options = Options(dto.Options, scope, Error);
+            if (dto.Effects is not null || dto.Default is not null)
+            {
+                Error("A storylet's effects and default belong to a vignette; a storylet's effects are in its options.");
+            }
+
             if (requires.Count > 0 && !requires.OfType<FlagRange>().Any())
             {
                 Error("A storylet needs at least one flag among its requirements, so its answers can stop it returning.");
@@ -60,15 +66,86 @@ public static partial class ContentLoader
         return defs;
     }
 
+    // Vignettes (1e part two, design 4.3): a storylet's shape with no stakes, and either effects that apply when it arrives or one
+    // small choice of two options with a default. Its requirements need no flag: a cooldown, not its answers, stops it returning.
+    private static List<VignetteDef> BuildVignettes(List<(string File, StoryletDto Dto)> items, List<ContentError> errors)
+    {
+        var defs = new List<VignetteDef>();
+        foreach ((string file, StoryletDto dto) in items)
+        {
+            int before = errors.Count;
+            void Error(string message)
+            {
+                errors.Add(new ContentError(file, $"{dto.Id}: {message}"));
+            }
+
+            if (dto.Stakes != 0)
+            {
+                Error("A vignette has no stakes.");
+            }
+
+            string? scope = dto.Scope is StoryletScopes.Ship or StoryletScopes.Crew ? dto.Scope : null;
+            if (scope is null)
+            {
+                Error("A vignette needs scope: ship or crew.");
+            }
+
+            List<Requirement> requires = Requirements(dto.Requires, scope, Error, "vignette");
+            bool effectsWritten = dto.Effects is { Count: > 0 };
+            bool optionsWritten = dto.Options is { Count: > 0 };
+            var effects = new List<StoryletEffect>();
+            var options = new List<StoryletOption>();
+            if (effectsWritten && optionsWritten)
+            {
+                Error("A vignette has effects or two options, not both.");
+            }
+            else if (optionsWritten)
+            {
+                options = Options(dto.Options, scope, Error, vignette: true);
+                if (dto.Default is null || options.All(o => o.Id != dto.Default))
+                {
+                    Error("A vignette with options needs a default, and it must be one of them.");
+                }
+            }
+            else
+            {
+                if (!effectsWritten)
+                {
+                    Error("A vignette with no choice needs at least one effect.");
+                }
+
+                if (dto.Default is not null)
+                {
+                    Error("A vignette with no choice has no default.");
+                }
+
+                effects = (dto.Effects ?? []).Select(e => StoryletEffectOf(e ?? [], scope, Error)).OfType<StoryletEffect>().ToList();
+            }
+
+            if (dto.Text is { } text && text.Split('\n').Count(l => l.Trim().Length > 0) > MaxVignetteEntries)
+            {
+                Error("A vignette's text is one to three entries.");
+            }
+
+            string? name = CheckName(file, dto.Id!, dto.Name, errors);
+            if (errors.Count == before)
+            {
+                defs.Add(new VignetteDef(dto.Id!, scope!, requires, effects, options, dto.Default, name));
+            }
+        }
+
+        return defs;
+    }
+
     // Each entry is one of three kinds (design 4.2): { flag, min, max }, { stat, min, max }, or { last, not }. A range's min is 1
     // when left out, or 0 when only max is given; max has no limit when left out. Stats and facts are read on the subject, so
     // a storylet for the ship cannot have them.
-    private static List<Requirement> Requirements(List<Dictionary<string, string>?>? written, string? scope, Action<string> error)
+    private static List<Requirement> Requirements(List<Dictionary<string, string>?>? written, string? scope, Action<string> error, string noun = "storylet")
     {
         var requires = new List<Requirement>();
         if (written is not { Count: >= 1 and <= MaxRequirements })
         {
-            error("A storylet needs one to four requirements.");
+            error($"A {noun} needs one to four requirements.");
         }
 
         foreach (Dictionary<string, string> entry in (written ?? []).Select(e => e ?? []))
@@ -87,7 +164,7 @@ public static partial class ContentLoader
             string? name = entry.GetValueOrDefault(kind);
             if (kind != "flag" && scope == StoryletScopes.Ship)
             {
-                error($"A storylet for the ship has no subject, so it cannot read {name}.");
+                error($"A {noun} for the ship has no subject, so it cannot read {name}.");
                 ok = false;
             }
 
@@ -172,19 +249,19 @@ public static partial class ContentLoader
             int highestMin = same.Max(r => r.Min);
             if (same.Any(r => r.Max < highestMin))
             {
-                error($"No value of {same.Key} satisfies all of this storylet's requirements on it.");
+                error($"No value of {same.Key} satisfies all of this {noun}'s requirements on it.");
             }
         }
 
         return requires;
     }
 
-    private static List<StoryletOption> Options(List<StoryletOptionDto?>? written, string? scope, Action<string> error)
+    private static List<StoryletOption> Options(List<StoryletOptionDto?>? written, string? scope, Action<string> error, bool vignette = false)
     {
         var options = new List<StoryletOption>();
-        if (written is not { Count: >= MinOptions and <= MaxOptions })
+        if (vignette ? written is not { Count: 2 } : written is not { Count: >= MinOptions and <= MaxOptions })
         {
-            error("A storylet needs two to four options.");
+            error(vignette ? "A vignette's choice is two options." : "A storylet needs two to four options.");
         }
 
         var ids = new HashSet<string>();
@@ -396,6 +473,11 @@ public static partial class ContentLoader
         public string? Text { get; set; }
 
         public List<StoryletOptionDto?>? Options { get; set; }
+
+        // A vignette's only (1e part two).
+        public List<Dictionary<string, string>?>? Effects { get; set; }
+
+        public string? Default { get; set; }
     }
 
     private sealed class StoryletOptionDto

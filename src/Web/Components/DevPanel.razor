@@ -1,4 +1,4 @@
-@* Dev Play's panel: the legacy's story flags, and a form to set one. It redraws itself whenever another request on the page ends,
+@* Dev Play's panel: the legacy's story flags, each crew member's morale, and a form to set a flag. It redraws itself whenever another request on the page ends,
    so a flag a mission changed shows once that mission's beats have played. Nothing in normal play renders it. *@
 <section id="dev" class="well dev" aria-labelledby="h-dev" data-on:datastar-fetch__document="@Refresh">
     <div class="well__head">
@@ -26,6 +26,20 @@
                     </table>
                 </div>
             }
+        </div>
+        <div class="dev__flags">
+            <h3 class="sub">Morale</h3>
+            <div class="tw dev__tw" tabindex="0" role="region" aria-label="Morale, scrolls sideways">
+                <table>
+                    <thead><tr><th scope="col">Crew</th><th scope="col" class="n">Morale</th><th scope="col">Shown in play as</th></tr></thead>
+                    <tbody>
+                        @foreach (DevMoraleRow row in View.Morale)
+                        {
+                            <tr><td>@row.Shown</td><td class="n">@row.Morale</td><td>@row.Word</td></tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
         </div>
         <form class="dev__set" data-on:submit="@Post" data-indicator:devbusy>
             <h3 class="sub">Set a flag</h3>
@@ -55,7 +69,7 @@
                 </div>
                 <button class="btn btn--dev" type="submit" data-attr:disabled="$devbusy" data-attr:aria-busy="$devbusy ? 'true' : false">Set flag</button>
             </div>
-            <p class="hint" id="dev-hint">0 to @View.Most, and 0 clears it. Storylets are offered as the aftermath begins, so set a flag before then.</p>
+            <p class="hint" id="dev-hint">0 to @View.Most, and 0 clears it. Storylets and vignettes arrive as the itinerary opens, so set a flag before then.</p>
             <p id="dev-result" class="@(Error ? "error" : "dev__ok")" role="status">@Message</p>
         </form>
     </div>

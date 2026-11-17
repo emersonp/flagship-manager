@@ -25,8 +25,20 @@ public sealed record ContentPack(
     // Slice 1e. Optional: a pack with no storylets offers none.
     public IReadOnlyList<StoryletDef> Storylets { get; init; } = [];
 
-    // At most this many storylets wait in one aftermath (tuning storylets.perCycle).
+    // At most this many storylets wait in one itinerary (tuning storylets.perCycle).
     public int StoryletsPerCycle { get; init; } = 2;
+
+    // 1e part two. Optional: a pack with no vignettes sends none.
+    public IReadOnlyList<VignetteDef> Vignettes { get; init; } = [];
+
+    // At most this many vignettes arrive in one itinerary (tuning vignettes.perCycle).
+    public int VignettesPerCycle { get; init; } = 3;
+
+    // A vignette does not arrive again for the same scope within this many cycles (tuning vignettes.cooldown).
+    public int VignetteCooldown { get; init; } = 6;
+
+    // Shown on the itinerary and not yet spent (tuning captainsTime.perCycle; slice 1g spends it).
+    public int CaptainsTimePerCycle { get; init; } = 3;
 
     // What a call's answer buttons say, by decision id and then by answer ("bold", "safe", "withdraw"); an answer with no label shows its own word.
     public IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>> ChoiceLabels { get; init; } = new Dictionary<string, IReadOnlyDictionary<string, string>>();

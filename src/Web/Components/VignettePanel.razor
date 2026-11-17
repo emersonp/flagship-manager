@@ -1,0 +1,70 @@
+@* One vignette on the itinerary: waiting, with its two answers and the one taken if it is left; or settled, with what was said
+   and what changed. A vignette with no choice is settled as it arrives. *@
+<article class="storylet vignette" aria-labelledby="@Head">
+    <div class="storylet__head">
+        <h3 id="@Head">@Vignette.Title</h3>
+        @if (Vignette.About is { } about)
+        {
+            <p class="note">@about</p>
+        }
+    </div>
+    <ScriptLines Entries="Vignette.Script" />
+    @if (!Vignette.Settled)
+    {
+        <div class="answers" role="group" aria-labelledby="@Head">
+            @for (int i = 0; i < Vignette.Options.Count; i++)
+            {
+                StoryletOptionView option = Vignette.Options[i];
+                <form data-on:submit="@Post" class="answer" @attributes="Indicator(i)">
+                    <input type="hidden" name="offer" value="@Vignette.OfferId">
+                    <input type="hidden" name="option" value="@option.Id">
+                    <StampFields Bar="Bar" />
+                    <button class="btn" type="submit" data-attr:disabled="@AnyInFlight" data-attr:aria-busy="@Busy(i)">@option.Label</button>
+                </form>
+            }
+            @if (Vignette.DefaultLabel is { } left)
+            {
+                <p class="vignette__default">Left alone: @left</p>
+            }
+        </div>
+    }
+    else
+    {
+        @if (Vignette.Said.Count > 0)
+        {
+            <ScriptLines Entries="Vignette.Said" />
+        }
+        @if (Vignette.Tags.Count > 0)
+        {
+            <p class="beat__tags">@foreach (string tag in Vignette.Tags)
+                {
+                    <span class="fig-tag">@tag</span>
+                }</p>
+        }
+    }
+</article>
+
+@code {
+    [Parameter, EditorRequired] public Guid LegacyId { get; set; }
+
+    [Parameter, EditorRequired] public TopBarView Bar { get; set; } = null!;
+
+    // Its place in the section, so its heading and in-flight signals are its own.
+    [Parameter, EditorRequired] public int Index { get; set; }
+
+    [Parameter, EditorRequired] public VignetteView Vignette { get; set; } = null!;
+
+    private string Head => $"vignette-{Index}-head";
+
+    private string Signal(int option) => $"_vignette{Index}x{option}";
+
+    private Dictionary<string, object> Indicator(int option) => new() { [$"data-indicator:{Signal(option)}"] = true };
+
+    // Both answers wait while either is in flight.
+    private string AnyInFlight => string.Join(" || ", Enumerable.Range(0, Vignette.Options.Count).Select(i => "$" + Signal(i)));
+
+    // Datastar writes a true value as an empty attribute, so the in-flight style gets the string "true".
+    private string Busy(int option) => $"${Signal(option)} ? 'true' : false";
+
+    private string Post => $"@post('/legacy/{LegacyId}/vignette', {{contentType: 'form'}})";
+}

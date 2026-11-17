@@ -3,8 +3,9 @@ using Sim.Core.Content;
 
 namespace Sim.Storylets;
 
-// Owns the story flags, offers storylets when the aftermath begins, and applies an answer's effects. It reaches crew only
-// through the roster view and the AdjustLoyalty command, and hears of missions only through their results.
+// Owns the story flags, offers storylets and sends vignettes when the captain's itinerary opens, and applies answers' effects.
+// It reaches crew only through the roster view and the AdjustLoyalty and AdjustMorale commands, and hears of missions only
+// through their results.
 public static class StoryletsModule
 {
     public const string Name = "storylets";
@@ -18,34 +19,37 @@ public static class StoryletsModule
     {
         bus.Module<StoryletsState>(Name);
         bus.Guard<AnswerStorylet>(Order, Name, (command, context) => CheckAnswer(pack, command, context));
-        bus.Guard<AdvancePhase>(Order, Name, (_, context) => context.State.Phase == CyclePhase.Aftermath && Answerable(pack, context).Any() ? AnswerStorylet.WaitingReason : null);
+        bus.Guard<AdvancePhase>(Order, Name, (_, context) => context.State.Phase == CyclePhase.Itinerary && Answerable(pack, context).Any() ? AnswerStorylet.WaitingReason : null);
         bus.Handle<AnswerStorylet>((command, context) => OnAnswer(pack, command, context));
+        bus.Guard<AnswerVignette>(Order, Name, (command, context) => CheckVignette(pack, command, context));
+        bus.Handle<AnswerVignette>((command, context) => OnVignette(pack, command, context));
         bus.Guard<SetFlag>(Order, Name, (command, context) => CheckSet(command, context));
         bus.Handle<SetFlag>((command, context) => OnSet(command, context));
         bus.Subscribe<MissionEnded>(Order, Name, (e, context) => OnMissionEnded(e, context));
         bus.Subscribe<CrewDied>(Order, Name, (e, context) => OnCrewDied(e, context));
         bus.Subscribe<PhaseEntered>(Order, Name, (e, context) =>
         {
-            if (e.Phase == CyclePhase.Aftermath)
+            StoryletsState state = context.Module<StoryletsState>();
+            switch (e.Phase)
             {
-                StoryletsState state = context.Module<StoryletsState>();
-                if (state.LastCycle?.Cycle != e.Cycle)
-                {
+                case CyclePhase.Aftermath when state.LastCycle?.Cycle != e.Cycle:
                     // No team was sent: the cycle still ran, and everyone fit rested.
                     state.LastCycle = new LastCycleRecord { Cycle = e.Cycle, Sent = [], Hurt = [], Died = [] };
-                }
-
-                OnAftermath(pack, e.Cycle, context);
-            }
-            else if (e.Phase == CyclePhase.Orders)
-            {
-                context.Module<StoryletsState>().LastCycle = null;
+                    break;
+                case CyclePhase.Itinerary:
+                    OnItinerary(pack, e.Cycle, context);
+                    SendVignettes(pack, e.Cycle, context);
+                    break;
+                case CyclePhase.Orders:
+                    CloseItinerary(pack, context);
+                    state.LastCycle = null;
+                    break;
             }
         });
     }
 
     // The waiting storylets the pack still has. One it has lost (the author deleted it while it waited) never holds the
-    // legacy in the aftermath; it is withdrawn when the next aftermath begins.
+    // legacy in the itinerary; it is withdrawn when the next itinerary opens.
     private static IEnumerable<WaitingStorylet> Answerable(ContentPack pack, IBusContext context)
     {
         return context.Module<StoryletsState>().Waiting.Where(w => pack.Storylets.Any(s => s.Id == w.StoryletId));
@@ -67,12 +71,26 @@ public static class StoryletsModule
         StoryletsState state = context.Module<StoryletsState>();
         WaitingStorylet waiting = state.Waiting.First(w => w.OfferId == command.OfferId);
         StoryletOption option = pack.Storylets.First(s => s.Id == waiting.StoryletId).Options.First(o => o.Id == command.OptionId);
-        foreach (StoryletEffect effect in option.Effects)
+        Apply(option.Effects, waiting.SubjectId, context);
+        state.Waiting.Remove(waiting);
+        context.Publish(new StoryletAnswered(waiting.OfferId, waiting.StoryletId, waiting.SubjectId, option.Id));
+    }
+
+    // An answer's or a vignette's effects, in order: loyalty and morale through the crew module's commands, on the subject or
+    // every living crew member; flags on the ship or the subject (no on: the scope it arrived for).
+    private static void Apply(IReadOnlyList<StoryletEffect> effects, string? subjectId, IBusContext context)
+    {
+        StoryletsState state = context.Module<StoryletsState>();
+        foreach (StoryletEffect effect in effects)
         {
+            IEnumerable<string> Who(string? on)
+            {
+                return on == StoryletScopes.Crew ? context.View<IRosterView>().Roster : [subjectId!];
+            }
+
             if (effect.Loyalty != 0)
             {
-                IEnumerable<string> crew = effect.LoyaltyOn == StoryletScopes.Crew ? context.View<IRosterView>().Roster : [waiting.SubjectId!];
-                foreach (string crewId in crew)
+                foreach (string crewId in Who(effect.LoyaltyOn))
                 {
                     context.Send(new AdjustLoyalty(crewId, effect.Loyalty));
                 }
@@ -80,8 +98,7 @@ public static class StoryletsModule
 
             if (effect.Morale != 0)
             {
-                IEnumerable<string> crew = effect.MoraleOn == StoryletScopes.Crew ? context.View<IRosterView>().Roster : [waiting.SubjectId!];
-                foreach (string crewId in crew)
+                foreach (string crewId in Who(effect.MoraleOn))
                 {
                     context.Send(new AdjustMorale(crewId, effect.Morale));
                 }
@@ -89,13 +106,101 @@ public static class StoryletsModule
 
             if (effect.Flag is { } change)
             {
-                string? crewId = change.On == StoryletScopes.Ship ? null : waiting.SubjectId;
+                string? crewId = change.On == StoryletScopes.Ship ? null : subjectId;
                 Change(state, change.Flag, crewId, change.Amount, change.Set, null, context);
             }
         }
+    }
 
-        state.Waiting.Remove(waiting);
-        context.Publish(new StoryletAnswered(waiting.OfferId, waiting.StoryletId, waiting.SubjectId, option.Id));
+    private static string? CheckVignette(ContentPack pack, AnswerVignette command, IBusContext context)
+    {
+        if (context.Module<StoryletsState>().Vignettes.FirstOrDefault(v => v.OfferId == command.OfferId) is not { } waiting
+            || pack.Vignettes.FirstOrDefault(v => v.Id == waiting.VignetteId) is not { } vignette)
+        {
+            return "That vignette is not waiting for an answer.";
+        }
+
+        return vignette.Options.Any(o => o.Id == command.OptionId) ? null : "That is not one of its answers.";
+    }
+
+    private static void OnVignette(ContentPack pack, AnswerVignette command, IBusContext context)
+    {
+        WaitingVignette waiting = context.Module<StoryletsState>().Vignettes.First(v => v.OfferId == command.OfferId);
+        Settle(pack.Vignettes.First(v => v.Id == waiting.VignetteId), waiting, command.OptionId, defaulted: false, context);
+    }
+
+    private static void Settle(VignetteDef vignette, WaitingVignette waiting, string optionId, bool defaulted, IBusContext context)
+    {
+        Apply(vignette.Options.First(o => o.Id == optionId).Effects, waiting.SubjectId, context);
+        context.Module<StoryletsState>().Vignettes.Remove(waiting);
+        context.Publish(new VignetteAnswered(waiting.OfferId, waiting.VignetteId, waiting.SubjectId, optionId, defaulted));
+    }
+
+    // The itinerary closes: each vignette still waiting takes its default. One the pack has lost is dropped with no effect.
+    private static void CloseItinerary(ContentPack pack, IBusContext context)
+    {
+        foreach (WaitingVignette waiting in context.Module<StoryletsState>().Vignettes.ToList())
+        {
+            if (pack.Vignettes.FirstOrDefault(v => v.Id == waiting.VignetteId) is { Default: { } choice } vignette && vignette.Options.Any(o => o.Id == choice))
+            {
+                Settle(vignette, waiting, choice, defaulted: true, context);
+            }
+            else
+            {
+                context.Module<StoryletsState>().Vignettes.Remove(waiting);
+            }
+        }
+    }
+
+    // After the storylets: every vignette whose requirements hold on a scope and which is out of its cooldown there. Those that
+    // have waited longest since they last arrived anywhere come first (never first of all), then by id, then by the subject's
+    // place on the roster. The rest are dropped: a vignette is not a debt.
+    private static void SendVignettes(ContentPack pack, int cycle, IBusContext context)
+    {
+        StoryletsState state = context.Module<StoryletsState>();
+        IReadOnlyList<string> roster = context.View<IRosterView>().Roster;
+        int Last(string vignetteId, string? subjectId, bool anyScope)
+        {
+            return state.Arrivals.Where(a => a.VignetteId == vignetteId && (anyScope || a.SubjectId == subjectId)).Select(a => a.Cycle).DefaultIfEmpty(int.MinValue).Max();
+        }
+
+        var due = new List<(VignetteDef Vignette, string? SubjectId, int Position)>();
+        foreach (VignetteDef vignette in pack.Vignettes)
+        {
+            IEnumerable<(string? Id, int Position)> scopes = vignette.Scope == StoryletScopes.Crew
+                ? roster.Select((id, position) => ((string?)id, position))
+                : [(null, -1)];
+            foreach ((string? subjectId, int position) in scopes)
+            {
+                int last = Last(vignette.Id, subjectId, anyScope: false);
+                bool cooling = last != int.MinValue && cycle - last < pack.VignetteCooldown;
+                if (!cooling && vignette.Requires.All(r => Holds(r, state, subjectId, context)))
+                {
+                    due.Add((vignette, subjectId, position));
+                }
+            }
+        }
+
+        IEnumerable<(VignetteDef Vignette, string? SubjectId, int Position)> ordered = due
+            .OrderBy(d => Last(d.Vignette.Id, null, anyScope: true))
+            .ThenBy(d => d.Vignette.Id, StringComparer.Ordinal)
+            .ThenBy(d => d.Position);
+        foreach ((VignetteDef vignette, string? subjectId, _) in ordered.Take(pack.VignettesPerCycle).ToList())
+        {
+            var offer = new WaitingVignette { OfferId = $"{cycle}:{vignette.Id}:{subjectId ?? ShipKey}", VignetteId = vignette.Id, SubjectId = subjectId, Fact = vignette.Fact };
+            state.Arrivals.RemoveAll(a => a.VignetteId == vignette.Id && a.SubjectId == subjectId);
+            state.Arrivals.Add(new VignetteArrival { VignetteId = vignette.Id, SubjectId = subjectId, Cycle = cycle });
+            context.Publish(new VignetteArrived(offer.OfferId, vignette.Id, subjectId, offer.Fact));
+            if (vignette.Options.Count == 0)
+            {
+                Apply(vignette.Effects, subjectId, context);
+                context.Publish(new VignetteAnswered(offer.OfferId, vignette.Id, subjectId, null, Defaulted: false));
+            }
+            else
+            {
+                state.Vignettes.Add(offer);
+            }
+        }
     }
 
     private static string? CheckSet(SetFlag command, IBusContext context)
@@ -155,13 +260,14 @@ public static class StoryletsModule
     {
         StoryletsState state = context.Module<StoryletsState>();
         state.Flags.RemoveAll(f => f.CrewId == died.CrewId);
+        state.Vignettes.RemoveAll(v => v.SubjectId == died.CrewId);
         foreach (WaitingStorylet waiting in state.Waiting.Where(w => w.SubjectId == died.CrewId).ToList())
         {
             Withdraw(state, waiting, context);
         }
     }
 
-    private static void OnAftermath(ContentPack pack, int cycle, IBusContext context)
+    private static void OnItinerary(ContentPack pack, int cycle, IBusContext context)
     {
         StoryletsState state = context.Module<StoryletsState>();
         IReadOnlyList<string> roster = context.View<IRosterView>().Roster;

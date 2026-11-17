@@ -4,6 +4,8 @@ namespace Sim.Core;
 
 public enum CyclePhase
 {
+    // The captain's itinerary (1e part two): storylets and vignettes arrive here, before the orders.
+    Itinerary,
     Orders,
     Briefing,
     Resolution,
@@ -19,7 +21,7 @@ public sealed class LegacyState
 
     public int Cycle { get; set; } = 1;
 
-    public CyclePhase Phase { get; set; } = CyclePhase.Orders;
+    public CyclePhase Phase { get; set; } = CyclePhase.Itinerary;
 
     public int Week { get; set; } = 1;
 

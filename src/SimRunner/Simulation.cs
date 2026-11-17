@@ -19,7 +19,12 @@ public sealed record LegacySummary(
     int Alive,
     int HighestLevel,
     int StoryletsOffered,
-    int StoryletsAnswered);
+    int StoryletsAnswered,
+    int VignettesArrived,
+    int VignettesDefaulted,
+    int MoraleLow,
+    int MoraleSteady,
+    int MoraleHigh);
 
 public sealed record SimSummary(IReadOnlyList<LegacySummary> Legacies);
 
@@ -39,13 +44,13 @@ public static class Simulation
                 events.AddRange(AutoCaptain.PlayCycle(game, state, pack));
             }
 
-            legacies.Add(Summarise(game, state, seed, options.Cycles, events));
+            legacies.Add(Summarise(game, state, pack, seed, options.Cycles, events));
         }
 
         return new SimSummary(legacies);
     }
 
-    private static LegacySummary Summarise(Game game, LegacyState state, ulong seed, int cycles, List<PublishedEvent> events)
+    private static LegacySummary Summarise(Game game, LegacyState state, ContentPack pack, ulong seed, int cycles, List<PublishedEvent> events)
     {
         Dictionary<MissionOutcome, int> missions = Enum.GetValues<MissionOutcome>().ToDictionary(o => o, _ => 0);
         foreach (MissionEnded ended in events.Select(e => e.Event).OfType<MissionEnded>())
@@ -59,7 +64,13 @@ public static class Simulation
         int highest = members.SelectMany(m => m.Skills.Values).Select(s => s.Level).DefaultIfEmpty(0).Max();
         int offered = events.Count(e => e.Event is StoryletOffered);
         int answered = events.Count(e => e.Event is StoryletAnswered);
-        return new LegacySummary(seed, cycles, events.Count, Hash(events.Select(game.Events.ToEnvelope)), missions, deaths, alive, highest, offered, answered);
+        int arrived = events.Count(e => e.Event is VignetteArrived);
+        int defaulted = events.Count(e => e.Event is VignetteAnswered { Defaulted: true });
+        // The living crew's morale at the end, in the three bands that change a check (GDD 10's morale distribution).
+        List<int> morale = members.Where(m => m.Status != CrewStatus.Dead).Select(m => pack.CrewTuning.MoraleBonus(m.Morale)).ToList();
+        return new LegacySummary(
+            seed, cycles, events.Count, Hash(events.Select(game.Events.ToEnvelope)), missions, deaths, alive, highest, offered, answered,
+            arrived, defaulted, morale.Count(b => b < 0), morale.Count(b => b == 0), morale.Count(b => b > 0));
     }
 
     // The golden-seed fingerprint: any change to what happens, or in what order, changes it.

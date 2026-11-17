@@ -60,7 +60,7 @@ public sealed class ResolutionTests : IDisposable
     {
         for (ulong seed = 1; seed < 200; seed++)
         {
-            Guid id = await app.Sessions.CreateLegacy(app.Live, $"LEGACY_{seed}", seed);
+            Guid id = await app.CreateAtOrders($"LEGACY_{seed}", seed);
             var captain = new WebCaptain(app, client, id);
             for (int steps = 0; steps < 50; steps++)
             {
@@ -242,7 +242,7 @@ public sealed class ResolutionTests : IDisposable
     {
         for (ulong seed = 1; seed < 200; seed++)
         {
-            Guid id = await app.Sessions.CreateLegacy(app.Live, $"LEGACY_{seed}", seed);
+            Guid id = await app.CreateAtOrders($"LEGACY_{seed}", seed);
             var captain = new WebCaptain(app, client, id);
             for (int steps = 0; steps < 300 && (await captain.Read()).State.Cycle == 1; steps++)
             {
@@ -334,7 +334,7 @@ public sealed class ResolutionTests : IDisposable
         HttpClient wideClient = wide.NewClient();
         for (ulong seed = 1; seed < 400; seed++)
         {
-            Guid id = await wide.Sessions.CreateLegacy(wide.Live, $"LEGACY_{seed}", seed);
+            Guid id = await wide.CreateAtOrders($"LEGACY_{seed}", seed);
             var captain = new WebCaptain(wide, wideClient, id);
             for (int steps = 0; steps < 300 && (await captain.Read()).State.Cycle == 1; steps++)
             {
@@ -593,7 +593,7 @@ public sealed class ResolutionTests : IDisposable
     }
 
     [Fact]
-    public async Task A_whole_cycle_through_the_requests_returns_to_orders_at_week_two()
+    public async Task A_whole_cycle_through_the_requests_returns_to_the_itinerary_at_week_two()
     {
         (Guid id, WebCaptain captain, _) = await LaunchedWithCall();
         while ((await captain.Read()).State.Cycle == 1)
@@ -605,14 +605,14 @@ public sealed class ResolutionTests : IDisposable
 
         Assert.Contains("<dt>Week</dt><dd>2</dd>", page);
         Assert.Contains("<dt>Cycle</dt><dd>2</dd>", page);
-        Assert.Matches("aria-current=\"step\"[^>]*><span class=\"phase__no\">1</span><span class=\"phase__name\">Orders</span>", page);
-        Assert.Contains("To briefing", Entity(page));
+        Assert.Matches("aria-current=\"step\"[^>]*><span class=\"phase__no\">1</span><span class=\"phase__name\">Itinerary</span>", page);
+        Assert.Contains("To orders", Entity(page));
     }
 
     [Fact]
     public async Task Resolution_with_no_team_sent_offers_to_aftermath()
     {
-        Guid id = await app.Sessions.CreateLegacy(app.Live, "LEGACY", 1);
+        Guid id = await app.CreateAtOrders("LEGACY", 1);
         var captain = new WebCaptain(app, client, id);
         await captain.Post("advance", []);
         await captain.Post("advance", []);
@@ -637,7 +637,7 @@ public sealed class ResolutionTests : IDisposable
     {
         for (ulong seed = 1; seed < 200; seed++)
         {
-            Guid id = await app.Sessions.CreateLegacy(app.Live, $"LEGACY_{seed}", seed);
+            Guid id = await app.CreateAtOrders($"LEGACY_{seed}", seed);
             var captain = new WebCaptain(app, client, id);
             for (int steps = 0; steps < 300 && (await captain.Read()).State.Cycle == 1; steps++)
             {
@@ -675,7 +675,7 @@ public sealed class ResolutionTests : IDisposable
     {
         for (ulong seed = 1; seed < 200; seed++)
         {
-            Guid id = await app.Sessions.CreateLegacy(app.Live, $"LEGACY_{seed}", seed);
+            Guid id = await app.CreateAtOrders($"LEGACY_{seed}", seed);
             var captain = new WebCaptain(app, client, id);
             for (int steps = 0; steps < 300 && (await captain.Read()).State.Cycle == 1; steps++)
             {
@@ -709,7 +709,7 @@ public sealed class ResolutionTests : IDisposable
     {
         for (ulong seed = 1; seed < 200; seed++)
         {
-            Guid id = await app.Sessions.CreateLegacy(app.Live, $"LEGACY_{seed}", seed);
+            Guid id = await app.CreateAtOrders($"LEGACY_{seed}", seed);
             var captain = new WebCaptain(app, client, id);
             for (int steps = 0; steps < 50 && !Pending(await captain.Read()) && (await captain.Read()).State.Cycle == 1; steps++)
             {
@@ -805,7 +805,7 @@ public sealed class ResolutionTests : IDisposable
         // A beat delay far longer than the wait below: the request can only end in time because the client left.
         using var slow = new TestApp(600_000);
         HttpClient slowClient = slow.NewClient();
-        Guid id = await slow.Sessions.CreateLegacy(slow.Live, "LEGACY", 1);
+        Guid id = await slow.CreateAtOrders("LEGACY", 1);
         var captain = new WebCaptain(slow, slowClient, id);
         await captain.Post("advance", []);
         LoadedLegacy legacy = await captain.Read();

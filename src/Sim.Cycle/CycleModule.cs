@@ -37,7 +37,7 @@ public static class CycleModule
         {
             state.Cycle++;
             state.Week += WeeksPerCycle;
-            state.Phase = CyclePhase.Orders;
+            state.Phase = CyclePhase.Itinerary;
             context.Publish(new CycleAdvanced(state.Cycle));
             context.Publish(new WeekAdvanced(state.Week));
         }

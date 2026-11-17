@@ -4,7 +4,7 @@ using YamlDotNet.RepresentationModel;
 
 namespace Web.Forms;
 
-// The files edited as text: the pack file, the two tuning files, and the storylets until their form exists. The path comes from this
+// The files edited as text: the pack file, the two tuning files, and the storylets and vignettes until their forms exist. The path comes from this
 // list, never from a request.
 public sealed record TextFile(string Name, string Path, string Title, IReadOnlyList<string> Notes)
 {
@@ -16,6 +16,7 @@ public sealed record TextFile(string Name, string Path, string Title, IReadOnlyL
         new("missions", "tuning/missions.yaml", "Mission tuning", [Tuning]),
         new("crew-tuning", "tuning/crew.yaml", "Crew tuning", [Tuning]),
         new("storylets", "storylets/base.yaml", "Storylets", ["The storylet form comes later.", "Saving checks this file with the rest of the pack."]),
+        new("vignettes", "vignettes/base.yaml", "Vignettes", ["The vignette form comes later.", "Saving checks this file with the rest of the pack."]),
     ];
 
     // Exact names only: anything else is not a text file.
@@ -48,7 +49,7 @@ internal static class TextFileFlow
     // A missing file opens empty; the first save creates it.
     public static TextFileView Open(TextFile file, ContentFileSet files, string? notice = null)
     {
-        IReadOnlyList<string> warnings = file.Name == "storylets" && files.Validate().Pack is { } pack ? FlagWarnings(pack) : [];
+        IReadOnlyList<string> warnings = file.Name is "storylets" or "vignettes" && files.Validate().Pack is { } pack ? FlagWarnings(pack) : [];
         return new TextFileView(file, files.Files.GetValueOrDefault(file.Path, ""), [], notice, false) { Warnings = warnings };
     }
 
@@ -66,23 +67,27 @@ internal static class TextFileFlow
             }
         }
 
-        foreach (StoryletDef storylet in pack.Storylets)
+        // Storylets and vignettes alike (1e part two): each reads flags on its scope and may raise them.
+        var readers = pack.Storylets.Select(s => (s.Id, s.Scope, Flags: s.Flags.ToList(), Effects: s.Options.SelectMany(o => o.Effects).ToList()))
+            .Concat(pack.Vignettes.Select(v => (v.Id, v.Scope, Flags: v.Requires.OfType<FlagRange>().ToList(), Effects: v.Effects.Concat(v.Options.SelectMany(o => o.Effects)).ToList())))
+            .ToList();
+        foreach ((string _, string scope, List<FlagRange> _, List<StoryletEffect> effects) in readers)
         {
-            foreach (FlagChange change in storylet.Options.SelectMany(o => o.Effects).Select(e => e.Flag).OfType<FlagChange>().Where(f => f.Amount > 0))
+            foreach (FlagChange change in effects.Select(e => e.Flag).OfType<FlagChange>().Where(f => f.Amount > 0))
             {
-                // Empty means the scope the storylet arrived for; subject is always a crew member.
-                raised.Add((change.Flag, change.On == StoryletScopes.Ship || (change.On.Length == 0 && storylet.Scope == StoryletScopes.Ship)));
+                // Empty means the scope it arrived for; subject is always a crew member.
+                raised.Add((change.Flag, change.On == StoryletScopes.Ship || (change.On.Length == 0 && scope == StoryletScopes.Ship)));
             }
         }
 
-        HashSet<string> read = pack.Storylets.SelectMany(s => s.Flags).Select(r => r.Flag).ToHashSet(StringComparer.Ordinal);
+        HashSet<string> read = readers.SelectMany(r => r.Flags).Select(r => r.Flag).ToHashSet(StringComparer.Ordinal);
         var warnings = new List<string>();
-        foreach (StoryletDef storylet in pack.Storylets)
+        foreach ((string id, string scope, List<FlagRange> flags, _) in readers)
         {
             // A requirement that holds at 0 (only a max) needs nothing to set its flag.
-            bool onShip = storylet.Scope == StoryletScopes.Ship;
+            bool onShip = scope == StoryletScopes.Ship;
             string where = onShip ? "the ship" : "a crew member";
-            warnings.AddRange(storylet.Flags.Where(r => r.Min > 0).Select(r => r.Flag).Distinct().Where(f => !raised.Contains((f, onShip))).Select(f => $"Nothing sets {f} on {where}, which {storylet.Id} requires."));
+            warnings.AddRange(flags.Where(r => r.Min > 0).Select(r => r.Flag).Distinct().Where(f => !raised.Contains((f, onShip))).Select(f => $"Nothing sets {f} on {where}, which {id} requires."));
         }
 
         foreach (EncounterDef encounter in pack.Encounters)

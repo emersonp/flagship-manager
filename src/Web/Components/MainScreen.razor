@@ -1,4 +1,8 @@
-@if (View.Briefing is not null && Phase == CyclePhase.Briefing)
+@if (Phase == CyclePhase.Itinerary)
+{
+    <ItineraryScreen LegacyId="LegacyId" Bar="View.TopBar" Itinerary="View.Itinerary" Reason="@Reason" StoryletReason="@StoryletReason" />
+}
+else if (View.Briefing is not null && Phase == CyclePhase.Briefing)
 {
     <BriefingScreen LegacyId="LegacyId" Bar="View.TopBar" Briefing="View.Briefing" Heading="@View.Site?.AssignmentShown" Reason="@Reason" />
 }
@@ -12,7 +16,7 @@ else if (Phase == CyclePhase.Resolution)
 }
 else if (Phase == CyclePhase.Aftermath)
 {
-    <AftermathScreen LegacyId="LegacyId" Bar="View.TopBar" Aftermath="View.Aftermath" Mission="View.Mission" ObjectiveName="@ObjectiveName" Reason="@Reason" StoryletReason="@StoryletReason" />
+    <AftermathScreen LegacyId="LegacyId" Bar="View.TopBar" Aftermath="View.Aftermath" Mission="View.Mission" ObjectiveName="@ObjectiveName" Reason="@Reason" />
 }
 else
 {
@@ -29,7 +33,7 @@ else
     // A refused answer's reason, shown in the waiting call's panel.
     [Parameter] public string? CallReason { get; set; }
 
-    // A refused storylet answer's reason, shown with the storylets.
+    // A refused storylet or vignette answer's reason, shown with the itinerary's panels.
     [Parameter] public string? StoryletReason { get; set; }
 
     [Parameter] public bool HideMeter { get; set; }

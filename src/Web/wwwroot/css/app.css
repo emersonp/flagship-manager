@@ -46,7 +46,7 @@ h2 { font-size: var(--text-xl); line-height: 1.12; max-width: 30ch; }
 .clock dt { font-size: var(--text-sm); color: var(--color-muted); }
 .clock dd { font-family: var(--font-outlier); font-variant-numeric: tabular-nums slashed-zero; font-size: var(--text-lg); line-height: 1.2; color: var(--color-ink); }
 .phases { position: relative; padding: 0 !important; overflow-x: auto; scrollbar-width: thin; }
-.phases ol { display: grid; grid-template-columns: repeat(5, minmax(6.5rem, 1fr)); min-width: max-content; height: 100%; }
+.phases ol { display: grid; grid-template-columns: repeat(6, minmax(6.5rem, 1fr)); min-width: max-content; height: 100%; }
 .phase { display: grid; align-content: center; gap: var(--space-3xs); padding: var(--space-sm) var(--space-md); border-left: var(--rule-hair) solid var(--color-rule); color: var(--color-muted); }
 .phase:first-child { border-left: 0; }
 .phase__no { font-family: var(--font-outlier); font-variant-numeric: tabular-nums slashed-zero; font-size: var(--text-xs); }
@@ -420,7 +420,7 @@ a.btn { text-decoration: none; }
 .changes li.is-harm .changes__kind { color: var(--color-harm); }
 #unattended { display: grid; gap: var(--space-xs); }
 .after-pair { display: grid; gap: var(--space-lg); grid-template-columns: minmax(0, 1fr); }
-/* Matters aboard: one panel per storylet in one well, split by hairlines like the changes list. Panels grow with their text; nothing in them scrolls. */
+/* The itinerary: one panel per storylet or vignette in its well, split by hairlines like the changes list. Panels grow with their text; nothing in them scrolls. */
 .storylet { display: grid; gap: var(--space-md); min-width: 0; padding: var(--space-md) var(--space-lg); border-top: var(--rule-hair) solid var(--color-rule); }
 .storylet:first-child { border-top: 0; padding-top: 0; }
 .storylet__head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: var(--space-2xs) var(--space-md); min-width: 0; }
@@ -440,7 +440,7 @@ a.btn { text-decoration: none; }
 }
 @media (max-width: 40rem) {
   #topbar > * { padding: var(--space-sm) var(--space-md); }
-  .phases ol { grid-template-columns: repeat(5, minmax(5.5rem, 1fr)); }
+  .phases ol { grid-template-columns: repeat(6, minmax(5.5rem, 1fr)); }
   .phase { padding: var(--space-xs) var(--space-sm); }
   .clock { gap: var(--space-md); }
   .well__head, .well__body, .course > *, .unatt, .actions, .storylet, #storylet-refusal { padding-left: var(--space-md); padding-right: var(--space-md); }
@@ -624,3 +624,9 @@ td.approaches__acts .btn + .btn { margin-top: var(--space-2xs); }
 @media (prefers-reduced-motion: reduce) {
   .tab:active { transform: none; }
 }
+
+/* The captain's itinerary (1e part two): the captain's time is a plain figure under the heading, and a vignette's default is a
+   quiet note after its answers. */
+.itinerary__time { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-2xs) var(--space-sm); color: var(--color-ink-2); }
+.itinerary__time .m { font-family: var(--font-outlier); font-variant-numeric: tabular-nums slashed-zero; color: var(--color-ink); }
+.vignette__default { font-size: var(--text-sm); color: var(--color-muted); align-self: center; }

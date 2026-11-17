@@ -1,0 +1,84 @@
+@* The captain's itinerary (1e part two): the first screen of a cycle. Storylets must be answered before the orders; vignettes may
+   be read or answered in any order, and those left take their defaults when the captain moves on. *@
+<main id="main">
+    <div class="view-head">
+        <h1>Captain's itinerary</h1>
+        <p>@Lead</p>
+        <p class="itinerary__time" id="captains-time"><span>Captain's time</span><span class="m">@(Itinerary?.CaptainsTime ?? 0)</span><span class="note">Not spent yet</span></p>
+    </div>
+    @if (Itinerary is not null && (Itinerary.Waiting.Count > 0 || Itinerary.Settled.Count > 0))
+    {
+        <section id="storylets" class="well matters" aria-labelledby="storylets-head">
+            <div class="well__head"><h2 id="storylets-head">Storylets</h2><p class="note">Each needs an answer before the orders.</p></div>
+            <div class="matters__list">
+                @for (int i = 0; i < Itinerary.Waiting.Count; i++)
+                {
+                    <StoryletPanel LegacyId="LegacyId" Bar="Bar" Index="i" Waiting="Itinerary.Waiting[i]" />
+                }
+                @for (int i = 0; i < Itinerary.Settled.Count; i++)
+                {
+                    <StoryletPanel LegacyId="LegacyId" Bar="Bar" Index="Itinerary.Waiting.Count + i" Settled="Itinerary.Settled[i]" />
+                }
+            </div>
+        </section>
+    }
+    @if (Itinerary is { Vignettes.Count: > 0 })
+    {
+        <section id="vignettes" class="well matters" aria-labelledby="vignettes-head">
+            <div class="well__head"><h2 id="vignettes-head">Vignettes</h2><p class="note">Answer one or leave it.</p></div>
+            <div class="matters__list">
+                @for (int i = 0; i < Itinerary.Vignettes.Count; i++)
+                {
+                    <VignettePanel LegacyId="LegacyId" Bar="Bar" Index="i" Vignette="Itinerary.Vignettes[i]" />
+                }
+            </div>
+        </section>
+    }
+    <p id="storylet-refusal" role="alert">@StoryletReason</p>
+    <div class="actions well">
+        <AdvanceForm LegacyId="LegacyId" Bar="Bar" Label="To orders" Signal="_advancing" Blocked="@Blocked" />
+        <Refusal Reason="@Reason" />
+    </div>
+</main>
+
+@code {
+    [Parameter, EditorRequired] public Guid LegacyId { get; set; }
+
+    [Parameter, EditorRequired] public TopBarView Bar { get; set; } = null!;
+
+    [Parameter] public ItineraryView? Itinerary { get; set; }
+
+    [Parameter] public string? Reason { get; set; }
+
+    // A refused answer's reason, shown with the panels.
+    [Parameter] public string? StoryletReason { get; set; }
+
+    // The words the bus refuses an advance with while a storylet waits.
+    private string? Blocked => Itinerary?.Waiting.Count > 0 ? AnswerStorylet.WaitingReason : null;
+
+    private string Lead
+    {
+        get
+        {
+            if (Itinerary is null || Itinerary.IsEmpty)
+            {
+                return "Nothing needs the captain this week.";
+            }
+
+            int storylets = Itinerary.Waiting.Count;
+            int vignettes = Itinerary.Vignettes.Count(v => !v.Settled);
+            if (storylets > 0)
+            {
+                return $"{Count(storylets, "storylet")} {(storylets == 1 ? "needs" : "need")} an answer before the orders.";
+            }
+
+            return vignettes == 0 ? "Everything this week has been seen to." : $"Nothing must be answered before the orders. {Count(vignettes, "vignette")} may be.";
+        }
+    }
+
+    private static string Count(int n, string noun)
+    {
+        string number = n switch { 1 => "One", 2 => "Two", 3 => "Three", 4 => "Four", 5 => "Five", _ => n.ToString(System.Globalization.CultureInfo.InvariantCulture) };
+        return n == 1 ? $"{number} {noun}" : $"{number} {noun}s";
+    }
+}

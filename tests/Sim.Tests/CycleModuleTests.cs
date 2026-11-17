@@ -33,7 +33,7 @@ public class CycleModuleTests
         IReadOnlyList<PublishedEvent> published = bus.Send(NewState(), new FoundLegacy());
 
         Assert.Equal(
-            new IEvent[] { new LegacyFounded(), new PhaseEntered(1, CyclePhase.Orders) },
+            new IEvent[] { new LegacyFounded(), new PhaseEntered(1, CyclePhase.Itinerary) },
             published.Select(p => p.Event));
     }
 
@@ -60,13 +60,13 @@ public class CycleModuleTests
     }
 
     [Fact]
-    public void Five_advances_walk_the_phases_and_start_the_next_cycle_and_week()
+    public void Six_advances_walk_the_phases_and_open_the_next_cycle_on_its_itinerary()
     {
         EventBus bus = NewBus();
         LegacyState state = FoundedState(bus);
         var events = new List<IEvent>();
 
-        for (int i = 0; i < 5; i++)
+        for (int i = 0; i < 6; i++)
         {
             events.AddRange(bus.Send(state, new AdvancePhase()).Select(p => p.Event));
         }
@@ -74,18 +74,19 @@ public class CycleModuleTests
         Assert.Equal(
             new IEvent[]
             {
+                new PhaseEntered(1, CyclePhase.Orders),
                 new PhaseEntered(1, CyclePhase.Briefing),
                 new PhaseEntered(1, CyclePhase.Resolution),
                 new PhaseEntered(1, CyclePhase.Aftermath),
                 new PhaseEntered(1, CyclePhase.Advance),
                 new CycleAdvanced(2),
                 new WeekAdvanced(2),
-                new PhaseEntered(2, CyclePhase.Orders),
+                new PhaseEntered(2, CyclePhase.Itinerary),
             },
             events);
         Assert.Equal(2, state.Cycle);
         Assert.Equal(2, state.Week);
-        Assert.Equal(CyclePhase.Orders, state.Phase);
+        Assert.Equal(CyclePhase.Itinerary, state.Phase);
     }
 
     // Streams belong to one cycle; old ones are dropped so state does not grow forever.

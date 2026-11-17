@@ -3,11 +3,11 @@ using Sim.Core;
 namespace Web.Bridge;
 
 // Everything a bridge screen is drawn from. Ids, numbers, and enum names only: no seeds, no stream states.
-public sealed record BridgeView(TopBarView TopBar, IReadOnlyList<CrewRow> Roster, SiteView? Site, BriefingView? Briefing, MissionView? Mission, AftermathView? Aftermath);
+public sealed record BridgeView(TopBarView TopBar, IReadOnlyList<CrewRow> Roster, SiteView? Site, BriefingView? Briefing, MissionView? Mission, AftermathView? Aftermath, ItineraryView? Itinerary = null);
 
 public sealed record TopBarView(string LegacyName, int Week, int Cycle, CyclePhase Phase, string? PackWarning);
 
-public sealed record CrewRow(string Id, int Seniority, string Status, bool Fit, IReadOnlyList<SkillCell> Skills, IReadOnlyList<int> LightInjuryHealWeeks, int? ReturnsAtWeek, int Loyalty, int AwayMissions, bool IsAway = false, bool IsLead = false, string? Name = null, bool Disambiguate = false)
+public sealed record CrewRow(string Id, int Seniority, string Status, bool Fit, IReadOnlyList<SkillCell> Skills, IReadOnlyList<int> LightInjuryHealWeeks, int? ReturnsAtWeek, int Loyalty, int AwayMissions, bool IsAway = false, bool IsLead = false, string? Name = null, bool Disambiguate = false, string Morale = "Steady")
 {
     // Disambiguate: another row in view shows the same name, so this one also shows its id.
     // The crew member's display name; the id stays the key.
@@ -71,14 +71,20 @@ public sealed record CallView(string CallId, string DecisionId, int Stakes, IRea
 
 // Report is null when no team was sent. Waiting and Settled are the storylets of "Matters aboard": those waiting for an answer in the
 // order they arrived, and those answered this cycle in the order answered.
-public sealed record AftermathView(string? Outcome, IReadOnlyList<CrewChange> Changes, IReadOnlyList<UnattendedView> Unattended, ReportView? Report = null)
+public sealed record AftermathView(string? Outcome, IReadOnlyList<CrewChange> Changes, IReadOnlyList<UnattendedView> Unattended, ReportView? Report = null);
+
+// The captain's itinerary (1e part two): the storylets waiting and answered this cycle, the vignettes that arrived, and the
+// captain's time, shown and not yet spent.
+public sealed record ItineraryView(int CaptainsTime, IReadOnlyList<StoryletView> Waiting, IReadOnlyList<SettledStoryletView> Settled, IReadOnlyList<VignetteView> Vignettes)
 {
-    public IReadOnlyList<StoryletView> Waiting { get; init; } = [];
-
-    public IReadOnlyList<SettledStoryletView> Settled { get; init; } = [];
-
-    public bool HasMatters => Waiting.Count > 0 || Settled.Count > 0;
+    public bool IsEmpty => Waiting.Count == 0 && Settled.Count == 0 && Vignettes.Count == 0;
 }
+
+// A vignette that arrived this cycle. About names its subject and the fact that brought it ("CREW_03, lost a crewmate").
+// Waiting: Options holds its two answers and DefaultLabel the one taken if it is left. Settled: Said is what the answer (or
+// the default) said, and Tags what it changed; a vignette with no choice is settled as it arrives.
+public sealed record VignetteView(string OfferId, string Title, string? About, IReadOnlyList<ProseEntry> Script, IReadOnlyList<StoryletOptionView> Options,
+    string? DefaultLabel, bool Settled, IReadOnlyList<ProseEntry> Said, IReadOnlyList<string> Tags, bool Defaulted = false);
 
 // A storylet waiting for an answer. From says where it came from ("From ENCOUNTER_01 · flag_a"), when an encounter set its flag.
 public sealed record StoryletView(string OfferId, string Title, string? From, IReadOnlyList<ProseEntry> Script, IReadOnlyList<StoryletOptionView> Options);

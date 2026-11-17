@@ -37,3 +37,15 @@ public sealed record StoryletAnswered(string OfferId, string StoryletId, string?
 
 [EventType("StoryletWithdrawn", 1)]
 public sealed record StoryletWithdrawn(string OfferId, string StoryletId, string? SubjectId) : IEvent;
+
+// 1e part two: vignettes. Answered only while the itinerary is open; one left unanswered takes its default when it closes.
+public sealed record AnswerVignette(string OfferId, string OptionId) : ICommand;
+
+// SubjectId null: a vignette for the ship. Fact: the fact about the last cycle that brought it, or null.
+[EventType("VignetteArrived", 1)]
+public sealed record VignetteArrived(string OfferId, string VignetteId, string? SubjectId, string? Fact) : IEvent;
+
+// Published after the changes it made, as StoryletAnswered is. OptionId null: a vignette with no choice, whose effects applied
+// as it arrived. Defaulted: the itinerary closed without an answer.
+[EventType("VignetteAnswered", 1)]
+public sealed record VignetteAnswered(string OfferId, string VignetteId, string? SubjectId, string? OptionId, bool Defaulted) : IEvent;
