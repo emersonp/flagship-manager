@@ -1,0 +1,67 @@
+# Generated fiction, by the author's one-time allowance for slice 1e (GDD section 15, item 37; 2026-11-16), for part two's vignettes.
+# One for each trigger the author picked on 2026-11-17: rest, hurt, a lost crewmate, low morale, and a flag. Numbers are small:
+# a vignette is a signal, not a ruling (GDD 5.2).
+- id: VIGNETTE_01
+  name: A week aboard
+  scope: crew
+  requires:
+    - { last: rested }
+    - { stat: morale, min: 26 }
+  text: |-
+    subject: Twelve hours' sleep. I'd forgotten the ship hums when you let it.
+    = #subject# came off a quiet week rested.
+  effects: [{ morale: 2, on: subject }]
+- id: VIGNETTE_02
+  name: The medical bay
+  scope: crew
+  requires:
+    - { last: hurt }
+  text: |-
+    > Medical: #subject# under observation, bay two.
+    subject: It's nothing, Captain. Doc's being careful.
+  default: leave_be
+  options:
+    - id: visit
+      label: Sit with them a while
+      effects: [{ morale: 2, on: subject }, { loyalty: 1, on: subject }]
+      text: "The captain stayed long enough for #subject# to stop saying it was nothing."
+    - id: leave_be
+      label: Let them rest
+      effects: []
+      text: "#subject# was left to the doctor and the quiet."
+- id: VIGNETTE_03
+  name: An empty station
+  scope: crew
+  requires:
+    - { last: lost_crewmate }
+  text: |-
+    > #subject# at a station that is not theirs, after their shift.
+  default: say_nothing
+  options:
+    - id: say_something
+      label: Say something
+      effects: [{ morale: 3, on: subject }]
+      text: "The captain said a few words about the one who used to sit there. #subject# nodded, and went to sleep."
+    - id: say_nothing
+      label: Say nothing
+      effects: []
+      text: "#subject# stayed an hour, and nobody asked them to leave."
+- id: VIGNETTE_04
+  name: Overheard in a corridor
+  scope: crew
+  requires:
+    - { last: sent }
+    - { stat: morale, max: 25 }
+  text: |-
+    subject: Same team, same mess. Someone up there likes sending us.
+    = #subject# was heard complaining about the away team.
+  effects: [{ loyalty: -1, on: subject }]
+- id: VIGNETTE_05
+  name: A ghost on the night watch
+  scope: ship
+  requires:
+    - { flag: sensors_quirk, min: 2, max: 2 }
+  text: |-
+    > Forward array: contact, bearing two-one-zero. Gone on the second sweep.
+    best SKILL_A: Ghost again. Logging it with the others.
+  effects: [{ morale: -1, on: crew }]

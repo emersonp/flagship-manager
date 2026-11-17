@@ -15,7 +15,9 @@ Short's survey names a third structure, waypoint narrative, in which the engine 
 
 ## 5.1 Selection each cycle
 
-**As built in slice 1e, part one.** When the aftermath begins, the storylets module finds every storylet whose requirements all hold, on the ship for a storylet for the ship and on each living crew member for a storylet for the crew, and which is not already waiting for that scope. It offers them highest stakes first, then by id, then by the subject's place on the roster, until `storylets.perCycle` (tuning, 2) are waiting; the rest arrive in a later cycle, and nothing is lost. There is no other memory: a storylet comes again whenever its requirements hold, and its own answers are what stop it (3.7). A storylet whose subject dies is withdrawn, and the flags on them are dropped. The aftermath cannot be left while one waits. Nothing draws randomness. The steps below are the engine in full, built in part three.
+**As built in slice 1e, part one,** and moved in part two from the aftermath to the captain's itinerary, the first phase of each cycle. When the itinerary opens, the storylets module finds every storylet whose requirements all hold, on the ship for a storylet for the ship and on each living crew member for a storylet for the crew, and which is not already waiting for that scope. It offers them highest stakes first, then by id, then by the subject's place on the roster, until `storylets.perCycle` (tuning, 2) are waiting; the rest arrive in a later cycle, and nothing is lost. There is no other memory: a storylet comes again whenever its requirements hold, and its own answers are what stop it (3.7). A storylet whose subject dies is withdrawn, and the flags on them are dropped. The itinerary cannot be left while one waits. Nothing draws randomness.
+
+**Vignettes, as built in part two,** arrive in the same itinerary, after the storylets: every vignette whose requirements hold on a scope and which is out of its cooldown there is due, and up to `vignettes.perCycle` (tuning, 3) arrive, the one longest since it last arrived anywhere first, then by id, then by roster order. The rest are dropped. One with effects applies them as it arrives; one with a choice waits, may be answered in any order, and takes its default when the captain moves on to the orders. The captain's time (3) is shown on the itinerary and not yet spent. The steps below are the engine in full, built in part three.
 
 1. **Index.** Storylets are indexed by the tags and quality kinds they test, so only plausible candidates are evaluated.
 2. **Cast.** For each candidate, find crew bindings that satisfy the cast slots. Bindings are sampled, not enumerated, with a hard cap per storylet.
@@ -37,7 +39,7 @@ The head's threshold uses the same formula as the away-team call rule. One rule,
 | Purpose | A ruling with lasting effects | A signal about who needs attention |
 | Mechanical effect | Always | Always, but small (a relationship or morale nudge, or a flag) |
 
-A vignette always changes something or reveals something true about the state. If it does neither, it is cut.
+A vignette always changes something or reveals something true about the state. If it does neither, it is cut. As built in part two, a vignette with no choice must have at least one effect, and its text is one to three script entries.
 
 A vignette may offer one small, free choice where a moment of attention should be possible: in a ride in the turbolift, say something or say nothing. Its scope stays small (a nudge, a flag, a little insight), and it never becomes a ruling. If the cycle advances without an answer, the vignette's default option applies, usually the quiet one.
 

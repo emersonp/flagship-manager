@@ -69,3 +69,10 @@ Decided by the author on 2026-11-16, while slice 1e's first part was designed an
     - Every story flag is a number, after Fallen London: a mark today is a count tomorrow, and "has this happened twice?" must not need a rewrite. A flag is a **counter** (only ever added to) or a **stage** (only ever set), never both; a story that needs both uses two flags. See 3.8.
     - The first thread is thin. The shaken crew member asks the captain for a word; an earlier draft had them ask to be kept off the next away team, which needs a flag that changes the briefing and one that moves when a mission launches. Those are part three (section 11.1). In part one loyalty has no effect on play yet and no rule reads a flag; that is accepted.
     - Naming conventions were adopted the same day (`docs/conventions.md`): ids are upper case for items with their own page in the editor and lower case with underscores for what lives inside an item or is typed into text (approaches, options, flags, symbols, tags); `.`, `-`, `#`, `:`, and `|` are never in an id; a flag is read beside other properties through `flag` (`subject.flag.shaken`).
+
+Decided by the author on 2026-11-17, before slice 1e's second part (design in `docs/plans/2026-11-17-phase-1e-part-two-design.md`):
+
+39. **Morale, vignettes, and the captain's itinerary.**
+    - **Morale bites.** Low morale is a small minus on a crew member's checks and high morale a small plus; it is not only shown. It moves with the mission's result, being hurt, a crewmate's death, a cycle not sent, and a weekly drift back to a resting value.
+    - **A vignette can arrive on a flag, a crew member's morale, or a fact about the last cycle** (sent, hurt, rested, lost a crewmate), a small fixed set ahead of part three's expression language.
+    - **The captain's itinerary** is a screen after the aftermath and before the briefing. It lists storylets and vignettes, taken in any order; every storylet must be answered before the briefing. It shows the captain's time, 3, which does nothing yet. Built as the first phase of each cycle, before the orders.

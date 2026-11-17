@@ -23,8 +23,12 @@ One captain's tenure in the chair, from appointment to departure.
 _Avoid_: Reign, term
 
 **Cycle**:
-One round of orders, briefing, resolution, and aftermath. Usually one week long, and longer in transit.
+One round of the captain's itinerary, orders, briefing, resolution, and aftermath. Usually one week long, and longer in transit.
 _Avoid_: Turn, week (a cycle is not always one), tick
+
+**Captain's itinerary**:
+The first screen of a cycle: the storylets that must be answered and the vignettes that may be, in any order, and the captain's time.
+_Avoid_: Inbox (until it has a backlog), matters aboard
 
 **Week**:
 The unit of time. A legacy counts weeks from 1, and anything that takes time (healing, training, ageing) is due at a week, never at a cycle.
@@ -238,11 +242,15 @@ A free-form numeric quality named by content, stored generically, that tracks st
 **Storylet**:
 A unit of narrative content with requirements, a cast, and mechanical effects.
 
+**Morale**:
+How a crew member feels, 0 to 100, seen as Low, Steady, or High. Missions, hurts, deaths, rest, and a weekly drift move it; at Low it is a minus on their checks and at High a plus.
+_Avoid_: Mood, happiness
+
 **Captain storylet**:
 A storylet that arrives and requires a choice.
 
 **Vignette**:
-A short, free storylet that carries information. Usually it has no choice; sometimes it offers one small one, with a default if unanswered.
+A short, free storylet that carries information and changes something small. Usually it has no choice; sometimes it offers one small one, with a default if unanswered. It arrives on the captain's itinerary and does not hold it.
 _Avoid_: Flavour event
 
 **Storyline**:

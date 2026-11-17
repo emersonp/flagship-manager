@@ -34,7 +34,7 @@ personality:                  # each axis -2..+2
   empathy: -1
   ambition: 0
 traits: [TRAIT_A, TRAIT_B]
-morale: 62                    # 0-100
+morale: 62                    # 0-100; built in 1e part two: resting 50, a minus on checks at 25 or below and a plus at 75 or above
 loyalty: 55                   # 0-100; captains get a standing bonus
 ambitions: [{ kind: reach_rank, target: RANK_4, byWeek: 600 }]
 renown: 12
@@ -227,13 +227,35 @@ As built in slice 1e, part one (`content/storylets/`):
       text: "#subject# STORYLET_01_OPTION_B_TEXT"
 ```
 
-- **Requires.** Each entry names a flag and a range: `min` is 1 when left out, or 0 when only `max` is given; `max` has no limit when left out. "Has it happened twice" is `min: 2`; "not yet" is `max: 0`. The loader refuses requirements no value can satisfy.
+- **Requires.** Each entry names a flag and a range: `min` is 1 when left out, or 0 when only `max` is given; `max` has no limit when left out. "Has it happened twice" is `min: 2`; "not yet" is `max: 0`. The loader refuses requirements no value can satisfy. Since part two an entry may instead read the subject's morale or loyalty (`{ stat: morale, max: 25 }`, with `min` and `max` as a flag's) or a fact about the cycle just ended (`{ last: sent }`, `hurt`, `rested`, or `lost_crewmate`; `not: true` turns it round); a storylet for the ship can read neither, and every storylet still needs a flag among its requirements, since only flags can be moved by its own answers.
 - **Scope.** A storylet for the ship reads the ship's flags and has no subject; its text and effects may not name one. A storylet for the crew reads one crew member's flags and arrives once for each crew member whose flags hold, as its `subject`.
 - **Text.** Speakers are `subject` (crew scope only), `captain`, and `best SKILL_ID` among the living, fit crew. An option's `text` is what the log says once it is chosen.
-- **Effects.** `loyalty` (a whole number, `on: subject` or `on: crew` for everyone living), and `flag` with `add` or `set`, `on: ship` or `on: subject`, or no `on` for the scope the storylet arrived for. Nothing else; the loader refuses the rest by name.
+- **Effects.** `loyalty` (a whole number, `on: subject` or `on: crew` for everyone living), `morale` (the same, since part two), and `flag` with `add` or `set`, `on: ship` or `on: subject`, or no `on` for the scope the storylet arrived for. Nothing else; the loader refuses the rest by name.
 - **No hidden memory.** Each option must move the storylet's own flags out of its range, to 0 (dealt with) or onward (to 2, "known and let ride", which another storylet may require). The loader refuses an option that leaves every requirement true, since the storylet would come back every cycle.
 
-Part three replaces `requires` with the expression language over the quality view, and adds casting from the crew in place of the one subject, salience in place of the fixed order, cooldowns, `ifIgnored` with an expiry, and an option settled by a check. Part two adds vignettes on the same shape. The fuller form it is designed towards, as sketched before slice 1e (`cost` is gone: section 15, item 35):
+**Vignettes, as built in slice 1e, part two,** are a second kind on the same shape, in `content/vignettes/`:
+
+```yaml
+- id: VIGNETTE_02
+  scope: crew
+  requires:
+    - { last: lost_crewmate }
+  text: "subject: VIGNETTE_02_LINE_1"     # one to three entries
+  default: option_b                       # taken when the itinerary closes unanswered
+  options:                                # one small choice: exactly two
+    - { id: option_a, label: VIGNETTE_02_OPTION_A_LABEL, effects: [{ morale: 3, on: subject }], text: VIGNETTE_02_OPTION_A_TEXT }
+    - { id: option_b, label: VIGNETTE_02_OPTION_B_LABEL, effects: [], text: VIGNETTE_02_OPTION_B_TEXT }
+- id: VIGNETTE_01
+  scope: crew
+  requires:
+    - { last: rested }
+  text: "subject: VIGNETTE_01_LINE_1"
+  effects: [{ morale: 2, on: subject }]   # no choice: these apply when it arrives
+```
+
+A vignette has no stakes and needs no flag. It has `effects` (at least one) or two `options` and a `default`, never both. Nothing in its own answers stops it returning, so a cooldown does: it does not arrive again for the same scope within `vignettes.cooldown` cycles (tuning, 6). Its words are lines of the storylet beats.
+
+Part three replaces `requires` with the expression language over the quality view, and adds casting from the crew in place of the one subject, salience in place of the fixed order, cooldowns, `ifIgnored` with an expiry, and an option settled by a check. The fuller form it is designed towards, as sketched before slice 1e (`cost` is gone: section 15, item 35):
 
 ```yaml
 id: STORYLET_031

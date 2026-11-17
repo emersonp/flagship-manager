@@ -1,6 +1,7 @@
 # Phase 1, slice 1e, part two: morale, vignettes, and the captain's itinerary
 
 **Spec:** `docs/gdd.md` sections 3.7, 3.8, 5.1, 5.2, and 5.6, and section 15, items 19, 29, 34, and 35. **Builds on:** `main` at 2026-11-17 (`d4625a3`), and slice 1e's first part (`2026-11-16-phase-1e-design.md`).
+**Status:** built 2026-11-17 (see section 6).
 **Ends with:** the author plays a cycle in the browser. Each crew member's morale moves after the mission and over the week. High or low morale changes their checks. A new screen, the captain's itinerary, opens before the orders. It lists the storylets that must be answered and the vignettes that may be read, in any order, with the captain's time shown.
 
 This records what the author said about part two on 2026-11-17 and designs it. Items marked **(my call)** were proposed, not asked for.
@@ -204,3 +205,29 @@ The test fixture gains three placeholder vignettes: one with effects, one with a
 - Whether the itinerary's panels share the storylet panel's component or extend it.
 - How a fact's words in a vignette's head are kept (a fixed table beside the fact names is enough).
 - The wording of the five vignettes within section 4.7.
+
+## 6. As built (2026-11-17)
+
+Built from `2026-11-17-phase-1e-part-two-plan.md` in four commits: morale; richer requirements; the itinerary, vignettes, and their screens together (Tasks 3 and 4 could not be green apart, since moving storylets out of the aftermath broke the bridge's tests); and the game's vignettes with this record.
+
+Where the build differs from sections 4.1 to 4.7, or settles what they left open:
+
+- **Rest and drift** are 2 and 1, not 3 and 2, and both stop at resting: with rest above drift, a crew left aboard would have climbed a point a week for ever.
+- **Morale on a check** is fixed when the mission launches, through `TeamMember.MoraleBonus`; the lead's choice of approach ignores it, and "develop juniors" counts the junior's bonus when it asks whether the check is within reach. The log tags it ("morale +1").
+- **Every storylet still needs a flag** among its requirements, since only flags can be moved by its own answers; a vignette needs none.
+- **A fact about the last cycle** needs a last cycle: none holds, turned round or not, in the first itinerary of a legacy. A cycle in which nobody was sent still counts, and every fit crew member rested in it.
+- **A vignette's words** are lines of the storylet beats (`storylet`, `storyletAnswer`), so no new beat kinds were needed; vignette and storylet ids share one namespace.
+- **The fact in a vignette's head** is its first `last` requirement that is not turned round.
+- **The aftermath's morale line** gives each member's net change from the mission and the word it left them at ("CREW_03 morale −10, now steady"), after the other crew changes.
+- **Not done:** `tests/browser/play.sh` was not extended. The look at 1280 and 400 pixels was taken with headless Edge on a scratch copy of the content; headless Edge cannot draw narrower than about 500 pixels, so the 400-pixel check shows the layout stacking but not the last 100 pixels.
+
+**What the simulator says** (20 legacies x 50 cycles, seed 1):
+
+- Fixture: 108 vignettes per 100 cycles, 0.3 left to their default; at the end, of 159 living crew, 0 at Low, 119 Steady, 40 High.
+- The game's pack: "A week aboard" (rested) arrived 1,074 times, "The medical bay" 8, and "An empty station" 3. "Overheard in a corridor" (Low morale after a mission) and "A ghost on the night watch" (`sensors_quirk` at 2) never arrived. The simulator's captain almost always succeeds, so morale rarely falls and the storylet that moves `sensors_quirk` on is itself rare. Difficulty was not changed to force them.
+
+**For the author to judge in play:**
+
+1. The rest vignette arrives about once a cycle and fills most of the three places. A longer cooldown, or a requirement that the crew member also be below High, would make room for the others.
+2. No simulated crew member reached Low morale. The thresholds (25 and 75), the result figures, and the drift are first guesses for slice 1f's tuning page.
+3. Captain's time is shown and does nothing (slice 1g).
