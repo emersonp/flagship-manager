@@ -25,8 +25,8 @@
                 <div class="block__body">
                     <div class="field-grid">
                         <Field Name="@Set.Name(row, "slot")" Label="Slot" AriaLabel="@($"Slot, stage {row + 1}")" Value="@Rows[row]["slot"]" Error="@View.Error(Set.Name(row, "slot"))" Required="true" />
-                        <Field Name="@Set.Name(row, "countMin")" Label="Count, at least" AriaLabel="@($"Count, at least, stage {row + 1}")" Value="@Rows[row]["countMin"]" Error="@View.Error(Set.Name(row, "countMin"))" Hint="1 or more." Numeric="true" Narrow="true" Required="true" />
-                        <Field Name="@Set.Name(row, "countMax")" Label="Count, at most" AriaLabel="@($"Count, at most, stage {row + 1}")" Value="@Rows[row]["countMax"]" Error="@View.Error(Set.Name(row, "countMax"))" Hint="Not below the least." Numeric="true" Narrow="true" Required="true" />
+                        <Field Name="@Set.Name(row, "countMin")" Label="Count, at least" AriaLabel="@($"Count, at least, stage {row + 1}")" Value="@Rows[row]["countMin"]" Error="@View.Error(Set.Name(row, "countMin"))" Numeric="true" Narrow="true" Required="true" />
+                        <Field Name="@Set.Name(row, "countMax")" Label="Count, at most" AriaLabel="@($"Count, at most, stage {row + 1}")" Value="@Rows[row]["countMax"]" Error="@View.Error(Set.Name(row, "countMax"))" Numeric="true" Narrow="true" Required="true" />
                     </div>
                     <fieldset class="field tags">
                         <legend>Draw tags<span class="visually-hidden">, stage @(row + 1)</span></legend>
@@ -48,7 +48,7 @@
                     {
                         <input type="hidden" name="@Set.Name(row, "order")" value="@kept">
                     }
-                    <CheckField Name="@Set.Name(row, "skippable")" Label="Skippable" AriaLabel="@($"Skippable, stage {row + 1}")" Checked="@(Rows[row]["skippable"] == "true")" Hint="The team may skip this stage." />
+                    <CheckField Name="@Set.Name(row, "skippable")" Label="Skippable" AriaLabel="@($"Skippable, stage {row + 1}")" Checked="@(Rows[row]["skippable"] == "true")" />
                 </div>
             </li>
         }
