@@ -10,3 +10,21 @@ loyalty:
   perPoint: 2                # a mission's loyalty change is multiplied by this
   min: 0
   max: 100
+morale:                      # 1e part two: see docs/plans/2026-11-17-phase-1e-part-two-design.md section 4.1
+  resting: 50                # where a new crew member starts, and where rest and drift stop
+  min: 0                     # morale never goes below this or above max
+  max: 100                   # the same scale as loyalty
+  low: 25                    # at or below: low morale, a minus on every check
+  high: 75                   # at or above: high morale, a plus on every check
+  checkBonus: 1
+  drift: 1                   # each week, this many points back towards resting
+  rested: 2                  # a cycle not sent, while fit: up to resting, never past it
+  hurt: -4                   # for each light injury on a mission
+  incapacitated: -10
+  crewmateDied: -8           # to every living crew member, for each death
+  result:                    # to each member of the team who came home
+    fullSuccess: 6
+    partialSuccess: 2
+    withdrawal: -2
+    loss: -6
+    incomplete: -3

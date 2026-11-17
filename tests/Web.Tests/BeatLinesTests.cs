@@ -175,6 +175,17 @@ public class BeatLinesTests
         Assert.Equal("flag_b = 2, lead", BeatLines.Tags(answer, names)[0]);
     }
 
+    // The morale bonus is part of the score, so the tag says where a point came from (1e part two).
+    [Fact]
+    public void A_check_made_with_high_or_low_morale_says_so_in_its_tags()
+    {
+        CheckBeat check = (CheckBeat)Samples[2];
+
+        Assert.Equal(["partial −2", "morale +1"], BeatLines.Tags(check with { MoraleBonus = 1 }));
+        Assert.Equal(["partial −2", "morale −1"], BeatLines.Tags(check with { MoraleBonus = -1 }));
+        Assert.Equal(["partial −2"], BeatLines.Tags(check));
+    }
+
     [Fact]
     public void An_effect_of_nothing_reads_no_effect()
     {

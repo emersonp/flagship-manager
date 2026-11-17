@@ -261,7 +261,7 @@ public static class MissionResolver
             if (supervised)
             {
                 carried = Math.Max(0, Skill(senior) + (Skill(best[1]) / T.AssistDivisor) - T.SupervisorPenalty - ((Skill(senior) - Skill(junior)) / T.SupervisorGapDivisor) - Skill(junior));
-                double expected = Skill(junior) + carried + gear + State.Momentum - State.Strain + T.CheckDice.Average - target;
+                double expected = Skill(junior) + carried + gear + junior.Member.MoraleBonus + State.Momentum - State.Strain + T.CheckDice.Average - target;
                 supervised = expected >= T.ReachMargin;
             }
 
@@ -273,7 +273,8 @@ public static class MissionResolver
             int actorSkill = Skill(actor);
             int momentum = State.Momentum;
             int strain = State.Strain;
-            int score = actorSkill + assist + gear + momentum - strain;
+            int morale = actor.Member.MoraleBonus;
+            int score = actorSkill + assist + gear + morale + momentum - strain;
             int roll = T.CheckDice.Roll(Dice($"check:{encounter.Id}"));
             int margin = score + roll - target;
             Tier tier = margin >= T.TierCritical ? Tier.Critical
@@ -303,7 +304,7 @@ public static class MissionResolver
 
             Beats.Add(new CheckBeat(
                 encounter.Id, def.Id, available.Count, def.Skill, actor.Member.Id, helper?.Member.Id, supervised,
-                actorSkill, assist, gear, momentum, strain, score, roll, target, margin, tier, experience, mentoring, helperExperience, State.Momentum, State.Strain, flags));
+                actorSkill, assist, gear, momentum, strain, score, roll, target, margin, tier, experience, mentoring, helperExperience, State.Momentum, State.Strain, flags, morale));
 
             // The roll falls on the actor after the check's beat, under the key the default rolls always used, so its dice do not move.
             if (outcome.InjuryRoll is { } severity)

@@ -19,9 +19,19 @@ public class CrewContentTests
         Assert.Empty(assignment.ObjectiveTags);
         Assert.Equal(new Dictionary<int, int> { [1] = 6, [2] = 3 }, assignment.Offer);
         Assert.Equal(2, assignment.LoadoutLimit);
-        Assert.Equal(
-            new CrewTuning { XpBase = 10, MaxLevel = 10, LightInjuryWeeks = 2, IncapacitatedWeeks = 6, StartingLoyalty = 50, LoyaltyPerPoint = 2, LoyaltyMin = 0, LoyaltyMax = 100 },
-            pack.CrewTuning);
+        var result = new Dictionary<MissionOutcome, int>
+        {
+            [MissionOutcome.FullSuccess] = 6, [MissionOutcome.PartialSuccess] = 2, [MissionOutcome.Withdrawal] = -2, [MissionOutcome.Loss] = -6, [MissionOutcome.Incomplete] = -3,
+        };
+        var expected = new CrewTuning
+        {
+            XpBase = 10, MaxLevel = 10, LightInjuryWeeks = 2, IncapacitatedWeeks = 6, StartingLoyalty = 50, LoyaltyPerPoint = 2, LoyaltyMin = 0, LoyaltyMax = 100,
+            MoraleResting = 50, MoraleMin = 0, MoraleMax = 100, MoraleLow = 25, MoraleHigh = 75, MoraleCheckBonus = 1, MoraleDrift = 1, MoraleRested = 2,
+            MoraleHurt = -4, MoraleIncapacitated = -10, MoraleCrewmateDied = -8, MoraleResult = result,
+        };
+        // The dictionary is compared by its entries; the record's own equality would compare it by reference.
+        Assert.Equal(expected, pack.CrewTuning with { MoraleResult = result });
+        Assert.Equal(result.OrderBy(r => r.Key), pack.CrewTuning.MoraleResult.OrderBy(r => r.Key));
         Assert.Equal(new int?[] { 6, 5 }, pack.Objectives.Select(o => o.UnattendedDifficulty));
     }
 
@@ -168,9 +178,17 @@ public class CrewContentTests
     [InlineData("  incapacitatedWeeks: 6", "  incapacitatedWeeks: 0", "injury.incapacitatedWeeks must be a whole number of 1 or more, not '0'.")]
     [InlineData("  perPoint: 2 ", "  perPoint: 2.5 ", "loyalty.perPoint must be a whole number, not '2.5'.")]
     [InlineData("  min: 0\n", "  min: 60\n", "loyalty.min must not be above loyalty.starting.")]
-    [InlineData("  max: 100", "  max: 40", "loyalty.starting must not be above loyalty.max.")]
+    [InlineData("  max: 100\nmorale", "  max: 40\nmorale", "loyalty.starting must not be above loyalty.max.")]
     [InlineData("  min: 0\n", "", "loyalty.min is missing.")]
-    [InlineData("  max: 100", "  max: 100\n  extra: 1", "loyalty.extra is not a tuning value.")]
+    [InlineData("  max: 100\nmorale", "  max: 100\n  extra: 1\nmorale", "loyalty.extra is not a tuning value.")]
+    [InlineData("  resting: 50 ", "  resting: 101 ", "morale.resting must not be above morale.max.")]
+    [InlineData("  low: 25 ", "  low: 80 ", "morale.low must be below morale.high.")]
+    [InlineData("  low: 25 ", "  low: 75 ", "morale.low must be below morale.high.")]
+    [InlineData("  low: 25 ", "  low: -1 ", "morale.min must not be above morale.low.")]
+    [InlineData("  high: 75 ", "  high: 101 ", "morale.high must not be above morale.max.")]
+    [InlineData("  drift: 1 ", "  drift: -1 ", "morale.drift must be a whole number of 0 or more, not '-1'.")]
+    [InlineData("  checkBonus: 1\n", "  checkBonus: -1\n", "morale.checkBonus must be a whole number of 0 or more, not '-1'.")]
+    [InlineData("    loss: -6\n", "", "morale.result.loss is missing.")]
     public void The_crew_tuning_is_read_strictly(string from, string to, string message)
     {
         string tuning = TestContent.RepoFiles()["tuning/crew.yaml"];

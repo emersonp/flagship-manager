@@ -1,3 +1,4 @@
+using Sim.Core;
 using Sim.Core.Content;
 using YamlDotNet.Serialization;
 
@@ -34,10 +35,36 @@ public static partial class ContentLoader
             LoyaltyPerPoint = read.Int("loyalty.perPoint"),
             LoyaltyMin = read.Int("loyalty.min"),
             LoyaltyMax = read.Int("loyalty.max"),
+            MoraleResting = read.Int("morale.resting"),
+            MoraleMin = read.Int("morale.min"),
+            MoraleMax = read.Int("morale.max"),
+            MoraleLow = read.Int("morale.low"),
+            MoraleHigh = read.Int("morale.high"),
+            MoraleCheckBonus = read.Int("morale.checkBonus", min: 0),
+            MoraleDrift = read.Int("morale.drift", min: 0),
+            MoraleRested = read.Int("morale.rested", min: 0),
+            MoraleHurt = read.Int("morale.hurt"),
+            MoraleIncapacitated = read.Int("morale.incapacitated"),
+            MoraleCrewmateDied = read.Int("morale.crewmateDied"),
+            MoraleResult = Enum.GetValues<MissionOutcome>().ToDictionary(o => o, o => read.Int($"morale.result.{char.ToLowerInvariant(o.ToString()[0])}{o.ToString()[1..]}")),
         };
 
         if (read.Complete)
         {
+            void Order(string lower, int a, string upper, int b, string relation)
+            {
+                if (a > b || (relation == "below" && a == b))
+                {
+                    errors.Add(new ContentError(CrewTuningFile, relation == "below" ? $"{lower} must be below {upper}." : $"{lower} must not be above {upper}."));
+                }
+            }
+
+            Order("morale.min", tuning.MoraleMin, "morale.resting", tuning.MoraleResting, "not above");
+            Order("morale.resting", tuning.MoraleResting, "morale.max", tuning.MoraleMax, "not above");
+            Order("morale.min", tuning.MoraleMin, "morale.low", tuning.MoraleLow, "not above");
+            Order("morale.low", tuning.MoraleLow, "morale.high", tuning.MoraleHigh, "below");
+            Order("morale.high", tuning.MoraleHigh, "morale.max", tuning.MoraleMax, "not above");
+
             if (tuning.LoyaltyMin > tuning.StartingLoyalty)
             {
                 errors.Add(new ContentError(CrewTuningFile, "loyalty.min must not be above loyalty.starting."));

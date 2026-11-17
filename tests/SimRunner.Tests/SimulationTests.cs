@@ -148,11 +148,12 @@ public class SimulationTests
 
     // The captain answers every storylet with its first option, so none is left waiting and none is lost. The fixture's flags are
     // set only by a partial at ENCOUNTER_01 and a disaster at ENCOUNTER_04, which the captain's teams rarely meet: these are the
-    // legacies among the first 60 that see a storylet within 50 cycles.
+    // legacies among the first 400 that see a storylet within 50 cycles. Morale (1e part two) made them rarer: a
+    // winning team rises to high morale and rolls fewer partials.
     [Theory]
-    [InlineData(5ul)]
-    [InlineData(18ul)]
-    [InlineData(31ul)]
+    [InlineData(69ul)]
+    [InlineData(83ul)]
+    [InlineData(104ul)]
     public void Fifty_cycles_of_the_fixture_end_with_nothing_waiting_and_every_offer_answered_or_withdrawn(ulong seed)
     {
         (_, LegacyState state, List<PublishedEvent> events) = Play(Pack, seed, 50);
@@ -203,11 +204,12 @@ public class SimulationTests
     // Re-pinned for authored approaches: a check's approach is written as its id ("careful") where the enum wrote "Careful"; every other field is unchanged.
     // Re-pinned: approaches are chosen by the lead's skill and outcomes are authored (approaches plan, Task 4).
     // Re-pinned: a mission's result and a check's beat carry the flags they changed (1e part one, Task 1).
+    // Re-pinned: morale changes after missions and each week, and moves checks at its thresholds (1e part two, Task 1).
     [Fact]
     public void Golden_seed_1_matches_the_accepted_log()
     {
         SimSummary summary = Simulation.Run(new SimOptions(Legacies: 1, Cycles: 10, Seed: 1), Pack);
 
-        Assert.Equal("FED9978BCF33D5F1309D8083A7A1171A93A686359EEB7FB7521F065FD4DB5D50", summary.Legacies[0].LogHash);
+        Assert.Equal("C80E6B757932865C414C238C938C948ED3E736009E8B735780BF44642E739B22", summary.Legacies[0].LogHash);
     }
 }

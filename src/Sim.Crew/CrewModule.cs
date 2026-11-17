@@ -23,12 +23,14 @@ public static class CrewModule
         CrewTuning tuning = pack.CrewTuning;
         bus.Module<CrewState>(Name);
         // The factory reads the state on every call: the state may not exist until founding.
-        bus.Provide<IRosterView>(state => new RosterView(state.Module<CrewState>(Name)));
+        bus.Provide<IRosterView>(state => new RosterView(state.Module<CrewState>(Name), tuning));
         bus.Guard<AdjustLoyalty>(SubscriberOrder, Name, (command, context) => IsLiving(context, command.CrewId) ? null : $"Crew member '{command.CrewId}' is not on the roster.");
         bus.Handle<AdjustLoyalty>((command, context) => OnAdjustLoyalty(tuning, command, context));
+        bus.Guard<AdjustMorale>(SubscriberOrder, Name, (command, context) => IsLiving(context, command.CrewId) ? null : $"Crew member '{command.CrewId}' is not on the roster.");
+        bus.Handle<AdjustMorale>((command, context) => ChangeMorale(tuning, Find(context, command.CrewId), command.Delta, MoraleCauses.Answer, context));
         bus.Subscribe<LegacyFounded>(SubscriberOrder, "crew-found", (_, context) => OnFounded(pack, context));
         bus.Subscribe<MissionEnded>(SubscriberOrder, "crew-mission-ended", (e, context) => OnMissionEnded(tuning, e, context));
-        bus.Subscribe<WeekAdvanced>(SubscriberOrder, "crew-week", (e, context) => OnWeekAdvanced(e, context));
+        bus.Subscribe<WeekAdvanced>(SubscriberOrder, "crew-week", (e, context) => OnWeekAdvanced(tuning, e, context));
     }
 
     private static void OnFounded(ContentPack pack, IBusContext context)
@@ -46,6 +48,8 @@ public static class CrewModule
             ReturnsAtWeek = null,
             Loyalty = pack.CrewTuning.StartingLoyalty,
             AwayMissions = 0,
+            Morale = pack.CrewTuning.MoraleResting,
+            LastSentCycle = null,
         }).ToList();
     }
 
@@ -82,7 +86,56 @@ public static class CrewModule
             ApplyOutcome(tuning, member, result, ended.MissionId, week, context);
             member.Loyalty = Math.Clamp(member.Loyalty + (result.Loyalty * tuning.LoyaltyPerPoint), tuning.LoyaltyMin, tuning.LoyaltyMax);
             member.AwayMissions++;
+            member.LastSentCycle = context.State.Cycle;
         }
+
+        // Morale after everything else (design 4.1): each who came home takes the result, then their hurt; then each death
+        // reaches every living member, the team included.
+        foreach (CrewResult result in ended.Result.Crew.Where(r => r.Status != MemberStatus.Dead))
+        {
+            CrewMember member = Find(context, result.Id);
+            ChangeMorale(tuning, member, tuning.MoraleResult[ended.Result.Outcome], MoraleCauses.Mission, context);
+            int hurt = result.Status == MemberStatus.Incapacitated ? tuning.MoraleIncapacitated : result.Injury * tuning.MoraleHurt;
+            ChangeMorale(tuning, member, hurt, MoraleCauses.Hurt, context);
+        }
+
+        int deaths = ended.Result.Crew.Count(r => r.Status == MemberStatus.Dead);
+        for (int i = 0; i < deaths; i++)
+        {
+            foreach (CrewMember living in state.Members.Where(m => m.Status != CrewStatus.Dead))
+            {
+                ChangeMorale(tuning, living, tuning.MoraleCrewmateDied, MoraleCauses.Death, context);
+            }
+        }
+    }
+
+    private static CrewMember Find(IBusContext context, string crewId)
+    {
+        return context.Module<CrewState>().Members.Single(m => m.Id == crewId);
+    }
+
+    // Every change of morale: clamped to the tuning, and published only when it moved.
+    private static void ChangeMorale(CrewTuning tuning, CrewMember member, int delta, string cause, IBusContext context)
+    {
+        int from = member.Morale;
+        member.Morale = Math.Clamp(from + delta, tuning.MoraleMin, tuning.MoraleMax);
+        if (member.Morale != from)
+        {
+            context.Publish(new MoraleChanged(member.Id, from, member.Morale, cause));
+        }
+    }
+
+    // Rest lifts a fit member who was not sent up towards resting; drift then moves everyone towards it. Neither passes it.
+    private static void RestAndDrift(CrewTuning tuning, CrewMember member, int endedCycle, IBusContext context)
+    {
+        int resting = tuning.MoraleResting;
+        if (member.Status == CrewStatus.Active && member.LastSentCycle != endedCycle && member.Morale < resting)
+        {
+            ChangeMorale(tuning, member, Math.Min(tuning.MoraleRested, resting - member.Morale), MoraleCauses.Rest, context);
+        }
+
+        int gap = resting - member.Morale;
+        ChangeMorale(tuning, member, Math.Sign(gap) * Math.Min(tuning.MoraleDrift, Math.Abs(gap)), MoraleCauses.Drift, context);
     }
 
     private static void GainExperience(CrewTuning tuning, CrewMember member, CrewResult result, IBusContext context)
@@ -143,7 +196,7 @@ public static class CrewModule
         }
     }
 
-    private static void OnWeekAdvanced(WeekAdvanced advanced, IBusContext context)
+    private static void OnWeekAdvanced(CrewTuning tuning, WeekAdvanced advanced, IBusContext context)
     {
         foreach (CrewMember member in context.Module<CrewState>().Members)
         {
@@ -152,7 +205,9 @@ public static class CrewModule
                 continue;
             }
 
-            bool healed = member.LightInjuriesHealAtWeek.RemoveAll(due => due <= advanced.Week) > 0;
+            // Before healing: a member who comes back this week was not resting through it. The cycle has already turned.
+            RestAndDrift(tuning, member, context.State.Cycle - 1, context);
+            bool healed =member.LightInjuriesHealAtWeek.RemoveAll(due => due <= advanced.Week) > 0;
             if (member.Status == CrewStatus.Recovering && member.ReturnsAtWeek <= advanced.Week)
             {
                 member.Status = CrewStatus.Active;

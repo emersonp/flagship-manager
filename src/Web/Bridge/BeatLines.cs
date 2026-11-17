@@ -70,6 +70,11 @@ public static partial class BeatLines
         {
             case CheckBeat b:
                 tags.Add($"{Words(b.Tier)} {Signed(b.Margin)}");
+                if (b.MoraleBonus != 0)
+                {
+                    tags.Add($"morale {Signed(b.MoraleBonus)}");
+                }
+
                 if (b.MomentumAfter is { } momentum && momentum != b.Momentum)
                 {
                     tags.Add($"momentum {Signed(momentum - b.Momentum)}");

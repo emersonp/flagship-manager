@@ -1,8 +1,9 @@
 using Sim.Core;
+using Sim.Core.Content;
 
 namespace Sim.Crew;
 
-internal sealed class RosterView(CrewState state) : IRosterView
+internal sealed class RosterView(CrewState state, CrewTuning tuning) : IRosterView
 {
     public IReadOnlyList<string> Roster => state.Members.Where(m => m.Status != CrewStatus.Dead).Select(m => m.Id).ToList();
 
@@ -21,7 +22,7 @@ internal sealed class RosterView(CrewState state) : IRosterView
 
         int injuries = member.LightInjuriesHealAtWeek.Count;
         Dictionary<string, int> skills = member.Skills.ToDictionary(s => s.Key, s => Math.Max(0, s.Value.Level - injuries));
-        return new TeamMember(member.Id, member.Seniority, skills, member.Caution, member.Discipline);
+        return new TeamMember(member.Id, member.Seniority, skills, member.Caution, member.Discipline, tuning.MoraleBonus(member.Morale));
     }
 
     private CrewMember? Find(string crewId)

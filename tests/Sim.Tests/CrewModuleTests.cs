@@ -42,6 +42,11 @@ public class CrewModuleTests
             return Send(new EndMission(Result(crew))).Select(p => p.Event).ToList();
         }
 
+        public IReadOnlyList<IEvent> End(MissionOutcome outcome, params CrewResult[] crew)
+        {
+            return Send(new EndMission(Result(crew) with { Outcome = outcome })).Select(p => p.Event).ToList();
+        }
+
         public IReadOnlyList<PublishedEvent> Send(ICommand command)
         {
             return Bus.Send(State, command);
@@ -404,5 +409,145 @@ public class CrewModuleTests
         IReadOnlyList<IEvent> events = h.End(new CrewResult("CREW_01", MemberStatus.Incapacitated, 2, new Dictionary<string, double>(), 0));
 
         Assert.Equal(new[] { new CrewInjured("CREW_01", MemberStatus.Incapacitated, 2, due) }, events.OfType<CrewInjured>());
+    }
+
+    // Morale (1e part two, design 4.1). The fixture's tuning: resting 50, low 25, high 75, drift 1, rested 2, hurt -4,
+    // incapacitated -10, crewmateDied -8, and a full success +6, a loss -6.
+    [Fact]
+    public void Morale_starts_at_resting()
+    {
+        var h = new Harness();
+
+        Assert.All(h.Crew.Members, m => Assert.Equal(h.Tuning.MoraleResting, m.Morale));
+        Assert.All(h.Crew.Members, m => Assert.Equal(0, h.View.Member(m.Id)!.MoraleBonus));
+    }
+
+    [Fact]
+    public void A_mission_result_moves_morale_for_those_who_came_home()
+    {
+        var h = new Harness();
+
+        IReadOnlyList<IEvent> won = h.End(Gained("CREW_01", 0));
+        IReadOnlyList<IEvent> lost = h.End(MissionOutcome.Loss, Gained("CREW_02", 0));
+
+        Assert.Equal(new[] { new MoraleChanged("CREW_01", 50, 56, MoraleCauses.Mission) }, won.OfType<MoraleChanged>());
+        Assert.Equal(new[] { new MoraleChanged("CREW_02", 50, 44, MoraleCauses.Mission) }, lost.OfType<MoraleChanged>());
+        Assert.Equal(50, h.Member("CREW_03").Morale);
+    }
+
+    [Fact]
+    public void An_injury_and_an_incapacitation_lower_morale()
+    {
+        var h = new Harness();
+
+        IReadOnlyList<IEvent> events = h.End(Hurt("CREW_01", 2), new CrewResult("CREW_02", MemberStatus.Incapacitated, 1, new Dictionary<string, double>(), 0));
+
+        Assert.Equal(
+            new[]
+            {
+                new MoraleChanged("CREW_01", 50, 56, MoraleCauses.Mission), new MoraleChanged("CREW_01", 56, 48, MoraleCauses.Hurt),
+                new MoraleChanged("CREW_02", 50, 56, MoraleCauses.Mission), new MoraleChanged("CREW_02", 56, 46, MoraleCauses.Hurt),
+            },
+            events.OfType<MoraleChanged>());
+    }
+
+    // Review focus 1: the dead get nothing; every living member, on the team or not, feels each death once.
+    [Fact]
+    public void A_death_lowers_every_living_members_morale_and_not_the_deads()
+    {
+        var h = new Harness();
+
+        IReadOnlyList<IEvent> events = h.End(Status("CREW_01", MemberStatus.Dead), Status("CREW_02", MemberStatus.Dead), Gained("CREW_03", 0));
+
+        Assert.DoesNotContain(events.OfType<MoraleChanged>(), e => e.CrewId is "CREW_01" or "CREW_02");
+        Assert.Equal(50, h.Member("CREW_01").Morale);
+        Assert.Equal(50 + 6 - 8 - 8, h.Member("CREW_03").Morale);
+        Assert.Equal(50 - 8 - 8, h.Member("CREW_04").Morale);
+        Assert.Equal(2, events.OfType<MoraleChanged>().Count(e => e.CrewId == "CREW_04" && e.Cause == MoraleCauses.Death));
+    }
+
+    [Fact]
+    public void A_member_not_sent_rests_and_one_sent_does_not()
+    {
+        var h = new Harness();
+        h.Member("CREW_01").Morale = 40;
+        h.Member("CREW_02").Morale = 40;
+        h.End(MissionOutcome.Withdrawal, Gained("CREW_01", 0));
+
+        IReadOnlyList<IEvent> events = h.Weeks(1);
+
+        Assert.Equal(38 + 1, h.Member("CREW_01").Morale);
+        Assert.Equal(40 + 2 + 1, h.Member("CREW_02").Morale);
+        Assert.Contains(new MoraleChanged("CREW_02", 40, 42, MoraleCauses.Rest), events);
+        Assert.DoesNotContain(events.OfType<MoraleChanged>(), e => e.CrewId == "CREW_01" && e.Cause == MoraleCauses.Rest);
+    }
+
+    [Fact]
+    public void A_member_recovering_does_not_rest()
+    {
+        var h = new Harness();
+        h.End(MissionOutcome.Withdrawal, Status("CREW_01", MemberStatus.Incapacitated));
+        h.Weeks(1);
+        int before = h.Member("CREW_01").Morale;
+
+        IReadOnlyList<IEvent> events = h.Weeks(1);
+
+        Assert.Equal(before + 1, h.Member("CREW_01").Morale);
+        Assert.DoesNotContain(events.OfType<MoraleChanged>(), e => e.CrewId == "CREW_01" && e.Cause == MoraleCauses.Rest);
+    }
+
+    // Review focus 2.
+    [Theory]
+    [InlineData(51, 50)]
+    [InlineData(60, 59)]
+    [InlineData(49, 50)]
+    [InlineData(45, 48)]
+    [InlineData(50, 50)]
+    public void Rest_and_drift_move_towards_resting_and_never_past_it(int from, int to)
+    {
+        var h = new Harness();
+        h.Member("CREW_01").Morale = from;
+
+        h.Weeks(1);
+
+        Assert.Equal(to, h.Member("CREW_01").Morale);
+    }
+
+    [Fact]
+    public void Morale_is_clamped_and_an_answer_is_its_cause()
+    {
+        var h = new Harness();
+
+        IReadOnlyList<IEvent> up = h.Send(new AdjustMorale("CREW_01", 500)).Select(p => p.Event).ToList();
+        h.Send(new AdjustMorale("CREW_02", -500));
+
+        Assert.Equal(new[] { new MoraleChanged("CREW_01", 50, h.Tuning.MoraleMax, MoraleCauses.Answer) }, up.OfType<MoraleChanged>());
+        Assert.Equal(h.Tuning.MoraleMin, h.Member("CREW_02").Morale);
+        Assert.Empty(h.Send(new AdjustMorale("CREW_01", 1)).Select(p => p.Event).OfType<MoraleChanged>());
+    }
+
+    [Fact]
+    public void AdjustMorale_is_refused_for_the_dead_and_the_unknown()
+    {
+        var h = new Harness();
+        h.End(Status("CREW_01", MemberStatus.Dead));
+
+        Assert.Throws<CommandRejectedException>(() => h.Send(new AdjustMorale("CREW_01", 1)));
+        Assert.Throws<CommandRejectedException>(() => h.Send(new AdjustMorale("CREW_99", 1)));
+    }
+
+    [Theory]
+    [InlineData(0, -1)]
+    [InlineData(25, -1)]
+    [InlineData(26, 0)]
+    [InlineData(74, 0)]
+    [InlineData(75, 1)]
+    [InlineData(100, 1)]
+    public void The_roster_view_gives_the_bonus_at_the_thresholds(int morale, int bonus)
+    {
+        var h = new Harness();
+        h.Member("CREW_01").Morale = morale;
+
+        Assert.Equal(bonus, h.View.Member("CREW_01")!.MoraleBonus);
     }
 }

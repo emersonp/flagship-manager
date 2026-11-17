@@ -58,8 +58,8 @@ morale:
   low: 25              # at or below: low morale
   high: 75             # at or above: high morale
   checkBonus: 1        # minus at low, plus at high, on every check the crew member makes
-  drift: 2             # each week, this many points back towards resting
-  rested: 3            # a cycle not sent, while fit
+  drift: 1             # each week, this many points back towards resting
+  rested: 2            # a cycle not sent, while fit: lifts morale up to resting, never past it
   hurt: -4             # a light injury on a mission
   incapacitated: -10
   crewmateDied: -8     # to every living crew member, for each death
@@ -72,7 +72,7 @@ morale:
 ```
 
 - **The check.** The roster view gives each team member a `MoraleBonus` (−1, 0, or +1 times `checkBonus`), fixed when the mission launches, as the skill levels are. `Sim.Missions` adds it to every check that member makes and never reads morale itself. A check's beat records the bonus, and the log tags it ("morale +1" or "morale −1"), as it tags gear.
-- **The order of a cycle's changes** **(my call)**: at the mission's end, each returning member's result, then each injury, then each death to the living; at the week's end, rest for each fit crew member who was not sent, then drift. Drift moves towards resting and never past it.
+- **The order of a cycle's changes** **(my call)**: at the mission's end, each returning member's result, then each injury, then each death to the living; at the week's end, rest for each fit crew member who was not sent, then drift. Rest and drift both stop at resting: rest outweighs drift, so otherwise a crew left aboard would climb a point a week for ever.
 - **Commands and events.** `AdjustMorale(CrewId, Delta)` is handled by the crew module, as `AdjustLoyalty` is. Every change publishes `MoraleChanged(CrewId, From, To, Cause)`, where the cause is `mission`, `hurt`, `death`, `rest`, `drift`, or `answer`. A change that changes nothing is not published.
 - **Shown.** The roster gains a column "Morale": "Low", "Steady", or "High". The aftermath's crew changes list each member's morale change from the mission, with a tag in the figure style ("Morale −6"). Dev Play's panel shows each crew member's figure.
 

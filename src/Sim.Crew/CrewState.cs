@@ -38,6 +38,12 @@ public sealed class CrewMember
     public required int Loyalty { get; set; }
 
     public required int AwayMissions { get; set; }
+
+    // 0 to 100 by the default tuning (1e part two). Changed only through the crew module.
+    public required int Morale { get; set; }
+
+    // The cycle of the last mission they were sent on, or null: a fit member not sent in the cycle just ended rests.
+    public required int? LastSentCycle { get; set; }
 }
 
 public sealed class CrewState

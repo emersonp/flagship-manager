@@ -28,7 +28,7 @@ public class MissionRulesTests
         {
             foreach (CheckBeat check in TestContent.Play(TestContent.Team(2, 2, 7, 8), seed).Beats.OfType<CheckBeat>())
             {
-                Assert.Equal(check.ActorSkill + check.Assist + check.Gear + check.Momentum - check.Strain, check.Score);
+                Assert.Equal(check.ActorSkill + check.Assist + check.Gear + check.MoraleBonus + check.Momentum - check.Strain, check.Score);
                 Assert.Equal(check.Score + check.Roll - check.Target, check.Margin);
                 Tier expected = check.Margin >= t.TierCritical ? Tier.Critical
                     : check.Margin >= t.TierSuccess ? Tier.Success
@@ -37,6 +37,42 @@ public class MissionRulesTests
                     : Tier.Disaster;
                 Assert.Equal(expected, check.Tier);
             }
+        }
+    }
+
+    // 1e part two: the actor's morale bonus, fixed when the mission launched, is part of every check they make.
+    [Fact]
+    public void Morale_adds_to_every_check_the_member_makes_and_the_beat_says_so()
+    {
+        Team plain = TestContent.Team(2, 2, 7, 8);
+        var bonus = new Dictionary<string, int> { ["CREW_02"] = 1, ["CREW_07"] = -1, ["CREW_08"] = 0 };
+        Team team = plain with { Members = plain.Members.Select(m => m with { MoraleBonus = bonus[m.Id] }).ToList() };
+        int seen = 0;
+        for (ulong seed = 1; seed <= 100; seed++)
+        {
+            foreach (CheckBeat check in TestContent.Play(team, seed).Beats.OfType<CheckBeat>())
+            {
+                Assert.Equal(bonus[check.ActorId], check.MoraleBonus);
+                Assert.Equal(check.ActorSkill + check.Assist + check.Gear + check.MoraleBonus + check.Momentum - check.Strain, check.Score);
+                seen += check.MoraleBonus != 0 ? 1 : 0;
+            }
+        }
+
+        Assert.True(seen > 0);
+    }
+
+    [Fact]
+    public void Morale_does_not_change_the_leads_choice_of_approach()
+    {
+        Team plain = TestContent.Team(2, 2, 7, 8);
+        Team low = plain with { Members = plain.Members.Select(m => m with { MoraleBonus = -1 }).ToList() };
+        for (ulong seed = 1; seed <= 50; seed++)
+        {
+            CheckBeat first = TestContent.Play(plain, seed).Beats.OfType<CheckBeat>().First();
+            CheckBeat lowered = TestContent.Play(low, seed).Beats.OfType<CheckBeat>().First();
+
+            Assert.Equal((first.Approach, first.ActorId, first.Roll), (lowered.Approach, lowered.ActorId, lowered.Roll));
+            Assert.Equal(first.Score - 1, lowered.Score);
         }
     }
 

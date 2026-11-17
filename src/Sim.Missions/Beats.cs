@@ -46,10 +46,12 @@ public sealed record CheckBeat(
     double HelperExperience,
     int? MomentumAfter = null,
     int? StrainAfter = null,
-    IReadOnlyList<MissionFlag>? Flags = null) : Beat;
+    IReadOnlyList<MissionFlag>? Flags = null,
+    int MoraleBonus = 0) : Beat;
 
 // MomentumAfter and StrainAfter are the team's state after the tier's effects; null in beats stored before slice 1d.
 // Flags: what the tier's outcome changed; null when it changed none.
+// MoraleBonus: the actor's, from their morale when the mission launched; part of Score.
 
 public sealed record EffectsBeat(EffectDef Effects) : Beat;
 
