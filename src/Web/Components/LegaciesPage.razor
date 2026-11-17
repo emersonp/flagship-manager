@@ -5,7 +5,7 @@
             <div class="page-col">
                 <div class="view-head">
                     <h1>Legacies</h1>
-                    <p class="note">Each legacy is one ship's career. Open one to take the bridge.</p>
+                    <p class="note">Each legacy is one ship's career. Play one to take the bridge.</p>
                     @if (DeveloperMode)
                     {
                         <p><a class="home" href="/dev/content">Content</a></p>
@@ -19,24 +19,29 @@
                     }
                     else
                     {
-                        <div class="tw">
-                            <table class="legacies">
-                                <thead>
-                                    <tr><th scope="col">Name</th><th scope="col" class="n">Week</th><th scope="col" class="n">Cycle</th><th scope="col" class="n">Created</th></tr>
-                                </thead>
-                                <tbody>
-                                    @foreach (LegacyListing legacy in Legacies)
-                                    {
-                                        <tr>
-                                            <td class="who"><a href="/legacy/@legacy.LegacyId">@legacy.Name</a></td>
-                                            <td class="n">@legacy.Week</td>
-                                            <td class="n">@legacy.Cycle</td>
-                                            <td class="n"><time datetime="@legacy.CreatedAt.ToString("O")">@legacy.CreatedAt.UtcDateTime.ToString("yyyy-MM-dd")</time></td>
-                                        </tr>
-                                    }
-                                </tbody>
-                            </table>
-                        </div>
+                        <ol class="legacy-list">
+                            @foreach (LegacyListing legacy in Legacies)
+                            {
+                                string head = $"legacy-{legacy.LegacyId:N}";
+                                <li class="legacy">
+                                    <div class="legacy__id">
+                                        <h3 class="legacy__name" id="@head">@legacy.Name</h3>
+                                        <dl class="legacy__facts">
+                                            <div><dt>Week</dt><dd class="m">@legacy.Week</dd></div>
+                                            <div><dt>Cycle</dt><dd class="m">@legacy.Cycle</dd></div>
+                                            <div><dt>Started</dt><dd><time class="m" datetime="@legacy.CreatedAt.ToString("O")">@legacy.CreatedAt.UtcDateTime.ToString("yyyy-MM-dd")</time></dd></div>
+                                        </dl>
+                                    </div>
+                                    <div class="legacy__acts" role="group" aria-labelledby="@head">
+                                        <a class="btn" href="/legacy/@legacy.LegacyId" aria-describedby="@head">Play</a>
+                                        @if (DeveloperMode)
+                                        {
+                                            <a class="btn btn--dev" href="/dev/legacy/@legacy.LegacyId" aria-describedby="@head">Dev Play</a>
+                                        }
+                                    </div>
+                                </li>
+                            }
+                        </ol>
                     }
                 </section>
                 <section class="well" aria-labelledby="h-start">

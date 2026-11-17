@@ -362,7 +362,7 @@ public static class BridgeEndpoints
     }
 
     // Null when the body is not a readable form.
-    private static async Task<IFormCollection?> ReadForm(HttpRequest request, CancellationToken cancellation)
+    internal static async Task<IFormCollection?> ReadForm(HttpRequest request, CancellationToken cancellation)
     {
         try
         {
@@ -439,7 +439,7 @@ public static class BridgeEndpoints
         return new AnswerCall(mission, call, Enum.Parse<CallAnswer>(answer));
     }
 
-    private static string? Single(IFormCollection form, string key)
+    internal static string? Single(IFormCollection form, string key)
     {
         StringValues values = form[key];
         return values.Count == 1 ? values[0] : null;
@@ -452,7 +452,7 @@ public static class BridgeEndpoints
     }
 
     // This cycle's stored events plus any not yet committed, so a page built inside a run sees its own commands.
-    private static BridgeView View(GameServices game, LivePack live, LoadedLegacy legacy)
+    internal static BridgeView View(GameServices game, LivePack live, LoadedLegacy legacy)
     {
         int cycle = legacy.State.Cycle;
         List<IEvent> events = game.Store.ReadEvents(legacy.State.LegacyId, cycle).Select(live.Game.Events.FromEnvelope).ToList();
@@ -461,7 +461,7 @@ public static class BridgeEndpoints
     }
 
     // A Datastar request gets the words as a patch of the main screen; a 404 page would change nothing on screen.
-    private static async Task<IResult> NotFound(Render render, HttpContext http)
+    internal static async Task<IResult> NotFound(Render render, HttpContext http)
     {
         if (Sse.IsDatastar(http.Request))
         {
@@ -476,7 +476,7 @@ public static class BridgeEndpoints
         return Results.Content(html, "text/html; charset=utf-8", statusCode: StatusCodes.Status404NotFound);
     }
 
-    private sealed class StreamResult(Func<HttpResponse, Task> write, int status = StatusCodes.Status200OK) : IResult
+    internal sealed class StreamResult(Func<HttpResponse, Task> write, int status = StatusCodes.Status200OK) : IResult
     {
         public async Task ExecuteAsync(HttpContext httpContext)
         {

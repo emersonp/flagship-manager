@@ -297,6 +297,39 @@ input:disabled { opacity: 0.55; cursor: not-allowed; }
 .start-row input:focus-visible { outline-color: var(--color-focus); border-color: var(--color-ink-2); }
 .start-row input[aria-invalid="true"] { border-color: var(--color-harm); }
 .start-row input:disabled { opacity: 0.55; cursor: not-allowed; }
+/* Legacies: one row per career, split by hairlines like the changes list: the name as a display head, its figures under it, Play and Dev Play at the right. */
+.legacy-list { display: grid; }
+.legacy { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: var(--space-sm) var(--space-lg); padding: var(--space-md) var(--space-lg); border-top: var(--rule-hair) solid var(--color-rule); }
+.legacy:first-child { border-top: 0; padding-top: var(--space-xs); }
+.legacy__id { display: grid; gap: var(--space-2xs); min-width: 0; }
+.legacy__name { font-family: var(--font-display); font-optical-sizing: auto; font-size: var(--text-lg); font-weight: 400; letter-spacing: var(--tracking-display); font-variant-numeric: lining-nums; color: var(--color-ink); overflow-wrap: anywhere; }
+.legacy__facts { display: flex; flex-wrap: wrap; gap: var(--space-2xs) var(--space-lg); }
+.legacy__facts div { display: flex; gap: var(--space-xs); align-items: baseline; }
+.legacy__facts dt { font-size: var(--text-sm); color: var(--color-muted); }
+.legacy__acts { display: flex; gap: var(--space-xs); }
+/* A dashed edge marks what is not the game, as the mock strip did: Dev Play and its panel. Never azure. */
+.btn--dev { border-style: dashed; }
+@media (max-width: 40rem) {
+  .legacy { grid-template-columns: minmax(0, 1fr); padding-left: var(--space-md); padding-right: var(--space-md); }
+  .legacy__acts > .btn { flex: 1; }
+}
+
+/* Dev Play's panel: a well between the top bar and the deck, its flags beside the form when there is room. */
+.dev { margin-top: var(--space-lg); border-style: dashed; border-color: var(--color-rule-2); container-type: inline-size; }
+.dev .well__head .note { display: flex; flex-wrap: wrap; gap: var(--space-2xs) var(--space-md); }
+.dev__body { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-lg); }
+.dev .sub { margin-top: 0; margin-bottom: var(--space-xs); }
+.dev__tw { margin-inline: calc(-1 * var(--space-lg)); }
+.dev__flag { font-family: var(--font-outlier); font-variant-numeric: tabular-nums slashed-zero; color: var(--color-ink); white-space: nowrap; }
+.dev__set { display: grid; gap: var(--space-xs); align-content: start; min-width: 0; }
+.dev__fields { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-sm); align-items: end; }
+.dev__fields .field { max-width: none; }
+.dev__value input[type="text"] { font-family: var(--font-outlier); font-variant-numeric: tabular-nums slashed-zero; }
+.dev__ok { min-height: 1lh; font-size: var(--text-sm); font-weight: 500; color: var(--color-ink); }
+@container (min-width: 36rem) { .dev__fields { grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) 5rem auto; } }
+@container (min-width: 72rem) { .dev__body { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
+@media (max-width: 40rem) { .dev__tw { margin-inline: calc(-1 * var(--space-md)); } }
+
 .error { min-height: 1lh; font-size: var(--text-sm); font-weight: 500; color: var(--color-harm); }
 
 /* Content editor (developer mode): the same wells, tables, and buttons; only the few pieces below are new. */

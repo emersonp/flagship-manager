@@ -116,6 +116,7 @@ BridgeEndpoints.Map(gameRoutes);
 if (app.Services.GetRequiredService<IOptions<WebSettings>>().Value.DeveloperMode)
 {
     ContentEndpoints.Map(app);
+    DevPlayEndpoints.Map(app);
 }
 
 app.Run();

@@ -1,0 +1,128 @@
+using System.Net;
+using Sim.Core;
+using Sim.Storylets;
+
+namespace Web.Tests;
+
+// The legacies page's Play and Dev Play, and Dev Play's panel of story flags, through the real app.
+public sealed class DevPlayTests
+{
+    private static FormUrlEncodedContent Form(params (string Key, string Value)[] fields)
+    {
+        return new FormUrlEncodedContent(fields.Select(f => new KeyValuePair<string, string>(f.Key, f.Value)));
+    }
+
+    private static async Task<(HttpStatusCode Status, string Body)> Get(HttpClient client, string url)
+    {
+        HttpResponseMessage response = await client.GetAsync(url);
+        return (response.StatusCode, WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync()));
+    }
+
+    private static async Task<string> Post(HttpClient client, string url, FormUrlEncodedContent form)
+    {
+        HttpResponseMessage response = await client.PostAsync(url, form);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        return WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync());
+    }
+
+    [Fact]
+    public async Task Each_legacy_has_a_play_button_and_its_name_is_not_a_link_and_there_is_no_dev_play_outside_developer_mode()
+    {
+        using var app = new TestApp();
+        Guid id = await app.Sessions.CreateLegacy(app.Live, "LEGACY_ONE", 1);
+
+        (_, string list) = await Get(app.NewClient(), "/");
+
+        Assert.Contains("<h3 class=\"legacy__name\" id=\"legacy-" + id.ToString("N") + "\">LEGACY_ONE</h3>", list);
+        Assert.Contains($"<a class=\"btn\" href=\"/legacy/{id}\"", list);
+        Assert.DoesNotContain("Dev Play", list);
+        Assert.DoesNotContain("<a href=\"/legacy/", list);
+        Assert.Equal(HttpStatusCode.NotFound, (await Get(app.NewClient(), $"/dev/legacy/{id}")).Status);
+    }
+
+    [Fact]
+    public async Task In_developer_mode_dev_play_opens_the_bridge_with_the_panel_and_play_opens_it_without()
+    {
+        using var app = new TestApp(developerMode: true, scratch: true);
+        HttpClient client = app.NewClient();
+        Guid id = await app.Sessions.CreateLegacy(app.Live, "LEGACY_ONE", 1);
+
+        (_, string list) = await Get(client, "/");
+        (HttpStatusCode status, string dev) = await Get(client, $"/dev/legacy/{id}");
+        (_, string play) = await Get(client, $"/legacy/{id}");
+
+        Assert.Contains($"<a class=\"btn btn--dev\" href=\"/dev/legacy/{id}\"", list);
+        Assert.Equal(HttpStatusCode.OK, status);
+        Assert.Contains("<header id=\"topbar\">", dev);
+        Assert.Contains("<section id=\"dev\"", dev);
+        Assert.Contains("No flags are set.", dev);
+        Assert.Contains("<title>LEGACY_ONE, Dev Play</title>", dev);
+        // The form suggests every flag the pack reads or changes.
+        Assert.Contains("<option value=\"flag_a\"></option>", dev);
+        Assert.DoesNotContain("id=\"dev\"", play);
+        Assert.Equal(HttpStatusCode.NotFound, (await Get(client, $"/dev/legacy/{Guid.NewGuid()}")).Status);
+    }
+
+    [Fact]
+    public async Task Setting_a_flag_stores_it_as_the_developers_and_answers_with_the_panel()
+    {
+        using var app = new TestApp(developerMode: true, scratch: true);
+        HttpClient client = app.NewClient();
+        Guid id = await app.Sessions.CreateLegacy(app.Live, "LEGACY_ONE", 1);
+        LoadedLegacy before = (await app.Sessions.Read(app.Live, id))!;
+        string crewId = app.Live.Game.Bus.View<IRosterView>(before.State).Roster[1];
+        string crew = app.Live.Names.Crew(crewId);
+
+        string ship = await Post(client, $"/dev/legacy/{id}/flag", Form(("flag", "flag_a"), ("on", "ship"), ("value", "1")));
+        string member = await Post(client, $"/dev/legacy/{id}/flag", Form(("flag", "flag_b"), ("on", crewId), ("value", "3")));
+
+        Assert.Contains("event: datastar-patch-elements", ship);
+        Assert.Contains("flag_a is now 1 on the ship.", ship);
+        Assert.Contains($"flag_b is now 3 on {crew}.", member);
+        Assert.Contains("<td class=\"dev__flag\">flag_b</td>", member);
+        LoadedLegacy after = (await app.Sessions.Read(app.Live, id))!;
+        StoryletsState storylets = after.State.Module<StoryletsState>(StoryletsModule.Name);
+        Assert.Equal([("flag_a", (string?)null, 1), ("flag_b", crewId, 3)], storylets.Flags.Select(f => (f.Flag, f.CrewId, f.Value)));
+        Assert.Equal(2, app.Game.Store.ReadEvents(id, 1).Count(e => e.Type == "FlagSetByDeveloper"));
+
+        string cleared = await Post(client, $"/dev/legacy/{id}/flag", Form(("flag", "flag_a"), ("on", "ship"), ("value", "0")));
+        Assert.Contains("Cleared flag_a on the ship.", cleared);
+    }
+
+    [Theory]
+    [InlineData("Flag A", "1", "Flag id 'Flag A' must be lower case")]
+    [InlineData("flag_a", "x", "A flag's value is 0 to 99.")]
+    [InlineData("flag_a", "100", "A flag's value is 0 to 99.")]
+    [InlineData("flag_a", "0", "flag_a is already 0 on the ship.")]
+    public async Task A_refused_flag_says_why_keeps_what_was_typed_and_changes_nothing(string flag, string value, string reason)
+    {
+        using var app = new TestApp(developerMode: true, scratch: true);
+        HttpClient client = app.NewClient();
+        Guid id = await app.Sessions.CreateLegacy(app.Live, "LEGACY_ONE", 1);
+
+        string body = await Post(client, $"/dev/legacy/{id}/flag", Form(("flag", flag), ("on", "ship"), ("value", value)));
+
+        Assert.Contains("<p id=\"dev-result\" class=\"error\" role=\"status\">" + reason, body);
+        Assert.Contains($"value=\"{flag}\"", body);
+        Assert.Contains($"value=\"{value}\"", body);
+        Assert.DoesNotContain(app.Game.Store.ReadEvents(id, 1), e => e.Type is "FlagSetByDeveloper" or "FlagChanged");
+    }
+
+    [Fact]
+    public async Task The_panel_redraws_on_its_own_route_and_a_post_from_another_site_is_refused()
+    {
+        using var app = new TestApp(developerMode: true, scratch: true);
+        HttpClient client = app.NewClient();
+        Guid id = await app.Sessions.CreateLegacy(app.Live, "LEGACY_ONE", 1);
+        await Post(client, $"/dev/legacy/{id}/flag", Form(("flag", "flag_a"), ("on", "ship"), ("value", "2")));
+
+        (HttpStatusCode status, string panel) = await Get(client, $"/dev/legacy/{id}/panel");
+
+        Assert.Equal(HttpStatusCode.OK, status);
+        Assert.Contains("<section id=\"dev\"", panel);
+        Assert.Contains("<td class=\"dev__flag\">flag_a</td>", panel);
+        var request = new HttpRequestMessage(HttpMethod.Post, $"/dev/legacy/{id}/flag") { Content = Form(("flag", "flag_b"), ("on", "ship"), ("value", "1")) };
+        request.Headers.Add("Origin", "https://elsewhere.example");
+        Assert.Equal(HttpStatusCode.Forbidden, (await client.SendAsync(request)).StatusCode);
+    }
+}

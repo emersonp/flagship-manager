@@ -8,6 +8,6 @@ public sealed class WebSettings
 
     public int BeatDelayMs { get; set; } = 700;
 
-    // The content editor's routes exist only when this is on.
+    // The developer pages (the content editor and Dev Play) exist only when this is on.
     public bool DeveloperMode { get; set; }
 }

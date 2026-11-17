@@ -20,6 +20,8 @@ public static class StoryletsModule
         bus.Guard<AnswerStorylet>(Order, Name, (command, context) => CheckAnswer(pack, command, context));
         bus.Guard<AdvancePhase>(Order, Name, (_, context) => context.State.Phase == CyclePhase.Aftermath && Answerable(pack, context).Any() ? AnswerStorylet.WaitingReason : null);
         bus.Handle<AnswerStorylet>((command, context) => OnAnswer(pack, command, context));
+        bus.Guard<SetFlag>(Order, Name, (command, context) => CheckSet(command, context));
+        bus.Handle<SetFlag>((command, context) => OnSet(command, context));
         bus.Subscribe<MissionEnded>(Order, Name, (e, context) => OnMissionEnded(e, context));
         bus.Subscribe<CrewDied>(Order, Name, (e, context) => OnCrewDied(e, context));
         bus.Subscribe<PhaseEntered>(Order, Name, (e, context) =>
@@ -74,6 +76,35 @@ public static class StoryletsModule
 
         state.Waiting.Remove(waiting);
         context.Publish(new StoryletAnswered(waiting.OfferId, waiting.StoryletId, waiting.SubjectId, option.Id));
+    }
+
+    private static string? CheckSet(SetFlag command, IBusContext context)
+    {
+        if (string.IsNullOrEmpty(command.Flag) || !Ids.IsInnerId(command.Flag))
+        {
+            return $"Flag id '{command.Flag}' must be {char.ToLowerInvariant(Ids.InnerRule[0])}{Ids.InnerRule[1..]}";
+        }
+
+        if (command.Value is < 0 or > SetFlag.Most)
+        {
+            return $"A flag's value is 0 to {SetFlag.Most}.";
+        }
+
+        if (command.CrewId is not null && !context.View<IRosterView>().Roster.Contains(command.CrewId))
+        {
+            return $"Crew member '{command.CrewId}' is not on the roster.";
+        }
+
+        return Value(context.Module<StoryletsState>(), command.Flag, command.CrewId) == command.Value
+            ? $"{command.Flag} is already {command.Value} {(command.CrewId is null ? "on the ship" : $"on {command.CrewId}")}."
+            : null;
+    }
+
+    // An answer's kind of change: it keeps the encounter that last changed the flag, so a storylet's head still says where it came from.
+    private static void OnSet(SetFlag command, IBusContext context)
+    {
+        context.Publish(new FlagSetByDeveloper(command.Flag, command.CrewId, command.Value));
+        Change(context.Module<StoryletsState>(), command.Flag, command.CrewId, command.Value, true, null, context);
     }
 
     private static void OnMissionEnded(MissionEnded ended, IBusContext context)

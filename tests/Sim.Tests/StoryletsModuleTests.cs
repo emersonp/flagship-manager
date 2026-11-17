@@ -410,4 +410,41 @@ public class StoryletsModuleTests
         Assert.Equal(["1:STORYLET_SHAKEN:CREW_03"], h.Waiting);
         Assert.Equal([("flag_b", "CREW_03"), ("flag_a", (string?)null)], h.Storylets.Flags.Select(f => (f.Flag, f.CrewId)));
     }
+    [Fact]
+    public void A_developers_flag_is_its_own_event_keeps_where_the_flag_came_from_and_brings_its_storylet_at_the_next_aftermath()
+    {
+        var h = new Harness(Pack(2, Quirk, Shaken));
+        h.Mission(Raise("flag_a", 1));
+        h.Send(new AnswerStorylet("1:STORYLET_QUIRK:ship", "clear"));
+        h.To(CyclePhase.Orders);
+
+        List<IEvent> ship = h.Send(new SetFlag("flag_a", null, 1));
+        List<IEvent> crew = h.Send(new SetFlag("flag_b", "CREW_03", 2));
+
+        Assert.Equal([new FlagSetByDeveloper("flag_a", null, 1), new FlagChanged("flag_a", null, 0, 1, null)], ship);
+        Assert.Equal([new FlagSetByDeveloper("flag_b", "CREW_03", 2), new FlagChanged("flag_b", "CREW_03", 0, 2, null)], crew);
+        Assert.Empty(h.Waiting);
+
+        List<IEvent> aftermath = h.To(CyclePhase.Aftermath);
+
+        Assert.Equal(["2:STORYLET_SHAKEN:CREW_03", "2:STORYLET_QUIRK:ship"], aftermath.OfType<StoryletOffered>().Select(o => o.OfferId));
+        h.Send(new SetFlag("flag_b", "CREW_03", 0));
+        Assert.Equal(0, h.Flag("flag_b", "CREW_03"));
+    }
+
+    [Theory]
+    [InlineData("Flag_A", null, 1, "Flag id 'Flag_A' must be lower case: a letter, then letters, digits, and underscores, at most 40 in all.")]
+    [InlineData("", null, 1, "Flag id '' must be lower case: a letter, then letters, digits, and underscores, at most 40 in all.")]
+    [InlineData("flag_a", null, -1, "A flag's value is 0 to 99.")]
+    [InlineData("flag_a", null, 100, "A flag's value is 0 to 99.")]
+    [InlineData("flag_a", "CREW_99", 1, "Crew member 'CREW_99' is not on the roster.")]
+    [InlineData("flag_a", null, 0, "flag_a is already 0 on the ship.")]
+    [InlineData("flag_b", "CREW_02", 0, "flag_b is already 0 on CREW_02.")]
+    public void A_developers_flag_is_refused_with_the_reason(string flag, string? crewId, int value, string reason)
+    {
+        var h = new Harness(Pack(2));
+
+        Assert.Equal(reason, h.Refused(new SetFlag(flag, crewId, value)));
+        Assert.Empty(h.Storylets.Flags);
+    }
 }

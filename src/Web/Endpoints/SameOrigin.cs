@@ -1,6 +1,6 @@
 namespace Web.Endpoints;
 
-// The editor's posts write files on the author's machine, so they must come from the app's own pages: a page open in the
+// The developer pages' posts write files on the author's machine or change a legacy, so they must come from the app's own pages: a page open in the
 // same browser must not be able to post to localhost. A request with neither header (curl, the tests' client) is allowed.
 // Every request must also name a loopback host, so a foreign name rebound to this machine reaches nothing (DNS rebinding).
 internal static class SameOrigin
@@ -10,12 +10,12 @@ internal static class SameOrigin
         HttpRequest request = context.HttpContext.Request;
         if (!IsLoopbackName(request.Host.Host))
         {
-            return Results.Text("The content editor answers only on localhost, 127.0.0.1, or [::1].", statusCode: StatusCodes.Status403Forbidden);
+            return Results.Text("The developer pages answer only on localhost, 127.0.0.1, or [::1].", statusCode: StatusCodes.Status403Forbidden);
         }
 
         if (HttpMethods.IsPost(request.Method) && !Allowed(request))
         {
-            return Results.Text("A post to the content editor must come from the editor's own pages.", statusCode: StatusCodes.Status403Forbidden);
+            return Results.Text("A post to the developer pages must come from the app's own pages.", statusCode: StatusCodes.Status403Forbidden);
         }
 
         return await next(context);

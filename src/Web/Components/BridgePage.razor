@@ -1,6 +1,10 @@
-<Layout Title="@View.TopBar.LegacyName">
+<Layout Title="@(Dev is null ? View.TopBar.LegacyName : $"{View.TopBar.LegacyName}, Dev Play")">
     <div class="page">
         <TopBar Bar="View.TopBar" />
+        @if (Dev is not null)
+        {
+            <DevPanel LegacyId="LegacyId" View="Dev" />
+        }
         <div class="deck">
             <MainScreen LegacyId="LegacyId" View="View" />
             <Roster Rows="View.Roster" />
@@ -12,4 +16,7 @@
     [Parameter, EditorRequired] public Guid LegacyId { get; set; }
 
     [Parameter, EditorRequired] public BridgeView View { get; set; } = null!;
+
+    // Dev Play's panel; null in normal play.
+    [Parameter] public DevView? Dev { get; set; }
 }
