@@ -2,7 +2,7 @@
 @using Web.Forms
 <FormShell View="View">
     <div class="field-grid">
-        <Field Name="beat" Label="Beat" Value="@Beat" Options="@NarrativeFacts.Kinds" Hint="Which beats the line is for." Error="@View.Error("beat")" Required="true" Narrow="true" />
+        <Field Name="beat" Label="Beat" Value="@Beat" Options="@NarrativeFacts.Kinds" Hint="Which beats the line is for. The Lines page says what each beat is." Error="@View.Error("beat")" Required="true" Narrow="true" />
     </div>
     <RowTable View="View" Set="Criteria" Headers="@(["Fact", "Value"])" Title="Criteria" Numeric="false" FirstSuggestions="@Facts" AddLabel="Add a criterion" Hint="@CriteriaHint" />
     <div class="field textfield textfield--line">

@@ -1,5 +1,5 @@
 <main id="main">
-    <div class="page-col">
+    <div class="@(Wide ? "page-col page-col--wide" : "page-col")">
         <div class="view-head">
             <nav class="crumbs" aria-label="Content editor">
                 <a class="home" href="/">Legacies</a>
@@ -24,6 +24,9 @@
     [Parameter, EditorRequired] public string Title { get; set; } = "";
 
     [Parameter] public string? Subtitle { get; set; }
+
+    // A page of tables takes the whole width; a form keeps the reading column.
+    [Parameter] public bool Wide { get; set; }
 
     // A third crumb for a page below a list: the list's name and address.
     [Parameter] public string? ParentTitle { get; set; }

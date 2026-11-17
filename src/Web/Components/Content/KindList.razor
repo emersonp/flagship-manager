@@ -1,5 +1,5 @@
 @using Sim.Content
-<ContentShell Title="@ContentKinds.Title(Kind)" Subtitle="@Count">
+<ContentShell Title="@ContentKinds.Title(Kind)" Subtitle="@Count" Wide="true">
     <Alert>
         @if (Notice is not null)
         {
@@ -71,6 +71,38 @@
                     {
                         <p>Of those, the report wanted and had to leave out: <span class="m">@string.Join(", ", lint.ReportWithout)</span>.</p>
                     }
+                </div>
+            </section>
+        }
+        @if (Kind == ContentKind.Line)
+        {
+            <section class="well" aria-labelledby="h-beats" id="beats">
+                <div class="well__head"><h2 id="h-beats">Beats</h2></div>
+                <div class="well__body">
+                    <p class="hint">A line is for one kind of beat, and its criteria may test that beat's facts. Every beat also has <span class="m">@string.Join(", ", Web.Forms.BeatGlossary.SharedFacts)</span>, the lead, and the objective and encounter. Each person has <span class="m">@string.Join(", ", Web.Forms.BeatGlossary.PersonStats)</span> as <span class="m">role.stat</span>, for example <span class="m">lead.caution</span>.</p>
+                </div>
+                <div class="tw">
+                    <table class="glossary">
+                        <thead>
+                            <tr>
+                                <th scope="col">Beat</th>
+                                <th scope="col">When it plays</th>
+                                <th scope="col">Its own facts</th>
+                                <th scope="col">People and things</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (Web.Forms.BeatEntry beat in Web.Forms.BeatGlossary.Entries)
+                            {
+                                <tr>
+                                    <th scope="row" class="who"><span class="m">@beat.Kind</span> <span class="note">@beat.Title</span></th>
+                                    <td>@beat.When</td>
+                                    <td>@if (beat.Facts.Count == 0){<span class="quiet">None</span>}else{<span class="m">@string.Join(", ", beat.Facts)</span>}</td>
+                                    <td>@if (beat.People.Count + beat.Things.Count == 0){<span class="quiet">None</span>}else{<span class="m">@string.Join(", ", beat.People.Concat(beat.Things))</span>}</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
                 </div>
             </section>
         }

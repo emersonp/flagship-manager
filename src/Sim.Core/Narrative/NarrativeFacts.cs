@@ -54,7 +54,8 @@ public static class NarrativeFacts
     // The pronoun forms a person token can ask for.
     public static readonly IReadOnlyList<string> PronounForms = ["they", "them", "their", "theirs", "themself"];
 
-    private static readonly FactSpec[] Common =
+    // The facts every beat has.
+    public static readonly IReadOnlyList<FactSpec> Common =
     [
         new("objective", FactType.Text, FactDomain.Objective),
         new("objectiveTags", FactType.Set),

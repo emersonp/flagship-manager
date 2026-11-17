@@ -73,6 +73,12 @@ h2 { font-size: var(--text-xl); line-height: 1.12; max-width: 30ch; }
 .empty, .empty-state { color: var(--color-ink-2); }
 #briefing { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-lg); }
 .page-col { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-lg); max-width: 54rem; }
+/* A page of tables: the tables take the width, the prose keeps its measure. */
+.page-col--wide { max-width: none; }
+.page-col--wide .view-head > p, .page-col--wide .well__body > p, .page-col--wide .facts dd { max-width: 72ch; }
+.glossary th[scope="row"] { vertical-align: top; padding-block: var(--space-xs); border-bottom-color: var(--color-rule); font-weight: 400; color: var(--color-ink); }
+.glossary th[scope="row"] .note { display: block; }
+.glossary td:nth-child(2) { min-width: 18rem; }
 
 /* Route and readouts: the course well. #route and #meter are patched on their own, and either may be empty. */
 .course:not(:has(> :not(:empty))) { display: none; }

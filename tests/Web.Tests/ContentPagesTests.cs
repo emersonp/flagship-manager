@@ -113,6 +113,36 @@ public sealed class ContentPagesTests : IClassFixture<RepoContentGuard>
         Assert.Contains(">Tag</th>", (await Get(client, "/dev/content/gear")).Body);
     }
 
+    [Fact]
+    public async Task The_lines_page_explains_every_beat_and_only_the_lines_page_does()
+    {
+        using var app = new TestApp(developerMode: true, scratch: true);
+        HttpClient client = app.NewClient();
+
+        string lines = WebUtility.HtmlDecode((await Get(client, "/dev/content/lines")).Body);
+
+        Assert.Contains("id=\"beats\"", lines);
+        foreach (string beat in Sim.Core.Narrative.NarrativeFacts.Kinds)
+        {
+            Assert.Contains($"<span class=\"m\">{beat}</span>", lines);
+        }
+
+        Assert.Contains("A check's result, by tier and margin.", lines);
+        Assert.Contains("tier, margin", lines);
+        Assert.DoesNotContain("id=\"beats\"", (await Get(client, "/dev/content/encounters")).Body);
+    }
+
+    [Fact]
+    public async Task List_pages_take_the_width_and_forms_keep_the_reading_column()
+    {
+        using var app = new TestApp(developerMode: true, scratch: true);
+        HttpClient client = app.NewClient();
+
+        Assert.Contains("page-col page-col--wide", (await Get(client, "/dev/content")).Body);
+        Assert.Contains("page-col page-col--wide", (await Get(client, "/dev/content/lines")).Body);
+        Assert.DoesNotContain("page-col--wide", (await Get(client, "/dev/content/lines/new")).Body);
+    }
+
     [Theory]
     [InlineData("/dev/content/nothing")]
     [InlineData("/dev/content/Crew")]
