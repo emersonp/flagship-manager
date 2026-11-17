@@ -34,7 +34,7 @@ public static class DevReader
     // Every flag the pack reads or changes, for the form's suggestions.
     public static IReadOnlyList<string> Known(ContentPack pack)
     {
-        IEnumerable<string> read = pack.Storylets.SelectMany(s => s.Requires.Select(r => r.Flag));
+        IEnumerable<string> read = pack.Storylets.SelectMany(s => s.Flags.Select(r => r.Flag));
         IEnumerable<string> answered = pack.Storylets.SelectMany(s => s.Options).SelectMany(o => o.Effects).Select(e => e.Flag?.Flag).OfType<string>();
         IEnumerable<EffectDef> effects = pack.Encounters.SelectMany(e => e.Approaches.SelectMany(a => a.Outcomes.Values)
             .Concat(e.Decision is { } d ? [d.Bold, d.Safe] : []));

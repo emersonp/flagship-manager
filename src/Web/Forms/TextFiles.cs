@@ -75,14 +75,14 @@ internal static class TextFileFlow
             }
         }
 
-        HashSet<string> read = pack.Storylets.SelectMany(s => s.Requires).Select(r => r.Flag).ToHashSet(StringComparer.Ordinal);
+        HashSet<string> read = pack.Storylets.SelectMany(s => s.Flags).Select(r => r.Flag).ToHashSet(StringComparer.Ordinal);
         var warnings = new List<string>();
         foreach (StoryletDef storylet in pack.Storylets)
         {
             // A requirement that holds at 0 (only a max) needs nothing to set its flag.
             bool onShip = storylet.Scope == StoryletScopes.Ship;
             string where = onShip ? "the ship" : "a crew member";
-            warnings.AddRange(storylet.Requires.Where(r => r.Min > 0).Select(r => r.Flag).Distinct().Where(f => !raised.Contains((f, onShip))).Select(f => $"Nothing sets {f} on {where}, which {storylet.Id} requires."));
+            warnings.AddRange(storylet.Flags.Where(r => r.Min > 0).Select(r => r.Flag).Distinct().Where(f => !raised.Contains((f, onShip))).Select(f => $"Nothing sets {f} on {where}, which {storylet.Id} requires."));
         }
 
         foreach (EncounterDef encounter in pack.Encounters)

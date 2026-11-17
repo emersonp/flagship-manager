@@ -28,7 +28,18 @@ public static class StoryletsModule
         {
             if (e.Phase == CyclePhase.Aftermath)
             {
+                StoryletsState state = context.Module<StoryletsState>();
+                if (state.LastCycle?.Cycle != e.Cycle)
+                {
+                    // No team was sent: the cycle still ran, and everyone fit rested.
+                    state.LastCycle = new LastCycleRecord { Cycle = e.Cycle, Sent = [], Hurt = [], Died = [] };
+                }
+
                 OnAftermath(pack, e.Cycle, context);
+            }
+            else if (e.Phase == CyclePhase.Orders)
+            {
+                context.Module<StoryletsState>().LastCycle = null;
             }
         });
     }
@@ -64,6 +75,15 @@ public static class StoryletsModule
                 foreach (string crewId in crew)
                 {
                     context.Send(new AdjustLoyalty(crewId, effect.Loyalty));
+                }
+            }
+
+            if (effect.Morale != 0)
+            {
+                IEnumerable<string> crew = effect.MoraleOn == StoryletScopes.Crew ? context.View<IRosterView>().Roster : [waiting.SubjectId!];
+                foreach (string crewId in crew)
+                {
+                    context.Send(new AdjustMorale(crewId, effect.Morale));
                 }
             }
 
@@ -110,6 +130,14 @@ public static class StoryletsModule
     private static void OnMissionEnded(MissionEnded ended, IBusContext context)
     {
         StoryletsState state = context.Module<StoryletsState>();
+        IReadOnlyList<CrewResult> crew = ended.Result.Crew;
+        state.LastCycle = new LastCycleRecord
+        {
+            Cycle = context.State.Cycle,
+            Sent = crew.Where(c => c.Status != MemberStatus.Dead).Select(c => c.Id).ToList(),
+            Hurt = crew.Where(c => c.Status == MemberStatus.Incapacitated || (c.Status == MemberStatus.Active && c.Injury > 0)).Select(c => c.Id).ToList(),
+            Died = crew.Where(c => c.Status == MemberStatus.Dead).Select(c => c.Id).ToList(),
+        };
         IReadOnlyList<string> roster = context.View<IRosterView>().Roster;
         foreach (MissionFlag flag in ended.Result.Flags)
         {
@@ -153,7 +181,7 @@ public static class StoryletsModule
             foreach ((string? subjectId, int position) in scopes)
             {
                 bool waiting = state.Waiting.Any(w => w.StoryletId == storylet.Id && w.SubjectId == subjectId);
-                if (!waiting && storylet.Requires.All(r => r.Holds(Value(state, r.Flag, subjectId))))
+                if (!waiting && storylet.Requires.All(r => Holds(r, state, subjectId, context)))
                 {
                     due.Add((storylet, subjectId, position));
                 }
@@ -168,7 +196,7 @@ public static class StoryletsModule
             }
 
             // Where it came from: the encounter that last changed the first required flag that is set.
-            string? encounterId = storylet.Requires
+            string? encounterId = storylet.Flags
                 .Select(r => Find(state, r.Flag, subjectId))
                 .FirstOrDefault(f => f is not null)?.EncounterId;
             var offer = new WaitingStorylet
@@ -217,6 +245,27 @@ public static class StoryletsModule
         }
 
         context.Publish(new FlagChanged(flag, crewId, from, to, encounterId));
+    }
+
+    // One requirement on one scope: the ship's flags (subjectId null), or a crew member's flags, stats, and last cycle.
+    private static bool Holds(Requirement requirement, StoryletsState state, string? subjectId, IBusContext context)
+    {
+        IRosterView roster = context.View<IRosterView>();
+        LastCycleRecord? last = state.LastCycle;
+        return requirement switch
+        {
+            FlagRange flag => flag.Holds(Value(state, flag.Flag, subjectId)),
+            StatRange stat when subjectId is not null => stat.Holds(stat.Stat == StoryletStats.Morale ? roster.Morale(subjectId) : roster.Loyalty(subjectId)),
+            LastCycle fact when subjectId is not null && last is not null => fact.Not != fact.Fact switch
+            {
+                LastCycleFacts.Sent => last.Sent.Contains(subjectId),
+                LastCycleFacts.Hurt => last.Hurt.Contains(subjectId),
+                LastCycleFacts.Rested => !last.Sent.Contains(subjectId) && !last.Died.Contains(subjectId) && roster.IsFit(subjectId),
+                LastCycleFacts.LostCrewmate => last.Died.Count > 0 && !last.Died.Contains(subjectId),
+                _ => false,
+            },
+            _ => false,
+        };
     }
 
     private static StoredFlag? Find(StoryletsState state, string flag, string? crewId)

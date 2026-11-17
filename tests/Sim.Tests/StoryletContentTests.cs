@@ -135,7 +135,7 @@ public class StoryletContentTests
     [Theory]
     [InlineData("{ flag: Flag_A, min: 1 }", "STORYLET_X: Flag id 'Flag_A' must be lower case: a letter, then letters, digits, and underscores, at most 40 in all.")]
     [InlineData("{ min: 1 }", "STORYLET_X: Flag id '' must be lower case: a letter, then letters, digits, and underscores, at most 40 in all.")]
-    [InlineData("{ flag: flag_a, over: 1 }", "STORYLET_X: A requirement takes flag, min, and max; 'over' is not one of them.")]
+    [InlineData("{ flag: flag_a, over: 1 }", "STORYLET_X: A requirement takes flag, stat, or last; 'over' is not one of them.")]
     [InlineData("{ flag: flag_a, min: one }", "STORYLET_X: A requirement's min and max must be whole numbers of 0 or more.")]
     [InlineData("{ flag: flag_a, min: -1 }", "STORYLET_X: A requirement's min and max must be whole numbers of 0 or more.")]
     [InlineData("{ flag: flag_a, min: 2, max: 1 }", "STORYLET_X: The requirement on flag_a has max 1 below min 2.")]
@@ -203,7 +203,7 @@ public class StoryletContentTests
     {
         string storylet = Storylet.Replace("effects: [{ flag: flag_a, set: 2 }]", $"effects: [{{ flag: flag_a, set: 2 }}, {effect}]");
 
-        AssertRefused(storylet, $"STORYLET_X: A storylet's effect can change loyalty or a flag; '{key}' is not one of them.");
+        AssertRefused(storylet, $"STORYLET_X: A storylet's effect can change loyalty, morale, or a flag; '{key}' is not one of them.");
     }
 
     [Theory]
@@ -218,7 +218,7 @@ public class StoryletContentTests
     [InlineData("{}", "STORYLET_X: A storylet's effect is blank.")]
     [InlineData("{ flag: flag_b, set: -1 }", "STORYLET_X: A flag's set must be 0 or more.")]
     [InlineData("{ flag: Flag_B, add: 1 }", "STORYLET_X: Flag id 'Flag_B' must be lower case: a letter, then letters, digits, and underscores, at most 40 in all.")]
-    [InlineData("{ flag: flag_b, add: 1, loyalty: 1 }", "STORYLET_X: An effect changes loyalty or a flag, not both.")]
+    [InlineData("{ flag: flag_b, add: 1, loyalty: 1 }", "STORYLET_X: An effect changes one thing; this one changes loyalty and flag.")]
     public void A_malformed_loyalty_or_flag_change_is_refused(string effect, string message)
     {
         string storylet = Storylet.Replace("effects: [{ flag: flag_a, set: 2 }]", $"effects: [{{ flag: flag_a, set: 2 }}, {effect}]");
@@ -308,5 +308,71 @@ public class StoryletContentTests
         ContentLoadResult result = LoadWith(Storylet, tuning);
 
         Assert.Contains(result.Errors, e => e.File == "tuning/missions.yaml" && e.Message == message);
+    }
+
+    // 1e part two (design 4.2): requirements on the subject's stats and on facts about the last cycle, and morale as an effect.
+    [Fact]
+    public void A_stat_and_a_fact_requirement_load_beside_a_flag()
+    {
+        string storylet = Storylet.Replace(
+            "    - { flag: flag_a, min: 1, max: 1 }",
+            "    - { flag: flag_a, min: 1, max: 1 }\n    - { stat: morale, max: 25 }\n    - { stat: loyalty, min: 60 }\n    - { last: hurt, not: true }");
+
+        ContentLoadResult result = LoadWith(storylet);
+
+        Assert.Empty(result.Errors);
+        Assert.Equal<Requirement>(
+            [new FlagRange("flag_a", 1, 1), new StatRange("morale", 0, 25), new StatRange("loyalty", 60, null), new LastCycle("hurt", true)],
+            result.Pack!.Storylets.Single().Requires);
+    }
+
+    [Fact]
+    public void A_morale_change_loads_on_the_subject_or_the_crew()
+    {
+        string storylet = Storylet.Replace("effects: [{ flag: flag_a, set: 2 }]", "effects: [{ flag: flag_a, set: 2 }, { morale: 3, on: subject }, { morale: -1, on: crew }]");
+
+        ContentLoadResult result = LoadWith(storylet);
+
+        Assert.Empty(result.Errors);
+        Assert.Equal(
+            [new StoryletEffect(Morale: 3, MoraleOn: "subject"), new StoryletEffect(Morale: -1, MoraleOn: "crew")],
+            result.Pack!.Storylets.Single().Options[1].Effects.Skip(1));
+    }
+
+    [Theory]
+    [InlineData("{ stat: courage, min: 1 }", "STORYLET_X: 'courage' is not a stat a storylet can read; they are morale, loyalty.")]
+    [InlineData("{ stat: morale, over: 1 }", "STORYLET_X: A requirement on stat takes min, max; 'over' is not one of them.")]
+    [InlineData("{ stat: morale, min: 50, max: 40 }", "STORYLET_X: The requirement on morale has max 40 below min 50.")]
+    [InlineData("{ last: promoted }", "STORYLET_X: 'promoted' is not a fact about the last cycle; they are sent, hurt, rested, lost_crewmate.")]
+    [InlineData("{ last: sent, not: maybe }", "STORYLET_X: A requirement's not must be true or false.")]
+    [InlineData("{ last: sent, min: 1 }", "STORYLET_X: A requirement on last takes not; 'min' is not one of them.")]
+    public void A_malformed_stat_or_fact_requirement_is_refused(string requirement, string message)
+    {
+        AssertRefused(Storylet.Replace("    - { flag: flag_a, min: 1, max: 1 }", $"    - {{ flag: flag_a, min: 1, max: 1 }}\n    - {requirement}"), message);
+    }
+
+    [Theory]
+    [InlineData("{ stat: morale, max: 25 }", "morale")]
+    [InlineData("{ last: rested }", "rested")]
+    public void A_storylet_for_the_ship_cannot_read_a_stat_or_a_fact(string requirement, string name)
+    {
+        string storylet = Storylet.Replace("scope: crew", "scope: ship").Replace("    - { flag: flag_a, min: 1, max: 1 }", $"    - {{ flag: flag_a, min: 1, max: 1 }}\n    - {requirement}");
+
+        AssertRefused(storylet, $"STORYLET_X: A storylet for the ship has no subject, so it cannot read {name}.");
+    }
+
+    [Fact]
+    public void A_storylet_with_no_flag_among_its_requirements_is_refused()
+    {
+        AssertRefused(Storylet.Replace("    - { flag: flag_a, min: 1, max: 1 }", "    - { stat: morale, max: 25 }"), "STORYLET_X: A storylet needs at least one flag among its requirements, so its answers can stop it returning.");
+    }
+
+    [Theory]
+    [InlineData("{ morale: 1 }", "STORYLET_X: A morale change needs on: subject or crew.")]
+    [InlineData("{ morale: lots, on: crew }", "STORYLET_X: A morale change must be a whole number.")]
+    [InlineData("{ morale: 1, loyalty: 1, on: crew }", "STORYLET_X: An effect changes one thing; this one changes loyalty and morale.")]
+    public void A_malformed_morale_change_is_refused(string effect, string message)
+    {
+        AssertRefused(Storylet.Replace("effects: [{ flag: flag_a, set: 2 }]", $"effects: [{{ flag: flag_a, set: 2 }}, {effect}]"), message);
     }
 }

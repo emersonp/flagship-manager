@@ -97,12 +97,12 @@ public class StoryletsModuleTests
         return TestContent.Pack with { Storylets = storylets, StoryletsPerCycle = perCycle };
     }
 
-    private static StoryletDef Ship(string id, int stakes, FlagRange[] requires, params StoryletOption[] options)
+    private static StoryletDef Ship(string id, int stakes, Requirement[] requires, params StoryletOption[] options)
     {
         return new StoryletDef(id, stakes, StoryletScopes.Ship, requires, options);
     }
 
-    private static StoryletDef Crew(string id, int stakes, FlagRange[] requires, params StoryletOption[] options)
+    private static StoryletDef Crew(string id, int stakes, Requirement[] requires, params StoryletOption[] options)
     {
         return new StoryletDef(id, stakes, StoryletScopes.Crew, requires, options);
     }
@@ -446,5 +446,92 @@ public class StoryletsModuleTests
 
         Assert.Equal(reason, h.Refused(new SetFlag(flag, crewId, value)));
         Assert.Empty(h.Storylets.Flags);
+    }
+
+    // 1e part two (design 4.2): requirements on the subject's stats and on the last cycle, and morale as an answer's effect.
+    private static readonly FlagRange NoFlagB = new("flag_b", 0, 0);
+
+    private static StoryletDef Fact(string fact, bool not = false)
+    {
+        return Crew($"STORYLET_{fact.ToUpperInvariant()}{(not ? "_NOT" : "")}", 1, [NoFlagB, new LastCycle(fact, not)], Option("done", Set("flag_b", 1)), Option("other", Set("flag_b", 2)));
+    }
+
+    private Dictionary<string, List<string>> WaitingBySubject(Harness h)
+    {
+        return h.Storylets.Waiting.GroupBy(w => w.StoryletId).ToDictionary(g => g.Key, g => g.Select(w => w.SubjectId!).ToList());
+    }
+
+    private static CrewResult Home(string id, int injury = 0)
+    {
+        return new CrewResult(id, MemberStatus.Active, injury, new Dictionary<string, double>(), 0);
+    }
+
+    [Fact]
+    public void A_stat_requirement_reads_the_subjects_morale()
+    {
+        StoryletDef low = Crew("STORYLET_LOW", 1, [new FlagRange("flag_b", 1, null), new StatRange("morale", 0, 25)], Option("calm", Set("flag_b", 0)), Option("ignore", Set("flag_b", 0)));
+        var h = new Harness(Pack(8, low));
+        h.Crew.Members.Single(m => m.Id == "CREW_02").Morale = 20;
+
+        h.Mission(Raise("flag_b", 1, "CREW_01"), Raise("flag_b", 1, "CREW_02"));
+
+        Assert.Equal(["1:STORYLET_LOW:CREW_02"], h.Waiting);
+    }
+
+    // Review focus 1: the dead hold no fact; the living each lost a crewmate.
+    [Fact]
+    public void Each_last_cycle_fact_holds_for_the_right_crew()
+    {
+        string[] facts = [LastCycleFacts.Sent, LastCycleFacts.Hurt, LastCycleFacts.Rested, LastCycleFacts.LostCrewmate];
+        var h = new Harness(Pack(100, [.. facts.Select(f => Fact(f)), Fact(LastCycleFacts.Sent, not: true)]));
+        h.To(CyclePhase.Resolution);
+        h.End([], Home("CREW_01"), Home("CREW_02", injury: 1), Died("CREW_03"));
+
+        h.To(CyclePhase.Aftermath);
+
+        Dictionary<string, List<string>> waiting = WaitingBySubject(h);
+        Assert.Equal(["CREW_01", "CREW_02"], waiting["STORYLET_SENT"]);
+        Assert.Equal(["CREW_02"], waiting["STORYLET_HURT"]);
+        Assert.Equal(["CREW_04", "CREW_05", "CREW_06", "CREW_07", "CREW_08"], waiting["STORYLET_RESTED"]);
+        Assert.Equal(["CREW_01", "CREW_02", "CREW_04", "CREW_05", "CREW_06", "CREW_07", "CREW_08"], waiting["STORYLET_LOST_CREWMATE"]);
+        Assert.Equal(["CREW_04", "CREW_05", "CREW_06", "CREW_07", "CREW_08"], waiting["STORYLET_SENT_NOT"]);
+    }
+
+    [Fact]
+    public void In_a_cycle_with_no_team_everyone_fit_rested_and_nobody_was_sent()
+    {
+        var h = new Harness(Pack(100, Fact(LastCycleFacts.Rested), Fact(LastCycleFacts.Sent)));
+
+        h.To(CyclePhase.Aftermath);
+
+        Assert.Equal(8, WaitingBySubject(h)["STORYLET_RESTED"].Count);
+        Assert.False(WaitingBySubject(h).ContainsKey("STORYLET_SENT"));
+    }
+
+    [Fact]
+    public void The_last_cycle_is_forgotten_when_the_next_orders_open()
+    {
+        var h = new Harness(Pack(100));
+        h.To(CyclePhase.Aftermath);
+        Assert.NotNull(h.Storylets.LastCycle);
+
+        h.To(CyclePhase.Orders);
+
+        Assert.Null(h.Storylets.LastCycle);
+    }
+
+    [Fact]
+    public void A_morale_effect_reaches_the_crew_module()
+    {
+        StoryletDef cheer = Crew("STORYLET_CHEER", 1, [new FlagRange("flag_b", 1, null)],
+            Option("cheer", Set("flag_b", 0), new StoryletEffect(Morale: 3, MoraleOn: "subject"), new StoryletEffect(Morale: -1, MoraleOn: "crew")), Option("other", Set("flag_b", 0)));
+        var h = new Harness(Pack(2, cheer));
+        h.Mission(Raise("flag_b", 1, "CREW_02"));
+
+        List<IEvent> events = h.Send(new AnswerStorylet(h.Waiting.Single(), "cheer"));
+
+        Assert.Contains(new MoraleChanged("CREW_02", 50, 53, MoraleCauses.Answer), events);
+        Assert.Equal(52, h.Crew.Members.Single(m => m.Id == "CREW_02").Morale);
+        Assert.Equal(49, h.Crew.Members.Single(m => m.Id == "CREW_05").Morale);
     }
 }

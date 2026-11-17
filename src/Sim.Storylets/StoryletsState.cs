@@ -29,6 +29,19 @@ public sealed class WaitingStorylet
     public required string? EncounterId { get; set; }
 }
 
+// What the cycle whose aftermath last began did to the crew, for requirements on the last cycle (1e part two). Crew ids.
+public sealed class LastCycleRecord
+{
+    public required int Cycle { get; set; }
+
+    // Sent and came home.
+    public required List<string> Sent { get; set; }
+
+    public required List<string> Hurt { get; set; }
+
+    public required List<string> Died { get; set; }
+}
+
 public sealed class StoryletsState
 {
     [JsonRequired]
@@ -37,4 +50,7 @@ public sealed class StoryletsState
     // In the order offered.
     [JsonRequired]
     public List<WaitingStorylet> Waiting { get; set; } = new();
+
+    // Null until a cycle's aftermath has begun, and again once the next orders open.
+    public LastCycleRecord? LastCycle { get; set; }
 }

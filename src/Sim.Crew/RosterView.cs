@@ -25,6 +25,16 @@ internal sealed class RosterView(CrewState state, CrewTuning tuning) : IRosterVi
         return new TeamMember(member.Id, member.Seniority, skills, member.Caution, member.Discipline, tuning.MoraleBonus(member.Morale));
     }
 
+    public int Morale(string crewId)
+    {
+        return Find(crewId) is { Status: not CrewStatus.Dead } member ? member.Morale : 0;
+    }
+
+    public int Loyalty(string crewId)
+    {
+        return Find(crewId) is { Status: not CrewStatus.Dead } member ? member.Loyalty : 0;
+    }
+
     private CrewMember? Find(string crewId)
     {
         return state.Members.FirstOrDefault(m => m.Id == crewId);

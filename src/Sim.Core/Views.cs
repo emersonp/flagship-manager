@@ -10,4 +10,9 @@ public interface IRosterView
 
     // Null for an unknown or dead crew member.
     TeamMember? Member(string crewId);
+
+    // A living crew member's stats, read by storylet requirements (1e part two); 0 for an unknown or dead one.
+    int Morale(string crewId);
+
+    int Loyalty(string crewId);
 }

@@ -356,11 +356,11 @@ public static class BridgeReader
             return null;
         }
 
-        List<StoredFlag> set = storylet.Requires
+        List<StoredFlag> set = storylet.Flags
             .Select(r => storylets.Flags.FirstOrDefault(f => f.Flag == r.Flag && f.CrewId == waiting.SubjectId))
             .OfType<StoredFlag>()
             .ToList();
-        string flag = (set.FirstOrDefault(f => f.EncounterId == encounter) ?? set.FirstOrDefault())?.Flag ?? storylet.Requires[0].Flag;
+        string flag = (set.FirstOrDefault(f => f.EncounterId == encounter) ?? set.FirstOrDefault())?.Flag ?? storylet.Flags.First().Flag;
         return $"From {names.Encounter(encounter)} · {flag}";
     }
 
