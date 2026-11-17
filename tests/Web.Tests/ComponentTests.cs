@@ -128,9 +128,9 @@ public sealed class ComponentTests : IDisposable
     }
 
     [Theory]
-    [InlineData(0, "0 entries, newest last")]
-    [InlineData(1, "1 entry, newest last")]
-    [InlineData(3, "3 entries, newest last")]
+    [InlineData(0, "0 entries, newest first")]
+    [InlineData(1, "1 entry, newest first")]
+    [InlineData(3, "3 entries, newest first")]
     public async Task The_log_counts_its_entries_inside_the_element_the_streams_patch(int count, string words)
     {
         List<LogLine> lines = Enumerable.Range(0, count).Select(i => new LogLine(i, "check", $"TEXT_{i}")).ToList();

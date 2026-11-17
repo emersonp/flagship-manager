@@ -251,22 +251,21 @@ public sealed class ProseTests : IDisposable
     }
 
     [Fact]
-    public async Task The_log_and_the_call_show_a_script_and_the_call_its_own_button_labels()
+    public async Task The_log_shows_a_call_script_once_and_the_call_its_own_button_labels()
     {
         List<ProseEntry> script = [new(Sim.Core.Narrative.EntryKind.Speech, "NAME_A", [new(false, "We are here.")]), new(Sim.Core.Narrative.EntryKind.Note, null, [new(false, "Signal <falling>.")])];
         var line = new LogLine(2, "call", "NAME_A calls: DECISION_A. Stakes 2.", Prose: [new(false, "x")], Authored: true, Script: script);
-        var call = new CallView("CALL_1", "DECISION_A", 2, ["Bold", "Safe", "Withdraw"], "Safe", "CREW_01") { Script = script, Labels = new Dictionary<string, string> { ["bold"] = "Send them in", ["safe"] = "Hold here" } };
+        var call = new CallView("CALL_1", "DECISION_A", 2, ["Bold", "Safe", "Withdraw"], "Safe", "CREW_01") { Labels = new Dictionary<string, string> { ["bold"] = "Send them in", ["safe"] = "Hold here" } };
         Render render = app.Services.GetRequiredService<Render>();
 
         string log = await render.Html<MissionLog>(new Dictionary<string, object?> { ["Lines"] = new List<LogLine> { line } });
         string panel = await render.Html<CallPanel>(new Dictionary<string, object?> { ["LegacyId"] = Guid.NewGuid(), ["MissionId"] = "MISSION_1", ["Bar"] = new TopBarView("LEGACY", 1, 1, CyclePhase.Resolution, null), ["Call"] = call });
 
-        foreach (string html in new[] { log, panel })
-        {
-            Assert.Contains("<span class=\"script__who\">NAME_A</span>", html, StringComparison.Ordinal);
-            Assert.Contains("script__line--note", html, StringComparison.Ordinal);
-            Assert.Contains("Signal &lt;falling&gt;.", html, StringComparison.Ordinal);
-        }
+        Assert.Contains("<span class=\"script__who\">NAME_A</span>", log, StringComparison.Ordinal);
+        Assert.Contains("script__line--note", log, StringComparison.Ordinal);
+        Assert.Contains("Signal &lt;falling&gt;.", log, StringComparison.Ordinal);
+        Assert.DoesNotContain("We are here.", panel, StringComparison.Ordinal);
+        Assert.DoesNotContain("script__line", panel, StringComparison.Ordinal);
 
         Assert.DoesNotContain("beat__prose", log, StringComparison.Ordinal);
         Assert.Contains(">Send them in</button>", panel, StringComparison.Ordinal);

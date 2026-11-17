@@ -158,11 +158,9 @@ public static class BridgeReader
         CallView? call = null;
         if (state.Pending is { } pending)
         {
-            // The call's own words are its beat's script; the log shows them too.
-            int at = beats.FindLastIndex(b => b.Beat is CallBeat c && c.Call.CallId == pending.CallId);
+            // The call's own words are its beat's script, shown once: in the log, just below the call.
             call = new CallView(pending.CallId, pending.DecisionId, pending.Stakes, pending.Options.Select(o => o.ToString()).ToList(), pending.LeadPrefers.ToString(), pending.LeadId, names.Decision(pending.DecisionId), names.Crew(pending.LeadId))
             {
-                Script = at >= 0 && log[at].Authored ? log[at].Script : null,
                 Labels = prose.ChoiceLabels(pending.DecisionId),
             };
         }

@@ -1,7 +1,7 @@
 <section id="mission-log" class="@(None ? "well log log--none" : "well log")" aria-labelledby="log-head">
-<div class="well__head"><h2 id="log-head">Mission log</h2><p class="note"><span class="m">@Lines.Count</span> @(Lines.Count == 1 ? "entry" : "entries"), newest last</p></div>
-<ol id="log" class="@(Ends ? "log--end" : null)">
-    @for (int i = 0; i < Lines.Count; i++)
+<div class="well__head"><h2 id="log-head">Mission log</h2><p class="note"><span class="m">@Lines.Count</span> @(Lines.Count == 1 ? "entry" : "entries"), newest first</p></div>
+<ol id="log">
+    @for (int i = Lines.Count - 1; i >= 0; i--)
     {
         LogLine line = Lines[i];
         bool newest = i == Lines.Count - 1;
@@ -55,10 +55,7 @@
     // No mission: the well is in the page, hidden, so a later patch has somewhere to land.
     [Parameter] public bool None { get; set; }
 
-    // The spine runs on into the call well only while a call waits, so a log whose last beat is no call ends at its node.
-    private bool Ends => Lines.Count > 0 && Lines[^1].Kind != "call";
-
-    // Each paced patch replaces the list whole, so its last line is the newest beat.
+    // Newest first: each paced patch replaces the list whole, so its first line is the newest beat.
     private static string Css(LogLine line, bool newest)
     {
         return newest ? $"beat beat--{line.Kind} beat--newest" : $"beat beat--{line.Kind}";

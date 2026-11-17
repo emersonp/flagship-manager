@@ -113,13 +113,11 @@ h2 { font-size: var(--text-xl); line-height: 1.12; max-width: 30ch; }
 .meter i { width: 16px; height: 6px; border: var(--rule-hair) solid var(--color-rule-2); border-radius: 1px; }
 .meter i.on { background: var(--color-ink-2); border-color: var(--color-ink-2); }
 
-/* The mission log: one numbered trail on a spine. */
+/* The mission log: one numbered trail on a spine, newest first. */
 .log, .call { --pad: var(--space-lg); --no: 2rem; --node: 1.5rem; --gap: var(--space-sm); --spine-x: calc(var(--pad) + var(--no) + var(--gap) + (var(--node) / 2)); }
 #log { position: relative; padding: 0 var(--pad) var(--space-md); }
-#log::before { content: ""; position: absolute; top: var(--space-xs); bottom: 0; left: var(--spine-x); width: 1px; background: var(--color-rule-2); }
+#log::before { content: ""; position: absolute; top: var(--space-xs); bottom: var(--space-md); left: var(--spine-x); width: 1px; background: var(--color-rule-2); }
 #log:empty { min-height: calc(var(--space-2xl) + var(--space-md)); }
-/* Without a waiting call the spine stops with the last beat; the log padding is only there for the call to meet. */
-#log.log--end::before { bottom: var(--space-md); }
 #log:empty::after { content: ""; position: absolute; left: calc(var(--spine-x) - 4.5px); top: var(--space-xs); width: 9px; height: 9px; border-radius: 2px; border: var(--rule-hair) solid var(--color-rule-2); background: var(--color-paper-2); }
 .log--none { display: none; }
 .beat { position: relative; display: grid; grid-template-columns: var(--no) var(--node) 4.5rem minmax(0, 1fr); column-gap: var(--gap); align-items: baseline; padding: var(--space-xs) 0; color: var(--color-ink-2); }
@@ -139,26 +137,24 @@ h2 { font-size: var(--text-xl); line-height: 1.12; max-width: 30ch; }
 .beat--injury .beat__kind, .beat--collapse .beat__kind, .beat--collapse .beat__text { color: var(--color-harm); }
 .beat--initiative .beat__text { color: var(--color-muted); }
 .beat--result .beat__text { font-weight: 500; color: var(--color-ink); }
-.beat--stage { margin-top: var(--space-sm); padding-top: var(--space-md); border-top: var(--rule-hair) solid var(--color-rule); }
-.beat--stage:first-child { margin-top: 0; border-top: 0; padding-top: var(--space-xs); }
-.beat--stage::before { width: 9px; height: 9px; border-radius: 2px; left: calc(var(--no) + var(--gap) + (var(--node) / 2) - 4.5px); top: calc(var(--space-md) + 0.6em); background: var(--color-ink-2); border-color: var(--color-ink-2); }
-.beat--stage:first-child::before { top: calc(var(--space-xs) + 0.6em); }
+/* Newest first, a stage line sits under the beats it opened; its rule parts it from the stage before. */
+.beat--stage { margin-bottom: var(--space-sm); padding-bottom: var(--space-md); border-bottom: var(--rule-hair) solid var(--color-rule); }
+.beat--stage:last-child { margin-bottom: 0; border-bottom: 0; padding-bottom: var(--space-xs); }
+.beat--stage::before { width: 9px; height: 9px; border-radius: 2px; left: calc(var(--no) + var(--gap) + (var(--node) / 2) - 4.5px); top: calc(var(--space-xs) + 0.6em); background: var(--color-ink-2); border-color: var(--color-ink-2); }
 .beat--stage .beat__line { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: var(--space-2xs) var(--space-md); }
 .stage-title { font-size: var(--text-lg); line-height: 1.2; }
 .stage-read { font-family: var(--font-outlier); font-variant-numeric: tabular-nums slashed-zero; font-size: var(--text-sm); color: var(--color-ink-2); white-space: nowrap; }
-/* The newest beat. Paced streams replace #log whole, so the last line always carries it. */
+/* The newest beat. Paced streams replace #log whole, so the first line always carries it. */
 .beat--newest { margin-top: var(--space-2xs); padding: var(--space-sm) 0; background: var(--color-paper-3); border-radius: var(--radius-inner); color: var(--color-ink); box-shadow: 0 0 0 var(--space-xs) var(--color-paper-3); }
-.beat--newest.beat--stage { margin-top: var(--space-sm); border-top-color: transparent; }
+.beat--newest.beat--stage { margin-bottom: var(--space-md); }
 .beat--newest::before { width: 11px; height: 11px; border-radius: 50%; left: calc(var(--no) + var(--gap) + (var(--node) / 2) - 5.5px); top: calc(var(--space-sm) + 0.45em); background: var(--color-accent); border-color: var(--color-accent); }
 .beat--newest .beat__kind { color: var(--color-ink); font-weight: 500; }
 .beat--newest .beat__line { display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--space-2xs) var(--space-md); }
 .tag { display: inline-flex; align-items: center; padding: 0 var(--space-xs); border: var(--rule-hair) solid var(--color-rule-2); border-radius: var(--radius-chip); font-family: var(--font-body); font-size: var(--text-xs); line-height: 1.7; color: var(--color-ink-2); white-space: nowrap; font-weight: 400; }
 
-/* The call: its own well; the trail runs on into it. */
+/* The call: its own well, above the log it came from. */
 #call:empty { display: none; }
 .call { position: relative; padding: var(--space-lg) var(--pad); border-color: var(--color-caution); background: var(--color-paper-3); }
-.call::before { content: ""; position: absolute; left: calc(var(--spine-x) - 1px); bottom: 100%; height: calc(var(--space-lg) + 1px); width: 1px; background: var(--color-rule-2); }
-.call::after { content: ""; position: absolute; left: calc(var(--spine-x) - 1px); top: -1px; height: calc(var(--space-lg) + 0.75em); width: 1px; background: var(--color-rule-2); }
 .call__grid { display: grid; grid-template-columns: var(--no) var(--node) minmax(0, 1fr); column-gap: var(--gap); }
 .call__node { grid-column: 2; position: relative; }
 .call__node::before { content: ""; position: absolute; left: calc(50% - 5.5px); top: 0.45em; width: 11px; height: 11px; border-radius: 50%; border: var(--rule-hair) solid var(--color-caution); background: var(--color-paper-3); }
@@ -441,12 +437,10 @@ a.btn { text-decoration: none; }
   .beat__kind { grid-column: 3; grid-row: 1; font-size: var(--text-xs); }
   .beat__text { grid-column: 3; }
   .beat__no { grid-row: 1; }
-  .beat--stage::before { top: calc(var(--space-md) + 0.25em); }
-  .beat--stage:first-child::before { top: calc(var(--space-xs) + 0.25em); }
+  .beat--stage::before { top: calc(var(--space-xs) + 0.25em); }
   .beat::before { top: calc(var(--space-xs) + 0.35em); }
   .beat--newest::before { top: calc(var(--space-sm) + 0.2em); }
   .call { padding-top: var(--space-md); padding-bottom: var(--space-md); }
-  .call::after { height: calc(var(--space-md) + 0.75em); }
   .changes li { grid-template-columns: var(--space-lg) minmax(0, 1fr); padding-left: var(--space-md); padding-right: var(--space-md); row-gap: 0; }
   .changes__kind { grid-column: 2; font-size: var(--text-xs); }
   .changes li > span:last-child { grid-column: 2; }

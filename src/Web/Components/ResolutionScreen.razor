@@ -20,8 +20,8 @@
         <StageRoute Lines="@(HideMeter ? null : Mission?.Log)" Ended="@(Mission?.Outcome is not null)" />
         <Meter Mission="@(HideMeter ? null : Mission)" />
     </div>
-    <MissionLog Lines="@(Mission?.Log ?? [])" None="@(Mission is null)" />
     <CallPanel LegacyId="LegacyId" Bar="Bar" MissionId="@(Mission?.MissionId ?? "")" Call="Mission?.Call" Reason="@CallReason" />
+    <MissionLog Lines="@(Mission?.Log ?? [])" None="@(Mission is null)" />
     <div class="actions well">
         <ResolutionFooter LegacyId="LegacyId" Bar="Bar" Show="@(Mission is null || Mission.Outcome is not null)" />
         <Refusal Reason="@Reason" />

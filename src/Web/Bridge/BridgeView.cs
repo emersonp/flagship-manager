@@ -58,9 +58,9 @@ public sealed record LogLine(int Index, string Kind, string Text, string? Encoun
     public IReadOnlyList<LinePart> Segments => Parts ?? [new LinePart(false, Text)];
 }
 
-// CallId is the resolver's string id; Options and LeadPrefers are CallAnswer names. Script is what the team says on the call, when a
-// line gives it, and Labels what each answer's button says, by answer word ("bold"); an answer with no label shows its name.
-public sealed record CallView(string CallId, string DecisionId, int Stakes, IReadOnlyList<string> Options, string LeadPrefers, string LeadId, string? DecisionName = null, string? LeadName = null, IReadOnlyList<ProseEntry>? Script = null, IReadOnlyDictionary<string, string>? Labels = null)
+// CallId is the resolver's string id; Options and LeadPrefers are CallAnswer names. Labels is what each answer's button says, by
+// answer word ("bold"); an answer with no label shows its name. What the team says on the call is its beat's script, in the log.
+public sealed record CallView(string CallId, string DecisionId, int Stakes, IReadOnlyList<string> Options, string LeadPrefers, string LeadId, string? DecisionName = null, string? LeadName = null, IReadOnlyDictionary<string, string>? Labels = null)
 {
     public string Label(string option) => Labels?.GetValueOrDefault(char.ToLowerInvariant(option[0]) + option[1..]) ?? option;
 

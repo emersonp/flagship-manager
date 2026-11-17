@@ -6,10 +6,6 @@
                 <span class="call__node" aria-hidden="true"></span>
                 <div class="call__body">
                     <p class="call__status" role="status">Call waiting for your answer</p>
-                    @if (Call.Script is { Count: > 0 } script)
-                    {
-                        <ScriptLines Entries="script" Reveal="true" />
-                    }
                     <div class="call__main">
                         <div>
                             <h2 id="call-head">@Call.LeadShown is calling</h2>

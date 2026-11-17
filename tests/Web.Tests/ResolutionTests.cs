@@ -225,7 +225,7 @@ public sealed class ResolutionTests : IDisposable
     // The figures of the newest stage line in a log patch.
     private static (int Momentum, int Strain)? LastStageFigures(string log)
     {
-        Match last = Regex.Matches(log, @"Momentum <span class=""m"">(\d+)</span>, strain <span class=""m"">(\d+)</span>|Momentum (\d+), strain (\d+)").LastOrDefault() ?? Match.Empty;
+        Match last = Regex.Matches(log, @"Momentum <span class=""m"">(\d+)</span>, strain <span class=""m"">(\d+)</span>|Momentum (\d+), strain (\d+)").FirstOrDefault() ?? Match.Empty;
         if (!last.Success)
         {
             return null;
@@ -390,21 +390,22 @@ public sealed class ResolutionTests : IDisposable
         Assert.True(patches.FindLastIndex(p => p.StartsWith("<dd id=\"team\"", StringComparison.Ordinal)) > patches.FindLastIndex(p => p.StartsWith("<section id=\"mission-log\"", StringComparison.Ordinal)));
     }
 
-    // The spine runs on into the call well only while a call waits; otherwise it ends at the last beat.
+    // A waiting call sits above the log, and the log reads newest first, so the call's own beat is the log's first line.
     [Fact]
-    public async Task The_log_spine_ends_at_the_last_beat_unless_a_call_waits()
+    public async Task The_call_sits_above_a_log_that_reads_newest_first()
     {
-        (Guid id, WebCaptain captain, string stream) = await LaunchedWithCall();
-        Assert.All(LogPatches(stream).SkipLast(1), p => Assert.Contains("log--end", Regex.Match(p, "<ol id=\"log\"[^>]*>").Value));
-        Assert.DoesNotContain("log--end", Regex.Match(LogPatches(stream)[^1], "<ol id=\"log\"[^>]*>").Value);
-        Assert.DoesNotContain("log--end", Regex.Match(await Page(id), "<ol id=\"log\"[^>]*>").Value);
+        (Guid id, _, string stream) = await LaunchedWithCall();
+        string page = await Page(id);
+        Assert.True(page.IndexOf("<div id=\"call\"><", StringComparison.Ordinal) < page.IndexOf("<section id=\"mission-log\"", StringComparison.Ordinal));
 
-        while (Pending(await captain.Read()))
+        foreach (string patch in LogPatches(stream).Append(page))
         {
-            await captain.Step();
+            List<int> order = Regex.Matches(patch, @"<li id=""beat-(\d+)""").Select(m => int.Parse(m.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture)).ToList();
+            Assert.Equal(order.OrderByDescending(i => i), order);
+            Assert.Contains("beat--newest", Regex.Match(patch, @"<li id=""beat-\d+""[^>]*>").Value);
         }
 
-        Assert.Contains("log--end", Regex.Match(await Page(id), "<ol id=\"log\"[^>]*>").Value);
+        Assert.Contains("data-kind=\"call\"", Regex.Match(page, @"<li id=""beat-\d+""[^>]*>").Value);
     }
 
     [Fact]
