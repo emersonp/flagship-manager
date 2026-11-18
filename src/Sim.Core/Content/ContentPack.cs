@@ -22,6 +22,9 @@ public sealed record ContentPack(
 
     public IReadOnlyList<PronounSet> Pronouns { get; init; } = [];
 
+    // Slice 1e, part three. Optional: a trait with no definition has no rules.
+    public IReadOnlyList<TraitDef> Traits { get; init; } = [];
+
     // Slice 1e. Optional: a pack with no storylets offers none.
     public IReadOnlyList<StoryletDef> Storylets { get; init; } = [];
 

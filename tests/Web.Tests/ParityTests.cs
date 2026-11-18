@@ -94,7 +94,7 @@ public sealed class ParityTests : IDisposable
             {
                 ("- { trait: trait_a, min: 1, max: 1 }", "- { trait: trait_a, max: 5 }"),
                 ("effects: [{ trait: trait_a, set: 0 }, { loyalty: -1, on: crew }]", "effects: [{ trait: trait_a, set: 9 }, { loyalty: -1, on: crew }]"),
-                ("effects: [{ trait: trait_a, set: 2 }]", "effects: [{ trait: trait_a, set: 9 }]"),
+                ("effects: [{ trait: trait_a, set: 2 }, { trait: trait_f, add: 1 }]", "effects: [{ trait: trait_a, set: 9 }, { trait: trait_f, add: 1 }]"),
             })
             {
                 Assert.Contains(old, text);

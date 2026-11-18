@@ -4,7 +4,7 @@ using YamlDotNet.RepresentationModel;
 
 namespace Web.Forms;
 
-// The files edited as text: the pack file, the two tuning files, and the storylets and vignettes until their forms exist. The path comes from this
+// The files edited as text: the pack file, the two tuning files, and the storylets, vignettes, and traits until their forms exist. The path comes from this
 // list, never from a request.
 public sealed record TextFile(string Name, string Path, string Title, IReadOnlyList<string> Notes)
 {
@@ -17,6 +17,7 @@ public sealed record TextFile(string Name, string Path, string Title, IReadOnlyL
         new("crew-tuning", "tuning/crew.yaml", "Crew tuning", [Tuning]),
         new("storylets", "storylets/base.yaml", "Storylets", ["The storylet form comes later.", "Saving checks this file with the rest of the pack."]),
         new("vignettes", "vignettes/base.yaml", "Vignettes", ["The vignette form comes later.", "Saving checks this file with the rest of the pack."]),
+        new("traits", "traits/base.yaml", "Traits", ["The trait form comes later.", "Saving checks this file with the rest of the pack, and every use of a trait against its definition here."]),
     ];
 
     // Exact names only: anything else is not a text file.
@@ -49,12 +50,13 @@ internal static class TextFileFlow
     // A missing file opens empty; the first save creates it.
     public static TextFileView Open(TextFile file, ContentFileSet files, string? notice = null)
     {
-        IReadOnlyList<string> warnings = file.Name is "storylets" or "vignettes" && files.Validate().Pack is { } pack ? TraitWarnings(pack) : [];
+        IReadOnlyList<string> warnings = file.Name is "storylets" or "vignettes" or "traits" && files.Validate().Pack is { } pack ? TraitWarnings(pack) : [];
         return new TextFileView(file, files.Files.GetValueOrDefault(file.Path, ""), [], notice, false) { Warnings = warnings };
     }
 
-    // Traits that cannot work as written: one a storylet requires above 0 that nothing raises on the scope it reads, and one an encounter
-    // raises that no storylet requires. A change that can only lower a trait (add below 0, set 0) does not count as setting it.
+    // Traits that cannot work as written: one a storylet requires above 0 that nothing raises on the scope it reads, one an encounter
+    // raises that no storylet requires, and one defined that nothing uses (1e part three). A change that can only lower a trait (add
+    // below 0, set 0) does not count as setting it; a definition's launch rules and onTargetDied count, as they change crew's traits.
     internal static IReadOnlyList<string> TraitWarnings(ContentPack pack)
     {
         // A trait is on the ship or on a crew member; the two are separate values, so each scope is raised and read apart.
@@ -64,6 +66,16 @@ internal static class TextFileFlow
             foreach (TraitChange change in Raises(encounter))
             {
                 raised.Add((change.Trait, change.On == TraitOn.Ship));
+            }
+        }
+
+        // A definition's rules change traits on crew: the holder, or a pair's target (1e part three).
+        foreach (TraitDef def in pack.Traits)
+        {
+            IEnumerable<TraitRuleEffect> rules = (def.Launch is { } launch ? launch.Sent.Concat(launch.NotSent).Concat(launch.WithTarget) : []).Concat(def.OnTargetDied);
+            foreach (TraitRuleEffect rule in rules.Where(r => r.ChangesTrait && r.Amount > 0))
+            {
+                raised.Add((rule.Trait ?? def.Id, false));
             }
         }
 
@@ -95,7 +107,24 @@ internal static class TextFileFlow
             warnings.AddRange(Raises(encounter).Select(c => c.Trait).Distinct().Where(f => !read.Contains(f)).Select(f => $"Nothing reads {f}, which {encounter.Id} sets."));
         }
 
+        HashSet<string> used = Used(pack);
+        warnings.AddRange(pack.Traits.Where(t => !used.Contains(t.Id)).Select(t => $"{t.Id} is defined and never used."));
         return warnings;
+    }
+
+    // Every trait any encounter, storylet, vignette, or another trait's rule names, whether it reads, raises, or lowers it.
+    private static HashSet<string> Used(ContentPack pack)
+    {
+        IEnumerable<EffectDef> outcomes = pack.Encounters.SelectMany(e => e.Approaches.SelectMany(a => a.Outcomes.Values).Concat(e.Decision is { } d ? [d.Bold, d.Safe] : []));
+        IEnumerable<StoryletEffect> answers = pack.Storylets.SelectMany(s => s.Options.SelectMany(o => o.Effects))
+            .Concat(pack.Vignettes.SelectMany(v => v.Effects.Concat(v.Options.SelectMany(o => o.Effects))));
+        IEnumerable<string> rules = pack.Traits.SelectMany(t => (t.Launch is { } launch ? launch.Sent.Concat(launch.NotSent).Concat(launch.WithTarget) : []).Concat(t.OnTargetDied)
+            .Where(r => r.ChangesTrait && r.Trait is not null && r.Trait != t.Id).Select(r => r.Trait!));
+        return outcomes.SelectMany(e => e.Traits ?? []).Select(c => c.Trait)
+            .Concat(answers.Select(e => e.Trait?.Trait).OfType<string>())
+            .Concat(pack.Storylets.SelectMany(s => s.Traits).Concat(pack.Vignettes.SelectMany(v => v.Requires.OfType<TraitRange>())).Select(r => r.Trait))
+            .Concat(rules)
+            .ToHashSet(StringComparer.Ordinal);
     }
 
     // Every trait change an encounter's approaches or decision raise.

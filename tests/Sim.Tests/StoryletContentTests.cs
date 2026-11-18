@@ -58,7 +58,11 @@ public class StoryletContentTests
         Assert.Equal(StoryletScopes.Crew, crew.Scope);
         Assert.Equal([new TraitRange("trait_b", 1, null), new TraitRange("trait_c", 0, 0)], crew.Requires);
         Assert.Equal(
-            [new StoryletEffect(Trait: new TraitChange("trait_b", -1, false, "")), new StoryletEffect(Trait: new TraitChange("trait_c", 1, true, ""))],
+            [
+                new StoryletEffect(Trait: new TraitChange("trait_b", -1, false, "")),
+                new StoryletEffect(Trait: new TraitChange("trait_c", 1, true, "")),
+                new StoryletEffect(Trait: new TraitChange("trait_e", 1, true, "")),
+            ],
             crew.Options[0].Effects);
         Assert.Equal([new StoryletEffect(Trait: new TraitChange("trait_c", 2, true, "")), new StoryletEffect(Loyalty: -2, LoyaltyOn: "subject")], crew.Options[1].Effects);
     }

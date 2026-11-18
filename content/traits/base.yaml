@@ -1,0 +1,27 @@
+# What each trait does on its own (slice 1e, part three; GDD 3.2 and docs/conventions.md). A trait with no entry here has no rules.
+# Generated words, by the author's one-time allowance for slice 1e's storylets (GDD section 15, item 37).
+- id: sensors_quirk
+  name: Sensor quirk
+  on: ship
+  levels: { 1: noticed, 2: let_ride }
+- id: shaken
+  name: Shaken
+  on: crew
+  max: 5
+  every: { weeks: 3, add: -1 }
+- id: shaken_heard
+  name: Heard out
+  shown: false
+  on: crew
+  levels: { 1: heard, 2: turned_away }
+  # Long enough that the same fright is not raised twice; short enough that a new one, much later, can be.
+  expires: { weeks: 12 }
+- id: stood_down
+  name: Stood down
+  on: crew
+  levels: { 1: promised, 2: broken }
+  briefing: Promised a rest
+  launch:
+    sent: [{ set: broken }, { loyalty: -2 }, { morale: -4 }]
+    notSent: [{ set: 0 }]
+  expires: { weeks: 6 }

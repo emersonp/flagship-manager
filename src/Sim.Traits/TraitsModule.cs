@@ -3,9 +3,10 @@ using Sim.Core.Content;
 
 namespace Sim.Traits;
 
-// Owns the traits (slice 1e, part three): on the ship, on a crew member, or on a pair. It applies a mission's trait changes
-// when the mission ends, the changes other modules send (ChangeTrait), and Dev Play's (SetTrait), and lets go of the dead.
-// Other modules read traits through ITraitView.
+// Owns the traits (slice 1e, part three): on the ship, on a crew member, or on a pair, and every rule their definitions give
+// them. It applies a mission's trait changes when the mission ends, the changes other modules send (ChangeTrait), and Dev
+// Play's (SetTrait); it steps and expires traits each week, and lets go of the dead. Other modules read traits through ITraitView.
+// No rule here names a trait: every rule is read from the pack's definitions.
 public static class TraitsModule
 {
     public const string Name = "traits";
@@ -16,13 +17,17 @@ public static class TraitsModule
 
     public static void Register(EventBus bus, ContentPack pack)
     {
+        var defs = new Definitions(pack.Traits);
         bus.Module<TraitsState>(Name);
         // The factory reads the state on every call: the state may not exist until a trait is first set.
         bus.Provide<ITraitView>(state => new TraitView(state.Module<TraitsState>(Name)));
-        bus.Handle<ChangeTrait>((command, context) => Change(context, command.Trait, command.CrewId, command.TargetId, command.Amount, command.Set, command.Cause, command.EncounterId));
-        bus.Guard<SetTrait>(Order, Name, (command, context) => CheckSet(command, context));
-        bus.Handle<SetTrait>((command, context) => OnSet(command, context));
-        bus.Subscribe<MissionEnded>(Order, Name, (e, context) => OnMissionEnded(e, context));
+        // Content the loader accepted never adds to a trait with levels; this keeps anything else from doing so.
+        bus.Guard<ChangeTrait>(Order, Name, (command, _) => !command.Set && command.Amount != 0 && defs[command.Trait].HasLevels ? defs[command.Trait].LevelsAreSet : null);
+        bus.Handle<ChangeTrait>((command, context) => Change(defs, context, command.Trait, command.CrewId, command.TargetId, command.Amount, command.Set, command.Cause, command.EncounterId));
+        bus.Guard<SetTrait>(Order, Name, (command, context) => CheckSet(defs, command, context));
+        bus.Handle<SetTrait>((command, context) => OnSet(defs, command, context));
+        bus.Subscribe<MissionEnded>(Order, Name, (e, context) => OnMissionEnded(defs, e, context));
+        bus.Subscribe<WeekAdvanced>(Order, Name, (e, context) => OnWeek(defs, e, context));
         bus.Subscribe<CrewDied>(Order, Name, (e, context) => OnCrewDied(e, context));
     }
 
@@ -31,16 +36,27 @@ public static class TraitsModule
         return state.Traits.FirstOrDefault(t => t.Trait == trait && t.CrewId == crewId && t.TargetId == targetId);
     }
 
-    private static string? CheckSet(SetTrait command, IBusContext context)
+    private static string? CheckSet(Definitions defs, SetTrait command, IBusContext context)
     {
         if (string.IsNullOrEmpty(command.Trait) || !Ids.IsInnerId(command.Trait))
         {
             return $"Trait id '{command.Trait}' must be {char.ToLowerInvariant(Ids.InnerRule[0])}{Ids.InnerRule[1..]}";
         }
 
+        TraitDef def = defs[command.Trait];
         if (command.Value is < 0 or > SetTrait.Most)
         {
             return $"A trait's value is 0 to {SetTrait.Most}.";
+        }
+
+        if (def.HasLevels && command.Value != 0 && def.LevelName(command.Value) is null)
+        {
+            return $"{command.Trait} is set to 0 or one of its levels: {string.Join(", ", def.Levels.OrderBy(l => l.Key).Select(l => $"{l.Value} ({l.Key})"))}.";
+        }
+
+        if (command.Value > def.Cap)
+        {
+            return $"{command.Trait} is at most {def.Cap}.";
         }
 
         IReadOnlyList<string> roster = context.View<IRosterView>().Roster;
@@ -61,13 +77,13 @@ public static class TraitsModule
     }
 
     // Keeps the encounter that last changed the trait, so a storylet's head still says where it came from.
-    private static void OnSet(SetTrait command, IBusContext context)
+    private static void OnSet(Definitions defs, SetTrait command, IBusContext context)
     {
         context.Publish(new TraitSetByDeveloper(command.Trait, command.CrewId, command.TargetId, command.Value));
-        Change(context, command.Trait, command.CrewId, command.TargetId, command.Value, true, TraitCauses.Developer, null);
+        Change(defs, context, command.Trait, command.CrewId, command.TargetId, command.Value, true, TraitCauses.Developer, null);
     }
 
-    private static void OnMissionEnded(MissionEnded ended, IBusContext context)
+    private static void OnMissionEnded(Definitions defs, MissionEnded ended, IBusContext context)
     {
         IReadOnlyList<string> roster = context.View<IRosterView>().Roster;
         foreach (MissionTrait trait in ended.Result.Traits)
@@ -78,7 +94,27 @@ public static class TraitsModule
                 continue;
             }
 
-            Change(context, trait.Trait, trait.CrewId, null, trait.Amount, trait.Set, TraitCauses.Mission, trait.EncounterId);
+            Change(defs, context, trait.Trait, trait.CrewId, null, trait.Amount, trait.Set, TraitCauses.Mission, trait.EncounterId);
+        }
+    }
+
+    // Each stored trait in the order first set: one whose definition expires it, unchanged that many weeks, goes to 0; else one
+    // whose definition steps it, unchanged that many weeks, changes by the step, which restarts its clock.
+    private static void OnWeek(Definitions defs, WeekAdvanced advanced, IBusContext context)
+    {
+        TraitsState state = context.Module<TraitsState>();
+        foreach (StoredTrait stored in state.Traits.ToList())
+        {
+            TraitDef def = defs[stored.Trait];
+            int since = advanced.Week - stored.ChangedAtWeek;
+            if (def.ExpiresWeeks is { } weeks && since >= weeks)
+            {
+                Change(defs, context, stored.Trait, stored.CrewId, stored.TargetId, 0, true, TraitCauses.Expired, null);
+            }
+            else if (def.Every is { } step && since >= step.Weeks)
+            {
+                Change(defs, context, stored.Trait, stored.CrewId, stored.TargetId, step.Add, false, TraitCauses.Weekly, null);
+            }
         }
     }
 
@@ -87,14 +123,14 @@ public static class TraitsModule
         context.Module<TraitsState>().Traits.RemoveAll(t => t.CrewId == died.CrewId);
     }
 
-    // Adds to or sets one trait. It never goes below 0, a trait at 0 is not stored, and a change that changes nothing is not
-    // published. encounterId null keeps the encounter that last changed the trait.
-    private static void Change(IBusContext context, string trait, string? crewId, string? targetId, int amount, bool set, string cause, string? encounterId)
+    // Adds to or sets one trait, clamped to 0 and its definition's cap. A trait at 0 is not stored, and a change that changes
+    // nothing is not published (and restarts no clock). encounterId null keeps the encounter that last changed the trait.
+    private static void Change(Definitions defs, IBusContext context, string trait, string? crewId, string? targetId, int amount, bool set, string cause, string? encounterId)
     {
         TraitsState state = context.Module<TraitsState>();
         StoredTrait? stored = Find(state, trait, crewId, targetId);
         int from = stored?.Value ?? 0;
-        int to = Math.Max(0, set ? amount : from + amount);
+        int to = defs[trait].Clamp(set ? amount : from + amount);
         if (to == from)
         {
             return;
@@ -116,5 +152,13 @@ public static class TraitsModule
         }
 
         context.Publish(new TraitChanged(trait, crewId, targetId, from, to, cause, encounterId));
+    }
+
+    // The pack's definitions by id; a trait the pack does not define has none of their rules.
+    private sealed class Definitions(IReadOnlyList<TraitDef> defs)
+    {
+        private readonly Dictionary<string, TraitDef> byId = defs.ToDictionary(d => d.Id);
+
+        public TraitDef this[string trait] => byId.GetValueOrDefault(trait) ?? TraitDef.Plain(trait);
     }
 }

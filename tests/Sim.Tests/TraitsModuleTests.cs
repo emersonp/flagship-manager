@@ -118,4 +118,123 @@ public class TraitsModuleTests
         Assert.Equal(reason, h.Refused(new SetTrait(trait, crewId, null, value)));
         Assert.Empty(h.Traits.Traits);
     }
+
+    // --- Definitions (1e part three, Task 2) ---
+
+    private static TraitDef Def(string id, int? max = null, TraitStep? every = null, int? expires = null, Dictionary<int, string>? levels = null)
+    {
+        return TraitDef.Plain(id) with { Max = max, Every = every, ExpiresWeeks = expires, Levels = levels ?? new Dictionary<int, string>() };
+    }
+
+    private static Harness With(params TraitDef[] defs)
+    {
+        return new Harness(Pack(2) with { Traits = defs });
+    }
+
+    // One week: on to the next cycle's itinerary. The events of the move.
+    private static List<IEvent> Week(Harness h)
+    {
+        return h.To(CyclePhase.Itinerary);
+    }
+
+    private static List<TraitChanged> Changes(List<IEvent> events)
+    {
+        return events.OfType<TraitChanged>().ToList();
+    }
+
+    [Fact]
+    public void A_change_is_clamped_to_max()
+    {
+        Harness h = With(Def("trait_x", max: 3));
+        h.To(CyclePhase.Resolution);
+
+        List<IEvent> events = h.End([Raise("trait_x", 5)]);
+        events.AddRange(h.Send(new ChangeTrait("trait_x", null, null, 2, false, TraitCauses.Answer)));
+
+        Assert.Equal([new TraitChanged("trait_x", null, null, 0, 3, TraitCauses.Mission, Encounter)], Changes(events));
+        Assert.Equal(3, h.Trait("trait_x"));
+        Assert.Equal("trait_x is at most 3.", h.Refused(new SetTrait("trait_x", null, null, 4)));
+    }
+
+    [Fact]
+    public void A_trait_with_levels_cannot_be_added_to()
+    {
+        Harness h = With(Def("trait_x", levels: new Dictionary<int, string> { [1] = "level_a", [2] = "level_b" }));
+
+        Assert.Equal("trait_x has named levels, so it is set, not added to.", h.Refused(new ChangeTrait("trait_x", "CREW_01", null, 1, false, TraitCauses.Answer)));
+        Assert.Equal("trait_x is set to 0 or one of its levels: level_a (1), level_b (2).", h.Refused(new SetTrait("trait_x", "CREW_01", null, 3)));
+        Assert.Equal([new TraitChanged("trait_x", "CREW_01", null, 0, 2, TraitCauses.Answer, null)], Changes(h.Send(new ChangeTrait("trait_x", "CREW_01", null, 2, true, TraitCauses.Answer))));
+    }
+
+    [Fact]
+    public void Every_steps_down_after_the_weeks_and_restarts_its_clock()
+    {
+        Harness h = With(Def("trait_x", every: new TraitStep(2, -1)));
+        h.To(CyclePhase.Resolution);
+        h.End([Fix("trait_x", 3)]);
+        int set = h.State.Week;
+
+        Assert.Empty(Changes(Week(h)));
+        Assert.Equal([new TraitChanged("trait_x", null, null, 3, 2, TraitCauses.Weekly, null)], Changes(Week(h)));
+        Assert.Equal(set + 2, h.Traits.Traits.Single().ChangedAtWeek);
+        Assert.Empty(Changes(Week(h)));
+        Assert.Equal([new TraitChanged("trait_x", null, null, 2, 1, TraitCauses.Weekly, null)], Changes(Week(h)));
+        Week(h);
+        Assert.Equal([new TraitChanged("trait_x", null, null, 1, 0, TraitCauses.Weekly, null)], Changes(Week(h)));
+        Assert.Empty(h.Traits.Traits);
+    }
+
+    [Fact]
+    public void A_rising_step_stops_at_max()
+    {
+        Harness h = With(Def("trait_x", max: 2, every: new TraitStep(1, 1)));
+        h.Send(new ChangeTrait("trait_x", "CREW_02", null, 1, true, TraitCauses.Answer));
+
+        Assert.Equal([new TraitChanged("trait_x", "CREW_02", null, 1, 2, TraitCauses.Weekly, null)], Changes(Week(h)));
+        Assert.Empty(Changes(Week(h)));
+        Assert.Empty(Changes(Week(h)));
+        Assert.Equal(2, h.Trait("trait_x", "CREW_02"));
+    }
+
+    [Fact]
+    public void Expires_sets_to_zero_after_the_weeks_unchanged()
+    {
+        Harness h = With(Def("trait_x", expires: 2));
+        h.Send(new ChangeTrait("trait_x", "CREW_02", null, 4, true, TraitCauses.Answer));
+
+        Assert.Empty(Changes(Week(h)));
+        Assert.Equal([new TraitChanged("trait_x", "CREW_02", null, 4, 0, TraitCauses.Expired, null)], Changes(Week(h)));
+        Assert.Empty(h.Traits.Traits);
+    }
+
+    // Both clocks count from the last change, by anything: an answer in week 1 puts off the step to week 3 and the expiry to week 4,
+    // and the step in week 3 is itself a change, so the expiry moves again.
+    [Fact]
+    public void A_change_restarts_both_clocks()
+    {
+        Harness h = With(Def("trait_x", every: new TraitStep(2, -1), expires: 3));
+        h.Send(new ChangeTrait("trait_x", null, null, 3, true, TraitCauses.Answer));
+        Week(h);
+        h.Send(new ChangeTrait("trait_x", null, null, 1, false, TraitCauses.Answer));
+
+        Assert.Empty(Changes(Week(h)));
+        Assert.Equal([new TraitChanged("trait_x", null, null, 4, 3, TraitCauses.Weekly, null)], Changes(Week(h)));
+        Assert.Empty(Changes(Week(h)));
+        Assert.Equal([new TraitChanged("trait_x", null, null, 3, 2, TraitCauses.Weekly, null)], Changes(Week(h)));
+    }
+
+    [Fact]
+    public void Nothing_is_published_when_nothing_changes()
+    {
+        Harness h = With(Def("trait_x", max: 2));
+        h.Send(new ChangeTrait("trait_x", null, null, 2, true, TraitCauses.Answer));
+        int week = h.Traits.Traits.Single().ChangedAtWeek;
+        Week(h);
+
+        Assert.Empty(h.Send(new ChangeTrait("trait_x", null, null, 2, true, TraitCauses.Answer)));
+        Assert.Empty(h.Send(new ChangeTrait("trait_x", null, null, 1, false, TraitCauses.Answer)));
+        Assert.Empty(h.Send(new ChangeTrait("trait_y", null, null, 0, true, TraitCauses.Answer)));
+        Assert.Empty(h.Send(new ChangeTrait("trait_y", null, null, -1, false, TraitCauses.Answer)));
+        Assert.Equal(week, h.Traits.Traits.Single().ChangedAtWeek);
+    }
 }

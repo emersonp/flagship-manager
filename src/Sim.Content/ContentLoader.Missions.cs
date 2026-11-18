@@ -6,7 +6,7 @@ namespace Sim.Content;
 
 public static partial class ContentLoader
 {
-    private static List<EncounterDef> BuildEncounters(List<(string File, EncounterDto Dto)> items, List<SkillDef> skills, List<GearDef> gear, List<ContentError> errors)
+    private static List<EncounterDef> BuildEncounters(List<(string File, EncounterDto Dto)> items, List<SkillDef> skills, List<GearDef> gear, TraitBook book, List<ContentError> errors)
     {
         var skillIds = skills.Select(s => s.Id).ToHashSet();
         var gearTags = gear.Select(g => g.Tag).ToHashSet();
@@ -63,7 +63,7 @@ public static partial class ContentLoader
 
                 string? approachName = CheckName(file, $"{dto.Id} approach {label}", approach.Name, errors);
                 List<RequirementDef> requires = Requirements(label, approach.Requires, skillIds, gearTags, Error);
-                Dictionary<string, EffectDef> outcomes = Outcomes(label, approach.Outcomes, Error);
+                Dictionary<string, EffectDef> outcomes = Outcomes(label, approach.Outcomes, book, Error);
                 approaches.Add(new ApproachDef(approach.Id ?? "", approach.Skill ?? "", approach.Difficulty, approach.GearTag, requires, outcomes, approachName));
             }
 
@@ -106,7 +106,7 @@ public static partial class ContentLoader
                 }
 
                 string? decisionName = dto.Decision.Id is null ? null : CheckName(file, $"{dto.Id} decision {dto.Decision.Id}", dto.Decision.Name, errors);
-                decision = new DecisionDef(dto.Decision.Id ?? "", dto.Decision.Stakes, Effects(dto.Decision.Bold, Error), Effects(dto.Decision.Safe, Error), decisionName);
+                decision = new DecisionDef(dto.Decision.Id ?? "", dto.Decision.Stakes, Effects(dto.Decision.Bold, book, Error), Effects(dto.Decision.Safe, book, Error), decisionName);
             }
 
             CheckTags(dto.Tags, Error);
@@ -159,7 +159,7 @@ public static partial class ContentLoader
     }
 
     // An outcome written under a tier word replaces that tier's default whole; an empty list is an outcome that does nothing.
-    private static Dictionary<string, EffectDef> Outcomes(string label, Dictionary<string, List<Dictionary<string, string>?>?>? items, Action<string> error)
+    private static Dictionary<string, EffectDef> Outcomes(string label, Dictionary<string, List<Dictionary<string, string>?>?>? items, TraitBook book, Action<string> error)
     {
         var outcomes = new Dictionary<string, EffectDef>();
         foreach ((string tier, List<Dictionary<string, string>?>? effects) in items ?? [])
@@ -170,7 +170,7 @@ public static partial class ContentLoader
                 continue;
             }
 
-            EffectDef effect = Effects(effects, error, outcome: true);
+            EffectDef effect = Effects(effects, book, error, outcome: true);
             if (effect.Withdraw)
             {
                 error("An outcome cannot withdraw the team.");
@@ -184,14 +184,14 @@ public static partial class ContentLoader
 
     // The entries fold into one effect. An entry that names a trait is one trait change, and its add or set and its on belong to it.
     // outcome: the effect is an approach's outcome, where on: actor has someone to name.
-    private static EffectDef Effects(List<Dictionary<string, string>?>? items, Action<string> error, bool outcome = false)
+    private static EffectDef Effects(List<Dictionary<string, string>?>? items, TraitBook book, Action<string> error, bool outcome = false)
     {
         var effect = new EffectDef();
         var traits = new List<TraitChange>();
         foreach (Dictionary<string, string> entry in (items ?? []).Select(i => i ?? []))
         {
             bool named = entry.TryGetValue("trait", out string? trait);
-            if (named && TraitChangeOf(entry, trait!, outcome, error) is { } change)
+            if (named && TraitChangeOf(entry, trait!, outcome, book, error) is { } change)
             {
                 traits.Add(change);
             }
@@ -231,8 +231,9 @@ public static partial class ContentLoader
         return traits.Count == 0 ? effect : effect with { Traits = traits };
     }
 
-    // One trait change, or null when it is refused (each problem reported).
-    private static TraitChange? TraitChangeOf(Dictionary<string, string> entry, string trait, bool outcome, Action<string> error)
+    // One trait change, or null when it is refused (each problem reported). A set may name one of the trait's levels; a trait with
+    // levels is never added to; and the definition says whether it may sit on the ship or on crew (design 4.3).
+    private static TraitChange? TraitChangeOf(Dictionary<string, string> entry, string trait, bool outcome, TraitBook book, Action<string> error)
     {
         bool ok = true;
         void Refuse(string message)
@@ -253,6 +254,17 @@ public static partial class ContentLoader
         {
             Refuse("A trait change needs add or set, not both.");
         }
+        else if (book.Def(trait) is { HasLevels: true } levelled)
+        {
+            if (!set)
+            {
+                Refuse(levelled.LevelsAreSet);
+            }
+            else if (book.SetValue(trait, setText!, Refuse) is { } value)
+            {
+                amount = value;
+            }
+        }
         else if (!int.TryParse(set ? setText : addText, NumberStyles.Integer, CultureInfo.InvariantCulture, out amount))
         {
             Refuse($"Unknown effect '{(set ? "set" : "add")}: {(set ? setText : addText)}'.");
@@ -270,6 +282,10 @@ public static partial class ContentLoader
         else if (on == TraitOn.Actor && !outcome)
         {
             Refuse("on: actor is only for an approach's outcome.");
+        }
+        else if (Ids.IsInnerId(trait))
+        {
+            ok &= book.CheckPlace(trait, on == TraitOn.Ship ? TraitPlaces.Ship : TraitPlaces.Crew, error);
         }
 
         return ok ? new TraitChange(trait, amount, set, on!) : null;

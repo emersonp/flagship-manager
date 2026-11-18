@@ -331,3 +331,12 @@ Kept as each task of the plan (`2026-11-17-phase-1e-part-three-plan.md`) lands; 
 - Text tokens of the form `#x.flag.y#` were never built (the narrative has no fact for a flag), so there was nothing to rename there.
 - Dev Play's route is `/dev/legacy/{id}/trait`, its form field `trait`. The editor's encounter form posts `trait`, `traitMode`, `traitAmount`, and `traitOn`.
 - A crew member's traits still go silently with them when they die; `TraitChanged` with cause `death` arrives with pairs in Task 3.
+
+**Task 2, definitions (2026-11-17).**
+
+- `TraitDef` is as section 5.4 says, with `TraitStep`, `TraitLaunch`, `TraitMission`, and `TraitRuleEffect` beside it in `Sim.Core/Content/TraitContent.cs`, and `TraitDef.Plain(id)` for a trait with no definition. A definition's cap is its `max`, else its highest level. The loader checks every use against the definitions through one class, `TraitBook` (`Sim.Content`): a level's name in a `set` or an `is`, an `add` to a trait with levels, and a use where the definition does not put the trait.
+- `is:` takes a level's name or a number. A trait with levels is set only to 0 or one of its levels, by content and by Dev Play alike.
+- The traits module refuses `ChangeTrait` that adds to a trait with levels (the loader already refuses such content; the guard is a backstop) and clamps every change to the cap. Each week it steps and expires stored traits in the order they were first set, as the plan says.
+- The lint shows on the traits page as well as the storylets and vignettes pages.
+- The fixture's definitions: `trait_b` (falls 1 every 3 weeks, cap 5), `trait_e` (levels, launch rules, expires; set by STORYLET_02's first answer), and `trait_f` (hidden, rises to a cap of 3; added to by STORYLET_01's second answer). The fixture's `trait_e` has no display name, since the web tests' odd-names copy gives every item one.
+- **Neither golden hash moved,** though the plan expected the simulation's to. In 20 legacies x 50 cycles on either pack, no mission sets a trait at all, so no storylet is ever offered (0.0 per 100 cycles, as before part three); the weekly step has nothing to step. This is the "never fired" problem Task 6 is to report; it is not changed here.

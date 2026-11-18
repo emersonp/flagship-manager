@@ -46,10 +46,13 @@ public static partial class ContentLoader
         var pronouns = new List<(string File, PronounDto Dto)>();
         var storylets = new List<(string File, StoryletDto Dto)>();
         var vignettes = new List<(string File, StoryletDto Dto)>();
+        var traits = new List<(string File, TraitDto Dto)>();
         var seenIn = new Dictionary<string, string>();
         // Symbols and pronoun sets are named in text, apart from the ids of everything else.
         var symbolsSeenIn = new Dictionary<string, string>();
         var pronounsSeenIn = new Dictionary<string, string>();
+        // Traits are typed into text and requirements, and keep lower-case ids (conventions: the one exception).
+        var traitsSeenIn = new Dictionary<string, string>();
         foreach ((string path, string text) in files.OrderBy(f => f.Key, StringComparer.Ordinal))
         {
             if (path == ManifestFile || path == TuningFile || path == CrewTuningFile)
@@ -98,6 +101,9 @@ public static partial class ContentLoader
                 case "vignettes":
                     vignettes.AddRange(Items<StoryletDto>(yaml, path, text, d => d.Id, seenIn, errors).Select(d => (path, d)));
                     break;
+                case "traits":
+                    traits.AddRange(Items<TraitDto>(yaml, path, text, d => d.Id, traitsSeenIn, errors, CheckLowerId).Select(d => (path, d)));
+                    break;
                 case "tuning":
                     errors.Add(new ContentError(path, $"Unknown tuning file. The only tuning files are {TuningFile} and {CrewTuningFile}."));
                     break;
@@ -107,8 +113,11 @@ public static partial class ContentLoader
             }
         }
 
+        // Traits first: every use of a trait in an encounter, a storylet, or a vignette is checked against its definition.
+        List<TraitDef> traitDefs = BuildTraits(traits, errors);
+        var book = new TraitBook(traitDefs);
         List<GearDef> gearDefs = BuildGear(gear, errors);
-        List<EncounterDef> encounterDefs = BuildEncounters(encounters, skills, gearDefs, errors);
+        List<EncounterDef> encounterDefs = BuildEncounters(encounters, skills, gearDefs, book, errors);
         List<ObjectiveDef> objectiveDefs = BuildObjectives(objectives, encounterDefs, errors);
         (MissionTuning? tuning, BenchTuning? bench, CycleNumbers cycle) = LoadTuning(yaml, files, errors);
         CrewTuning? crewTuning = LoadCrewTuning(yaml, files, errors);
@@ -116,8 +125,8 @@ public static partial class ContentLoader
         List<CrewDef> crewDefs = BuildCrew(crew, skills, crewTuning, pronounSets, errors);
         List<AssignmentDef> assignmentDefs = BuildAssignments(assignments, objectives.Select(o => o.Dto).ToList(), errors);
         List<SymbolDef> symbolDefs = BuildSymbols(symbols, errors);
-        List<StoryletDef> storyletDefs = BuildStorylets(storylets, errors);
-        List<VignetteDef> vignetteDefs = BuildVignettes(vignettes, errors);
+        List<StoryletDef> storyletDefs = BuildStorylets(storylets, book, errors);
+        List<VignetteDef> vignetteDefs = BuildVignettes(vignettes, book, errors);
         List<LineDef> lineDefs = BuildLines(lines, encounters, objectives, symbolDefs, skills, encounterDefs, objectiveDefs, storylets.Concat(vignettes).Select(s => s.Dto.Id!), errors);
         lineDefs.AddRange(BuildOwnedLines(encounters, objectives, symbolDefs, skills, errors));
         lineDefs.AddRange(BuildStoryletLines(storylets, symbolDefs, skills, errors));
@@ -131,6 +140,7 @@ public static partial class ContentLoader
                 Symbols = symbolDefs,
                 Pronouns = pronounSets,
                 ChoiceLabels = choiceLabels,
+                Traits = traitDefs,
                 Storylets = storyletDefs,
                 StoryletsPerCycle = cycle.StoryletsPerCycle,
                 Vignettes = vignetteDefs,

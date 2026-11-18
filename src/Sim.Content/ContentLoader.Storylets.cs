@@ -12,7 +12,7 @@ public static partial class ContentLoader
     private const int MaxOptions = 4;
     private const int MaxVignetteEntries = 3;
 
-    private static List<StoryletDef> BuildStorylets(List<(string File, StoryletDto Dto)> items, List<ContentError> errors)
+    private static List<StoryletDef> BuildStorylets(List<(string File, StoryletDto Dto)> items, TraitBook book, List<ContentError> errors)
     {
         var defs = new List<StoryletDef>();
         foreach ((string file, StoryletDto dto) in items)
@@ -34,8 +34,8 @@ public static partial class ContentLoader
                 Error("A storylet needs scope: ship or crew.");
             }
 
-            List<Requirement> requires = Requirements(dto.Requires, scope, Error);
-            List<StoryletOption> options = Options(dto.Options, scope, Error);
+            List<Requirement> requires = Requirements(dto.Requires, scope, book, Error);
+            List<StoryletOption> options = Options(dto.Options, scope, book, Error);
             if (dto.Effects is not null || dto.Default is not null)
             {
                 Error("A storylet's effects and default belong to a vignette; a storylet's effects are in its options.");
@@ -51,7 +51,7 @@ public static partial class ContentLoader
             // Only a storylet that is otherwise sound can be judged on whether its answers end it.
             if (errors.Count == before)
             {
-                foreach (StoryletOption option in options.Where(o => LeavesEveryRequirementTrue(requires, o, scope!)))
+                foreach (StoryletOption option in options.Where(o => LeavesEveryRequirementTrue(requires, o, scope!, book)))
                 {
                     Error($"Option '{option.Id}' leaves every requirement true, so this storylet would come back every cycle.");
                 }
@@ -68,7 +68,7 @@ public static partial class ContentLoader
 
     // Vignettes (1e part two, design 4.3): a storylet's shape with no stakes, and either effects that apply when it arrives or one
     // small choice of two options with a default. Its requirements need no trait: a cooldown, not its answers, stops it returning.
-    private static List<VignetteDef> BuildVignettes(List<(string File, StoryletDto Dto)> items, List<ContentError> errors)
+    private static List<VignetteDef> BuildVignettes(List<(string File, StoryletDto Dto)> items, TraitBook book, List<ContentError> errors)
     {
         var defs = new List<VignetteDef>();
         foreach ((string file, StoryletDto dto) in items)
@@ -90,7 +90,7 @@ public static partial class ContentLoader
                 Error("A vignette needs scope: ship or crew.");
             }
 
-            List<Requirement> requires = Requirements(dto.Requires, scope, Error, "vignette");
+            List<Requirement> requires = Requirements(dto.Requires, scope, book, Error, "vignette");
             bool effectsWritten = dto.Effects is { Count: > 0 };
             bool optionsWritten = dto.Options is { Count: > 0 };
             var effects = new List<StoryletEffect>();
@@ -101,7 +101,7 @@ public static partial class ContentLoader
             }
             else if (optionsWritten)
             {
-                options = Options(dto.Options, scope, Error, vignette: true);
+                options = Options(dto.Options, scope, book, Error, vignette: true);
                 if (dto.Default is null || options.All(o => o.Id != dto.Default))
                 {
                     Error("A vignette with options needs a default, and it must be one of them.");
@@ -119,7 +119,7 @@ public static partial class ContentLoader
                     Error("A vignette with no choice has no default.");
                 }
 
-                effects = (dto.Effects ?? []).Select(e => StoryletEffectOf(e ?? [], scope, Error)).OfType<StoryletEffect>().ToList();
+                effects = (dto.Effects ?? []).Select(e => StoryletEffectOf(e ?? [], scope, book, Error)).OfType<StoryletEffect>().ToList();
             }
 
             if (dto.Text is { } text && text.Split('\n').Count(l => l.Trim().Length > 0) > MaxVignetteEntries)
@@ -138,9 +138,9 @@ public static partial class ContentLoader
     }
 
     // Each entry is one of three kinds (design 4.2): { trait, min, max }, { stat, min, max }, or { last, not }. A range's min is 1
-    // when left out, or 0 when only max is given; max has no limit when left out. Stats and facts are read on the subject, so
-    // a storylet for the ship cannot have them.
-    private static List<Requirement> Requirements(List<Dictionary<string, string>?>? written, string? scope, Action<string> error, string noun = "storylet")
+    // when left out, or 0 when only max is given; max has no limit when left out. A trait's range may instead be is: a number or
+    // one of its levels (1e part three). Stats and facts are read on the subject, so a storylet for the ship cannot have them.
+    private static List<Requirement> Requirements(List<Dictionary<string, string>?>? written, string? scope, TraitBook book, Action<string> error, string noun = "storylet")
     {
         var requires = new List<Requirement>();
         if (written is not { Count: >= 1 and <= MaxRequirements })
@@ -151,7 +151,7 @@ public static partial class ContentLoader
         foreach (Dictionary<string, string> entry in (written ?? []).Select(e => e ?? []))
         {
             string kind = entry.ContainsKey("stat") ? "stat" : entry.ContainsKey("last") ? "last" : "trait";
-            string[] keys = kind == "last" ? ["last", "not"] : [kind, "min", "max"];
+            string[] keys = kind == "last" ? ["last", "not"] : kind == "trait" ? ["trait", "min", "max", "is"] : [kind, "min", "max"];
             bool ok = true;
             foreach (string key in entry.Keys.Where(k => !keys.Contains(k)))
             {
@@ -223,6 +223,22 @@ public static partial class ContentLoader
 
             int? min = Bound("min");
             int? max = Bound("max");
+            if (kind == "trait" && entry.TryGetValue("is", out string? isText))
+            {
+                if (entry.ContainsKey("min") || entry.ContainsKey("max"))
+                {
+                    error("A requirement has is, or min and max, not both.");
+                    continue;
+                }
+
+                if (name is null || !Ids.IsInnerId(name) || book.Is(name, isText, error) is not { } exact)
+                {
+                    continue;
+                }
+
+                (min, max) = (exact, exact);
+            }
+
             if (unreadable)
             {
                 error("A requirement's min and max must be whole numbers of 0 or more.");
@@ -234,6 +250,11 @@ public static partial class ContentLoader
             {
                 error($"The requirement on {name} has max {high} below min {low}.");
                 ok = false;
+            }
+
+            if (ok && kind == "trait" && scope is not null)
+            {
+                ok = book.CheckPlace(name!, scope == StoryletScopes.Ship ? TraitPlaces.Ship : TraitPlaces.Crew, error);
             }
 
             if (ok)
@@ -257,7 +278,7 @@ public static partial class ContentLoader
         return requires;
     }
 
-    private static List<StoryletOption> Options(List<StoryletOptionDto?>? written, string? scope, Action<string> error, bool vignette = false)
+    private static List<StoryletOption> Options(List<StoryletOptionDto?>? written, string? scope, TraitBook book, Action<string> error, bool vignette = false)
     {
         var options = new List<StoryletOption>();
         if (vignette ? written is not { Count: 2 } : written is not { Count: >= MinOptions and <= MaxOptions })
@@ -289,7 +310,7 @@ public static partial class ContentLoader
                 error($"Option '{dto.Id}': label must be 1 to 40 characters on one line, with no spaces at either end.");
             }
 
-            List<StoryletEffect> effects = (dto.Effects ?? []).Select(e => StoryletEffectOf(e ?? [], scope, error)).OfType<StoryletEffect>().ToList();
+            List<StoryletEffect> effects = (dto.Effects ?? []).Select(e => StoryletEffectOf(e ?? [], scope, book, error)).OfType<StoryletEffect>().ToList();
             options.Add(new StoryletOption(dto.Id ?? "", label ?? "", effects));
         }
 
@@ -297,7 +318,7 @@ public static partial class ContentLoader
     }
 
     // One loyalty, morale, or trait change, or null when it is refused (each problem reported).
-    private static StoryletEffect? StoryletEffectOf(Dictionary<string, string> entry, string? scope, Action<string> error)
+    private static StoryletEffect? StoryletEffectOf(Dictionary<string, string> entry, string? scope, TraitBook book, Action<string> error)
     {
         string[] kinds = ["loyalty", "morale", "trait"];
         string[] present = kinds.Where(entry.ContainsKey).ToArray();
@@ -373,6 +394,22 @@ public static partial class ContentLoader
             error("A trait change needs add or set, and only one of them.");
             ok = false;
         }
+        else if (book.Def(trait) is { HasLevels: true } levelled)
+        {
+            if (!set)
+            {
+                error(levelled.LevelsAreSet);
+                ok = false;
+            }
+            else if (book.SetValue(trait, setText!, error) is { } level)
+            {
+                value = level;
+            }
+            else
+            {
+                ok = false;
+            }
+        }
         else if (!int.TryParse(set ? setText : addText, NumberStyles.Integer, CultureInfo.InvariantCulture, out value))
         {
             error("A trait change's amount must be a whole number.");
@@ -389,13 +426,18 @@ public static partial class ContentLoader
             error("A storylet's trait change takes on: ship or subject, or no on.");
             ok = false;
         }
+        else if (Ids.IsInnerId(trait) && (on ?? scope) is { } where)
+        {
+            ok &= book.CheckPlace(trait, where == StoryletScopes.Ship ? TraitPlaces.Ship : TraitPlaces.Crew, error);
+        }
 
         return ok ? new StoryletEffect(Trait: new TraitChange(trait, value, set, on ?? "")) : null;
     }
 
-    // Applies the option's trait changes on the storylet's own scope to the lowest values that satisfy its requirements. If every
-    // requirement still holds, the storylet would be offered again at once, and every cycle after.
-    private static bool LeavesEveryRequirementTrue(IReadOnlyList<Requirement> all, StoryletOption option, string scope)
+    // Applies the option's trait changes on the storylet's own scope to the lowest values that satisfy its requirements, clamped to
+    // each trait's cap as play clamps them. If every requirement still holds, the storylet would be offered again at once, and
+    // every cycle after.
+    private static bool LeavesEveryRequirementTrue(IReadOnlyList<Requirement> all, StoryletOption option, string scope, TraitBook book)
     {
         // Only traits: a stat or a fact is not the storylet's to move.
         List<TraitRange> requires = all.OfType<TraitRange>().ToList();
@@ -404,7 +446,7 @@ public static partial class ContentLoader
         foreach (TraitChange change in option.Effects.Select(e => e.Trait).OfType<TraitChange>().Where(c => c.On == "" || c.On == own))
         {
             int current = values.GetValueOrDefault(change.Trait);
-            values[change.Trait] = Math.Max(0, change.Set ? change.Amount : current + change.Amount);
+            values[change.Trait] = (book.Def(change.Trait) ?? TraitDef.Plain(change.Trait)).Clamp(change.Set ? change.Amount : current + change.Amount);
         }
 
         return requires.All(r => r.Holds(values.GetValueOrDefault(r.Trait)));

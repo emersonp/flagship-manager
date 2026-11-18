@@ -1,0 +1,17 @@
+# Placeholders. The author replaces these. A trait with no entry here (trait_a, trait_c, trait_d) has no rules, as flags had none.
+# trait_b falls each week; trait_e has named levels, launch rules, and expires; trait_f rises to a cap and is hidden.
+- id: trait_b
+  max: 5
+  every: { weeks: 3, add: -1 }
+- id: trait_e
+  on: crew
+  levels: { 1: level_a, 2: level_b }
+  briefing: TRAIT_E_BRIEFING
+  launch:
+    sent: [{ set: level_b }, { loyalty: -2 }, { morale: -4 }]
+    notSent: [{ set: 0 }]
+  expires: { weeks: 6 }
+- id: trait_f
+  shown: false
+  max: 3
+  every: { weeks: 2, add: 1 }

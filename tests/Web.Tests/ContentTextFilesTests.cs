@@ -336,6 +336,28 @@ public sealed class ContentTextFilesTests(RepoContentGuard guard) : IClassFixtur
         + "    - { id: option_a, label: LABEL_A, effects: [{ trait: flag_z, set: 0 }] }\n"
         + "    - { id: option_b, label: LABEL_B, effects: [{ trait: flag_z, set: 0 }] }\n";
 
+    // 1e part three: a definition's launch rule sets the trait it belongs to, so a storylet that requires it is no warning; a
+    // definition nothing reads or changes is one.
+    [Fact]
+    public async Task The_traits_page_counts_launch_rules_as_setters_and_warns_of_a_trait_nothing_uses()
+    {
+        using TestApp app = NewApp();
+        string traits = Disk(app, "traits/base.yaml") + "- id: trait_q\n  on: crew\n  launch: { sent: [{ set: 1 }] }\n- id: trait_r\n";
+        await Post(app.NewClient(), "/dev/content/files/storylets", Body(Disk(app, "storylets/base.yaml")
+            + "- id: STORYLET_09\n  stakes: 1\n  scope: crew\n  requires:\n    - { trait: trait_q, min: 1 }\n  options:\n"
+            + "    - { id: option_a, label: LABEL_A, effects: [{ trait: trait_q, set: 0 }] }\n"
+            + "    - { id: option_b, label: LABEL_B, effects: [{ trait: trait_q, set: 0 }] }\n"));
+
+        (HttpStatusCode status, string body) = await Post(app.NewClient(), "/dev/content/files/traits", Body(traits));
+
+        Assert.Equal(HttpStatusCode.OK, status);
+        string shown = WebUtility.HtmlDecode(body);
+        Assert.DoesNotContain("Nothing sets trait_q", shown);
+        Assert.Contains("trait_r is defined and never used.", shown);
+        Assert.DoesNotContain("trait_q is defined and never used.", shown);
+        Assert.DoesNotContain("trait_e is defined and never used.", shown);
+    }
+
     [Fact]
     public async Task The_storylets_page_says_the_form_comes_later_and_the_file_is_checked_on_save()
     {

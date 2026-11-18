@@ -10,7 +10,7 @@
     = #storylet# STORYLET_01_REPORT
   options:
     - { id: option_a, label: STORYLET_01_OPTION_A_LABEL, effects: [{ trait: trait_a, set: 0 }, { loyalty: -1, on: crew }], text: STORYLET_01_OPTION_A_TEXT }
-    - { id: option_b, label: STORYLET_01_OPTION_B_LABEL, effects: [{ trait: trait_a, set: 2 }], text: STORYLET_01_OPTION_B_TEXT }
+    - { id: option_b, label: STORYLET_01_OPTION_B_LABEL, effects: [{ trait: trait_a, set: 2 }, { trait: trait_f, add: 1 }], text: STORYLET_01_OPTION_B_TEXT }
 - id: STORYLET_02
   stakes: 1
   scope: crew
@@ -22,5 +22,5 @@
     captain: STORYLET_02_LINE_2
     = #subject# STORYLET_02_REPORT
   options:
-    - { id: option_a, label: STORYLET_02_OPTION_A_LABEL, effects: [{ trait: trait_b, add: -1 }, { trait: trait_c, set: 1 }], text: STORYLET_02_OPTION_A_TEXT }
+    - { id: option_a, label: STORYLET_02_OPTION_A_LABEL, effects: [{ trait: trait_b, add: -1 }, { trait: trait_c, set: 1 }, { trait: trait_e, set: level_a }], text: STORYLET_02_OPTION_A_TEXT }
     - { id: option_b, label: STORYLET_02_OPTION_B_LABEL, effects: [{ trait: trait_c, set: 2 }, { loyalty: -2, on: subject }], text: "#subject# STORYLET_02_OPTION_B_TEXT" }
