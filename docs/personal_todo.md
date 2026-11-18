@@ -3,3 +3,4 @@
   - Add planets and sector map to roadmap for art, in addition to paper dolls
 - [ ] Inquire about Seniority
 - [ ] Player glossary: explain momentum, strain, unattended difficulty, morale words, and the like where they appear in play (the editor's BeatGlossary has text to reuse)
+- [ ] Investigate testing on Windows and Linux (check.sh needs python3 and setsid)
