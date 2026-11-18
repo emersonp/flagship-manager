@@ -1,33 +1,33 @@
-@* Dev Play's panel: the legacy's story flags, each crew member's morale, and a form to set a flag. It redraws itself whenever another request on the page ends,
-   so a flag a mission changed shows once that mission's beats have played. Nothing in normal play renders it. *@
+@* Dev Play's panel: the legacy's traits, each crew member's morale, and a form to set a trait. It redraws itself whenever another request on the page ends,
+   so a trait a mission changed shows once that mission's beats have played. Nothing in normal play renders it. *@
 <section id="dev" class="well dev" aria-labelledby="h-dev" data-on:datastar-fetch__document="@Refresh">
     <div class="well__head">
         <h2 id="h-dev">Developer</h2>
         <p class="note">What you set here is logged as the developer's. <a class="home" href="/legacy/@LegacyId">Play without this panel</a></p>
     </div>
     <div class="well__body dev__body">
-        <div class="dev__flags">
-            <h3 class="sub">Story flags</h3>
-            @if (View.Flags.Count == 0)
+        <div class="dev__traits">
+            <h3 class="sub">Traits</h3>
+            @if (View.Traits.Count == 0)
             {
-                <p class="empty">No flags are set.</p>
+                <p class="empty">No traits are set.</p>
             }
             else
             {
-                <div class="tw dev__tw" tabindex="0" role="region" aria-label="Story flags, scrolls sideways">
+                <div class="tw dev__tw" tabindex="0" role="region" aria-label="Traits, scrolls sideways">
                     <table>
-                        <thead><tr><th scope="col">Flag</th><th scope="col">On</th><th scope="col" class="n">Value</th><th scope="col" class="n">Week</th><th scope="col">Last changed in play by</th></tr></thead>
+                        <thead><tr><th scope="col">Trait</th><th scope="col">On</th><th scope="col" class="n">Value</th><th scope="col" class="n">Week</th><th scope="col">Last changed in play by</th></tr></thead>
                         <tbody>
-                            @foreach (DevFlagRow row in View.Flags)
+                            @foreach (DevTraitRow row in View.Traits)
                             {
-                                <tr><td class="dev__flag">@row.Flag</td><td>@row.On</td><td class="n">@row.Value</td><td class="n">@row.Week</td><td>@(row.From ?? "None")</td></tr>
+                                <tr><td class="dev__trait">@row.Trait</td><td>@row.On</td><td class="n">@row.Value</td><td class="n">@row.Week</td><td>@(row.From ?? "None")</td></tr>
                             }
                         </tbody>
                     </table>
                 </div>
             }
         </div>
-        <div class="dev__flags">
+        <div class="dev__traits">
             <h3 class="sub">Morale</h3>
             <div class="tw dev__tw" tabindex="0" role="region" aria-label="Morale, scrolls sideways">
                 <table>
@@ -42,13 +42,13 @@
             </div>
         </div>
         <form class="dev__set" data-on:submit="@Post" data-indicator:devbusy>
-            <h3 class="sub">Set a flag</h3>
+            <h3 class="sub">Set a trait</h3>
             <div class="dev__fields">
                 <div class="field">
-                    <label for="dev-flag">Flag</label>
-                    <input id="dev-flag" name="flag" type="text" list="dev-known" value="@Flag" required maxlength="40" autocomplete="off" spellcheck="false" aria-describedby="dev-hint">
+                    <label for="dev-trait">Trait</label>
+                    <input id="dev-trait" name="trait" type="text" list="dev-known" value="@Trait" required maxlength="40" autocomplete="off" spellcheck="false" aria-describedby="dev-hint">
                     <datalist id="dev-known">
-                        @foreach (string known in View.KnownFlags)
+                        @foreach (string known in View.KnownTraits)
                         {
                             <option value="@known"></option>
                         }
@@ -67,9 +67,9 @@
                     <label for="dev-value">Value</label>
                     <input id="dev-value" name="value" type="text" inputmode="numeric" value="@Value" required maxlength="2" autocomplete="off" aria-describedby="dev-hint">
                 </div>
-                <button class="btn btn--dev" type="submit" data-attr:disabled="$devbusy" data-attr:aria-busy="$devbusy ? 'true' : false">Set flag</button>
+                <button class="btn btn--dev" type="submit" data-attr:disabled="$devbusy" data-attr:aria-busy="$devbusy ? 'true' : false">Set trait</button>
             </div>
-            <p class="hint" id="dev-hint">0 to @View.Most, and 0 clears it. Storylets and vignettes arrive as the itinerary opens, so set a flag before then.</p>
+            <p class="hint" id="dev-hint">0 to @View.Most, and 0 clears it. Storylets and vignettes arrive as the itinerary opens, so set a trait before then.</p>
             <p id="dev-result" class="@(Error ? "error" : "dev__ok")" role="status">@Message</p>
         </form>
     </div>
@@ -81,7 +81,7 @@
     [Parameter, EditorRequired] public DevView View { get; set; } = null!;
 
     // The form's values as last posted, kept so a refusal can be corrected in place.
-    [Parameter] public string Flag { get; set; } = "";
+    [Parameter] public string Trait { get; set; } = "";
 
     [Parameter] public string On { get; set; } = DevReader.Ship;
 
@@ -92,7 +92,7 @@
 
     [Parameter] public bool Error { get; set; }
 
-    private string Post => $"@post('/dev/legacy/{LegacyId}/flag', {{contentType: 'form'}})";
+    private string Post => $"@post('/dev/legacy/{LegacyId}/trait', {{contentType: 'form'}})";
 
     // Only a request from elsewhere on the page: this panel's own requests already answer with it, and must not start another.
     private string Refresh => $"evt.detail.type === 'finished' && !(evt.detail.el && evt.detail.el.closest && evt.detail.el.closest('#dev')) && @get('/dev/legacy/{LegacyId}/panel')";

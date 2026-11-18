@@ -21,7 +21,7 @@
 - id: VIGNETTE_03
   scope: ship
   requires:
-    - { flag: flag_a, min: 2, max: 2 }
+    - { trait: trait_a, min: 2, max: 2 }
   text: |-
     best SKILL_A: VIGNETTE_03_LINE_1
   effects: [{ morale: -1, on: crew }]

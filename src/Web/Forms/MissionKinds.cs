@@ -133,20 +133,20 @@ internal sealed class EncounterKind : KindForm
     // A requirement's "what" for a gear tag; any other value is a skill id.
     public const string GearPrefix = "gear:";
 
-    // A flag change's fields, in an outcome and in a decision's effect row: flagMode is "add" or "set", and flagOn what it lands on.
-    public static readonly IReadOnlyList<string> FlagFields = ["flag", "flagMode", "flagAmount", "flagOn"];
+    // A trait change's fields, in an outcome and in a decision's effect row: traitMode is "add" or "set", and traitOn what it lands on.
+    public static readonly IReadOnlyList<string> TraitFields = ["trait", "traitMode", "traitAmount", "traitOn"];
 
-    // Declared after FlagFields, which it reads as it starts.
+    // Declared after TraitFields, which it reads as it starts.
     // own is "true" when the tier is written; the next four are then its one effect, a blank meaning 0 or no roll, and the last four
-    // its one flag change, a blank flag meaning none.
-    public static readonly IReadOnlyList<string> OutcomeFields = ["own", "progress", "momentum", "strain", "injury", .. FlagFields];
+    // its one trait change, a blank trait meaning none.
+    public static readonly IReadOnlyList<string> OutcomeFields = ["own", "progress", "momentum", "strain", "injury", .. TraitFields];
 
-    // What a flag change may land on in an approach's outcome; a decision's answer has no actor.
-    public static readonly IReadOnlyList<string> OutcomeTargets = [FlagIds.Ship, FlagIds.Actor, FlagIds.Lead, FlagIds.Team];
+    // What a trait change may land on in an approach's outcome; a decision's answer has no actor.
+    public static readonly IReadOnlyList<string> OutcomeTargets = [TraitOn.Ship, TraitOn.Actor, TraitOn.Lead, TraitOn.Team];
 
-    public static readonly IReadOnlyList<string> AnswerTargets = [FlagIds.Ship, FlagIds.Lead, FlagIds.Team];
+    public static readonly IReadOnlyList<string> AnswerTargets = [TraitOn.Ship, TraitOn.Lead, TraitOn.Team];
 
-    public static readonly IReadOnlyList<string> FlagModes = ["add", "set"];
+    public static readonly IReadOnlyList<string> TraitModes = ["add", "set"];
 
     // An approach's requirements, outcomes, and words post with its row, as approaches[0].r0.what, approaches[0].out.success.own,
     // and approaches[0].text.attempt, so they move and go with it.
@@ -162,9 +162,9 @@ internal sealed class EncounterKind : KindForm
         Noun: "approach",
         Defaults: new Dictionary<string, string> { ["difficulty"] = "1" });
 
-    public static readonly RowSet Bold = new("bold", ["progress", "momentum", "strain", "injury", "withdraw", .. FlagFields], Qualified: true, Noun: "effect");
+    public static readonly RowSet Bold = new("bold", ["progress", "momentum", "strain", "injury", "withdraw", .. TraitFields], Qualified: true, Noun: "effect");
 
-    public static readonly RowSet Safe = new("safe", ["progress", "momentum", "strain", "injury", "withdraw", .. FlagFields], Qualified: true, Noun: "effect");
+    public static readonly RowSet Safe = new("safe", ["progress", "momentum", "strain", "injury", "withdraw", .. TraitFields], Qualified: true, Noun: "effect");
 
     public override ContentKind Kind => ContentKind.Encounter;
 
@@ -388,8 +388,8 @@ internal sealed class EncounterKind : KindForm
             fields.Add(new(Approaches.Name(row, OutcomeField(tier, "momentum")), Sum(effects.Select(e => e.Momentum))));
             fields.Add(new(Approaches.Name(row, OutcomeField(tier, "strain")), Sum(effects.Select(e => e.Strain))));
             fields.Add(new(Approaches.Name(row, OutcomeField(tier, "injury")), effects.LastOrDefault(e => e.InjuryRoll is not null)?.InjuryRoll ?? ""));
-            // The form holds one flag change a tier; an outcome with more is marked as content the editor cannot keep.
-            AddFlag(fields, f => Approaches.Name(row, OutcomeField(tier, f)), effects.FirstOrDefault(e => e.Flag is not null));
+            // The form holds one trait change a tier; an outcome with more is marked as content the editor cannot keep.
+            AddTrait(fields, f => Approaches.Name(row, OutcomeField(tier, f)), effects.FirstOrDefault(e => e.Trait is not null));
         }
 
         OwnedText.Add(fields, Approaches.Name(row, ""), NarrativeFacts.ApproachTexts, approach.Text);
@@ -410,52 +410,52 @@ internal sealed class EncounterKind : KindForm
             }
 
             int row = i;
-            AddFlag(fields, f => set.Name(row, f), effect);
+            AddTrait(fields, f => set.Name(row, f), effect);
         }
     }
 
-    private static void AddFlag(List<KeyValuePair<string, string>> fields, Func<string, string> name, EffectModel? effect)
+    private static void AddTrait(List<KeyValuePair<string, string>> fields, Func<string, string> name, EffectModel? effect)
     {
-        fields.Add(new(name("flag"), effect?.Flag ?? ""));
-        fields.Add(new(name("flagMode"), effect?.Flag is null ? "" : effect.FlagSet ? "set" : "add"));
-        fields.Add(new(name("flagAmount"), effect?.FlagAmount is { } amount ? Checks.Text(amount) : ""));
-        fields.Add(new(name("flagOn"), effect?.FlagOn ?? ""));
+        fields.Add(new(name("trait"), effect?.Trait ?? ""));
+        fields.Add(new(name("traitMode"), effect?.Trait is null ? "" : effect.TraitSet ? "set" : "add"));
+        fields.Add(new(name("traitAmount"), effect?.TraitAmount is { } amount ? Checks.Text(amount) : ""));
+        fields.Add(new(name("traitOn"), effect?.TraitOn ?? ""));
     }
 
-    // The flag change a form's fields hold, or null when the flag is blank (an amount without one is refused). Each problem is put beside its field.
-    private static EffectModel? BindFlag(FormValues values, Func<string, string> name, IReadOnlyList<string> targets, Dictionary<string, string> errors)
+    // The trait change a form's fields hold, or null when the trait is blank (an amount without one is refused). Each problem is put beside its field.
+    private static EffectModel? BindTrait(FormValues values, Func<string, string> name, IReadOnlyList<string> targets, Dictionary<string, string> errors)
     {
-        string flag = values.Get(name("flag")).Trim();
-        string mode = values.Get(name("flagMode"));
-        string on = values.Get(name("flagOn"));
-        if (flag.Length == 0)
+        string trait = values.Get(name("trait")).Trim();
+        string mode = values.Get(name("traitMode"));
+        string on = values.Get(name("traitOn"));
+        if (trait.Length == 0)
         {
-            if (values.Get(name("flagAmount")).Trim().Length > 0)
+            if (values.Get(name("traitAmount")).Trim().Length > 0)
             {
-                errors[name("flag")] = "Enter a flag id.";
+                errors[name("trait")] = "Enter a trait id.";
             }
 
             return null;
         }
 
-        if (!Ids.IsInnerId(flag))
+        if (!Ids.IsInnerId(trait))
         {
-            errors[name("flag")] = Ids.InnerRule;
+            errors[name("trait")] = Ids.InnerRule;
         }
 
         if (mode is not ("add" or "set"))
         {
-            errors[name("flagMode")] = "Choose add or set.";
+            errors[name("traitMode")] = "Choose add or set.";
         }
 
-        int amount = Checks.Whole(values, name("flagAmount"), mode == "set" ? 0 : null, null, errors);
+        int amount = Checks.Whole(values, name("traitAmount"), mode == "set" ? 0 : null, null, errors);
         if (!targets.Contains(on))
         {
-            errors[name("flagOn")] = on.Length == 0 ? "Choose who it is on."
+            errors[name("traitOn")] = on.Length == 0 ? "Choose who it is on."
                 : $"Choose {string.Join(", ", targets.Take(targets.Count - 1))}, or {targets[^1]}.";
         }
 
-        return new EffectModel(null, null, null, null, false, flag, amount, mode == "set", on);
+        return new EffectModel(null, null, null, null, false, trait, amount, mode == "set", on);
     }
 
     // One row is one approach, in the order shown. The count and the ids are checked here as the loader checks them.
@@ -559,7 +559,7 @@ internal sealed class EncounterKind : KindForm
         return requires;
     }
 
-    // Each written tier as one entry per value given, in the default's order (progress, strain, momentum, injury), then its flag change;
+    // Each written tier as one entry per value given, in the default's order (progress, strain, momentum, injury), then its trait change;
     // none given is an empty list.
     private static Dictionary<string, IReadOnlyList<EffectModel>> BindOutcomes(FormValues values, int row, Dictionary<string, string> errors)
     {
@@ -602,9 +602,9 @@ internal sealed class EncounterKind : KindForm
                 effects.Add(new EffectModel(null, null, null, injury));
             }
 
-            if (BindFlag(values, Field, OutcomeTargets, errors) is { } flag)
+            if (BindTrait(values, Field, OutcomeTargets, errors) is { } trait)
             {
-                effects.Add(flag);
+                effects.Add(trait);
             }
 
             outcomes[tier] = effects;
@@ -634,13 +634,13 @@ internal sealed class EncounterKind : KindForm
 
             bool withdraw = values.Get(set.Name(i, "withdraw")) == "true";
             int row = i;
-            EffectModel? flag = BindFlag(values, f => set.Name(row, f), AnswerTargets, errors);
-            if (errors.Count == before && progress is null && momentum is null && strain is null && injury.Length == 0 && !withdraw && flag is null)
+            EffectModel? trait = BindTrait(values, f => set.Name(row, f), AnswerTargets, errors);
+            if (errors.Count == before && progress is null && momentum is null && strain is null && injury.Length == 0 && !withdraw && trait is null)
             {
                 errors[set.Name(i, "progress")] = "Give the effect a value.";
             }
 
-            effects.Add(new EffectModel(progress, momentum, strain, injury.Length == 0 ? null : injury, withdraw, flag?.Flag, flag?.FlagAmount, flag?.FlagSet ?? false, flag?.FlagOn));
+            effects.Add(new EffectModel(progress, momentum, strain, injury.Length == 0 ? null : injury, withdraw, trait?.Trait, trait?.TraitAmount, trait?.TraitSet ?? false, trait?.TraitOn));
         }
 
         return effects;

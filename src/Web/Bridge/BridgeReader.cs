@@ -6,6 +6,7 @@ using Sim.Core.Narrative;
 using Sim.Crew;
 using Sim.Missions;
 using Sim.Storylets;
+using Sim.Traits;
 
 namespace Web.Bridge;
 
@@ -379,11 +380,11 @@ public static class BridgeReader
         return -1;
     }
 
-    // An answer's own changes are published just before it: loyalty, morale it caused, and flags with no encounter.
+    // An answer's own changes are published just before it: loyalty, morale it caused, and traits it changed.
     private static List<IEvent> ChangesBefore(IReadOnlyList<IEvent> events, int answer)
     {
         int start = answer;
-        while (start > 0 && events[start - 1] is LoyaltyChanged or MoraleChanged { Cause: MoraleCauses.Answer } or FlagChanged { EncounterId: null })
+        while (start > 0 && events[start - 1] is LoyaltyChanged or MoraleChanged { Cause: MoraleCauses.Answer } or TraitChanged { Cause: TraitCauses.Answer or TraitCauses.Vignette })
         {
             start--;
         }
@@ -414,6 +415,7 @@ public static class BridgeReader
     private static (List<StoryletView> Waiting, List<SettledStoryletView> Settled) Storylets(LegacyState state, ContentPack pack, IReadOnlyList<IEvent> cycleEvents, Names names)
     {
         StoryletsState? storylets = state.TryModule(StoryletsModule.Name, out StoryletsState? found) ? found : null;
+        List<StoredTrait> traits = state.TryModule(TraitsModule.Name, out TraitsState? held) ? held.Traits : [];
         List<CrewMember> crew = state.TryModule(CrewModule.Name, out CrewState? members) ? members.Members : [];
         string seed = state.Seed.ToString(CultureInfo.InvariantCulture);
         var waiting = new List<StoryletView>();
@@ -431,7 +433,7 @@ public static class BridgeReader
             waiting.Add(new StoryletView(
                 w.OfferId,
                 names.Storylet(storylet.Id),
-                From(storylets!, storylet, w, names),
+                From(traits, storylet, w, names),
                 script,
                 storylet.Options.Select(o => new StoryletOptionView(o.Id, o.Label.Length > 0 ? o.Label : o.Id)).ToList()));
         }
@@ -460,20 +462,20 @@ public static class BridgeReader
         return new ProseEntry(EntryKind.Narration, null, [new LinePart(false, text)]);
     }
 
-    // The encounter that set the flag that brought it, and that flag: the first required flag it last changed, else the first set.
-    private static string? From(StoryletsState storylets, StoryletDef storylet, WaitingStorylet waiting, Names names)
+    // The encounter that set the trait that brought it, and that trait: the first required trait it last changed, else the first set.
+    private static string? From(List<StoredTrait> traits, StoryletDef storylet, WaitingStorylet waiting, Names names)
     {
         if (waiting.EncounterId is not { } encounter)
         {
             return null;
         }
 
-        List<StoredFlag> set = storylet.Flags
-            .Select(r => storylets.Flags.FirstOrDefault(f => f.Flag == r.Flag && f.CrewId == waiting.SubjectId))
-            .OfType<StoredFlag>()
+        List<StoredTrait> set = storylet.Traits
+            .Select(r => traits.FirstOrDefault(t => t.Trait == r.Trait && t.CrewId == waiting.SubjectId && t.TargetId is null))
+            .OfType<StoredTrait>()
             .ToList();
-        string flag = (set.FirstOrDefault(f => f.EncounterId == encounter) ?? set.FirstOrDefault())?.Flag ?? storylet.Flags.First().Flag;
-        return $"From {names.Encounter(encounter)} · {flag}";
+        string trait = (set.FirstOrDefault(t => t.EncounterId == encounter) ?? set.FirstOrDefault())?.Trait ?? storylet.Traits.First().Trait;
+        return $"From {names.Encounter(encounter)} · {trait}";
     }
 
     // Tags in the log's figure style. A loyalty or morale change shared alike by every living crew member is one tag for all crew.
@@ -492,10 +494,10 @@ public static class BridgeReader
         Stat("Loyalty", changes.OfType<LoyaltyChanged>().Select(l => (l.CrewId, l.To - l.From)));
         Stat("Morale", changes.OfType<MoraleChanged>().Select(m => (m.CrewId, m.To - m.From)));
 
-        foreach (FlagChanged flag in changes.OfType<FlagChanged>())
+        foreach (TraitChanged trait in changes.OfType<TraitChanged>())
         {
-            string on = flag.CrewId is null ? "" : $", {crew(flag.CrewId)}";
-            tags.Add(Inv($"{flag.Flag} {flag.From} to {flag.To}{on}"));
+            string on = trait.CrewId is null ? "" : $", {crew(trait.CrewId)}";
+            tags.Add(Inv($"{trait.Trait} {trait.From} to {trait.To}{on}"));
         }
 
         return tags;

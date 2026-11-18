@@ -1,7 +1,7 @@
 # Phase 1, slice 1e, part three: traits that bite
 
 **Spec:** `docs/gdd.md` sections 3.2, 3.5, 3.7, 3.8, 5.1 to 5.3, and 7.1, and section 15, items 36, 38, and 40. **Builds on:** `main` at 2026-11-17 (`3a1381f`), and slice 1e's first two parts (`2026-11-16-phase-1e-design.md`, `2026-11-17-phase-1e-part-two-design.md`).
-**Status:** designed 2026-11-17; not built.
+**Status:** designed 2026-11-17; being built (see "As built", section 9).
 **Ends with:** the author plays the worked example in the browser. A crew member is shaken by a disaster. They ask for a word, and the captain promises to stand them down from the next away team. The briefing shows the promise beside their name and says what sending them would cost. Leaving them aboard keeps it; sending them breaks it, costs loyalty and morale, and brings a storylet about the broken word. `shaken` eases with the weeks. Elsewhere, a disaster on a call the lead made leaves the actor avoiding the lead, which costs them on every check they share until it fades.
 
 This records what the author said about part three on 2026-11-17, in a design interview, and designs it. Items marked **(my call)** were proposed, not asked for. Section 5 is the architecture and is kept current as the part is built.
@@ -318,3 +318,16 @@ The holder sent without the target costs nothing; the target sent without the ho
 - Which encounter and approach set `avoids`, and which approach reads `sensors_quirk`, in the pack's voice.
 - The words of the new storylets, the vignette, and the briefing lines, within section 4.12.
 - Whether the briefing's preview is rendered rows toggled by the page, or a fragment fetched on change, as long as one code path decides both the preview and the outcome.
+
+## 9. As built
+
+Kept as each task of the plan (`2026-11-17-phase-1e-part-three-plan.md`) lands; differences from sections 4 and 5 are said here, and section 5 is changed to match.
+
+**Task 1, the rename (2026-11-17).**
+
+- `Sim.Traits` is carved out as section 5 says: `TraitsState` (a list of `StoredTrait`: trait, crew id, target id, value, `ChangedAtWeek`, encounter id), `TraitView`, and `TraitsModule` at order 250. `TraitHeld` is the view's record of one trait. Contracts are in `Sim.Core/TraitContracts.cs`; `FlagChanged`, `FlagSetByDeveloper`, and `SetFlag` are gone.
+- `SimRunner cycles` (20 legacies x 50 cycles, seed 1) gives the same figures before and after, on the fixture and on the game's pack; both golden hashes moved only for the renamed event types and the beat's renamed field.
+- The fixture's placeholder flags `flag_a` to `flag_d` became `trait_a` to `trait_d`, still with no definitions. So the new placeholder traits of later tasks start at `trait_e`, not at `trait_a` as the plan names them.
+- Text tokens of the form `#x.flag.y#` were never built (the narrative has no fact for a flag), so there was nothing to rename there.
+- Dev Play's route is `/dev/legacy/{id}/trait`, its form field `trait`. The editor's encounter form posts `trait`, `traitMode`, `traitAmount`, and `traitOn`.
+- A crew member's traits still go silently with them when they die; `TraitChanged` with cause `death` arrives with pairs in Task 3.

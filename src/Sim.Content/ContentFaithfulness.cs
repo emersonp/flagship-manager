@@ -93,7 +93,7 @@ internal static class ContentFaithfulness
         return losses;
     }
 
-    // What the writer keeps but the encounter form cannot: it holds one flag change a tier, so a save from it would drop the rest.
+    // What the writer keeps but the encounter form cannot: it holds one trait change a tier, so a save from it would drop the rest.
     private static IEnumerable<string> FormLosses(IContentModel model)
     {
         if (model is not EncounterModel encounter)
@@ -105,9 +105,9 @@ internal static class ContentFaithfulness
         {
             foreach ((string tier, IReadOnlyList<EffectModel> effects) in encounter.Approaches[i].Outcomes)
             {
-                if (effects.Count(e => e.Flag is not null) > 1)
+                if (effects.Count(e => e.Trait is not null) > 1)
                 {
-                    yield return $"has an outcome with more than one flag change, which the form cannot keep: approaches[{i}].outcomes.{tier}.";
+                    yield return $"has an outcome with more than one trait change, which the form cannot keep: approaches[{i}].outcomes.{tier}.";
                 }
             }
         }

@@ -49,57 +49,57 @@ internal static class TextFileFlow
     // A missing file opens empty; the first save creates it.
     public static TextFileView Open(TextFile file, ContentFileSet files, string? notice = null)
     {
-        IReadOnlyList<string> warnings = file.Name is "storylets" or "vignettes" && files.Validate().Pack is { } pack ? FlagWarnings(pack) : [];
+        IReadOnlyList<string> warnings = file.Name is "storylets" or "vignettes" && files.Validate().Pack is { } pack ? TraitWarnings(pack) : [];
         return new TextFileView(file, files.Files.GetValueOrDefault(file.Path, ""), [], notice, false) { Warnings = warnings };
     }
 
-    // Flags that cannot work as written: one a storylet requires above 0 that nothing raises on the scope it reads, and one an encounter
-    // raises that no storylet requires. A change that can only lower a flag (add below 0, set 0) does not count as setting it.
-    internal static IReadOnlyList<string> FlagWarnings(ContentPack pack)
+    // Traits that cannot work as written: one a storylet requires above 0 that nothing raises on the scope it reads, and one an encounter
+    // raises that no storylet requires. A change that can only lower a trait (add below 0, set 0) does not count as setting it.
+    internal static IReadOnlyList<string> TraitWarnings(ContentPack pack)
     {
-        // A flag is on the ship or on a crew member; the two are separate values, so each scope is raised and read apart.
-        var raised = new HashSet<(string Flag, bool Ship)>();
+        // A trait is on the ship or on a crew member; the two are separate values, so each scope is raised and read apart.
+        var raised = new HashSet<(string Trait, bool Ship)>();
         foreach (EncounterDef encounter in pack.Encounters)
         {
-            foreach (FlagChange change in Raises(encounter))
+            foreach (TraitChange change in Raises(encounter))
             {
-                raised.Add((change.Flag, change.On == FlagIds.Ship));
+                raised.Add((change.Trait, change.On == TraitOn.Ship));
             }
         }
 
-        // Storylets and vignettes alike (1e part two): each reads flags on its scope and may raise them.
-        var readers = pack.Storylets.Select(s => (s.Id, s.Scope, Flags: s.Flags.ToList(), Effects: s.Options.SelectMany(o => o.Effects).ToList()))
-            .Concat(pack.Vignettes.Select(v => (v.Id, v.Scope, Flags: v.Requires.OfType<FlagRange>().ToList(), Effects: v.Effects.Concat(v.Options.SelectMany(o => o.Effects)).ToList())))
+        // Storylets and vignettes alike (1e part two): each reads traits on its scope and may raise them.
+        var readers = pack.Storylets.Select(s => (s.Id, s.Scope, Traits: s.Traits.ToList(), Effects: s.Options.SelectMany(o => o.Effects).ToList()))
+            .Concat(pack.Vignettes.Select(v => (v.Id, v.Scope, Traits: v.Requires.OfType<TraitRange>().ToList(), Effects: v.Effects.Concat(v.Options.SelectMany(o => o.Effects)).ToList())))
             .ToList();
-        foreach ((string _, string scope, List<FlagRange> _, List<StoryletEffect> effects) in readers)
+        foreach ((string _, string scope, List<TraitRange> _, List<StoryletEffect> effects) in readers)
         {
-            foreach (FlagChange change in effects.Select(e => e.Flag).OfType<FlagChange>().Where(f => f.Amount > 0))
+            foreach (TraitChange change in effects.Select(e => e.Trait).OfType<TraitChange>().Where(f => f.Amount > 0))
             {
                 // Empty means the scope it arrived for; subject is always a crew member.
-                raised.Add((change.Flag, change.On == StoryletScopes.Ship || (change.On.Length == 0 && scope == StoryletScopes.Ship)));
+                raised.Add((change.Trait, change.On == StoryletScopes.Ship || (change.On.Length == 0 && scope == StoryletScopes.Ship)));
             }
         }
 
-        HashSet<string> read = readers.SelectMany(r => r.Flags).Select(r => r.Flag).ToHashSet(StringComparer.Ordinal);
+        HashSet<string> read = readers.SelectMany(r => r.Traits).Select(r => r.Trait).ToHashSet(StringComparer.Ordinal);
         var warnings = new List<string>();
-        foreach ((string id, string scope, List<FlagRange> flags, _) in readers)
+        foreach ((string id, string scope, List<TraitRange> traits, _) in readers)
         {
-            // A requirement that holds at 0 (only a max) needs nothing to set its flag.
+            // A requirement that holds at 0 (only a max) needs nothing to set its trait.
             bool onShip = scope == StoryletScopes.Ship;
             string where = onShip ? "the ship" : "a crew member";
-            warnings.AddRange(flags.Where(r => r.Min > 0).Select(r => r.Flag).Distinct().Where(f => !raised.Contains((f, onShip))).Select(f => $"Nothing sets {f} on {where}, which {id} requires."));
+            warnings.AddRange(traits.Where(r => r.Min > 0).Select(r => r.Trait).Distinct().Where(f => !raised.Contains((f, onShip))).Select(f => $"Nothing sets {f} on {where}, which {id} requires."));
         }
 
         foreach (EncounterDef encounter in pack.Encounters)
         {
-            warnings.AddRange(Raises(encounter).Select(c => c.Flag).Distinct().Where(f => !read.Contains(f)).Select(f => $"Nothing reads {f}, which {encounter.Id} sets."));
+            warnings.AddRange(Raises(encounter).Select(c => c.Trait).Distinct().Where(f => !read.Contains(f)).Select(f => $"Nothing reads {f}, which {encounter.Id} sets."));
         }
 
         return warnings;
     }
 
-    // Every flag change an encounter's approaches or decision raise.
-    private static IEnumerable<FlagChange> Raises(EncounterDef encounter)
+    // Every trait change an encounter's approaches or decision raise.
+    private static IEnumerable<TraitChange> Raises(EncounterDef encounter)
     {
         IEnumerable<EffectDef> effects = encounter.Approaches.SelectMany(a => a.Outcomes.Values);
         if (encounter.Decision is { } decision)
@@ -107,7 +107,7 @@ internal static class TextFileFlow
             effects = effects.Append(decision.Bold).Append(decision.Safe);
         }
 
-        return effects.SelectMany(e => e.Flags ?? []).Where(f => f.Amount > 0);
+        return effects.SelectMany(e => e.Traits ?? []).Where(f => f.Amount > 0);
     }
 
     public static async Task<(TextFileView View, bool Saved)> Save(TextFile file, ContentEditor editor, string typed, CancellationToken cancellation)

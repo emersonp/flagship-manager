@@ -182,18 +182,18 @@ public static partial class ContentLoader
         return outcomes;
     }
 
-    // The entries fold into one effect. An entry that names a flag is one flag change, and its add or set and its on belong to it.
+    // The entries fold into one effect. An entry that names a trait is one trait change, and its add or set and its on belong to it.
     // outcome: the effect is an approach's outcome, where on: actor has someone to name.
     private static EffectDef Effects(List<Dictionary<string, string>?>? items, Action<string> error, bool outcome = false)
     {
         var effect = new EffectDef();
-        var flags = new List<FlagChange>();
+        var traits = new List<TraitChange>();
         foreach (Dictionary<string, string> entry in (items ?? []).Select(i => i ?? []))
         {
-            bool flagged = entry.TryGetValue("flag", out string? flag);
-            if (flagged && FlagChangeOf(entry, flag!, outcome, error) is { } change)
+            bool named = entry.TryGetValue("trait", out string? trait);
+            if (named && TraitChangeOf(entry, trait!, outcome, error) is { } change)
             {
-                flags.Add(change);
+                traits.Add(change);
             }
 
             foreach ((string key, string value) in entry)
@@ -215,7 +215,10 @@ public static partial class ContentLoader
                     case "withdraw" when value == "true":
                         effect = effect with { Withdraw = true };
                         break;
-                    case "flag" or "add" or "set" or "on" when flagged:
+                    case "trait" or "add" or "set" or "on" when named:
+                        break;
+                    case "flag":
+                        error(FlagIsNowTrait);
                         break;
                     default:
                         error($"Unknown effect '{key}: {value}'.");
@@ -224,12 +227,12 @@ public static partial class ContentLoader
             }
         }
 
-        // Null, not empty, when there are none, so effects without flags compare equal.
-        return flags.Count == 0 ? effect : effect with { Flags = flags };
+        // Null, not empty, when there are none, so effects without traits compare equal.
+        return traits.Count == 0 ? effect : effect with { Traits = traits };
     }
 
-    // One flag change, or null when it is refused (each problem reported).
-    private static FlagChange? FlagChangeOf(Dictionary<string, string> entry, string flag, bool outcome, Action<string> error)
+    // One trait change, or null when it is refused (each problem reported).
+    private static TraitChange? TraitChangeOf(Dictionary<string, string> entry, string trait, bool outcome, Action<string> error)
     {
         bool ok = true;
         void Refuse(string message)
@@ -238,9 +241,9 @@ public static partial class ContentLoader
             ok = false;
         }
 
-        if (!Ids.IsInnerId(flag))
+        if (!Ids.IsInnerId(trait))
         {
-            Refuse($"Flag id '{flag}' must be {Said(Ids.InnerRule)}");
+            Refuse($"Trait id '{trait}' must be {Said(Ids.InnerRule)}");
         }
 
         bool set = entry.TryGetValue("set", out string? setText);
@@ -248,7 +251,7 @@ public static partial class ContentLoader
         int amount = 0;
         if (set == add)
         {
-            Refuse("A flag change needs add or set, not both.");
+            Refuse("A trait change needs add or set, not both.");
         }
         else if (!int.TryParse(set ? setText : addText, NumberStyles.Integer, CultureInfo.InvariantCulture, out amount))
         {
@@ -256,20 +259,20 @@ public static partial class ContentLoader
         }
         else if (set && amount < 0)
         {
-            Refuse("A flag's set must be 0 or more.");
+            Refuse("A trait's set must be 0 or more.");
         }
 
         string? on = entry.GetValueOrDefault("on");
-        if (on is not (FlagIds.Ship or FlagIds.Actor or FlagIds.Lead or FlagIds.Team))
+        if (on is not (TraitOn.Ship or TraitOn.Actor or TraitOn.Lead or TraitOn.Team))
         {
-            Refuse("A flag change needs on: ship, actor, lead, or team.");
+            Refuse("A trait change needs on: ship, actor, lead, or team.");
         }
-        else if (on == FlagIds.Actor && !outcome)
+        else if (on == TraitOn.Actor && !outcome)
         {
             Refuse("on: actor is only for an approach's outcome.");
         }
 
-        return ok ? new FlagChange(flag, amount, set, on!) : null;
+        return ok ? new TraitChange(trait, amount, set, on!) : null;
     }
 
     private static List<ObjectiveDef> BuildObjectives(List<(string File, ObjectiveDto Dto)> items, List<EncounterDef> encounters, List<ContentError> errors)

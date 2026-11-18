@@ -18,8 +18,8 @@
       difficulty: 5
       gearTag: scanner
       outcomes:
-        partial: [{ strain: 1 }, { flag: sensors_quirk, set: 1, on: ship }]
-        failure: [{ strain: 2 }, { injuryRoll: light }, { flag: sensors_quirk, set: 1, on: ship }]
+        partial: [{ strain: 1 }, { trait: sensors_quirk, set: 1, on: ship }]
+        failure: [{ strain: 2 }, { injuryRoll: light }, { trait: sensors_quirk, set: 1, on: ship }]
       text:
         attempt: "actor: Plotting the drift. Give me a minute and I'll find us a lane."
         critical: |-
@@ -202,7 +202,7 @@
       skill: SKILL_C
       difficulty: 5
       outcomes:
-        disaster: [{ strain: 3 }, { injuryRoll: severe }, { flag: shaken, add: 1, on: actor }]
+        disaster: [{ strain: 3 }, { injuryRoll: severe }, { trait: shaken, add: 1, on: actor }]
       text:
         attempt: "actor: I'll set anchors as I go. Slow, but nobody falls."
         success: "#actor# set a line up the #encounter#, anchor by anchor, and the team followed."

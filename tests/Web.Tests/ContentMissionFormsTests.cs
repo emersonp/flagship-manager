@@ -335,7 +335,7 @@ public sealed class ContentMissionFormsTests(RepoContentGuard guard) : IClassFix
         using TestApp app = NewApp(root =>
         {
             string file = Path.Combine(root, "encounters", "base.yaml");
-            File.WriteAllText(file, File.ReadAllText(file).Replace("outcomes: { partial: [{ strain: 1 }, { flag: flag_a, add: 1, on: ship }] }", "outcomes: { partial: [] }"));
+            File.WriteAllText(file, File.ReadAllText(file).Replace("outcomes: { partial: [{ strain: 1 }, { trait: trait_a, add: 1, on: ship }] }", "outcomes: { partial: [] }"));
         });
         HttpClient client = app.NewClient();
         Assert.Contains("outcomes: { partial: [] }", Disk(app, "encounters/base.yaml"), StringComparison.Ordinal);
@@ -679,35 +679,35 @@ public sealed class ContentMissionFormsTests(RepoContentGuard guard) : IClassFix
         Assert.Equal(new EffectDef(Momentum: -1, Strain: 1, InjuryRoll: InjurySeverity.Severe), app.Live.Pack.Encounters.Single(e => e.Id == "ENCOUNTER_01").Approaches[1].Outcomes["failure"]);
     }
 
-    // --- Flags (1e part one, Task 1) ---
+    // --- Traits (flags in 1e part one, Task 1) ---
 
     [Fact]
-    public async Task A_tiers_flag_change_saves_as_the_last_entry_of_its_outcome()
+    public async Task A_tiers_trait_change_saves_as_the_last_entry_of_its_outcome()
     {
         using TestApp app = NewApp();
 
-        (HttpStatusCode status, _) = await Post(app.NewClient(), "/dev/content/encounters/ENCOUNTER_01", Merge(Encounter1, "approaches[1].out.partial.own=true&approaches[1].out.partial.strain=1&approaches[1].out.partial.flag=flag_a&approaches[1].out.partial.flagMode=add&approaches[1].out.partial.flagAmount=1&approaches[1].out.partial.flagOn=ship"));
+        (HttpStatusCode status, _) = await Post(app.NewClient(), "/dev/content/encounters/ENCOUNTER_01", Merge(Encounter1, "approaches[1].out.partial.own=true&approaches[1].out.partial.strain=1&approaches[1].out.partial.trait=trait_a&approaches[1].out.partial.traitMode=add&approaches[1].out.partial.traitAmount=1&approaches[1].out.partial.traitOn=ship"));
 
         Assert.Equal(HttpStatusCode.OK, status);
-        Assert.Contains("outcomes: { partial: [{ strain: 1 }, { flag: flag_a, add: 1, on: ship }] }", Disk(app, "encounters/base.yaml"), StringComparison.Ordinal);
-        Assert.Equal([new FlagChange("flag_a", 1, false, "ship")], app.Live.Pack.Encounters.Single(e => e.Id == "ENCOUNTER_01").Approaches[1].Outcomes["partial"].Flags!);
+        Assert.Contains("outcomes: { partial: [{ strain: 1 }, { trait: trait_a, add: 1, on: ship }] }", Disk(app, "encounters/base.yaml"), StringComparison.Ordinal);
+        Assert.Equal([new TraitChange("trait_a", 1, false, "ship")], app.Live.Pack.Encounters.Single(e => e.Id == "ENCOUNTER_01").Approaches[1].Outcomes["partial"].Traits!);
     }
 
     [Fact]
-    public async Task A_decision_rows_flag_change_saves_in_its_entry()
+    public async Task A_decision_rows_trait_change_saves_in_its_entry()
     {
         using TestApp app = NewApp();
-        string fields = Merge(Without(Encounter1, "bold["), "bold[0].progress=1&bold[0].flag=flag_c&bold[0].flagMode=set&bold[0].flagAmount=2&bold[0].flagOn=lead&bold[1].flag=flag_d&bold[1].flagMode=add&bold[1].flagAmount=-1&bold[1].flagOn=team");
+        string fields = Merge(Without(Encounter1, "bold["), "bold[0].progress=1&bold[0].trait=trait_c&bold[0].traitMode=set&bold[0].traitAmount=2&bold[0].traitOn=lead&bold[1].trait=trait_d&bold[1].traitMode=add&bold[1].traitAmount=-1&bold[1].traitOn=team");
 
         (HttpStatusCode status, _) = await Post(app.NewClient(), "/dev/content/encounters/ENCOUNTER_01", fields);
 
         Assert.Equal(HttpStatusCode.OK, status);
-        Assert.Contains("bold: [{ progress: 1, flag: flag_c, set: 2, on: lead }, { flag: flag_d, add: -1, on: team }]", Disk(app, "encounters/base.yaml"), StringComparison.Ordinal);
-        Assert.Equal([new FlagChange("flag_c", 2, true, "lead"), new FlagChange("flag_d", -1, false, "team")], app.Live.Pack.Encounters.Single(e => e.Id == "ENCOUNTER_01").Decision!.Bold.Flags!);
+        Assert.Contains("bold: [{ progress: 1, trait: trait_c, set: 2, on: lead }, { trait: trait_d, add: -1, on: team }]", Disk(app, "encounters/base.yaml"), StringComparison.Ordinal);
+        Assert.Equal([new TraitChange("trait_c", 2, true, "lead"), new TraitChange("trait_d", -1, false, "team")], app.Live.Pack.Encounters.Single(e => e.Id == "ENCOUNTER_01").Decision!.Bold.Traits!);
     }
 
     [Fact]
-    public async Task The_form_shows_the_fixtures_flag_changes_and_saving_them_unchanged_leaves_the_file_as_it_was()
+    public async Task The_form_shows_the_fixtures_trait_changes_and_saving_them_unchanged_leaves_the_file_as_it_was()
     {
         using TestApp app = NewApp();
         HttpClient client = app.NewClient();
@@ -718,27 +718,27 @@ public sealed class ContentMissionFormsTests(RepoContentGuard guard) : IClassFix
         (HttpStatusCode one, _) = await Post(client, "/dev/content/encounters/ENCOUNTER_01", FormFields(first));
         (HttpStatusCode four, _) = await Post(client, "/dev/content/encounters/ENCOUNTER_04", FormFields(fourth));
 
-        Assert.Equal(("flag_a", "add", "1", "ship"), (Value(first, "approaches[0].out.partial.flag"), Selected(first, "approaches[0].out.partial.flagMode"), Value(first, "approaches[0].out.partial.flagAmount"), Selected(first, "approaches[0].out.partial.flagOn")));
-        Assert.Equal(("flag_b", "actor"), (Value(fourth, "approaches[0].out.disaster.flag"), Selected(fourth, "approaches[0].out.disaster.flagOn")));
+        Assert.Equal(("trait_a", "add", "1", "ship"), (Value(first, "approaches[0].out.partial.trait"), Selected(first, "approaches[0].out.partial.traitMode"), Value(first, "approaches[0].out.partial.traitAmount"), Selected(first, "approaches[0].out.partial.traitOn")));
+        Assert.Equal(("trait_b", "actor"), (Value(fourth, "approaches[0].out.disaster.trait"), Selected(fourth, "approaches[0].out.disaster.traitOn")));
         Assert.Equal((HttpStatusCode.OK, HttpStatusCode.OK), (one, four));
         Assert.Equal(file, Disk(app, "encounters/base.yaml"));
     }
 
     [Fact]
-    public async Task Each_flag_field_has_its_label_and_a_decision_row_offers_no_actor()
+    public async Task Each_trait_field_has_its_label_and_a_decision_row_offers_no_actor()
     {
         using TestApp app = NewApp();
 
         (_, string body) = await Get(app.NewClient(), "/dev/content/encounters/ENCOUNTER_01");
 
         string text = Text(body);
-        foreach (string label in new[] { ">Flag<", ">Add or set<", ">Amount<", ">On<" })
+        foreach (string label in new[] { ">Trait<", ">Add or set<", ">Amount<", ">On<" })
         {
             Assert.Contains(label, text, StringComparison.Ordinal);
         }
 
-        Assert.Contains("value=\"actor\"", Regex.Match(body, "<select\\b[^>]*name=\"approaches\\[0\\]\\.out\\.partial\\.flagOn\".*?</select>", RegexOptions.Singleline).Value, StringComparison.Ordinal);
-        Assert.DoesNotContain("value=\"actor\"", Regex.Match(body, "<select\\b[^>]*name=\"bold\\[0\\]\\.flagOn\".*?</select>", RegexOptions.Singleline).Value, StringComparison.Ordinal);
+        Assert.Contains("value=\"actor\"", Regex.Match(body, "<select\\b[^>]*name=\"approaches\\[0\\]\\.out\\.partial\\.traitOn\".*?</select>", RegexOptions.Singleline).Value, StringComparison.Ordinal);
+        Assert.DoesNotContain("value=\"actor\"", Regex.Match(body, "<select\\b[^>]*name=\"bold\\[0\\]\\.traitOn\".*?</select>", RegexOptions.Singleline).Value, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -775,12 +775,12 @@ public sealed class ContentMissionFormsTests(RepoContentGuard guard) : IClassFix
     [InlineData("approaches[1].r0.what=SKILL_B&approaches[1].r0.level=0", "approaches[1].r0.level", "Must be 1 or more.")]
     [InlineData("approaches[1].out.success.own=true&approaches[1].out.success.strain=lots", "approaches[1].out.success.strain", "Must be a whole number.")]
     [InlineData("approaches[1].out.success.own=true&approaches[1].out.success.injury=dire", "approaches[1].out.success.injury", "Choose light or severe.")]
-    [InlineData("approaches[1].out.success.own=true&approaches[1].out.success.flag=FLAG_A&approaches[1].out.success.flagMode=add&approaches[1].out.success.flagAmount=1&approaches[1].out.success.flagOn=ship", "approaches[1].out.success.flag", "Lower case: a letter, then letters, digits, and underscores, at most 40 in all.")]
-    [InlineData("approaches[1].out.success.own=true&approaches[1].out.success.flag=flag_a&approaches[1].out.success.flagMode=set&approaches[1].out.success.flagAmount=-1&approaches[1].out.success.flagOn=ship", "approaches[1].out.success.flagAmount", "Must be 0 or more.")]
-    [InlineData("approaches[1].out.success.own=true&approaches[1].out.success.flag=flag_a&approaches[1].out.success.flagMode=add&approaches[1].out.success.flagAmount=1&approaches[1].out.success.flagOn=", "approaches[1].out.success.flagOn", "Choose who it is on.")]
-    [InlineData("approaches[1].out.success.own=true&approaches[1].out.success.flag=flag_a&approaches[1].out.success.flagMode=&approaches[1].out.success.flagAmount=1&approaches[1].out.success.flagOn=ship", "approaches[1].out.success.flagMode", "Choose add or set.")]
-    [InlineData("approaches[1].out.success.own=true&approaches[1].out.success.flagAmount=1", "approaches[1].out.success.flag", "Enter a flag id.")]
-    [InlineData("bold[0].flag=flag_a&bold[0].flagMode=add&bold[0].flagAmount=1&bold[0].flagOn=actor", "bold[0].flagOn", "Choose ship, lead, or team.")]
+    [InlineData("approaches[1].out.success.own=true&approaches[1].out.success.trait=TRAIT_A&approaches[1].out.success.traitMode=add&approaches[1].out.success.traitAmount=1&approaches[1].out.success.traitOn=ship", "approaches[1].out.success.trait", "Lower case: a letter, then letters, digits, and underscores, at most 40 in all.")]
+    [InlineData("approaches[1].out.success.own=true&approaches[1].out.success.trait=trait_a&approaches[1].out.success.traitMode=set&approaches[1].out.success.traitAmount=-1&approaches[1].out.success.traitOn=ship", "approaches[1].out.success.traitAmount", "Must be 0 or more.")]
+    [InlineData("approaches[1].out.success.own=true&approaches[1].out.success.trait=trait_a&approaches[1].out.success.traitMode=add&approaches[1].out.success.traitAmount=1&approaches[1].out.success.traitOn=", "approaches[1].out.success.traitOn", "Choose who it is on.")]
+    [InlineData("approaches[1].out.success.own=true&approaches[1].out.success.trait=trait_a&approaches[1].out.success.traitMode=&approaches[1].out.success.traitAmount=1&approaches[1].out.success.traitOn=ship", "approaches[1].out.success.traitMode", "Choose add or set.")]
+    [InlineData("approaches[1].out.success.own=true&approaches[1].out.success.traitAmount=1", "approaches[1].out.success.trait", "Enter a trait id.")]
+    [InlineData("bold[0].trait=trait_a&bold[0].traitMode=add&bold[0].traitAmount=1&bold[0].traitOn=actor", "bold[0].traitOn", "Choose ship, lead, or team.")]
     public async Task A_bad_requirement_or_outcome_is_refused_beside_its_field(string overrides, string field, string words)
     {
         using TestApp app = NewApp();

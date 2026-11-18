@@ -23,6 +23,7 @@
     <ProjectReference Include="..\..\src\Sim.Missions\Sim.Missions.csproj" />
     <ProjectReference Include="..\..\src\Sim.Narrative\Sim.Narrative.csproj" />
     <ProjectReference Include="..\..\src\Sim.Storylets\Sim.Storylets.csproj" />
+    <ProjectReference Include="..\..\src\Sim.Traits\Sim.Traits.csproj" />
   </ItemGroup>
 
 </Project>

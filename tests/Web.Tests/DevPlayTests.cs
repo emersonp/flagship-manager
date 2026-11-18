@@ -1,10 +1,11 @@
 using System.Net;
 using Sim.Core;
 using Sim.Storylets;
+using Sim.Traits;
 
 namespace Web.Tests;
 
-// The legacies page's Play and Dev Play, and Dev Play's panel of story flags, through the real app.
+// The legacies page's Play and Dev Play, and Dev Play's panel of traits, through the real app.
 public sealed class DevPlayTests
 {
     private static FormUrlEncodedContent Form(params (string Key, string Value)[] fields)
@@ -55,16 +56,16 @@ public sealed class DevPlayTests
         Assert.Equal(HttpStatusCode.OK, status);
         Assert.Contains("<header id=\"topbar\">", dev);
         Assert.Contains("<section id=\"dev\"", dev);
-        Assert.Contains("No flags are set.", dev);
+        Assert.Contains("No traits are set.", dev);
         Assert.Contains("<title>LEGACY_ONE, Dev Play</title>", dev);
-        // The form suggests every flag the pack reads or changes.
-        Assert.Contains("<option value=\"flag_a\"></option>", dev);
+        // The form suggests every trait the pack reads or changes.
+        Assert.Contains("<option value=\"trait_a\"></option>", dev);
         Assert.DoesNotContain("id=\"dev\"", play);
         Assert.Equal(HttpStatusCode.NotFound, (await Get(client, $"/dev/legacy/{Guid.NewGuid()}")).Status);
     }
 
     [Fact]
-    public async Task Setting_a_flag_stores_it_as_the_developers_and_answers_with_the_panel()
+    public async Task Setting_a_trait_stores_it_as_the_developers_and_answers_with_the_panel()
     {
         using var app = new TestApp(developerMode: true, scratch: true);
         HttpClient client = app.NewClient();
@@ -73,39 +74,39 @@ public sealed class DevPlayTests
         string crewId = app.Live.Game.Bus.View<IRosterView>(before.State).Roster[1];
         string crew = app.Live.Names.Crew(crewId);
 
-        string ship = await Post(client, $"/dev/legacy/{id}/flag", Form(("flag", "flag_a"), ("on", "ship"), ("value", "1")));
-        string member = await Post(client, $"/dev/legacy/{id}/flag", Form(("flag", "flag_b"), ("on", crewId), ("value", "3")));
+        string ship = await Post(client, $"/dev/legacy/{id}/trait", Form(("trait", "trait_a"), ("on", "ship"), ("value", "1")));
+        string member = await Post(client, $"/dev/legacy/{id}/trait", Form(("trait", "trait_b"), ("on", crewId), ("value", "3")));
 
         Assert.Contains("event: datastar-patch-elements", ship);
-        Assert.Contains("flag_a is now 1 on the ship.", ship);
-        Assert.Contains($"flag_b is now 3 on {crew}.", member);
-        Assert.Contains("<td class=\"dev__flag\">flag_b</td>", member);
+        Assert.Contains("trait_a is now 1 on the ship.", ship);
+        Assert.Contains($"trait_b is now 3 on {crew}.", member);
+        Assert.Contains("<td class=\"dev__trait\">trait_b</td>", member);
         LoadedLegacy after = (await app.Sessions.Read(app.Live, id))!;
-        StoryletsState storylets = after.State.Module<StoryletsState>(StoryletsModule.Name);
-        Assert.Equal([("flag_a", (string?)null, 1), ("flag_b", crewId, 3)], storylets.Flags.Select(f => (f.Flag, f.CrewId, f.Value)));
-        Assert.Equal(2, app.Game.Store.ReadEvents(id, 1).Count(e => e.Type == "FlagSetByDeveloper"));
+        TraitsState traits = after.State.Module<TraitsState>(TraitsModule.Name);
+        Assert.Equal([("trait_a", (string?)null, 1), ("trait_b", crewId, 3)], traits.Traits.Select(t => (t.Trait, t.CrewId, t.Value)));
+        Assert.Equal(2, app.Game.Store.ReadEvents(id, 1).Count(e => e.Type == "TraitSetByDeveloper"));
 
-        string cleared = await Post(client, $"/dev/legacy/{id}/flag", Form(("flag", "flag_a"), ("on", "ship"), ("value", "0")));
-        Assert.Contains("Cleared flag_a on the ship.", cleared);
+        string cleared = await Post(client, $"/dev/legacy/{id}/trait", Form(("trait", "trait_a"), ("on", "ship"), ("value", "0")));
+        Assert.Contains("Cleared trait_a on the ship.", cleared);
     }
 
     [Theory]
-    [InlineData("Flag A", "1", "Flag id 'Flag A' must be lower case")]
-    [InlineData("flag_a", "x", "A flag's value is 0 to 99.")]
-    [InlineData("flag_a", "100", "A flag's value is 0 to 99.")]
-    [InlineData("flag_a", "0", "flag_a is already 0 on the ship.")]
-    public async Task A_refused_flag_says_why_keeps_what_was_typed_and_changes_nothing(string flag, string value, string reason)
+    [InlineData("Trait A", "1", "Trait id 'Trait A' must be lower case")]
+    [InlineData("trait_a", "x", "A trait's value is 0 to 99.")]
+    [InlineData("trait_a", "100", "A trait's value is 0 to 99.")]
+    [InlineData("trait_a", "0", "trait_a is already 0 on the ship.")]
+    public async Task A_refused_trait_says_why_keeps_what_was_typed_and_changes_nothing(string trait, string value, string reason)
     {
         using var app = new TestApp(developerMode: true, scratch: true);
         HttpClient client = app.NewClient();
         Guid id = await app.Sessions.CreateLegacy(app.Live, "LEGACY_ONE", 1);
 
-        string body = await Post(client, $"/dev/legacy/{id}/flag", Form(("flag", flag), ("on", "ship"), ("value", value)));
+        string body = await Post(client, $"/dev/legacy/{id}/trait", Form(("trait", trait), ("on", "ship"), ("value", value)));
 
         Assert.Contains("<p id=\"dev-result\" class=\"error\" role=\"status\">" + reason, body);
-        Assert.Contains($"value=\"{flag}\"", body);
+        Assert.Contains($"value=\"{trait}\"", body);
         Assert.Contains($"value=\"{value}\"", body);
-        Assert.DoesNotContain(app.Game.Store.ReadEvents(id, 1), e => e.Type is "FlagSetByDeveloper" or "FlagChanged");
+        Assert.DoesNotContain(app.Game.Store.ReadEvents(id, 1), e => e.Type is "TraitSetByDeveloper" or "TraitChanged");
     }
 
     [Fact]
@@ -114,14 +115,14 @@ public sealed class DevPlayTests
         using var app = new TestApp(developerMode: true, scratch: true);
         HttpClient client = app.NewClient();
         Guid id = await app.Sessions.CreateLegacy(app.Live, "LEGACY_ONE", 1);
-        await Post(client, $"/dev/legacy/{id}/flag", Form(("flag", "flag_a"), ("on", "ship"), ("value", "2")));
+        await Post(client, $"/dev/legacy/{id}/trait", Form(("trait", "trait_a"), ("on", "ship"), ("value", "2")));
 
         (HttpStatusCode status, string panel) = await Get(client, $"/dev/legacy/{id}/panel");
 
         Assert.Equal(HttpStatusCode.OK, status);
         Assert.Contains("<section id=\"dev\"", panel);
-        Assert.Contains("<td class=\"dev__flag\">flag_a</td>", panel);
-        var request = new HttpRequestMessage(HttpMethod.Post, $"/dev/legacy/{id}/flag") { Content = Form(("flag", "flag_b"), ("on", "ship"), ("value", "1")) };
+        Assert.Contains("<td class=\"dev__trait\">trait_a</td>", panel);
+        var request = new HttpRequestMessage(HttpMethod.Post, $"/dev/legacy/{id}/trait") { Content = Form(("trait", "trait_b"), ("on", "ship"), ("value", "1")) };
         request.Headers.Add("Origin", "https://elsewhere.example");
         Assert.Equal(HttpStatusCode.Forbidden, (await client.SendAsync(request)).StatusCode);
     }

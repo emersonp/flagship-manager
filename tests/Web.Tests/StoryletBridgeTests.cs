@@ -2,11 +2,12 @@ using System.Net;
 using System.Text.RegularExpressions;
 using Sim.Core;
 using Sim.Storylets;
+using Sim.Traits;
 
 namespace Web.Tests;
 
 // Storylets on the captain's itinerary, through the real app on a scratch copy of the fixture. The fixture's storylets are rare in
-// play, so each test sets flag_a to 1 as ENCOUNTER_01's partial does, at the end of the first resolution, and STORYLET_01 arrives
+// play, so each test sets trait_a to 1 as ENCOUNTER_01's partial does, at the end of the first resolution, and STORYLET_01 arrives
 // when the second cycle's itinerary opens (1e part two).
 public sealed class StoryletBridgeTests : IDisposable
 {
@@ -30,9 +31,9 @@ public sealed class StoryletBridgeTests : IDisposable
         return WebUtility.HtmlDecode(html);
     }
 
-    // Plays the first cycle to the end of resolution (sending a team unless told not to), sets flag_a as ENCOUNTER_01 would, then
+    // Plays the first cycle to the end of resolution (sending a team unless told not to), sets trait_a as ENCOUNTER_01 would, then
     // advances through the aftermath into the next itinerary by the page's own route.
-    private static async Task<(Guid Id, WebCaptain Captain)> ToItinerary(TestApp app, HttpClient client, bool sendTeam = true, string? flag = "flag_a")
+    private static async Task<(Guid Id, WebCaptain Captain)> ToItinerary(TestApp app, HttpClient client, bool sendTeam = true, string? flag = "trait_a")
     {
         Guid id = await app.CreateAtOrders("LEGACY", 1);
         Func<LegacyState, ICommand?>? nobody = sendTeam ? null : s => s.Phase == CyclePhase.Briefing ? new AdvancePhase() : null;
@@ -53,9 +54,9 @@ public sealed class StoryletBridgeTests : IDisposable
         {
             await app.Sessions.Run(app.Live, id, legacy =>
             {
-                StoryletsState storylets = legacy.State.Module<StoryletsState>(StoryletsModule.Name);
-                storylets.Flags.RemoveAll(f => f.Flag == flag && f.CrewId is null);
-                storylets.Flags.Add(new StoredFlag { Flag = flag, CrewId = null, Value = 1, SetAtWeek = legacy.State.Week, EncounterId = "ENCOUNTER_01" });
+                TraitsState traits = legacy.State.Module<TraitsState>(TraitsModule.Name);
+                traits.Traits.RemoveAll(t => t.Trait == flag && t.CrewId is null);
+                traits.Traits.Add(new StoredTrait { Trait = flag, CrewId = null, TargetId = null, Value = 1, ChangedAtWeek = legacy.State.Week, EncounterId = "ENCOUNTER_01" });
                 return legacy;
             });
         }
@@ -66,7 +67,7 @@ public sealed class StoryletBridgeTests : IDisposable
         return (id, captain);
     }
 
-    private Task<(Guid Id, WebCaptain Captain)> ToItinerary(bool sendTeam = true, string? flag = "flag_a")
+    private Task<(Guid Id, WebCaptain Captain)> ToItinerary(bool sendTeam = true, string? flag = "trait_a")
     {
         return ToItinerary(app, client, sendTeam, flag);
     }
@@ -109,7 +110,7 @@ public sealed class StoryletBridgeTests : IDisposable
         string matters = Matters(page);
         Assert.Contains(">Storylets</h2>", matters);
         Assert.Contains("STORYLET_01", matters);
-        Assert.Contains("From ENCOUNTER_01 · flag_a", matters);
+        Assert.Contains("From ENCOUNTER_01 · trait_a", matters);
         // The script: the captain's line, then the crew member best at SKILL_A among the fit.
         Assert.Matches("Captain</span> <span class=\"script__words\">STORYLET_01_LINE_1", matters);
         Assert.Matches("CREW_01</span> <span class=\"script__words\">STORYLET_01_LINE_2", matters);
@@ -164,7 +165,7 @@ public sealed class StoryletBridgeTests : IDisposable
         Assert.Contains("STORYLET_01", matters);
         Assert.Contains("STORYLET_01_OPTION_A_TEXT", matters);
         Assert.Contains($"<span class=\"fig-tag\">Loyalty {Minus}1 all crew</span>", matters);
-        Assert.Contains("<span class=\"fig-tag\">flag_a 1 to 0</span>", matters);
+        Assert.Contains("<span class=\"fig-tag\">trait_a 1 to 0</span>", matters);
         Assert.DoesNotContain("<form", matters);
         string advance = AdvanceButton(stream);
         Assert.Contains(">To orders</button>", advance);
@@ -184,7 +185,7 @@ public sealed class StoryletBridgeTests : IDisposable
         Assert.Contains(">Storylets</h2>", matters);
         Assert.Contains("STORYLET_01_OPTION_A_TEXT", matters);
         Assert.Contains($"Loyalty {Minus}1 all crew", matters);
-        Assert.Contains("flag_a 1 to 0", matters);
+        Assert.Contains("trait_a 1 to 0", matters);
         Assert.DoesNotContain("<form", matters);
     }
 
@@ -294,16 +295,16 @@ public sealed class StoryletBridgeTests : IDisposable
         Assert.DoesNotContain("SUBJECT_SHARED_LINE", script);
     }
 
-    private const string Bare = "- id: STORYLET_03\n  stakes: 1\n  scope: ship\n  requires:\n    - { flag: flag_a, min: 1, max: 1 }\n  options:\n"
-        + "    - { id: option_a, label: BARE_A, effects: [{ flag: flag_a, set: 0 }] }\n"
-        + "    - { id: option_b, label: BARE_B, effects: [{ flag: flag_a, set: 2 }] }\n";
+    private const string Bare = "- id: STORYLET_03\n  stakes: 1\n  scope: ship\n  requires:\n    - { trait: trait_a, min: 1, max: 1 }\n  options:\n"
+        + "    - { id: option_a, label: BARE_A, effects: [{ trait: trait_a, set: 0 }] }\n"
+        + "    - { id: option_b, label: BARE_B, effects: [{ trait: trait_a, set: 2 }] }\n";
 
     [Fact]
     public async Task A_storylet_with_no_words_shows_its_ids_and_can_be_answered()
     {
-        const string bare = "- id: STORYLET_03\n  stakes: 1\n  scope: ship\n  requires:\n    - { flag: flag_a, min: 1, max: 1 }\n  options:\n"
-            + "    - { id: option_a, label: BARE_A, effects: [{ flag: flag_a, set: 0 }] }\n"
-            + "    - { id: option_b, label: BARE_B, effects: [{ flag: flag_a, set: 2 }] }\n";
+        const string bare = "- id: STORYLET_03\n  stakes: 1\n  scope: ship\n  requires:\n    - { trait: trait_a, min: 1, max: 1 }\n  options:\n"
+            + "    - { id: option_a, label: BARE_A, effects: [{ trait: trait_a, set: 0 }] }\n"
+            + "    - { id: option_b, label: BARE_B, effects: [{ trait: trait_a, set: 2 }] }\n";
         using var bareApp = new TestApp(scratch: true, prepare: root => File.WriteAllText(Path.Combine(root, "storylets", "base.yaml"), bare));
         HttpClient bareClient = bareApp.NewClient();
         (Guid id, WebCaptain captain) = await ToItinerary(bareApp, bareClient);
@@ -318,6 +319,6 @@ public sealed class StoryletBridgeTests : IDisposable
         Assert.Equal("storylet", (await captain.Step()).Route);
         string settled = Matters(Entity(await bareClient.GetStringAsync($"/legacy/{id}")));
         Assert.Contains("option_a", Regex.Match(settled, "<div class=\"script\">.*?</div>", RegexOptions.Singleline).Value);
-        Assert.Contains("flag_a 1 to 0", settled);
+        Assert.Contains("trait_a 1 to 0", settled);
     }
 }

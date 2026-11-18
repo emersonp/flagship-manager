@@ -331,10 +331,10 @@ public sealed class ContentTextFilesTests(RepoContentGuard guard) : IClassFixtur
         }
     }
 
-    // A storylet that reads flag_z, which nothing raises, and flag_a, which ENCOUNTER_01 raises; flag_b, which ENCOUNTER_04 raises, goes unread.
-    private const string Unmatched = "- id: STORYLET_09\n  stakes: 1\n  scope: ship\n  requires:\n    - { flag: flag_z, min: 1 }\n    - { flag: flag_a, max: 5 }\n  options:\n"
-        + "    - { id: option_a, label: LABEL_A, effects: [{ flag: flag_z, set: 0 }] }\n"
-        + "    - { id: option_b, label: LABEL_B, effects: [{ flag: flag_z, set: 0 }] }\n";
+    // A storylet that reads flag_z, which nothing raises, and trait_a, which ENCOUNTER_01 raises; trait_b, which ENCOUNTER_04 raises, goes unread.
+    private const string Unmatched = "- id: STORYLET_09\n  stakes: 1\n  scope: ship\n  requires:\n    - { trait: flag_z, min: 1 }\n    - { trait: trait_a, max: 5 }\n  options:\n"
+        + "    - { id: option_a, label: LABEL_A, effects: [{ trait: flag_z, set: 0 }] }\n"
+        + "    - { id: option_b, label: LABEL_B, effects: [{ trait: flag_z, set: 0 }] }\n";
 
     [Fact]
     public async Task The_storylets_page_says_the_form_comes_later_and_the_file_is_checked_on_save()
@@ -381,7 +381,7 @@ public sealed class ContentTextFilesTests(RepoContentGuard guard) : IClassFixtur
     }
 
     [Fact]
-    public async Task The_storylets_page_warns_of_a_flag_nothing_sets_and_one_nothing_reads_and_still_saves()
+    public async Task The_storylets_page_warns_of_a_trait_nothing_sets_and_one_nothing_reads_and_still_saves()
     {
         using TestApp app = NewApp();
 
@@ -393,8 +393,8 @@ public sealed class ContentTextFilesTests(RepoContentGuard guard) : IClassFixtur
         foreach (string shown in new[] { WebUtility.HtmlDecode(body), WebUtility.HtmlDecode(page) })
         {
             Assert.Contains("Nothing sets flag_z on the ship, which STORYLET_09 requires.", shown);
-            Assert.Contains("Nothing reads flag_b, which ENCOUNTER_04 sets.", shown);
-            Assert.DoesNotContain("Nothing reads flag_a", shown);
+            Assert.Contains("Nothing reads trait_b, which ENCOUNTER_04 sets.", shown);
+            Assert.DoesNotContain("Nothing reads trait_a", shown);
             // The warnings sit under the text.
             Assert.True(shown.IndexOf("</textarea>", StringComparison.Ordinal) < shown.IndexOf("Nothing sets flag_z on the ship", StringComparison.Ordinal));
         }
@@ -405,9 +405,9 @@ public sealed class ContentTextFilesTests(RepoContentGuard guard) : IClassFixtur
     public async Task A_requirement_that_holds_at_zero_is_not_warned_of()
     {
         using TestApp app = NewApp();
-        string typed = "- id: STORYLET_09\n  stakes: 1\n  scope: ship\n  requires:\n    - { flag: flag_a, min: 1 }\n    - { flag: flag_y, max: 2 }\n    - { flag: flag_b, min: 0 }\n  options:\n"
-            + "    - { id: option_a, label: LABEL_A, effects: [{ flag: flag_a, set: 0 }] }\n"
-            + "    - { id: option_b, label: LABEL_B, effects: [{ flag: flag_a, set: 0 }] }\n";
+        string typed = "- id: STORYLET_09\n  stakes: 1\n  scope: ship\n  requires:\n    - { trait: trait_a, min: 1 }\n    - { trait: flag_y, max: 2 }\n    - { trait: trait_b, min: 0 }\n  options:\n"
+            + "    - { id: option_a, label: LABEL_A, effects: [{ trait: trait_a, set: 0 }] }\n"
+            + "    - { id: option_b, label: LABEL_B, effects: [{ trait: trait_a, set: 0 }] }\n";
 
         (HttpStatusCode status, string body) = await Post(app.NewClient(), "/dev/content/files/storylets", Body(typed));
 
@@ -415,40 +415,40 @@ public sealed class ContentTextFilesTests(RepoContentGuard guard) : IClassFixtur
         Assert.DoesNotContain("Nothing sets", body);
     }
 
-    // flag_a is raised only on the ship (ENCOUNTER_01) and flag_b only on crew (ENCOUNTER_04), so each scope's requirement can miss the other's.
+    // trait_a is raised only on the ship (ENCOUNTER_01) and trait_b only on crew (ENCOUNTER_04), so each scope's requirement can miss the other's.
     [Fact]
-    public async Task A_flag_required_on_a_scope_nothing_raises_it_on_is_warned_of_for_each_scope()
+    public async Task A_trait_required_on_a_scope_nothing_raises_it_on_is_warned_of_for_each_scope()
     {
         using TestApp app = NewApp();
-        string typed = "- id: STORYLET_09\n  stakes: 1\n  scope: ship\n  requires:\n    - { flag: flag_b, min: 1 }\n  options:\n"
-            + "    - { id: option_a, label: LABEL_A, effects: [{ flag: flag_b, set: 0 }] }\n"
-            + "    - { id: option_b, label: LABEL_B, effects: [{ flag: flag_b, set: 0 }] }\n"
-            + "- id: STORYLET_10\n  stakes: 1\n  scope: crew\n  requires:\n    - { flag: flag_a, min: 1 }\n  options:\n"
-            + "    - { id: option_a, label: LABEL_A, effects: [{ flag: flag_a, set: 0 }] }\n"
-            + "    - { id: option_b, label: LABEL_B, effects: [{ flag: flag_a, set: 0 }] }\n";
+        string typed = "- id: STORYLET_09\n  stakes: 1\n  scope: ship\n  requires:\n    - { trait: trait_b, min: 1 }\n  options:\n"
+            + "    - { id: option_a, label: LABEL_A, effects: [{ trait: trait_b, set: 0 }] }\n"
+            + "    - { id: option_b, label: LABEL_B, effects: [{ trait: trait_b, set: 0 }] }\n"
+            + "- id: STORYLET_10\n  stakes: 1\n  scope: crew\n  requires:\n    - { trait: trait_a, min: 1 }\n  options:\n"
+            + "    - { id: option_a, label: LABEL_A, effects: [{ trait: trait_a, set: 0 }] }\n"
+            + "    - { id: option_b, label: LABEL_B, effects: [{ trait: trait_a, set: 0 }] }\n";
 
         (HttpStatusCode status, string body) = await Post(app.NewClient(), "/dev/content/files/storylets", Body(typed));
 
         Assert.Equal(HttpStatusCode.OK, status);
         string shown = WebUtility.HtmlDecode(body);
-        Assert.Contains("Nothing sets flag_b on the ship, which STORYLET_09 requires.", shown);
-        Assert.Contains("Nothing sets flag_a on a crew member, which STORYLET_10 requires.", shown);
+        Assert.Contains("Nothing sets trait_b on the ship, which STORYLET_09 requires.", shown);
+        Assert.Contains("Nothing sets trait_a on a crew member, which STORYLET_10 requires.", shown);
     }
 
     // A storylet's own raise counts on its own scope, and "subject" is always crew.
     [Fact]
-    public async Task A_flag_a_storylet_raises_counts_on_its_own_scope_and_subject_counts_as_crew()
+    public async Task A_trait_a_storylet_raises_counts_on_its_own_scope_and_subject_counts_as_crew()
     {
         using TestApp app = NewApp();
-        string typed = "- id: STORYLET_09\n  stakes: 1\n  scope: ship\n  requires:\n    - { flag: flag_a, min: 1 }\n  options:\n"
-            + "    - { id: option_a, label: LABEL_A, effects: [{ flag: flag_q, set: 1 }, { flag: flag_r, add: 1, on: subject }] }\n"
-            + "    - { id: option_b, label: LABEL_B, effects: [{ flag: flag_q, set: 1 }] }\n"
-            + "- id: STORYLET_10\n  stakes: 1\n  scope: ship\n  requires:\n    - { flag: flag_q, min: 1 }\n  options:\n"
-            + "    - { id: option_a, label: LABEL_A, effects: [{ flag: flag_q, set: 0 }] }\n"
-            + "    - { id: option_b, label: LABEL_B, effects: [{ flag: flag_q, set: 0 }] }\n"
-            + "- id: STORYLET_11\n  stakes: 1\n  scope: crew\n  requires:\n    - { flag: flag_r, min: 1 }\n  options:\n"
-            + "    - { id: option_a, label: LABEL_A, effects: [{ flag: flag_r, set: 0 }] }\n"
-            + "    - { id: option_b, label: LABEL_B, effects: [{ flag: flag_r, set: 0 }] }\n";
+        string typed = "- id: STORYLET_09\n  stakes: 1\n  scope: ship\n  requires:\n    - { trait: trait_a, min: 1 }\n  options:\n"
+            + "    - { id: option_a, label: LABEL_A, effects: [{ trait: flag_q, set: 1 }, { trait: flag_r, add: 1, on: subject }] }\n"
+            + "    - { id: option_b, label: LABEL_B, effects: [{ trait: flag_q, set: 1 }] }\n"
+            + "- id: STORYLET_10\n  stakes: 1\n  scope: ship\n  requires:\n    - { trait: flag_q, min: 1 }\n  options:\n"
+            + "    - { id: option_a, label: LABEL_A, effects: [{ trait: flag_q, set: 0 }] }\n"
+            + "    - { id: option_b, label: LABEL_B, effects: [{ trait: flag_q, set: 0 }] }\n"
+            + "- id: STORYLET_11\n  stakes: 1\n  scope: crew\n  requires:\n    - { trait: flag_r, min: 1 }\n  options:\n"
+            + "    - { id: option_a, label: LABEL_A, effects: [{ trait: flag_r, set: 0 }] }\n"
+            + "    - { id: option_b, label: LABEL_B, effects: [{ trait: flag_r, set: 0 }] }\n";
 
         (_, string body) = await Post(app.NewClient(), "/dev/content/files/storylets", Body(typed));
 

@@ -60,7 +60,7 @@
   name: A ghost on the night watch
   scope: ship
   requires:
-    - { flag: sensors_quirk, min: 2, max: 2 }
+    - { trait: sensors_quirk, min: 2, max: 2 }
   text: |-
     > Forward array: contact, bearing two-one-zero. Gone on the second sweep.
     best SKILL_A: Ghost again. Logging it with the others.

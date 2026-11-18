@@ -264,13 +264,13 @@ public class ContentFaithfulnessTests : IClassFixture<RepoContentGuard>
 
     // Add, set, and each target, on outcomes and on answers, are kept by a rewrite.
     [Fact]
-    public void Flag_changes_on_outcomes_and_answers_write_and_read_back_equal()
+    public void Trait_changes_on_outcomes_and_answers_write_and_read_back_equal()
     {
         ContentFileSet repo = Repo();
         string text = EditBlock(repo.Files["encounters/base.yaml"], Enc2, b => b
-            .Replace(Enc2Fast, "    - { id: fast, name: APPROACH_B_NAME, skill: SKILL_B, difficulty: 6, outcomes: { partial: [{ strain: 1 }, { on: actor, add: -1, flag: flag_a }], failure: [{ flag: flag_b, set: 0, on: team }] } }\n")
-            .Replace("bold: [{ progress: 1 }, { injuryRoll: light }]", "bold: [{ progress: 1, flag: flag_c, set: 2, on: lead }, { injuryRoll: light }]")
-            .Replace("safe: [{ strain: -1 }]", "safe: [{ strain: -1 }, { flag: flag_a, add: 1, on: ship }]"));
+            .Replace(Enc2Fast, "    - { id: fast, name: APPROACH_B_NAME, skill: SKILL_B, difficulty: 6, outcomes: { partial: [{ strain: 1 }, { on: actor, add: -1, trait: trait_a }], failure: [{ trait: trait_b, set: 0, on: team }] } }\n")
+            .Replace("bold: [{ progress: 1 }, { injuryRoll: light }]", "bold: [{ progress: 1, trait: trait_c, set: 2, on: lead }, { injuryRoll: light }]")
+            .Replace("safe: [{ strain: -1 }]", "safe: [{ strain: -1 }, { trait: trait_a, add: 1, on: ship }]"));
         ContentFileSet files = ContentEdits.ReplaceText(repo, "encounters/base.yaml", text);
         EncounterModel model = (EncounterModel)ModelOf(files, ContentKind.Encounter, "ENCOUNTER_02");
 
@@ -279,17 +279,17 @@ public class ContentFaithfulnessTests : IClassFixture<RepoContentGuard>
         ContentFileSet canonical = ContentEdits.Canonicalize(files);
         Assert.Equal(JsonSerializer.Serialize(model), JsonSerializer.Serialize(ModelOf(canonical, ContentKind.Encounter, "ENCOUNTER_02")));
         Assert.Equal(JsonSerializer.Serialize(files.Validate().Pack, SimJson.Options), JsonSerializer.Serialize(canonical.Validate().Pack, SimJson.Options));
-        Assert.Contains("{ flag: flag_a, add: -1, on: actor }", canonical.Files["encounters/base.yaml"], StringComparison.Ordinal);
+        Assert.Contains("{ trait: trait_a, add: -1, on: actor }", canonical.Files["encounters/base.yaml"], StringComparison.Ordinal);
     }
 
-    // The form holds one flag change a tier, so an outcome with two is marked as content the editor cannot keep. The reader and writer
+    // The form holds one trait change a tier, so an outcome with two is marked as content the editor cannot keep. The reader and writer
     // still keep it: replacing the item with its own model writes both back.
     [Fact]
-    public void An_outcome_with_two_flag_changes_reads_back_equal_and_is_marked_as_one_the_form_cannot_keep()
+    public void An_outcome_with_two_trait_changes_reads_back_equal_and_is_marked_as_one_the_form_cannot_keep()
     {
         ContentFileSet repo = Repo();
         string text = EditBlock(repo.Files["encounters/base.yaml"], Enc2, b => b
-            .Replace(Enc2Fast, "    - { id: fast, name: APPROACH_B_NAME, skill: SKILL_B, difficulty: 6, outcomes: { partial: [{ flag: flag_a, add: 1, on: ship }, { flag: flag_b, set: 1, on: actor }] } }\n"));
+            .Replace(Enc2Fast, "    - { id: fast, name: APPROACH_B_NAME, skill: SKILL_B, difficulty: 6, outcomes: { partial: [{ trait: trait_a, add: 1, on: ship }, { trait: trait_b, set: 1, on: actor }] } }\n"));
         ContentFileSet files = ContentEdits.ReplaceText(repo, "encounters/base.yaml", text);
         EncounterModel model = (EncounterModel)ModelOf(files, ContentKind.Encounter, "ENCOUNTER_02");
 
@@ -300,7 +300,7 @@ public class ContentFaithfulnessTests : IClassFixture<RepoContentGuard>
         ContentFileSet replaced = ContentEdits.Upsert(files, ContentKind.Encounter, model);
         Assert.Equal(files.Files["encounters/base.yaml"], replaced.Files["encounters/base.yaml"]);
         Assert.Equal(JsonSerializer.Serialize(model), JsonSerializer.Serialize(ModelOf(replaced, ContentKind.Encounter, "ENCOUNTER_02")));
-        Assert.Equal(2, files.Validate().Pack!.Encounters.Single(e => e.Id == "ENCOUNTER_02").Approaches[1].Outcomes["partial"].Flags!.Count);
+        Assert.Equal(2, files.Validate().Pack!.Encounters.Single(e => e.Id == "ENCOUNTER_02").Approaches[1].Outcomes["partial"].Traits!.Count);
     }
 
     // An outcome the file lists empty is not the same as one it leaves out, so dropping it would be a loss.

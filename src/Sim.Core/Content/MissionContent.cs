@@ -13,14 +13,14 @@ public sealed record RequirementDef(string? Skill, int Level, string? Gear);
 public sealed record ApproachDef(string Id, string Skill, int Difficulty, string? GearTag,
     IReadOnlyList<RequirementDef> Requires, IReadOnlyDictionary<string, EffectDef> Outcomes, string? Name = null);
 
-// One change to a story flag. On is "ship", "actor", "lead", or "team" in a mission's effects. Set false means add.
-public sealed record FlagChange(string Flag, int Amount, bool Set, string On);
+// One change to a trait. On is "ship", "actor", "lead", or "team" in a mission's effects. Set false means add.
+public sealed record TraitChange(string Trait, int Amount, bool Set, string On);
 
-// What a decision option does. Fields are additive, so several effects fold into one record. Flags is null, never empty, when there are
-// none, so that two effects without flags still compare equal (a record compares a list by reference).
-public sealed record EffectDef(int Momentum = 0, int Strain = 0, int Progress = 0, InjurySeverity? InjuryRoll = null, bool Withdraw = false, IReadOnlyList<FlagChange>? Flags = null);
+// What a decision option does. Fields are additive, so several effects fold into one record. Traits is null, never empty, when there are
+// none, so that two effects without traits still compare equal (a record compares a list by reference).
+public sealed record EffectDef(int Momentum = 0, int Strain = 0, int Progress = 0, InjurySeverity? InjuryRoll = null, bool Withdraw = false, IReadOnlyList<TraitChange>? Traits = null);
 
-public static class FlagIds
+public static class TraitOn
 {
     // On is one of these in a mission's effects; actor only in an approach's outcome.
     public const string Ship = "ship";

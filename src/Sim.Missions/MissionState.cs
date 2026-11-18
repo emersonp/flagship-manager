@@ -73,8 +73,8 @@ public sealed class MissionState
 
     public required int Initiatives { get; set; }
 
-    // Every flag change made so far, in order; the result carries them.
-    public required List<MissionFlag> Flags { get; set; }
+    // Every trait change made so far, in order; the result carries them.
+    public required List<MissionTrait> Traits { get; set; }
 }
 
 public static class MissionJson

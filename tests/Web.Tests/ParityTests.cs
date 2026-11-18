@@ -80,7 +80,7 @@ public sealed class ParityTests : IDisposable
     }
 
     // The fixture's storylets arrive about 0.2 times in 100 cycles, so this copy is edited as tests/browser/play.sh edits it:
-    // STORYLET_01 holds while flag_a is 5 or less, so it is offered in the first aftermath and answered there.
+    // STORYLET_01 holds while trait_a is 5 or less, so it is offered in the first aftermath and answered there.
     [Theory]
     [InlineData(1UL)]
     [InlineData(2UL)]
@@ -92,9 +92,9 @@ public sealed class ParityTests : IDisposable
             string text = File.ReadAllText(path);
             foreach ((string old, string now) in new[]
             {
-                ("- { flag: flag_a, min: 1, max: 1 }", "- { flag: flag_a, max: 5 }"),
-                ("effects: [{ flag: flag_a, set: 0 }, { loyalty: -1, on: crew }]", "effects: [{ flag: flag_a, set: 9 }, { loyalty: -1, on: crew }]"),
-                ("effects: [{ flag: flag_a, set: 2 }]", "effects: [{ flag: flag_a, set: 9 }]"),
+                ("- { trait: trait_a, min: 1, max: 1 }", "- { trait: trait_a, max: 5 }"),
+                ("effects: [{ trait: trait_a, set: 0 }, { loyalty: -1, on: crew }]", "effects: [{ trait: trait_a, set: 9 }, { loyalty: -1, on: crew }]"),
+                ("effects: [{ trait: trait_a, set: 2 }]", "effects: [{ trait: trait_a, set: 9 }]"),
             })
             {
                 Assert.Contains(old, text);

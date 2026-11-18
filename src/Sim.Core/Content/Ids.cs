@@ -17,7 +17,7 @@ public static partial class Ids
         return ItemPattern().IsMatch(id);
     }
 
-    // Approaches, options, flags, symbols, pronoun sets, and tags: what lives inside an item or is typed into text.
+    // Approaches, options, traits, symbols, pronoun sets, and tags: what lives inside an item or is typed into text.
     public static bool IsInnerId(string id)
     {
         return InnerPattern().IsMatch(id);

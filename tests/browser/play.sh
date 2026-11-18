@@ -63,15 +63,15 @@ dotnet build --nologo -v quiet "$root/src/Web" > "$tmp/build.log" 2>&1 || { cat 
 
 # The app reads a scratch copy of the tests' placeholder pack, never the game's content/.
 cp -r "$root/tests/fixtures/content" "$tmp/content"
-# In the copy STORYLET_01 holds while flag_a is 5 or less, so it waits in the first aftermath whatever the mission did; either answer ends it.
+# In the copy STORYLET_01 holds while trait_a is 5 or less, so it waits in the first aftermath whatever the mission did; either answer ends it.
 python3 - "$tmp/content/storylets/base.yaml" <<'PY'
 import sys
 path = sys.argv[1]
 text = open(path, encoding="utf-8").read()
 edits = [
-    ("- { flag: flag_a, min: 1, max: 1 }", "- { flag: flag_a, max: 5 }"),
-    ("effects: [{ flag: flag_a, set: 0 }, { loyalty: -1, on: crew }]", "effects: [{ flag: flag_a, set: 9 }, { loyalty: -1, on: crew }]"),
-    ("effects: [{ flag: flag_a, set: 2 }]", "effects: [{ flag: flag_a, set: 9 }]"),
+    ("- { trait: trait_a, min: 1, max: 1 }", "- { trait: trait_a, max: 5 }"),
+    ("effects: [{ trait: trait_a, set: 0 }, { loyalty: -1, on: crew }]", "effects: [{ trait: trait_a, set: 9 }, { loyalty: -1, on: crew }]"),
+    ("effects: [{ trait: trait_a, set: 2 }]", "effects: [{ trait: trait_a, set: 9 }]"),
 ]
 for old, new in edits:
     assert text.count(old) == 1, old

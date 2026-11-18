@@ -4,7 +4,7 @@
 @* One tab for each approach, holding what is said before its check and, for each tier, what the log says and what happens. The tab
    shown is a local signal, so switching posts nothing; every panel stays in the form, so one save sends them all. The shown tab
    is posted with the form, so a row change or a save draws the page on the same one. Left, Right, Home, and End move between
-   tabs (the ARIA tabs pattern). Like every button, a tab waits while a request is in flight: its answer draws the tab that was posted. An outcome left alone shows its default; ticking Change shows its fields: four for its effect and four for one flag change (app.css). *@
+   tabs (the ARIA tabs pattern). Like every button, a tab waits while a request is in flight: its answer draws the tab that was posted. An outcome left alone shows its default; ticking Change shows its fields: four for its effect and four for one trait change (app.css). *@
 <div class="tabs" id="approach-tabs" data-signals:_tab="@Shown" data-init="@View.Fresh($"$_tab = {Shown}")" data-on:input__debounce.700ms="@Refresh">
     <input type="hidden" name="@EncounterKind.TabField" value="@Shown" data-attr:value="$_tab">
     <h3 class="sub" id="h-approach-tabs">Words and outcomes, by approach</h3>
@@ -64,10 +64,10 @@
                             <Field Name="@Name("strain")" Label="Strain" AriaLabel="@($"Strain, {outcome}")" Value="@Value("strain")" Error="@View.Error(Name("strain"))" Numeric="true" />
                             <Field Name="@Name("momentum")" Label="Momentum" AriaLabel="@($"Momentum, {outcome}")" Value="@Value("momentum")" Error="@View.Error(Name("momentum"))" Numeric="true" />
                             <Field Name="@Name("injury")" Label="Injury roll" AriaLabel="@($"Injury roll, {outcome}")" Value="@Value("injury")" Options="Severities" Placeholder="None" Error="@View.Error(Name("injury"))" />
-                            <Field Name="@Name("flag")" Label="Flag" AriaLabel="@($"Flag, {outcome}")" Value="@Value("flag")" Error="@View.Error(Name("flag"))" />
-                            <Field Name="@Name("flagMode")" Label="Add or set" AriaLabel="@($"Add or set, {outcome}")" Value="@Value("flagMode")" Options="EncounterKind.FlagModes" Error="@View.Error(Name("flagMode"))" />
-                            <Field Name="@Name("flagAmount")" Label="Amount" AriaLabel="@($"Flag amount, {outcome}")" Value="@Value("flagAmount")" Error="@View.Error(Name("flagAmount"))" Numeric="true" />
-                            <Field Name="@Name("flagOn")" Label="On" AriaLabel="@($"Flag on, {outcome}")" Value="@Value("flagOn")" Options="EncounterKind.OutcomeTargets" Error="@View.Error(Name("flagOn"))" />
+                            <Field Name="@Name("trait")" Label="Trait" AriaLabel="@($"Trait, {outcome}")" Value="@Value("trait")" Error="@View.Error(Name("trait"))" />
+                            <Field Name="@Name("traitMode")" Label="Add or set" AriaLabel="@($"Add or set, {outcome}")" Value="@Value("traitMode")" Options="EncounterKind.TraitModes" Error="@View.Error(Name("traitMode"))" />
+                            <Field Name="@Name("traitAmount")" Label="Amount" AriaLabel="@($"Trait amount, {outcome}")" Value="@Value("traitAmount")" Error="@View.Error(Name("traitAmount"))" Numeric="true" />
+                            <Field Name="@Name("traitOn")" Label="On" AriaLabel="@($"Trait on, {outcome}")" Value="@Value("traitOn")" Options="EncounterKind.OutcomeTargets" Error="@View.Error(Name("traitOn"))" />
                         </div>
                     </div>
                 </div>

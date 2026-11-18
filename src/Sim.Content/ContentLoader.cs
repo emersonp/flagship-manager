@@ -237,6 +237,9 @@ public static partial class ContentLoader
     }
 
     // A rule string read mid-sentence: "Lower case: ..." becomes "lower case: ...".
+    // The key effects and requirements wrote before slice 1e, part three.
+    private const string FlagIsNowTrait = "'flag' is now 'trait' (GDD section 15, item 40).";
+
     private static string Said(string rule)
     {
         return char.ToLowerInvariant(rule[0]) + rule[1..];

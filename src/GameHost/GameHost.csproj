@@ -6,6 +6,7 @@
     <ProjectReference Include="..\Sim.Crew\Sim.Crew.csproj" />
     <ProjectReference Include="..\Sim.Missions\Sim.Missions.csproj" />
     <ProjectReference Include="..\Sim.Storylets\Sim.Storylets.csproj" />
+    <ProjectReference Include="..\Sim.Traits\Sim.Traits.csproj" />
   </ItemGroup>
 
 </Project>

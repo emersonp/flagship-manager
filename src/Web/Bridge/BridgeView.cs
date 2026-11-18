@@ -86,7 +86,7 @@ public sealed record ItineraryView(int CaptainsTime, IReadOnlyList<StoryletView>
 public sealed record VignetteView(string OfferId, string Title, string? About, IReadOnlyList<ProseEntry> Script, IReadOnlyList<StoryletOptionView> Options,
     string? DefaultLabel, bool Settled, IReadOnlyList<ProseEntry> Said, IReadOnlyList<string> Tags, bool Defaulted = false);
 
-// A storylet waiting for an answer. From says where it came from ("From ENCOUNTER_01 · flag_a"), when an encounter set its flag.
+// A storylet waiting for an answer. From says where it came from ("From ENCOUNTER_01 · trait_a"), when an encounter set its trait.
 public sealed record StoryletView(string OfferId, string Title, string? From, IReadOnlyList<ProseEntry> Script, IReadOnlyList<StoryletOptionView> Options);
 
 public sealed record StoryletOptionView(string Id, string Label);

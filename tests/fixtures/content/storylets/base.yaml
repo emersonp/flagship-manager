@@ -3,24 +3,24 @@
   stakes: 2
   scope: ship
   requires:
-    - { flag: flag_a, min: 1, max: 1 }
+    - { trait: trait_a, min: 1, max: 1 }
   text: |-
     captain: STORYLET_01_LINE_1
     best SKILL_A: STORYLET_01_LINE_2
     = #storylet# STORYLET_01_REPORT
   options:
-    - { id: option_a, label: STORYLET_01_OPTION_A_LABEL, effects: [{ flag: flag_a, set: 0 }, { loyalty: -1, on: crew }], text: STORYLET_01_OPTION_A_TEXT }
-    - { id: option_b, label: STORYLET_01_OPTION_B_LABEL, effects: [{ flag: flag_a, set: 2 }], text: STORYLET_01_OPTION_B_TEXT }
+    - { id: option_a, label: STORYLET_01_OPTION_A_LABEL, effects: [{ trait: trait_a, set: 0 }, { loyalty: -1, on: crew }], text: STORYLET_01_OPTION_A_TEXT }
+    - { id: option_b, label: STORYLET_01_OPTION_B_LABEL, effects: [{ trait: trait_a, set: 2 }], text: STORYLET_01_OPTION_B_TEXT }
 - id: STORYLET_02
   stakes: 1
   scope: crew
   requires:
-    - { flag: flag_b, min: 1 }
-    - { flag: flag_c, max: 0 }
+    - { trait: trait_b, min: 1 }
+    - { trait: trait_c, max: 0 }
   text: |-
     subject: STORYLET_02_LINE_1
     captain: STORYLET_02_LINE_2
     = #subject# STORYLET_02_REPORT
   options:
-    - { id: option_a, label: STORYLET_02_OPTION_A_LABEL, effects: [{ flag: flag_b, add: -1 }, { flag: flag_c, set: 1 }], text: STORYLET_02_OPTION_A_TEXT }
-    - { id: option_b, label: STORYLET_02_OPTION_B_LABEL, effects: [{ flag: flag_c, set: 2 }, { loyalty: -2, on: subject }], text: "#subject# STORYLET_02_OPTION_B_TEXT" }
+    - { id: option_a, label: STORYLET_02_OPTION_A_LABEL, effects: [{ trait: trait_b, add: -1 }, { trait: trait_c, set: 1 }], text: STORYLET_02_OPTION_A_TEXT }
+    - { id: option_b, label: STORYLET_02_OPTION_B_LABEL, effects: [{ trait: trait_c, set: 2 }, { loyalty: -2, on: subject }], text: "#subject# STORYLET_02_OPTION_B_TEXT" }

@@ -4,17 +4,18 @@ using Sim.Core.Content;
 using Sim.Crew;
 using Sim.Cycle;
 using Sim.Storylets;
+using Sim.Traits;
 
 namespace Sim.Tests;
 
 public class StoryletsModuleTests
 {
-    private const string Encounter = "ENCOUNTER_01";
+    internal const string Encounter = "ENCOUNTER_01";
 
-    private sealed record EndMission(MissionResult Result) : ICommand;
+    internal sealed record EndMission(MissionResult Result) : ICommand;
 
-    // Cycle, crew, and storylets on one bus; a test command stands in for the missions module's end of a mission.
-    private sealed class Harness
+    // Cycle, crew, traits, and storylets on one bus; a test command stands in for the missions module's end of a mission.
+    internal sealed class Harness
     {
         public Harness(ContentPack pack)
         {
@@ -28,6 +29,8 @@ public class StoryletsModuleTests
         public LegacyState State { get; }
 
         public StoryletsState Storylets => State.Module<StoryletsState>(StoryletsModule.Name);
+
+        public TraitsState Traits => State.Module<TraitsState>(TraitsModule.Name);
 
         public CrewState Crew => State.Module<CrewState>(CrewModule.Name);
 
@@ -60,23 +63,23 @@ public class StoryletsModuleTests
             return events;
         }
 
-        public List<IEvent> End(MissionFlag[] flags, params CrewResult[] crew)
+        public List<IEvent> End(MissionTrait[] traits, params CrewResult[] crew)
         {
-            return Send(new EndMission(new MissionResult(MissionOutcome.PartialSuccess, 1, 2, 0, 0, crew, flags)));
+            return Send(new EndMission(new MissionResult(MissionOutcome.PartialSuccess, 1, 2, 0, 0, crew, traits)));
         }
 
-        // A mission that changes these flags, then the next cycle's itinerary, where its storylets arrive; the events of both.
-        public List<IEvent> Mission(params MissionFlag[] flags)
+        // A mission that changes these traits, then the next cycle's itinerary, where its storylets arrive; the events of both.
+        public List<IEvent> Mission(params MissionTrait[] traits)
         {
             var events = To(CyclePhase.Resolution);
-            events.AddRange(End(flags));
+            events.AddRange(End(traits));
             events.AddRange(To(CyclePhase.Itinerary));
             return events;
         }
 
-        public int Flag(string flag, string? crewId = null)
+        public int Trait(string trait, string? crewId = null, string? targetId = null)
         {
-            return Storylets.Flags.FirstOrDefault(f => f.Flag == flag && f.CrewId == crewId)?.Value ?? 0;
+            return Traits.Traits.FirstOrDefault(t => t.Trait == trait && t.CrewId == crewId && t.TargetId == targetId)?.Value ?? 0;
         }
 
         public List<string> Waiting => Storylets.Waiting.Select(w => w.OfferId).ToList();
@@ -86,123 +89,69 @@ public class StoryletsModuleTests
             var bus = new EventBus();
             CycleModule.Register(bus);
             CrewModule.Register(bus, pack);
+            TraitsModule.Register(bus, pack);
             StoryletsModule.Register(bus, pack);
             bus.Handle<EndMission>((command, context) => context.Publish(new MissionEnded("MISSION_1", "OBJECTIVE_1", command.Result)));
             return bus;
         }
     }
 
-    private static ContentPack Pack(int perCycle, params StoryletDef[] storylets)
+    internal static ContentPack Pack(int perCycle, params StoryletDef[] storylets)
     {
         // No vignettes: their arrivals and effects belong to their own tests.
         return TestContent.Pack with { Storylets = storylets, StoryletsPerCycle = perCycle, Vignettes = [] };
     }
 
-    private static StoryletDef Ship(string id, int stakes, Requirement[] requires, params StoryletOption[] options)
+    internal static StoryletDef Ship(string id, int stakes, Requirement[] requires, params StoryletOption[] options)
     {
         return new StoryletDef(id, stakes, StoryletScopes.Ship, requires, options);
     }
 
-    private static StoryletDef Crew(string id, int stakes, Requirement[] requires, params StoryletOption[] options)
+    internal static StoryletDef Crew(string id, int stakes, Requirement[] requires, params StoryletOption[] options)
     {
         return new StoryletDef(id, stakes, StoryletScopes.Crew, requires, options);
     }
 
-    private static StoryletOption Option(string id, params StoryletEffect[] effects)
+    internal static StoryletOption Option(string id, params StoryletEffect[] effects)
     {
         return new StoryletOption(id, id.ToUpperInvariant(), effects);
     }
 
-    private static StoryletEffect Set(string flag, int value, string on = "")
+    internal static StoryletEffect Set(string trait, int value, string on = "")
     {
-        return new StoryletEffect(Flag: new FlagChange(flag, value, true, on));
+        return new StoryletEffect(Trait: new TraitChange(trait, value, true, on));
     }
 
-    private static StoryletEffect Add(string flag, int amount, string on = "")
+    internal static StoryletEffect Add(string trait, int amount, string on = "")
     {
-        return new StoryletEffect(Flag: new FlagChange(flag, amount, false, on));
+        return new StoryletEffect(Trait: new TraitChange(trait, amount, false, on));
     }
 
-    private static StoryletEffect Loyalty(int amount, string on)
+    internal static StoryletEffect Loyalty(int amount, string on)
     {
         return new StoryletEffect(Loyalty: amount, LoyaltyOn: on);
     }
 
-    private static MissionFlag Raise(string flag, int amount, string? crewId = null, string encounter = Encounter)
+    internal static MissionTrait Raise(string trait, int amount, string? crewId = null, string encounter = Encounter)
     {
-        return new MissionFlag(flag, amount, false, crewId, encounter);
+        return new MissionTrait(trait, amount, false, crewId, encounter);
     }
 
-    private static MissionFlag Fix(string flag, int value, string? crewId = null, string encounter = Encounter)
+    internal static MissionTrait Fix(string trait, int value, string? crewId = null, string encounter = Encounter)
     {
-        return new MissionFlag(flag, value, true, crewId, encounter);
+        return new MissionTrait(trait, value, true, crewId, encounter);
     }
 
-    private static CrewResult Died(string id)
+    internal static CrewResult Died(string id)
     {
         return new CrewResult(id, MemberStatus.Dead, 0, new Dictionary<string, double>(), 0);
     }
 
-    // The ship storylet of the fixture: flag_a at 1, cleared or moved on to 2.
-    private static readonly StoryletDef Quirk = Ship("STORYLET_QUIRK", 2, [new FlagRange("flag_a", 1, 1)], Option("clear", Set("flag_a", 0)), Option("ride", Set("flag_a", 2)));
+    // The ship storylet of the fixture: trait_a at 1, cleared or moved on to 2.
+    internal static readonly StoryletDef Quirk = Ship("STORYLET_QUIRK", 2, [new TraitRange("trait_a", 1, 1)], Option("clear", Set("trait_a", 0)), Option("ride", Set("trait_a", 2)));
 
-    // A crew storylet: flag_b at 1 or more on someone.
-    private static readonly StoryletDef Shaken = Crew("STORYLET_SHAKEN", 3, [new FlagRange("flag_b", 1, null)], Option("calm", Add("flag_b", -1)), Option("ignore", Set("flag_b", 0)));
-
-    [Fact]
-    public void A_missions_flag_is_stored_with_the_week_and_the_encounter()
-    {
-        var h = new Harness(Pack(2));
-        h.To(CyclePhase.Advance);
-        h.To(CyclePhase.Resolution);
-
-        List<IEvent> events = h.End([Raise("flag_a", 2), Fix("flag_b", 3, "CREW_02", "ENCOUNTER_04")]);
-
-        Assert.Equal(2, h.State.Week);
-        Assert.Equal(
-            [new FlagChanged("flag_a", null, 0, 2, Encounter), new FlagChanged("flag_b", "CREW_02", 0, 3, "ENCOUNTER_04")],
-            events.OfType<FlagChanged>());
-        Assert.Equal(
-            [("flag_a", null, 2, 2, Encounter), ("flag_b", "CREW_02", 3, 2, "ENCOUNTER_04")],
-            h.Storylets.Flags.Select(f => (f.Flag, f.CrewId, f.Value, f.SetAtWeek, f.EncounterId)));
-
-        // The state is stored as JSON with the legacy, so it must read back whole.
-        string json = JsonSerializer.Serialize(h.Storylets, SimJson.Options);
-        Assert.Equal(json, JsonSerializer.Serialize(JsonSerializer.Deserialize<StoryletsState>(json, SimJson.Options), SimJson.Options));
-    }
-
-    [Fact]
-    public void Add_and_set_never_go_below_zero_and_a_flag_at_zero_is_gone()
-    {
-        var h = new Harness(Pack(2));
-        h.To(CyclePhase.Resolution);
-
-        h.End([Raise("flag_a", 2), Fix("flag_b", 3)]);
-        List<IEvent> events = h.End([Raise("flag_a", -5), Fix("flag_b", 0), Raise("flag_c", -1), Fix("flag_d", 0)]);
-
-        Assert.Equal([new FlagChanged("flag_a", null, 2, 0, Encounter), new FlagChanged("flag_b", null, 3, 0, Encounter)], events.OfType<FlagChanged>());
-        Assert.Empty(h.Storylets.Flags);
-
-        h.End([Raise("flag_a", 1), Raise("flag_a", 1), Fix("flag_a", 1)]);
-
-        Assert.Equal(1, h.Flag("flag_a"));
-        Assert.Single(h.Storylets.Flags);
-    }
-
-    [Fact]
-    public void A_flag_on_someone_who_died_on_that_mission_is_not_stored()
-    {
-        var h = new Harness(Pack(2, Shaken));
-        h.To(CyclePhase.Resolution);
-
-        List<IEvent> events = h.End([Raise("flag_b", 1, "CREW_02"), Raise("flag_b", 1, "CREW_03")], Died("CREW_02"));
-        events.AddRange(h.To(CyclePhase.Itinerary));
-
-        Assert.Contains(new CrewDied("CREW_02", "MISSION_1"), events);
-        Assert.Equal([new FlagChanged("flag_b", "CREW_03", 0, 1, Encounter)], events.OfType<FlagChanged>());
-        Assert.Equal(["CREW_03"], h.Storylets.Flags.Select(f => f.CrewId));
-        Assert.Equal(["CREW_03"], events.OfType<StoryletOffered>().Select(o => o.SubjectId));
-    }
+    // A crew storylet: trait_b at 1 or more on someone.
+    internal static readonly StoryletDef Shaken = Crew("STORYLET_SHAKEN", 3, [new TraitRange("trait_b", 1, null)], Option("calm", Add("trait_b", -1)), Option("ignore", Set("trait_b", 0)));
 
     [Fact]
     public void A_storylet_whose_requirements_hold_is_offered_when_the_itinerary_opens()
@@ -210,7 +159,7 @@ public class StoryletsModuleTests
         var h = new Harness(Pack(2, Quirk));
         h.To(CyclePhase.Resolution);
 
-        List<IEvent> ended = h.End([Raise("flag_a", 1)]);
+        List<IEvent> ended = h.End([Raise("trait_a", 1)]);
         List<IEvent> itinerary = h.To(CyclePhase.Itinerary);
 
         Assert.DoesNotContain(ended, e => e is StoryletOffered);
@@ -220,11 +169,11 @@ public class StoryletsModuleTests
     }
 
     [Fact]
-    public void A_storylet_for_the_ship_ignores_the_same_flag_on_a_crew_member_and_the_reverse()
+    public void A_storylet_for_the_ship_ignores_the_same_trait_on_a_crew_member_and_the_reverse()
     {
         var h = new Harness(Pack(4, Quirk, Shaken));
 
-        List<IEvent> events = h.Mission(Raise("flag_a", 1, "CREW_01"), Raise("flag_b", 1));
+        List<IEvent> events = h.Mission(Raise("trait_a", 1, "CREW_01"), Raise("trait_b", 1));
 
         Assert.DoesNotContain(events, e => e is StoryletOffered);
         Assert.Empty(h.Waiting);
@@ -235,8 +184,8 @@ public class StoryletsModuleTests
     {
         var h = new Harness(Pack(2, Quirk, Shaken));
 
-        // The flags are reported in another order than the roster's: the order of the offers is the roster's.
-        List<IEvent> first = h.Mission(Raise("flag_a", 1), Raise("flag_b", 1, "CREW_03"), Raise("flag_b", 1, "CREW_01"));
+        // The traits are reported in another order than the roster's: the order of the offers is the roster's.
+        List<IEvent> first = h.Mission(Raise("trait_a", 1), Raise("trait_b", 1, "CREW_03"), Raise("trait_b", 1, "CREW_01"));
 
         Assert.Equal(["2:STORYLET_SHAKEN:CREW_01", "2:STORYLET_SHAKEN:CREW_03"], first.OfType<StoryletOffered>().Select(o => o.OfferId));
         Assert.Equal(["2:STORYLET_SHAKEN:CREW_01", "2:STORYLET_SHAKEN:CREW_03"], h.Waiting);
@@ -252,24 +201,24 @@ public class StoryletsModuleTests
     [Fact]
     public void An_answer_applies_its_effects_in_order_and_the_storylet_does_not_return()
     {
-        StoryletDef storylet = Ship("STORYLET_ORDER", 1, [new FlagRange("flag_a", 1, 1)], Option("first", Set("flag_a", 5), Add("flag_a", -5), Add("flag_b", 1, "ship")), Option("second", Set("flag_a", 0)));
+        StoryletDef storylet = Ship("STORYLET_ORDER", 1, [new TraitRange("trait_a", 1, 1)], Option("first", Set("trait_a", 5), Add("trait_a", -5), Add("trait_b", 1, "ship")), Option("second", Set("trait_a", 0)));
         var h = new Harness(Pack(2, storylet));
-        h.Mission(Raise("flag_a", 1));
+        h.Mission(Raise("trait_a", 1));
 
         List<IEvent> events = h.Send(new AnswerStorylet("2:STORYLET_ORDER:ship", "first"));
 
         Assert.Equal(
             [
-                new FlagChanged("flag_a", null, 1, 5, null),
-                new FlagChanged("flag_a", null, 5, 0, null),
-                new FlagChanged("flag_b", null, 0, 1, null),
+                new TraitChanged("trait_a", null, null, 1, 5, TraitCauses.Answer, null),
+                new TraitChanged("trait_a", null, null, 5, 0, TraitCauses.Answer, null),
+                new TraitChanged("trait_b", null, null, 0, 1, TraitCauses.Answer, null),
                 new StoryletAnswered("2:STORYLET_ORDER:ship", "STORYLET_ORDER", null, "first"),
             ],
             events);
         Assert.Empty(h.Waiting);
-        Assert.Equal((0, 1), (h.Flag("flag_a"), h.Flag("flag_b")));
-        StoredFlag stored = h.Storylets.Flags.Single();
-        Assert.Equal((2, (string?)null), (stored.SetAtWeek, stored.EncounterId));
+        Assert.Equal((0, 1), (h.Trait("trait_a"), h.Trait("trait_b")));
+        StoredTrait stored = h.Traits.Traits.Single();
+        Assert.Equal((2, (string?)null), (stored.ChangedAtWeek, stored.EncounterId));
 
         List<IEvent> later = h.To(CyclePhase.Itinerary);
         later.AddRange(h.To(CyclePhase.Itinerary));
@@ -278,17 +227,17 @@ public class StoryletsModuleTests
     }
 
     [Fact]
-    public void An_answer_that_moves_the_flag_on_lets_another_storylet_require_the_new_value()
+    public void An_answer_that_moves_the_trait_on_lets_another_storylet_require_the_new_value()
     {
-        StoryletDef known = Ship("STORYLET_KNOWN", 1, [new FlagRange("flag_a", 2, 2)], Option("fix", Set("flag_a", 0)), Option("drop", Set("flag_a", 3)));
+        StoryletDef known = Ship("STORYLET_KNOWN", 1, [new TraitRange("trait_a", 2, 2)], Option("fix", Set("trait_a", 0)), Option("drop", Set("trait_a", 3)));
         var h = new Harness(Pack(2, Quirk, known));
-        h.Mission(Raise("flag_a", 1));
+        h.Mission(Raise("trait_a", 1));
 
         h.Send(new AnswerStorylet("2:STORYLET_QUIRK:ship", "ride"));
         List<IEvent> next = h.To(CyclePhase.Itinerary);
 
-        Assert.Equal(2, h.Flag("flag_a"));
-        StoredFlag stored = h.Storylets.Flags.Single();
+        Assert.Equal(2, h.Trait("trait_a"));
+        StoredTrait stored = h.Traits.Traits.Single();
         Assert.Equal(Encounter, stored.EncounterId);
         Assert.Equal([new StoryletOffered("3:STORYLET_KNOWN:ship", "STORYLET_KNOWN", null, Encounter)], next.OfType<StoryletOffered>());
     }
@@ -296,10 +245,10 @@ public class StoryletsModuleTests
     [Fact]
     public void Loyalty_on_crew_reaches_every_living_member_and_is_clamped()
     {
-        StoryletDef storylet = Crew("STORYLET_LOYAL", 1, [new FlagRange("flag_b", 1, null)], Option("everyone", Loyalty(-3, "crew"), Set("flag_b", 0), Loyalty(2, "subject")), Option("other", Set("flag_b", 0)));
+        StoryletDef storylet = Crew("STORYLET_LOYAL", 1, [new TraitRange("trait_b", 1, null)], Option("everyone", Loyalty(-3, "crew"), Set("trait_b", 0), Loyalty(2, "subject")), Option("other", Set("trait_b", 0)));
         var h = new Harness(Pack(2, storylet));
         h.To(CyclePhase.Resolution);
-        h.End([Raise("flag_b", 1, "CREW_02")], Died("CREW_08"));
+        h.End([Raise("trait_b", 1, "CREW_02")], Died("CREW_08"));
         h.To(CyclePhase.Itinerary);
         h.Crew.Members.Single(m => m.Id == "CREW_01").Loyalty = 1;
         h.Crew.Members.Single(m => m.Id == "CREW_02").Loyalty = 99;
@@ -332,7 +281,7 @@ public class StoryletsModuleTests
     public void A_second_answer_an_unknown_offer_and_an_unknown_option_are_refused()
     {
         var h = new Harness(Pack(2, Quirk));
-        h.Mission(Raise("flag_a", 1));
+        h.Mission(Raise("trait_a", 1));
         string before = JsonSerializer.Serialize(h.Storylets, SimJson.Options);
 
         Assert.Equal("That storylet is not waiting for an answer.", h.Refused(new AnswerStorylet("2:STORYLET_OTHER:ship", "clear")));
@@ -350,7 +299,7 @@ public class StoryletsModuleTests
     public void The_itinerary_cannot_be_left_while_a_storylet_waits()
     {
         var h = new Harness(Pack(2, Quirk));
-        h.Mission(Raise("flag_a", 1));
+        h.Mission(Raise("trait_a", 1));
 
         Assert.Equal("A storylet is waiting for an answer.", h.Refused(new AdvancePhase()));
         Assert.Equal(CyclePhase.Itinerary, h.State.Phase);
@@ -364,9 +313,9 @@ public class StoryletsModuleTests
     [Fact]
     public void A_storylet_still_waits_in_a_cycle_where_no_team_was_sent()
     {
-        StoryletDef second = Ship("STORYLET_SECOND", 1, [new FlagRange("flag_b", 1, null)], Option("clear", Set("flag_b", 0)), Option("also", Set("flag_b", 0)));
+        StoryletDef second = Ship("STORYLET_SECOND", 1, [new TraitRange("trait_b", 1, null)], Option("clear", Set("trait_b", 0)), Option("also", Set("trait_b", 0)));
         var h = new Harness(Pack(1, Quirk, second));
-        h.Mission(Raise("flag_a", 1), Raise("flag_b", 1));
+        h.Mission(Raise("trait_a", 1), Raise("trait_b", 1));
         Assert.Equal(["2:STORYLET_QUIRK:ship"], h.Waiting);
         h.Send(new AnswerStorylet("2:STORYLET_QUIRK:ship", "clear"));
 
@@ -385,7 +334,7 @@ public class StoryletsModuleTests
     public void A_waiting_storylet_the_pack_no_longer_has_is_withdrawn()
     {
         var h = new Harness(Pack(2, Quirk));
-        h.Mission(Raise("flag_a", 1));
+        h.Mission(Raise("trait_a", 1));
         h.Rebuild(Pack(2));
 
         // It can no longer be answered, and it does not hold the legacy in the itinerary.
@@ -395,66 +344,28 @@ public class StoryletsModuleTests
 
         Assert.Equal([new StoryletWithdrawn("2:STORYLET_QUIRK:ship", "STORYLET_QUIRK", null)], next.OfType<StoryletWithdrawn>());
         Assert.Empty(h.Waiting);
-        Assert.Equal(1, h.Flag("flag_a"));
+        Assert.Equal(1, h.Trait("trait_a"));
     }
 
     [Fact]
-    public void A_dead_subjects_flags_and_waiting_storylets_are_dropped()
+    public void A_dead_subjects_traits_and_waiting_storylets_are_dropped()
     {
         var h = new Harness(Pack(2, Shaken));
-        h.Mission(Raise("flag_b", 1, "CREW_02"), Raise("flag_c", 2, "CREW_02"), Raise("flag_b", 1, "CREW_03"), Raise("flag_a", 1));
+        h.Mission(Raise("trait_b", 1, "CREW_02"), Raise("trait_c", 2, "CREW_02"), Raise("trait_b", 1, "CREW_03"), Raise("trait_a", 1));
         Assert.Equal(["2:STORYLET_SHAKEN:CREW_02", "2:STORYLET_SHAKEN:CREW_03"], h.Waiting);
 
         List<IEvent> events = h.End([], Died("CREW_02"));
 
         Assert.Equal([new StoryletWithdrawn("2:STORYLET_SHAKEN:CREW_02", "STORYLET_SHAKEN", "CREW_02")], events.OfType<StoryletWithdrawn>());
         Assert.Equal(["2:STORYLET_SHAKEN:CREW_03"], h.Waiting);
-        Assert.Equal([("flag_b", "CREW_03"), ("flag_a", (string?)null)], h.Storylets.Flags.Select(f => (f.Flag, f.CrewId)));
+        Assert.Equal([("trait_b", "CREW_03"), ("trait_a", (string?)null)], h.Traits.Traits.Select(t => (t.Trait, t.CrewId)));
     }
-    [Fact]
-    public void A_developers_flag_is_its_own_event_keeps_where_the_flag_came_from_and_brings_its_storylet_at_the_next_itinerary()
-    {
-        var h = new Harness(Pack(2, Quirk, Shaken));
-        h.Mission(Raise("flag_a", 1));
-        h.Send(new AnswerStorylet("2:STORYLET_QUIRK:ship", "clear"));
-        h.To(CyclePhase.Orders);
-
-        List<IEvent> ship = h.Send(new SetFlag("flag_a", null, 1));
-        List<IEvent> crew = h.Send(new SetFlag("flag_b", "CREW_03", 2));
-
-        Assert.Equal([new FlagSetByDeveloper("flag_a", null, 1), new FlagChanged("flag_a", null, 0, 1, null)], ship);
-        Assert.Equal([new FlagSetByDeveloper("flag_b", "CREW_03", 2), new FlagChanged("flag_b", "CREW_03", 0, 2, null)], crew);
-        Assert.Empty(h.Waiting);
-
-        List<IEvent> itinerary = h.To(CyclePhase.Itinerary);
-
-        Assert.Equal(["3:STORYLET_SHAKEN:CREW_03", "3:STORYLET_QUIRK:ship"], itinerary.OfType<StoryletOffered>().Select(o => o.OfferId));
-        h.Send(new SetFlag("flag_b", "CREW_03", 0));
-        Assert.Equal(0, h.Flag("flag_b", "CREW_03"));
-    }
-
-    [Theory]
-    [InlineData("Flag_A", null, 1, "Flag id 'Flag_A' must be lower case: a letter, then letters, digits, and underscores, at most 40 in all.")]
-    [InlineData("", null, 1, "Flag id '' must be lower case: a letter, then letters, digits, and underscores, at most 40 in all.")]
-    [InlineData("flag_a", null, -1, "A flag's value is 0 to 99.")]
-    [InlineData("flag_a", null, 100, "A flag's value is 0 to 99.")]
-    [InlineData("flag_a", "CREW_99", 1, "Crew member 'CREW_99' is not on the roster.")]
-    [InlineData("flag_a", null, 0, "flag_a is already 0 on the ship.")]
-    [InlineData("flag_b", "CREW_02", 0, "flag_b is already 0 on CREW_02.")]
-    public void A_developers_flag_is_refused_with_the_reason(string flag, string? crewId, int value, string reason)
-    {
-        var h = new Harness(Pack(2));
-
-        Assert.Equal(reason, h.Refused(new SetFlag(flag, crewId, value)));
-        Assert.Empty(h.Storylets.Flags);
-    }
-
     // 1e part two (design 4.2): requirements on the subject's stats and on the last cycle, and morale as an answer's effect.
-    private static readonly FlagRange NoFlagB = new("flag_b", 0, 0);
+    private static readonly TraitRange NoTraitB = new("trait_b", 0, 0);
 
     private static StoryletDef Fact(string fact, bool not = false)
     {
-        return Crew($"STORYLET_{fact.ToUpperInvariant()}{(not ? "_NOT" : "")}", 1, [NoFlagB, new LastCycle(fact, not)], Option("done", Set("flag_b", 1)), Option("other", Set("flag_b", 2)));
+        return Crew($"STORYLET_{fact.ToUpperInvariant()}{(not ? "_NOT" : "")}", 1, [NoTraitB, new LastCycle(fact, not)], Option("done", Set("trait_b", 1)), Option("other", Set("trait_b", 2)));
     }
 
     private Dictionary<string, List<string>> WaitingBySubject(Harness h)
@@ -470,11 +381,11 @@ public class StoryletsModuleTests
     [Fact]
     public void A_stat_requirement_reads_the_subjects_morale()
     {
-        StoryletDef low = Crew("STORYLET_LOW", 1, [new FlagRange("flag_b", 1, null), new StatRange("morale", 0, 25)], Option("calm", Set("flag_b", 0)), Option("ignore", Set("flag_b", 0)));
+        StoryletDef low = Crew("STORYLET_LOW", 1, [new TraitRange("trait_b", 1, null), new StatRange("morale", 0, 25)], Option("calm", Set("trait_b", 0)), Option("ignore", Set("trait_b", 0)));
         var h = new Harness(Pack(8, low));
         h.Crew.Members.Single(m => m.Id == "CREW_02").Morale = 20;
 
-        h.Mission(Raise("flag_b", 1, "CREW_01"), Raise("flag_b", 1, "CREW_02"));
+        h.Mission(Raise("trait_b", 1, "CREW_01"), Raise("trait_b", 1, "CREW_02"));
 
         Assert.Equal(["2:STORYLET_LOW:CREW_02"], h.Waiting);
     }
@@ -524,10 +435,10 @@ public class StoryletsModuleTests
     [Fact]
     public void A_morale_effect_reaches_the_crew_module()
     {
-        StoryletDef cheer = Crew("STORYLET_CHEER", 1, [new FlagRange("flag_b", 1, null)],
-            Option("cheer", Set("flag_b", 0), new StoryletEffect(Morale: 3, MoraleOn: "subject"), new StoryletEffect(Morale: -1, MoraleOn: "crew")), Option("other", Set("flag_b", 0)));
+        StoryletDef cheer = Crew("STORYLET_CHEER", 1, [new TraitRange("trait_b", 1, null)],
+            Option("cheer", Set("trait_b", 0), new StoryletEffect(Morale: 3, MoraleOn: "subject"), new StoryletEffect(Morale: -1, MoraleOn: "crew")), Option("other", Set("trait_b", 0)));
         var h = new Harness(Pack(2, cheer));
-        h.Mission(Raise("flag_b", 1, "CREW_02"));
+        h.Mission(Raise("trait_b", 1, "CREW_02"));
 
         List<IEvent> events = h.Send(new AnswerStorylet(h.Waiting.Single(), "cheer"));
 
@@ -557,10 +468,10 @@ public class StoryletsModuleTests
     [Fact]
     public void A_vignette_with_effects_applies_them_when_it_arrives_and_waits_for_nothing()
     {
-        var glance = new VignetteDef("VIGNETTE_GLANCE", StoryletScopes.Ship, [new FlagRange("flag_a", 1, null)], [new StoryletEffect(Morale: 2, MoraleOn: "crew")], [], null);
+        var glance = new VignetteDef("VIGNETTE_GLANCE", StoryletScopes.Ship, [new TraitRange("trait_a", 1, null)], [new StoryletEffect(Morale: 2, MoraleOn: "crew")], [], null);
         var h = new Harness(Vignettes(3, 6, glance));
 
-        List<IEvent> events = h.Mission(Raise("flag_a", 1));
+        List<IEvent> events = h.Mission(Raise("trait_a", 1));
 
         int at = events.FindIndex(e => e is VignetteArrived);
         Assert.Equal(new VignetteArrived("2:VIGNETTE_GLANCE:ship", "VIGNETTE_GLANCE", null, null), events[at]);

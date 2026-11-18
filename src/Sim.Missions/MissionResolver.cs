@@ -46,7 +46,7 @@ public static class MissionResolver
             Chained = false,
             Calls = 0,
             Initiatives = 0,
-            Flags = [],
+            Traits = [],
         };
 
         ulong draw = drawSeed ?? seed;
@@ -288,7 +288,7 @@ public static class MissionResolver
             State.Strain = Clamp(State.Strain + outcome.Strain);
             State.Progress += outcome.Progress;
 
-            List<MissionFlag>? flags = Flag(outcome, encounter.Id, actor);
+            List<MissionTrait>? traits = Traits(outcome, encounter.Id, actor);
             bool mentoring = helper is not null && Skill(helper) - actorSkill >= T.MentorGap;
             double baseExperience = margin >= T.TrivialAtMargin ? 0
                 : Math.Abs(margin) <= T.CloseMargin ? T.ExperienceClose
@@ -304,7 +304,7 @@ public static class MissionResolver
 
             Beats.Add(new CheckBeat(
                 encounter.Id, def.Id, available.Count, def.Skill, actor.Member.Id, helper?.Member.Id, supervised,
-                actorSkill, assist, gear, momentum, strain, score, roll, target, margin, tier, experience, mentoring, helperExperience, State.Momentum, State.Strain, flags, morale));
+                actorSkill, assist, gear, momentum, strain, score, roll, target, margin, tier, experience, mentoring, helperExperience, State.Momentum, State.Strain, traits, morale));
 
             // The roll falls on the actor after the check's beat, under the key the default rolls always used, so its dice do not move.
             if (outcome.InjuryRoll is { } severity)
@@ -383,7 +383,7 @@ public static class MissionResolver
             State.Momentum = Clamp(State.Momentum + effect.Momentum);
             State.Strain = Clamp(State.Strain + effect.Strain);
             State.Progress += effect.Progress;
-            Flag(effect, Current.Encounter.Id, null);
+            Traits(effect, Current.Encounter.Id, null);
             Beats.Add(new EffectsBeat(effect));
             if (effect.InjuryRoll is { } severity && Active.Count > 0)
             {
@@ -396,30 +396,30 @@ public static class MissionResolver
             }
         }
 
-        // Records one flag for each one the change lands on, before any injury roll the same effect makes; nothing else about the
+        // Records one trait change for each one the change lands on, before any injury roll the same effect makes; nothing else about the
         // mission changes. actor is who made the check, and null for a decision's answer, where the loader refuses on: actor.
-        private List<MissionFlag>? Flag(EffectDef effect, string encounterId, MemberState? actor)
+        private List<MissionTrait>? Traits(EffectDef effect, string encounterId, MemberState? actor)
         {
-            if (effect.Flags is null)
+            if (effect.Traits is null)
             {
                 return null;
             }
 
-            var made = new List<MissionFlag>();
-            foreach (FlagChange change in effect.Flags)
+            var made = new List<MissionTrait>();
+            foreach (TraitChange change in effect.Traits)
             {
                 List<string?> on = change.On switch
                 {
-                    FlagIds.Ship => [null],
-                    FlagIds.Actor => [actor?.Member.Id ?? throw new InvalidOperationException($"{encounterId}: on: actor names no one outside an approach's outcome.")],
-                    FlagIds.Lead => [State.LeadId],
-                    FlagIds.Team => [.. Active.Select(m => m.Member.Id)],
-                    _ => throw new InvalidOperationException($"{encounterId}: a flag change on '{change.On}' names no one."),
+                    TraitOn.Ship => [null],
+                    TraitOn.Actor => [actor?.Member.Id ?? throw new InvalidOperationException($"{encounterId}: on: actor names no one outside an approach's outcome.")],
+                    TraitOn.Lead => [State.LeadId],
+                    TraitOn.Team => [.. Active.Select(m => m.Member.Id)],
+                    _ => throw new InvalidOperationException($"{encounterId}: a trait change on '{change.On}' names no one."),
                 };
-                made.AddRange(on.Select(id => new MissionFlag(change.Flag, change.Amount, change.Set, id, encounterId)));
+                made.AddRange(on.Select(id => new MissionTrait(change.Trait, change.Amount, change.Set, id, encounterId)));
             }
 
-            State.Flags.AddRange(made);
+            State.Traits.AddRange(made);
             return made;
         }
 
@@ -474,7 +474,7 @@ public static class MissionResolver
             State.Result = new MissionResult(
                 outcome, State.Progress, State.Need, State.Calls, State.Initiatives,
                 State.Team.Select(m => new CrewResult(m.Member.Id, m.Status, m.Injury, new Dictionary<string, double>(m.Experience), m.Loyalty)).ToList(),
-                State.Flags.ToList());
+                State.Traits.ToList());
             Beats.Add(new ResultBeat(outcome));
         }
 

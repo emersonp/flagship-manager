@@ -204,14 +204,14 @@ public class ContentWriterTests : IClassFixture<RepoContentGuard>
         Assert.Equal(System.Text.Json.JsonSerializer.Serialize(model), System.Text.Json.JsonSerializer.Serialize(read));
     }
 
-    // Add, set, each target, and two changes in one outcome write in the order flag, add or set, on, and read back equal.
+    // Add, set, each target, and two changes in one outcome write in the order trait, add or set, on, and read back equal.
     [Fact]
-    public void Flag_changes_write_and_read_back_equal()
+    public void Trait_changes_write_and_read_back_equal()
     {
         var outcomes = new Dictionary<string, IReadOnlyList<EffectModel>>
         {
-            ["partial"] = [new EffectModel(null, null, 1, null), new EffectModel(null, null, null, null, false, "flag_a", 1, false, "ship")],
-            ["disaster"] = [new EffectModel(null, null, null, null, false, "sensors_quirk", -2, false, "actor"), new EffectModel(null, null, null, null, false, "flag_b", 0, true, "team")],
+            ["partial"] = [new EffectModel(null, null, 1, null), new EffectModel(null, null, null, null, false, "trait_a", 1, false, "ship")],
+            ["disaster"] = [new EffectModel(null, null, null, null, false, "sensors_quirk", -2, false, "actor"), new EffectModel(null, null, null, null, false, "trait_b", 0, true, "team")],
         };
         var model = new EncounterModel(
             "ENCOUNTER_01",
@@ -220,7 +220,7 @@ public class ContentWriterTests : IClassFixture<RepoContentGuard>
             false,
             null,
             [new ApproachModel("careful", null, "SKILL_A", 5, null, [], outcomes)],
-            new DecisionModel("DECISION_PROMPT_1", null, 2, [new EffectModel(1, null, null, null, false, "flag_c", 2, true, "lead")], []));
+            new DecisionModel("DECISION_PROMPT_1", null, 2, [new EffectModel(1, null, null, null, false, "trait_c", 2, true, "lead")], []));
 
         string text = Render(model);
 
@@ -229,11 +229,11 @@ public class ContentWriterTests : IClassFixture<RepoContentGuard>
                 "- id: ENCOUNTER_01",
                 "  tags: [field]",
                 "  approaches:",
-                "    - { id: careful, skill: SKILL_A, difficulty: 5, outcomes: { partial: [{ strain: 1 }, { flag: flag_a, add: 1, on: ship }], disaster: [{ flag: sensors_quirk, add: -2, on: actor }, { flag: flag_b, set: 0, on: team }] } }",
+                "    - { id: careful, skill: SKILL_A, difficulty: 5, outcomes: { partial: [{ strain: 1 }, { trait: trait_a, add: 1, on: ship }], disaster: [{ trait: sensors_quirk, add: -2, on: actor }, { trait: trait_b, set: 0, on: team }] } }",
                 "  decision:",
                 "    id: DECISION_PROMPT_1",
                 "    stakes: 2",
-                "    bold: [{ progress: 1, flag: flag_c, set: 2, on: lead }]",
+                "    bold: [{ progress: 1, trait: trait_c, set: 2, on: lead }]",
                 "    safe: []"),
             text);
         ContentFileSet files = ContentEdits.ReplaceText(Repo(), "encounters/base.yaml", text);

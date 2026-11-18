@@ -66,7 +66,7 @@ public class VignetteContentTests
     }
 
     [Fact]
-    public void A_vignette_needs_no_flag_and_no_stakes()
+    public void A_vignette_needs_no_trait_and_no_stakes()
     {
         ContentLoadResult result = LoadWith(Plain + Choice);
 

@@ -4,7 +4,7 @@ using Sim.Core.Narrative;
 
 namespace Sim.Content;
 
-// Storylets (slice 1e): what arrives in the aftermath when flags hold, and the answers with their fixed effects.
+// Storylets (slice 1e): what arrives on the itinerary when traits hold, and the answers with their fixed effects.
 public static partial class ContentLoader
 {
     private const int MaxRequirements = 4;
@@ -41,9 +41,9 @@ public static partial class ContentLoader
                 Error("A storylet's effects and default belong to a vignette; a storylet's effects are in its options.");
             }
 
-            if (requires.Count > 0 && !requires.OfType<FlagRange>().Any())
+            if (requires.Count > 0 && !requires.OfType<TraitRange>().Any())
             {
-                Error("A storylet needs at least one flag among its requirements, so its answers can stop it returning.");
+                Error("A storylet needs at least one trait among its requirements, so its answers can stop it returning.");
             }
 
             string? name = CheckName(file, dto.Id!, dto.Name, errors);
@@ -67,7 +67,7 @@ public static partial class ContentLoader
     }
 
     // Vignettes (1e part two, design 4.3): a storylet's shape with no stakes, and either effects that apply when it arrives or one
-    // small choice of two options with a default. Its requirements need no flag: a cooldown, not its answers, stops it returning.
+    // small choice of two options with a default. Its requirements need no trait: a cooldown, not its answers, stops it returning.
     private static List<VignetteDef> BuildVignettes(List<(string File, StoryletDto Dto)> items, List<ContentError> errors)
     {
         var defs = new List<VignetteDef>();
@@ -137,7 +137,7 @@ public static partial class ContentLoader
         return defs;
     }
 
-    // Each entry is one of three kinds (design 4.2): { flag, min, max }, { stat, min, max }, or { last, not }. A range's min is 1
+    // Each entry is one of three kinds (design 4.2): { trait, min, max }, { stat, min, max }, or { last, not }. A range's min is 1
     // when left out, or 0 when only max is given; max has no limit when left out. Stats and facts are read on the subject, so
     // a storylet for the ship cannot have them.
     private static List<Requirement> Requirements(List<Dictionary<string, string>?>? written, string? scope, Action<string> error, string noun = "storylet")
@@ -150,19 +150,20 @@ public static partial class ContentLoader
 
         foreach (Dictionary<string, string> entry in (written ?? []).Select(e => e ?? []))
         {
-            string kind = entry.ContainsKey("stat") ? "stat" : entry.ContainsKey("last") ? "last" : "flag";
+            string kind = entry.ContainsKey("stat") ? "stat" : entry.ContainsKey("last") ? "last" : "trait";
             string[] keys = kind == "last" ? ["last", "not"] : [kind, "min", "max"];
             bool ok = true;
             foreach (string key in entry.Keys.Where(k => !keys.Contains(k)))
             {
-                error(kind == "flag"
-                    ? $"A requirement takes flag, stat, or last; '{key}' is not one of them."
+                error(key == "flag" ? FlagIsNowTrait
+                    : kind == "trait"
+                    ? $"A requirement takes trait, stat, or last; '{key}' is not one of them."
                     : $"A requirement on {kind} takes {string.Join(", ", keys[1..])}; '{key}' is not one of them.");
                 ok = false;
             }
 
             string? name = entry.GetValueOrDefault(kind);
-            if (kind != "flag" && scope == StoryletScopes.Ship)
+            if (kind != "trait" && scope == StoryletScopes.Ship)
             {
                 error($"A {noun} for the ship has no subject, so it cannot read {name}.");
                 ok = false;
@@ -197,9 +198,9 @@ public static partial class ContentLoader
                 ok = false;
             }
 
-            if (kind == "flag" && (name is null || !Ids.IsInnerId(name)))
+            if (kind == "trait" && !entry.ContainsKey("flag") && (name is null || !Ids.IsInnerId(name)))
             {
-                error($"Flag id '{name}' must be {Said(Ids.InnerRule)}");
+                error($"Trait id '{name}' must be {Said(Ids.InnerRule)}");
                 ok = false;
             }
 
@@ -237,12 +238,12 @@ public static partial class ContentLoader
 
             if (ok)
             {
-                requires.Add(kind == "stat" ? new StatRange(name!, low, max) : new FlagRange(name!, low, max));
+                requires.Add(kind == "stat" ? new StatRange(name!, low, max) : new TraitRange(name!, low, max));
             }
         }
 
-        // Ranges on one flag or stat that do not overlap would make the storylet one that can never arrive.
-        IEnumerable<(string Name, int Min, int? Max)> ranges = requires.OfType<FlagRange>().Select(r => (r.Flag, r.Min, r.Max))
+        // Ranges on one trait or stat that do not overlap would make the storylet one that can never arrive.
+        IEnumerable<(string Name, int Min, int? Max)> ranges = requires.OfType<TraitRange>().Select(r => (r.Trait, r.Min, r.Max))
             .Concat(requires.OfType<StatRange>().Select(r => (r.Stat, r.Min, r.Max)));
         foreach (IGrouping<string, (string Name, int Min, int? Max)> same in ranges.GroupBy(r => r.Name))
         {
@@ -295,10 +296,10 @@ public static partial class ContentLoader
         return options;
     }
 
-    // One loyalty, morale, or flag change, or null when it is refused (each problem reported).
+    // One loyalty, morale, or trait change, or null when it is refused (each problem reported).
     private static StoryletEffect? StoryletEffectOf(Dictionary<string, string> entry, string? scope, Action<string> error)
     {
-        string[] kinds = ["loyalty", "morale", "flag"];
+        string[] kinds = ["loyalty", "morale", "trait"];
         string[] present = kinds.Where(entry.ContainsKey).ToArray();
         if (present.Length > 1)
         {
@@ -310,13 +311,13 @@ public static partial class ContentLoader
         string[] keys = kind switch
         {
             "loyalty" or "morale" => [kind, "on"],
-            "flag" => ["flag", "add", "set", "on"],
+            "trait" => ["trait", "add", "set", "on"],
             _ => [],
         };
         bool ok = true;
         foreach (string key in entry.Keys.Where(k => !keys.Contains(k)))
         {
-            error($"A storylet's effect can change loyalty, morale, or a flag; '{key}' is not one of them.");
+            error(key == "flag" ? FlagIsNowTrait : $"A storylet's effect can change loyalty, morale, or a trait; '{key}' is not one of them.");
             ok = false;
         }
 
@@ -357,10 +358,10 @@ public static partial class ContentLoader
             return null;
         }
 
-        string flag = entry["flag"];
-        if (!Ids.IsInnerId(flag))
+        string trait = entry["trait"];
+        if (!Ids.IsInnerId(trait))
         {
-            error($"Flag id '{flag}' must be {Said(Ids.InnerRule)}");
+            error($"Trait id '{trait}' must be {Said(Ids.InnerRule)}");
             ok = false;
         }
 
@@ -369,44 +370,44 @@ public static partial class ContentLoader
         int value = 0;
         if (set == add)
         {
-            error("A flag change needs add or set, and only one of them.");
+            error("A trait change needs add or set, and only one of them.");
             ok = false;
         }
         else if (!int.TryParse(set ? setText : addText, NumberStyles.Integer, CultureInfo.InvariantCulture, out value))
         {
-            error("A flag change's amount must be a whole number.");
+            error("A trait change's amount must be a whole number.");
             ok = false;
         }
         else if (set && value < 0)
         {
-            error("A flag's set must be 0 or more.");
+            error("A trait's set must be 0 or more.");
             ok = false;
         }
 
         if (on is not (null or StoryletScopes.Ship or StoryletScopes.Subject))
         {
-            error("A storylet's flag change takes on: ship or subject, or no on.");
+            error("A storylet's trait change takes on: ship or subject, or no on.");
             ok = false;
         }
 
-        return ok ? new StoryletEffect(Flag: new FlagChange(flag, value, set, on ?? "")) : null;
+        return ok ? new StoryletEffect(Trait: new TraitChange(trait, value, set, on ?? "")) : null;
     }
 
-    // Applies the option's flag changes on the storylet's own scope to the lowest values that satisfy its requirements. If every
+    // Applies the option's trait changes on the storylet's own scope to the lowest values that satisfy its requirements. If every
     // requirement still holds, the storylet would be offered again at once, and every cycle after.
     private static bool LeavesEveryRequirementTrue(IReadOnlyList<Requirement> all, StoryletOption option, string scope)
     {
-        // Only flags: a stat or a fact is not the storylet's to move.
-        List<FlagRange> requires = all.OfType<FlagRange>().ToList();
+        // Only traits: a stat or a fact is not the storylet's to move.
+        List<TraitRange> requires = all.OfType<TraitRange>().ToList();
         string own = scope == StoryletScopes.Ship ? StoryletScopes.Ship : StoryletScopes.Subject;
-        Dictionary<string, int> values = requires.GroupBy(r => r.Flag).ToDictionary(g => g.Key, g => g.Max(r => r.Min));
-        foreach (FlagChange change in option.Effects.Select(e => e.Flag).OfType<FlagChange>().Where(c => c.On == "" || c.On == own))
+        Dictionary<string, int> values = requires.GroupBy(r => r.Trait).ToDictionary(g => g.Key, g => g.Max(r => r.Min));
+        foreach (TraitChange change in option.Effects.Select(e => e.Trait).OfType<TraitChange>().Where(c => c.On == "" || c.On == own))
         {
-            int current = values.GetValueOrDefault(change.Flag);
-            values[change.Flag] = Math.Max(0, change.Set ? change.Amount : current + change.Amount);
+            int current = values.GetValueOrDefault(change.Trait);
+            values[change.Trait] = Math.Max(0, change.Set ? change.Amount : current + change.Amount);
         }
 
-        return requires.All(r => r.Holds(values.GetValueOrDefault(r.Flag)));
+        return requires.All(r => r.Holds(values.GetValueOrDefault(r.Trait)));
     }
 
     // A storylet's text and each option's text, as lines whose criteria are where they sit, the way an encounter's own text is.

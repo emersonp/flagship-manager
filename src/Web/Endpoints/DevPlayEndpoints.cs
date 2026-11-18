@@ -14,7 +14,7 @@ public static class DevPlayEndpoints
         RouteGroupBuilder dev = app.MapGroup("/dev/legacy").AddEndpointFilter(SameOrigin.Filter).AddEndpointFilter(RequestPack.Filter);
         dev.MapGet("/{id}", Page);
         dev.MapGet("/{id}/panel", Panel);
-        dev.MapPost("/{id}/flag", Set);
+        dev.MapPost("/{id}/trait", Set);
     }
 
     private static async Task<IResult> Page(string id, HttpContext http, GameServices game, LegacySession sessions, Render render, CancellationToken cancellation)
@@ -51,7 +51,7 @@ public static class DevPlayEndpoints
     private static async Task<IResult> Set(string id, HttpContext http, LegacySession sessions, Render render, CancellationToken cancellation)
     {
         IFormCollection? form = await BridgeEndpoints.ReadForm(http.Request, cancellation);
-        string flag = (form is null ? null : BridgeEndpoints.Single(form, "flag"))?.Trim() ?? "";
+        string trait = (form is null ? null : BridgeEndpoints.Single(form, "trait"))?.Trim() ?? "";
         string on = (form is null ? null : BridgeEndpoints.Single(form, "on")) ?? DevReader.Ship;
         string text = (form is null ? null : BridgeEndpoints.Single(form, "value"))?.Trim() ?? "";
         LivePack live = RequestPack.Of(http);
@@ -60,14 +60,14 @@ public static class DevPlayEndpoints
             return await BridgeEndpoints.NotFound(render, http);
         }
 
-        var kept = new Dictionary<string, object?> { ["Flag"] = flag, ["On"] = on, ["Value"] = text };
+        var kept = new Dictionary<string, object?> { ["Trait"] = trait, ["On"] = on, ["Value"] = text };
         string? crewId = on == DevReader.Ship ? null : on;
         string? done = null;
         string? refused = null;
         DevView? view;
         if (!int.TryParse(text, NumberStyles.None, CultureInfo.InvariantCulture, out int value))
         {
-            refused = $"A flag's value is 0 to {SetFlag.Most}.";
+            refused = $"A trait's value is 0 to {SetTrait.Most}.";
             view = await Current(live, legacyId, sessions, cancellation);
         }
         else
@@ -76,9 +76,9 @@ public static class DevPlayEndpoints
             {
                 view = await sessions.Run(live, legacyId, legacy =>
                 {
-                    legacy.Send(new SetFlag(flag, crewId, value));
+                    legacy.Send(new SetTrait(trait, crewId, null, value));
                     string where = crewId is null ? "the ship" : live.Names.Crew(crewId);
-                    done = value == 0 ? $"Cleared {flag} on {where}." : $"{flag} is now {value} on {where}.";
+                    done = value == 0 ? $"Cleared {trait} on {where}." : $"{trait} is now {value} on {where}.";
                     return DevReader.Read(legacy.State, live.Game, live.Pack, live.Names);
                 }, cancellation);
             }

@@ -2,19 +2,20 @@ using System.Net;
 using System.Text.RegularExpressions;
 using Sim.Core;
 using Sim.Storylets;
+using Sim.Traits;
 
 namespace Web.Tests;
 
 // The captain's itinerary (1e part two), through the real app on a scratch copy of the fixture with its vignettes replaced. The second
 // cycle's itinerary follows a cycle in which nobody was sent, so every fit crew member rested: VIGNETTE_B (a choice) arrives for the
-// first two on the roster, after VIGNETTE_A (the ship's, with effects), which arrives because flag_a is set; so does STORYLET_01.
+// first two on the roster, after VIGNETTE_A (the ship's, with effects), which arrives because trait_a is set; so does STORYLET_01.
 public sealed class ItineraryTests : IDisposable
 {
     private const string Vignettes = """
         - id: VIGNETTE_A
           scope: ship
           requires:
-            - { flag: flag_a, min: 1 }
+            - { trait: trait_a, min: 1 }
           text: "best SKILL_A: VIGNETTE_A_LINE"
           effects: [{ morale: 2, on: crew }]
         - id: VIGNETTE_B
@@ -73,7 +74,7 @@ public sealed class ItineraryTests : IDisposable
         return Regex.Match(page, "<form class=\"act\"[^>]*>.*?</form>", RegexOptions.Singleline).Value;
     }
 
-    // The first cycle with nobody sent, flag_a set on the ship, then on through the aftermath to the second itinerary.
+    // The first cycle with nobody sent, trait_a set on the ship, then on through the aftermath to the second itinerary.
     private async Task<Guid> ToSecondItinerary()
     {
         Guid id = await app.CreateAtOrders("LEGACY", 1);
@@ -84,8 +85,8 @@ public sealed class ItineraryTests : IDisposable
                 legacy.Send(new AdvancePhase());
             }
 
-            StoryletsState storylets = legacy.State.Module<StoryletsState>(StoryletsModule.Name);
-            storylets.Flags.Add(new StoredFlag { Flag = "flag_a", CrewId = null, Value = 1, SetAtWeek = legacy.State.Week, EncounterId = "ENCOUNTER_01" });
+            TraitsState traits = legacy.State.Module<TraitsState>(TraitsModule.Name);
+            traits.Traits.Add(new StoredTrait { Trait = "trait_a", CrewId = null, TargetId = null, Value = 1, ChangedAtWeek = legacy.State.Week, EncounterId = "ENCOUNTER_01" });
             return legacy;
         });
         (HttpStatusCode status, _) = await Post(id, "advance", []);

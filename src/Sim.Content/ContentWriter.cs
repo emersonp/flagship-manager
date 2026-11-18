@@ -430,20 +430,20 @@ public static class ContentWriter
             entries.Add(("withdraw", "true"));
         }
 
-        // A flag change last, as flag, then add or set, then on.
-        if (effect.Flag is not null)
+        // A trait change last, as trait, then add or set, then on.
+        if (effect.Trait is not null)
         {
-            entries.Add(("flag", Quote(effect.Flag)));
+            entries.Add(("trait", Quote(effect.Trait)));
         }
 
-        if (effect.FlagAmount is { } amount)
+        if (effect.TraitAmount is { } amount)
         {
-            entries.Add((effect.FlagSet ? "set" : "add", Num(amount)));
+            entries.Add((effect.TraitSet ? "set" : "add", Num(amount)));
         }
 
-        if (effect.FlagOn is not null)
+        if (effect.TraitOn is not null)
         {
-            entries.Add(("on", Quote(effect.FlagOn)));
+            entries.Add(("on", Quote(effect.TraitOn)));
         }
 
         return Map(entries);

@@ -16,3 +16,16 @@ public interface IRosterView
 
     int Loyalty(string crewId);
 }
+
+// Read-only traits (slice 1e, part three) for modules that must not reference the traits module. CrewId null: the ship.
+public interface ITraitView
+{
+    // 0 when it is not held.
+    int Value(string trait, string? crewId, string? targetId = null);
+
+    // The ship's traits (crewId null), or a crew member's, pairs they hold included, in the order first set.
+    IReadOnlyList<TraitHeld> Held(string? crewId);
+
+    // The encounter that last changed it, or null.
+    string? EncounterId(string trait, string? crewId, string? targetId = null);
+}

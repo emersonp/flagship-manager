@@ -52,6 +52,6 @@ public class IdsTests
     public void A_trailing_line_break_is_not_let_through()
     {
         Assert.False(Ids.IsItemId("SKILL_A\n"));
-        Assert.False(Ids.IsInnerId("flag_a\n"));
+        Assert.False(Ids.IsInnerId("trait_a\n"));
     }
 }

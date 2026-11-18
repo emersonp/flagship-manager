@@ -245,66 +245,66 @@ public class MissionContentTests
         AssertRefused(FastWith("outcomes: { disaster: [{ withdraw: true }] }"), "An outcome cannot withdraw the team.");
     }
 
-    // --- Flags (1e part one, Task 1) ---
+    // --- Traits (flags in 1e part one, Task 1) ---
 
-    private static string WithFlags(string outcome, string bold)
+    private static string WithTraits(string outcome, string bold)
     {
         return FastWith($"outcomes: {{ partial: {outcome} }}").Replace("bold: [{ momentum: 1 }, { strain: 1 }, { injuryRoll: light }]", $"bold: {bold}");
     }
 
     [Fact]
-    public void A_flag_change_loads_on_an_outcome_and_on_a_decision()
+    public void A_trait_change_loads_on_an_outcome_and_on_a_decision()
     {
-        ContentLoadResult result = Load(WithFlags("[{ strain: 1 }, { flag: flag_a, add: 1, on: ship }, { flag: sensors_quirk, add: -2, on: actor }]", "[{ progress: 1 }, { flag: flag_b, set: 0, on: lead }, { flag: flag_c, set: 2, on: team }]"), Objective);
+        ContentLoadResult result = Load(WithTraits("[{ strain: 1 }, { trait: trait_a, add: 1, on: ship }, { trait: sensors_quirk, add: -2, on: actor }]", "[{ progress: 1 }, { trait: trait_b, set: 0, on: lead }, { trait: trait_c, set: 2, on: team }]"), Objective);
 
         Assert.Empty(result.Errors);
         EncounterDef encounter = result.Pack!.Encounters[0];
         EffectDef partial = encounter.Approaches[1].Outcomes["partial"];
         Assert.Equal(1, partial.Strain);
-        Assert.Equal([new FlagChange("flag_a", 1, false, "ship"), new FlagChange("sensors_quirk", -2, false, "actor")], partial.Flags!);
+        Assert.Equal([new TraitChange("trait_a", 1, false, "ship"), new TraitChange("sensors_quirk", -2, false, "actor")], partial.Traits!);
         Assert.Equal(1, encounter.Decision!.Bold.Progress);
-        Assert.Equal([new FlagChange("flag_b", 0, true, "lead"), new FlagChange("flag_c", 2, true, "team")], encounter.Decision.Bold.Flags!);
-        Assert.Null(encounter.Decision.Safe.Flags);
-        Assert.Null(encounter.Approaches[0].Outcomes.GetValueOrDefault("partial")?.Flags);
+        Assert.Equal([new TraitChange("trait_b", 0, true, "lead"), new TraitChange("trait_c", 2, true, "team")], encounter.Decision.Bold.Traits!);
+        Assert.Null(encounter.Decision.Safe.Traits);
+        Assert.Null(encounter.Approaches[0].Outcomes.GetValueOrDefault("partial")?.Traits);
     }
 
     [Theory]
-    [InlineData("{ flag: flag_a, add: 1, set: 1, on: ship }")]
-    [InlineData("{ flag: flag_a, on: ship }")]
-    public void A_flag_change_with_both_or_neither_of_add_and_set_is_refused(string change)
+    [InlineData("{ trait: trait_a, add: 1, set: 1, on: ship }")]
+    [InlineData("{ trait: trait_a, on: ship }")]
+    public void A_trait_change_with_both_or_neither_of_add_and_set_is_refused(string change)
     {
-        AssertRefused(WithFlags($"[{change}]", "[]"), "A flag change needs add or set, not both.");
+        AssertRefused(WithTraits($"[{change}]", "[]"), "A trait change needs add or set, not both.");
     }
 
     [Theory]
-    [InlineData("{ flag: flag_a, add: 1 }")]
-    [InlineData("{ flag: flag_a, add: 1, on: crew }")]
-    public void A_flag_change_with_no_or_an_unknown_on_is_refused(string change)
+    [InlineData("{ trait: trait_a, add: 1 }")]
+    [InlineData("{ trait: trait_a, add: 1, on: crew }")]
+    public void A_trait_change_with_no_or_an_unknown_on_is_refused(string change)
     {
-        AssertRefused(WithFlags($"[{change}]", "[]"), "A flag change needs on: ship, actor, lead, or team.");
+        AssertRefused(WithTraits($"[{change}]", "[]"), "A trait change needs on: ship, actor, lead, or team.");
     }
 
     [Fact]
-    public void A_flag_change_on_the_actor_in_a_decision_is_refused()
+    public void A_trait_change_on_the_actor_in_a_decision_is_refused()
     {
-        AssertRefused(WithFlags("[]", "[{ flag: flag_a, add: 1, on: actor }]"), "on: actor is only for an approach's outcome.");
+        AssertRefused(WithTraits("[]", "[{ trait: trait_a, add: 1, on: actor }]"), "on: actor is only for an approach's outcome.");
     }
 
     [Theory]
-    [InlineData("FLAG_A")]
+    [InlineData("TRAIT_A")]
     [InlineData("flag a")]
     [InlineData("flag-a")]
     [InlineData("1st")]
     [InlineData("a23456789012345678901234567890123456789012")]
-    public void A_flag_id_outside_the_rule_is_refused(string id)
+    public void A_trait_id_outside_the_rule_is_refused(string id)
     {
-        AssertRefused(WithFlags($"[{{ flag: \"{id}\", add: 1, on: ship }}]", "[]"), $"Flag id '{id}' must be lower case: a letter, then letters, digits, and underscores, at most 40 in all.");
+        AssertRefused(WithTraits($"[{{ trait: \"{id}\", add: 1, on: ship }}]", "[]"), $"Trait id '{id}' must be lower case: a letter, then letters, digits, and underscores, at most 40 in all.");
     }
 
     [Fact]
-    public void A_flag_set_below_zero_is_refused()
+    public void A_trait_set_below_zero_is_refused()
     {
-        AssertRefused(WithFlags("[{ flag: flag_a, set: -1, on: ship }]", "[]"), "A flag's set must be 0 or more.");
+        AssertRefused(WithTraits("[{ trait: trait_a, set: -1, on: ship }]", "[]"), "A trait's set must be 0 or more.");
     }
 
     [Fact]

@@ -719,53 +719,53 @@ public class MissionRulesTests
         Assert.Equal(2, step.Beats.OfType<CheckBeat>().Count());
     }
 
-    // --- Flags (1e part one, Task 1) ---
+    // --- Traits (flags in 1e part one, Task 1) ---
 
-    private static EffectDef Flag(string on, int amount = 1, bool set = false, string flag = "flag_a") => new(Flags: [new FlagChange(flag, amount, set, on)]);
+    private static EffectDef Trait(string on, int amount = 1, bool set = false, string trait = "trait_a") => new(Traits: [new TraitChange(trait, amount, set, on)]);
 
-    // Difficulty 1 is always met, so a flag written on critical and success always lands.
+    // Difficulty 1 is always met, so a trait written on critical and success always lands.
     private static Dictionary<string, EffectDef> OnAnySuccess(EffectDef effect) => new() { ["critical"] = effect, ["success"] = effect };
 
     [Fact]
-    public void A_ship_flag_from_an_outcome_is_in_the_result_with_no_crew()
+    public void A_ship_trait_from_an_outcome_is_in_the_result_with_no_crew()
     {
-        MissionStep step = MissionResolver.Advance(Start(TestContent.Team(1, 1, 3), new Parameters(), AOrC(difficulty: 1, outcomes: OnAnySuccess(Flag("ship")))));
+        MissionStep step = MissionResolver.Advance(Start(TestContent.Team(1, 1, 3), new Parameters(), AOrC(difficulty: 1, outcomes: OnAnySuccess(Trait("ship")))));
 
-        MissionFlag expected = new("flag_a", 1, false, null, "ENCOUNTER_01");
-        Assert.Equal([expected], step.Result!.Flags);
-        Assert.Equal([expected], step.Beats.OfType<CheckBeat>().Single().Flags!);
+        MissionTrait expected = new("trait_a", 1, false, null, "ENCOUNTER_01");
+        Assert.Equal([expected], step.Result!.Traits);
+        Assert.Equal([expected], step.Beats.OfType<CheckBeat>().Single().Traits!);
     }
 
     [Fact]
-    public void An_actor_flag_names_the_one_who_made_the_check()
+    public void An_actor_trait_names_the_one_who_made_the_check()
     {
         var team = new Team([Skilled("CREW_01", 5, ("SKILL_A", 1)), Skilled("CREW_02", 4, ("SKILL_A", 6))], "CREW_01");
 
-        MissionStep step = MissionResolver.Advance(Start(team, new Parameters(), AOrC(difficulty: 1, outcomes: OnAnySuccess(Flag("actor", 2, set: true)))));
+        MissionStep step = MissionResolver.Advance(Start(team, new Parameters(), AOrC(difficulty: 1, outcomes: OnAnySuccess(Trait("actor", 2, set: true)))));
 
         Assert.Equal("CREW_02", step.Beats.OfType<CheckBeat>().Single().ActorId);
-        Assert.Equal([new MissionFlag("flag_a", 2, true, "CREW_02", "ENCOUNTER_01")], step.Result!.Flags);
+        Assert.Equal([new MissionTrait("trait_a", 2, true, "CREW_02", "ENCOUNTER_01")], step.Result!.Traits);
     }
 
     [Fact]
-    public void A_team_flag_names_each_member_still_standing()
+    public void A_team_trait_names_each_member_still_standing()
     {
-        MissionState state = Start(TestContent.Team(1, 1, 3, 5), new Parameters(), AOrC(difficulty: 1, outcomes: OnAnySuccess(Flag("team"))));
+        MissionState state = Start(TestContent.Team(1, 1, 3, 5), new Parameters(), AOrC(difficulty: 1, outcomes: OnAnySuccess(Trait("team"))));
         state.Team.Single(m => m.Member.Id == "CREW_03").Status = MemberStatus.Incapacitated;
 
         MissionStep step = MissionResolver.Advance(state);
 
-        Assert.Equal(["CREW_01", "CREW_05"], step.Result!.Flags.Select(f => f.CrewId));
-        Assert.All(step.Result.Flags, f => Assert.Equal(("flag_a", 1, false, "ENCOUNTER_01"), (f.Flag, f.Amount, f.Set, f.EncounterId)));
+        Assert.Equal(["CREW_01", "CREW_05"], step.Result!.Traits.Select(f => f.CrewId));
+        Assert.All(step.Result.Traits, f => Assert.Equal(("trait_a", 1, false, "ENCOUNTER_01"), (f.Trait, f.Amount, f.Set, f.EncounterId)));
     }
 
     // The first lead alone has the skill, so they make the impossible check and take its disaster's severe roll. At the seeds where it
     // downs them, the decision that follows lands on the new lead.
     [Fact]
-    public void A_lead_flag_from_a_decision_names_the_lead_at_that_moment()
+    public void A_lead_trait_from_a_decision_names_the_lead_at_that_moment()
     {
         var team = new Team([Skilled("CREW_01", 5, ("SKILL_A", 6)), Skilled("CREW_02", 4)], "CREW_01");
-        EffectDef answer = Flag("lead", flag: "flag_b");
+        EffectDef answer = Trait("lead", trait: "trait_b");
         var decision = new DecisionDef("DECISION_PROMPT_1", 1, answer, answer);
         int changed = 0;
         for (ulong seed = 1; seed <= 60; seed++)
@@ -783,30 +783,30 @@ public class MissionRulesTests
             }
 
             string lead = beats.OfType<LeadChangeBeat>().Select(b => b.CrewId).LastOrDefault() ?? "CREW_01";
-            Assert.Equal([new MissionFlag("flag_b", 1, false, lead, "ENCOUNTER_01")], step.Result!.Flags);
+            Assert.Equal([new MissionTrait("trait_b", 1, false, lead, "ENCOUNTER_01")], step.Result!.Traits);
             changed += lead == "CREW_02" ? 1 : 0;
         }
 
         Assert.True(changed > 0);
     }
 
-    // Every tier's outcome is its default plus a flag on the team, and both answers carry one on the lead.
+    // Every tier's outcome is its default plus a trait on the team, and both answers carry one on the lead.
     [Fact]
-    public void A_flag_change_alters_nothing_else_about_the_mission()
+    public void A_trait_change_alters_nothing_else_about_the_mission()
     {
         MissionTuning t = TestContent.Tuning;
         Dictionary<string, EffectDef> Outcomes(bool flagged) => Enum.GetValues<Tier>().ToDictionary(
             tier => tier.ToString().ToLowerInvariant(),
-            tier => MissionResolver.DefaultOutcome(t, tier) with { Flags = flagged ? [new FlagChange("flag_a", 1, false, "team")] : null });
+            tier => MissionResolver.DefaultOutcome(t, tier) with { Traits = flagged ? [new TraitChange("trait_a", 1, false, "team")] : null });
         EncounterDef Make(bool flagged, int difficulty, string id, string tag)
         {
-            EffectDef bold = new(Progress: 1, Flags: flagged ? [new FlagChange("flag_b", 2, true, "lead")] : null);
-            EffectDef safe = new(Strain: -1, Flags: flagged ? [new FlagChange("flag_c", -1, false, "ship")] : null);
+            EffectDef bold = new(Progress: 1, Traits: flagged ? [new TraitChange("trait_b", 2, true, "lead")] : null);
+            EffectDef safe = new(Strain: -1, Traits: flagged ? [new TraitChange("trait_c", -1, false, "ship")] : null);
             return new EncounterDef(id, [tag], false, null, [Approach("a", "SKILL_A", difficulty, outcomes: Outcomes(flagged))], new DecisionDef($"DECISION_{id}", 2, bold, safe));
         }
 
         var objective = new ObjectiveDef("OBJECTIVE_TEMPLATE_1", [], 1, 4, 3, [new StageDef("one", ["one"], 1, 1, false), new StageDef("two", ["two"], 1, 1, false), new StageDef("three", ["three"], 1, 1, false)]);
-        int flags = 0;
+        int traits = 0;
         for (ulong seed = 1; seed <= 40; seed++)
         {
             string Play(bool flagged)
@@ -820,20 +820,20 @@ public class MissionRulesTests
                     beats.AddRange(step.Beats);
                 }
 
-                flags += flagged ? step.Result!.Flags.Count : 0;
+                traits += flagged ? step.Result!.Traits.Count : 0;
                 IEnumerable<Beat> plain = beats.Select(b => b switch
                 {
-                    CheckBeat c => c with { Flags = null },
-                    EffectsBeat e => e with { Effects = e.Effects with { Flags = null } },
+                    CheckBeat c => c with { Traits = null },
+                    EffectsBeat e => e with { Effects = e.Effects with { Traits = null } },
                     _ => b,
                 });
-                return System.Text.Json.JsonSerializer.Serialize(plain, MissionJson.Options) + System.Text.Json.JsonSerializer.Serialize(step.Result! with { Flags = [] }, MissionJson.Options);
+                return System.Text.Json.JsonSerializer.Serialize(plain, MissionJson.Options) + System.Text.Json.JsonSerializer.Serialize(step.Result! with { Traits = [] }, MissionJson.Options);
             }
 
             Assert.Equal(Play(false), Play(true));
         }
 
-        Assert.True(flags > 0);
+        Assert.True(traits > 0);
     }
 
     private static TeamMember Flat(string id, int seniority, int skill)

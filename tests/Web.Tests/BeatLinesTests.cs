@@ -126,7 +126,7 @@ public class BeatLinesTests
 
     // The route and the meter read a stage line's encounter, blocked flag, and figures as data, never from its text.
     [Fact]
-    public void A_stage_line_carries_its_encounter_blocked_flag_momentum_and_strain_as_data_and_other_lines_carry_none()
+    public void A_stage_line_carries_its_encounter_blocked_trait_momentum_and_strain_as_data_and_other_lines_carry_none()
     {
         LogLine stage = BeatLines.Line(0, new StageBeat(5, "ENCOUNTER_02", "SLOT_9", true, 3, 4), 1);
 
@@ -154,25 +154,25 @@ public class BeatLinesTests
 
     // A check's flags name the crew they landed on; an answer's name what it was written on, since the beat holds the effect as authored.
     [Fact]
-    public void A_beat_that_changed_a_flag_has_a_tag_for_each_change()
+    public void A_beat_that_changed_a_trait_has_a_tag_for_each_change()
     {
-        CheckBeat check = (CheckBeat)Samples[2] with { Flags = [new MissionFlag("flag_a", 1, false, null, "ENCOUNTER_03"), new MissionFlag("flag_a", 2, true, "CREW_02", "ENCOUNTER_03")] };
-        var answer = new EffectsBeat(new EffectDef(Progress: 1, Flags: [new FlagChange("flag_a", -1, false, "ship"), new FlagChange("flag_b", 2, true, "lead")]));
+        CheckBeat check = (CheckBeat)Samples[2] with { Traits = [new MissionTrait("trait_a", 1, false, null, "ENCOUNTER_03"), new MissionTrait("trait_a", 2, true, "CREW_02", "ENCOUNTER_03")] };
+        var answer = new EffectsBeat(new EffectDef(Progress: 1, Traits: [new TraitChange("trait_a", -1, false, "ship"), new TraitChange("trait_b", 2, true, "lead")]));
 
-        Assert.Equal(["partial −2", "flag_a +1, ship", "flag_a = 2, CREW_02"], BeatLines.Tags(check));
-        Assert.Equal(["progress +1", "flag_a −1, ship", "flag_b = 2, lead"], BeatLines.Tags(answer));
-        Assert.Equal("Progress +1. Flag flag_a −1, ship. Flag flag_b = 2, lead.", BeatLines.Line(0, answer).Text);
+        Assert.Equal(["partial −2", "trait_a +1, ship", "trait_a = 2, CREW_02"], BeatLines.Tags(check));
+        Assert.Equal(["progress +1", "trait_a −1, ship", "trait_b = 2, lead"], BeatLines.Tags(answer));
+        Assert.Equal("Progress +1. Trait trait_a −1, ship. Trait trait_b = 2, lead.", BeatLines.Line(0, answer).Text);
     }
 
     [Fact]
-    public void A_checks_flag_tag_names_the_crew_member_and_keeps_a_written_word_as_written()
+    public void A_checks_trait_tag_names_the_crew_member_and_keeps_a_written_word_as_written()
     {
-        CheckBeat check = (CheckBeat)Samples[2] with { Flags = [new MissionFlag("flag_a", 2, true, "CREW_02", "ENCOUNTER_03")] };
-        var answer = new EffectsBeat(new EffectDef(Flags: [new FlagChange("flag_b", 2, true, "lead")]));
+        CheckBeat check = (CheckBeat)Samples[2] with { Traits = [new MissionTrait("trait_a", 2, true, "CREW_02", "ENCOUNTER_03")] };
+        var answer = new EffectsBeat(new EffectDef(Traits: [new TraitChange("trait_b", 2, true, "lead")]));
         Names names = SampleNames();
 
-        Assert.Equal("flag_a = 2, NAME_PLACEHOLDER_CREW_02", BeatLines.Tags(check, names)[1]);
-        Assert.Equal("flag_b = 2, lead", BeatLines.Tags(answer, names)[0]);
+        Assert.Equal("trait_a = 2, NAME_PLACEHOLDER_CREW_02", BeatLines.Tags(check, names)[1]);
+        Assert.Equal("trait_b = 2, lead", BeatLines.Tags(answer, names)[0]);
     }
 
     // The morale bonus is part of the score, so the tag says where a point came from (1e part two).

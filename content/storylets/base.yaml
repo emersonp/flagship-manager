@@ -7,7 +7,7 @@
   stakes: 2
   scope: ship
   requires:
-    - { flag: sensors_quirk, min: 1, max: 1 }
+    - { trait: sensors_quirk, min: 1, max: 1 }
   text: |-
     > Forward array variance: 0.4 seconds, rising.
     best SKILL_A: Captain, the forward array is reading ghosts. Contacts that aren't there, and a lag on the ones that are.
@@ -18,19 +18,19 @@
   options:
     - id: recalibrate
       label: Recalibrate tonight
-      effects: [{ flag: sensors_quirk, set: 0 }, { loyalty: -1, on: crew }]
+      effects: [{ trait: sensors_quirk, set: 0 }, { loyalty: -1, on: crew }]
       text: The off-duty watch spent their rest in the sensor bay, and the forward array reads true again.
     - id: fly_on
       label: Fly on it
-      effects: [{ flag: sensors_quirk, set: 2 }]
+      effects: [{ trait: sensors_quirk, set: 2 }]
       text: The forward array stays as it is. Every reading from it now carries a margin, and the bridge knows it.
 - id: STORYLET_02
   name: Someone shaken
   stakes: 3
   scope: crew
   requires:
-    - { flag: shaken, min: 1 }
-    - { flag: shaken_heard, max: 0 }
+    - { trait: shaken, min: 1 }
+    - { trait: shaken_heard, max: 0 }
   text: |-
     > Request from #subject#: a word with the captain, in private.
     subject: Captain. Have you got a minute? It's about the gallery.
@@ -40,9 +40,9 @@
     - id: make_time
       label: Make the time
       # Everyone's loyalty dips but the subject's: the captain is seen to have favourites.
-      effects: [{ flag: shaken, add: -1 }, { flag: shaken_heard, set: 1 }, { loyalty: -1, on: crew }, { loyalty: 1, on: subject }]
+      effects: [{ trait: shaken, add: -1 }, { trait: shaken_heard, set: 1 }, { loyalty: -1, on: crew }, { loyalty: 1, on: subject }]
       text: "#subject# had the captain's door for the better part of an hour, and the rest of the crew noticed whose it was."
     - id: carry_on
       label: Tell them to carry on
-      effects: [{ flag: shaken_heard, set: 2 }, { loyalty: -2, on: subject }]
+      effects: [{ trait: shaken_heard, set: 2 }, { loyalty: -2, on: subject }]
       text: "#subject# was told to carry on, and went back on shift without another word."

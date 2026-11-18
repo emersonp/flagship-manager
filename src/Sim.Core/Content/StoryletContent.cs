@@ -1,10 +1,10 @@
 namespace Sim.Core.Content;
 
-// One requirement of a storylet: a flag's value, a stat of the subject, or a fact about the last cycle (1e part two).
+// One requirement of a storylet: a trait's value, a stat of the subject, or a fact about the last cycle (1e part two).
 public abstract record Requirement;
 
-// The flag's value lies in Min to Max (no limit when Max is null). A flag nobody has set is 0.
-public sealed record FlagRange(string Flag, int Min, int? Max) : Requirement
+// The trait's value lies in Min to Max (no limit when Max is null). A trait nobody has set is 0.
+public sealed record TraitRange(string Trait, int Min, int? Max) : Requirement
 {
     public bool Holds(int value)
     {
@@ -12,7 +12,7 @@ public sealed record FlagRange(string Flag, int Min, int? Max) : Requirement
     }
 }
 
-// The subject's stat (one of StoryletStats) lies in Min to Max, as a flag's range does.
+// The subject's stat (one of StoryletStats) lies in Min to Max, as a trait's range does.
 public sealed record StatRange(string Stat, int Min, int? Max) : Requirement
 {
     public bool Holds(int value)
@@ -24,17 +24,17 @@ public sealed record StatRange(string Stat, int Min, int? Max) : Requirement
 // A fact about the subject in the cycle whose aftermath last ended (one of LastCycleFacts); Not turns it round.
 public sealed record LastCycle(string Fact, bool Not) : Requirement;
 
-// One effect of an answer: a loyalty change, a morale change, or a flag change. LoyaltyOn and MoraleOn are "subject" or "crew"
-// when their amount is not 0. Flag.On is "ship", "subject", or "" (the scope the storylet arrived for).
-public sealed record StoryletEffect(int Loyalty = 0, string? LoyaltyOn = null, FlagChange? Flag = null, int Morale = 0, string? MoraleOn = null);
+// One effect of an answer: a loyalty change, a morale change, or a trait change. LoyaltyOn and MoraleOn are "subject" or "crew"
+// when their amount is not 0. Trait.On is "ship", "subject", or "" (the scope the storylet arrived for).
+public sealed record StoryletEffect(int Loyalty = 0, string? LoyaltyOn = null, TraitChange? Trait = null, int Morale = 0, string? MoraleOn = null);
 
 public sealed record StoryletOption(string Id, string Label, IReadOnlyList<StoryletEffect> Effects);
 
-// Scope is "ship" or "crew": whose flags the requirements read, and whether the storylet arrives for a subject.
+// Scope is "ship" or "crew": whose traits the requirements read, and whether the storylet arrives for a subject.
 public sealed record StoryletDef(string Id, int Stakes, string Scope, IReadOnlyList<Requirement> Requires, IReadOnlyList<StoryletOption> Options, string? Name = null)
 {
-    // The requirements on flags, the only ones a storylet's own answers can move.
-    public IEnumerable<FlagRange> Flags => Requires.OfType<FlagRange>();
+    // The requirements on traits, the only ones a storylet's own answers can move.
+    public IEnumerable<TraitRange> Traits => Requires.OfType<TraitRange>();
 }
 
 // The words a storylet's scope and its effects' on are written with.

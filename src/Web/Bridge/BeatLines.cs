@@ -85,7 +85,7 @@ public static partial class BeatLines
                     tags.Add($"strain {Signed(strain - b.Strain)}");
                 }
 
-                tags.AddRange((b.Flags ?? []).Select(f => FlagTag(f.Flag, f.Amount, f.Set, f.CrewId is null ? FlagIds.Ship : names?.Crew(f.CrewId) ?? f.CrewId)));
+                tags.AddRange((b.Traits ?? []).Select(f => TraitTag(f.Trait, f.Amount, f.Set, f.CrewId is null ? TraitOn.Ship : names?.Crew(f.CrewId) ?? f.CrewId)));
                 break;
             case EffectsBeat b:
                 if (b.Effects.Progress != 0)
@@ -113,8 +113,8 @@ public static partial class BeatLines
                     tags.Add("withdraw");
                 }
 
-                // The beat holds the effect as written, so a flag is tagged with what it was written on.
-                tags.AddRange((b.Effects.Flags ?? []).Select(f => FlagTag(f.Flag, f.Amount, f.Set, f.On)));
+                // The beat holds the effect as written, so a trait is tagged with what it was written on.
+                tags.AddRange((b.Effects.Traits ?? []).Select(f => TraitTag(f.Trait, f.Amount, f.Set, f.On)));
                 break;
             case InjuryBeat b:
                 tags.Add(Words(b.Outcome));
@@ -269,15 +269,15 @@ public static partial class BeatLines
             parts.Add("Withdraw.");
         }
 
-        parts.AddRange((e.Flags ?? []).Select(f => $"Flag {FlagTag(f.Flag, f.Amount, f.Set, f.On)}."));
+        parts.AddRange((e.Traits ?? []).Select(f => $"Trait {TraitTag(f.Trait, f.Amount, f.Set, f.On)}."));
 
         return parts.Count == 0 ? "No effect." : string.Join(' ', parts);
     }
 
-    // "flag_a +1, ship" for an add, "flag_a = 2, CREW_02" for a set.
-    private static string FlagTag(string flag, int amount, bool set, string on)
+    // "trait_a +1, ship" for an add, "trait_a = 2, CREW_02" for a set.
+    private static string TraitTag(string trait, int amount, bool set, string on)
     {
-        return $"{flag} {(set ? "= " + N(amount) : Signed(amount))}, {on}";
+        return $"{trait} {(set ? "= " + N(amount) : Signed(amount))}, {on}";
     }
 
     private static string Cap(string text)

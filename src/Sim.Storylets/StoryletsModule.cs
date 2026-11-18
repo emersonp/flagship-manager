@@ -3,14 +3,15 @@ using Sim.Core.Content;
 
 namespace Sim.Storylets;
 
-// Owns the story flags, offers storylets and sends vignettes when the captain's itinerary opens, and applies answers' effects.
-// It reaches crew only through the roster view and the AdjustLoyalty and AdjustMorale commands, and hears of missions only
-// through their results.
+// Offers storylets and sends vignettes when the captain's itinerary opens, and applies answers' effects. It reaches crew only
+// through the roster view and the AdjustLoyalty and AdjustMorale commands, traits only through the trait view and the
+// ChangeTrait command (slice 1e, part three), and hears of missions only through their results.
 public static class StoryletsModule
 {
     public const string Name = "storylets";
 
-    // After crew (100) and missions (200): a death on the mission is already known when its flags are stored.
+    // After crew (100), missions (200), and traits (250): a death on the mission is already known, and the itinerary reads
+    // traits as the mission left them.
     private const int Order = 300;
 
     private const string ShipKey = "ship";
@@ -23,8 +24,6 @@ public static class StoryletsModule
         bus.Handle<AnswerStorylet>((command, context) => OnAnswer(pack, command, context));
         bus.Guard<AnswerVignette>(Order, Name, (command, context) => CheckVignette(pack, command, context));
         bus.Handle<AnswerVignette>((command, context) => OnVignette(pack, command, context));
-        bus.Guard<SetFlag>(Order, Name, (command, context) => CheckSet(command, context));
-        bus.Handle<SetFlag>((command, context) => OnSet(command, context));
         bus.Subscribe<MissionEnded>(Order, Name, (e, context) => OnMissionEnded(e, context));
         bus.Subscribe<CrewDied>(Order, Name, (e, context) => OnCrewDied(e, context));
         bus.Subscribe<PhaseEntered>(Order, Name, (e, context) =>
@@ -71,16 +70,15 @@ public static class StoryletsModule
         StoryletsState state = context.Module<StoryletsState>();
         WaitingStorylet waiting = state.Waiting.First(w => w.OfferId == command.OfferId);
         StoryletOption option = pack.Storylets.First(s => s.Id == waiting.StoryletId).Options.First(o => o.Id == command.OptionId);
-        Apply(option.Effects, waiting.SubjectId, context);
+        Apply(option.Effects, waiting.SubjectId, TraitCauses.Answer, context);
         state.Waiting.Remove(waiting);
         context.Publish(new StoryletAnswered(waiting.OfferId, waiting.StoryletId, waiting.SubjectId, option.Id));
     }
 
     // An answer's or a vignette's effects, in order: loyalty and morale through the crew module's commands, on the subject or
-    // every living crew member; flags on the ship or the subject (no on: the scope it arrived for).
-    private static void Apply(IReadOnlyList<StoryletEffect> effects, string? subjectId, IBusContext context)
+    // every living crew member; traits through the traits module, on the ship or the subject (no on: the scope it arrived for).
+    private static void Apply(IReadOnlyList<StoryletEffect> effects, string? subjectId, string cause, IBusContext context)
     {
-        StoryletsState state = context.Module<StoryletsState>();
         foreach (StoryletEffect effect in effects)
         {
             IEnumerable<string> Who(string? on)
@@ -104,10 +102,10 @@ public static class StoryletsModule
                 }
             }
 
-            if (effect.Flag is { } change)
+            if (effect.Trait is { } change)
             {
                 string? crewId = change.On == StoryletScopes.Ship ? null : subjectId;
-                Change(state, change.Flag, crewId, change.Amount, change.Set, null, context);
+                context.Send(new ChangeTrait(change.Trait, crewId, null, change.Amount, change.Set, cause));
             }
         }
     }
@@ -131,7 +129,7 @@ public static class StoryletsModule
 
     private static void Settle(VignetteDef vignette, WaitingVignette waiting, string optionId, bool defaulted, IBusContext context)
     {
-        Apply(vignette.Options.First(o => o.Id == optionId).Effects, waiting.SubjectId, context);
+        Apply(vignette.Options.First(o => o.Id == optionId).Effects, waiting.SubjectId, TraitCauses.Vignette, context);
         context.Module<StoryletsState>().Vignettes.Remove(waiting);
         context.Publish(new VignetteAnswered(waiting.OfferId, waiting.VignetteId, waiting.SubjectId, optionId, defaulted));
     }
@@ -193,7 +191,7 @@ public static class StoryletsModule
             context.Publish(new VignetteArrived(offer.OfferId, vignette.Id, subjectId, offer.Fact));
             if (vignette.Options.Count == 0)
             {
-                Apply(vignette.Effects, subjectId, context);
+                Apply(vignette.Effects, subjectId, TraitCauses.Vignette, context);
                 context.Publish(new VignetteAnswered(offer.OfferId, vignette.Id, subjectId, null, Defaulted: false));
             }
             else
@@ -201,35 +199,6 @@ public static class StoryletsModule
                 state.Vignettes.Add(offer);
             }
         }
-    }
-
-    private static string? CheckSet(SetFlag command, IBusContext context)
-    {
-        if (string.IsNullOrEmpty(command.Flag) || !Ids.IsInnerId(command.Flag))
-        {
-            return $"Flag id '{command.Flag}' must be {char.ToLowerInvariant(Ids.InnerRule[0])}{Ids.InnerRule[1..]}";
-        }
-
-        if (command.Value is < 0 or > SetFlag.Most)
-        {
-            return $"A flag's value is 0 to {SetFlag.Most}.";
-        }
-
-        if (command.CrewId is not null && !context.View<IRosterView>().Roster.Contains(command.CrewId))
-        {
-            return $"Crew member '{command.CrewId}' is not on the roster.";
-        }
-
-        return Value(context.Module<StoryletsState>(), command.Flag, command.CrewId) == command.Value
-            ? $"{command.Flag} is already {command.Value} {(command.CrewId is null ? "on the ship" : $"on {command.CrewId}")}."
-            : null;
-    }
-
-    // An answer's kind of change: it keeps the encounter that last changed the flag, so a storylet's head still says where it came from.
-    private static void OnSet(SetFlag command, IBusContext context)
-    {
-        context.Publish(new FlagSetByDeveloper(command.Flag, command.CrewId, command.Value));
-        Change(context.Module<StoryletsState>(), command.Flag, command.CrewId, command.Value, true, null, context);
     }
 
     private static void OnMissionEnded(MissionEnded ended, IBusContext context)
@@ -243,23 +212,11 @@ public static class StoryletsModule
             Hurt = crew.Where(c => c.Status == MemberStatus.Incapacitated || (c.Status == MemberStatus.Active && c.Injury > 0)).Select(c => c.Id).ToList(),
             Died = crew.Where(c => c.Status == MemberStatus.Dead).Select(c => c.Id).ToList(),
         };
-        IReadOnlyList<string> roster = context.View<IRosterView>().Roster;
-        foreach (MissionFlag flag in ended.Result.Flags)
-        {
-            // Someone who died on the mission has left the roster by now; what the mission set on them goes with them.
-            if (flag.CrewId is not null && !roster.Contains(flag.CrewId))
-            {
-                continue;
-            }
-
-            Change(state, flag.Flag, flag.CrewId, flag.Amount, flag.Set, flag.EncounterId, context);
-        }
     }
 
     private static void OnCrewDied(CrewDied died, IBusContext context)
     {
         StoryletsState state = context.Module<StoryletsState>();
-        state.Flags.RemoveAll(f => f.CrewId == died.CrewId);
         state.Vignettes.RemoveAll(v => v.SubjectId == died.CrewId);
         foreach (WaitingStorylet waiting in state.Waiting.Where(w => w.SubjectId == died.CrewId).ToList())
         {
@@ -301,10 +258,12 @@ public static class StoryletsModule
                 break;
             }
 
-            // Where it came from: the encounter that last changed the first required flag that is set.
-            string? encounterId = storylet.Flags
-                .Select(r => Find(state, r.Flag, subjectId))
-                .FirstOrDefault(f => f is not null)?.EncounterId;
+            // Where it came from: the encounter that last changed the first required trait that is set.
+            ITraitView traits = context.View<ITraitView>();
+            string? encounterId = storylet.Traits
+                .Where(r => traits.Value(r.Trait, subjectId) > 0)
+                .Select(r => traits.EncounterId(r.Trait, subjectId))
+                .FirstOrDefault();
             var offer = new WaitingStorylet
             {
                 OfferId = $"{cycle}:{storylet.Id}:{subjectId ?? ShipKey}",
@@ -323,44 +282,14 @@ public static class StoryletsModule
         context.Publish(new StoryletWithdrawn(waiting.OfferId, waiting.StoryletId, waiting.SubjectId));
     }
 
-    // Adds to or sets one flag. It never goes below 0, a flag at 0 is not stored, and a change that changes nothing is not published.
-    // encounterId null (an answer) keeps the encounter that last changed the flag.
-    private static void Change(StoryletsState state, string flag, string? crewId, int amount, bool set, string? encounterId, IBusContext context)
-    {
-        StoredFlag? stored = Find(state, flag, crewId);
-        int from = stored?.Value ?? 0;
-        int to = Math.Max(0, set ? amount : from + amount);
-        if (to == from)
-        {
-            return;
-        }
-
-        if (to == 0)
-        {
-            state.Flags.Remove(stored!);
-        }
-        else if (stored is null)
-        {
-            state.Flags.Add(new StoredFlag { Flag = flag, CrewId = crewId, Value = to, SetAtWeek = context.State.Week, EncounterId = encounterId });
-        }
-        else
-        {
-            stored.Value = to;
-            stored.SetAtWeek = context.State.Week;
-            stored.EncounterId = encounterId ?? stored.EncounterId;
-        }
-
-        context.Publish(new FlagChanged(flag, crewId, from, to, encounterId));
-    }
-
-    // One requirement on one scope: the ship's flags (subjectId null), or a crew member's flags, stats, and last cycle.
+    // One requirement on one scope: the ship's traits (subjectId null), or a crew member's traits, stats, and last cycle.
     private static bool Holds(Requirement requirement, StoryletsState state, string? subjectId, IBusContext context)
     {
         IRosterView roster = context.View<IRosterView>();
         LastCycleRecord? last = state.LastCycle;
         return requirement switch
         {
-            FlagRange flag => flag.Holds(Value(state, flag.Flag, subjectId)),
+            TraitRange trait => trait.Holds(context.View<ITraitView>().Value(trait.Trait, subjectId)),
             StatRange stat when subjectId is not null => stat.Holds(stat.Stat == StoryletStats.Morale ? roster.Morale(subjectId) : roster.Loyalty(subjectId)),
             LastCycle fact when subjectId is not null && last is not null => fact.Not != fact.Fact switch
             {
@@ -372,15 +301,5 @@ public static class StoryletsModule
             },
             _ => false,
         };
-    }
-
-    private static StoredFlag? Find(StoryletsState state, string flag, string? crewId)
-    {
-        return state.Flags.FirstOrDefault(f => f.Flag == flag && f.CrewId == crewId);
-    }
-
-    private static int Value(StoryletsState state, string flag, string? crewId)
-    {
-        return Find(state, flag, crewId)?.Value ?? 0;
     }
 }
