@@ -1,10 +1,8 @@
-# Placeholders. The author replaces these. STORYLET_01 is for the ship, STORYLET_02 for one crew member at a time, and STORYLET_03
-# for a pair: a holder of trait_g and its target.
+# Placeholders. The author replaces these. STORYLET_01 is for the ship (no cast), STORYLET_02 casts one crew member, and STORYLET_03
+# two: a holder of trait_g and its target (1e part four).
 - id: STORYLET_01
   stakes: 2
-  scope: ship
-  requires:
-    - { trait: trait_a, min: 1, max: 1 }
+  requires: "ship.trait.trait_a == 1"
   text: |-
     captain: STORYLET_01_LINE_1
     best SKILL_A: STORYLET_01_LINE_2
@@ -14,10 +12,8 @@
     - { id: option_b, label: STORYLET_01_OPTION_B_LABEL, effects: [{ trait: trait_a, set: 2 }, { trait: trait_f, add: 1 }], text: STORYLET_01_OPTION_B_TEXT }
 - id: STORYLET_02
   stakes: 1
-  scope: crew
-  requires:
-    - { trait: trait_b, min: 1 }
-    - { trait: trait_c, max: 0 }
+  cast:
+    subject: "subject.trait.trait_b >= 1 && subject.trait.trait_c == 0"
   text: |-
     subject: STORYLET_02_LINE_1
     captain: STORYLET_02_LINE_2
@@ -27,9 +23,9 @@
     - { id: option_b, label: STORYLET_02_OPTION_B_LABEL, effects: [{ trait: trait_c, set: 2 }, { loyalty: -2, on: subject }], text: "#subject# STORYLET_02_OPTION_B_TEXT" }
 - id: STORYLET_03
   stakes: 2
-  scope: pair
-  requires:
-    - { trait: trait_g, min: 3, max: 4 }
+  cast:
+    subject: "subject.aboard"
+    target: "subject.trait.trait_g.toward(target) >= 3 && subject.trait.trait_g.toward(target) <= 4"
   text: |-
     subject: STORYLET_03_LINE_1
     target: STORYLET_03_LINE_2

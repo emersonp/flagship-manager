@@ -6,7 +6,7 @@ namespace Persistence;
 // Developer mode only: the way to keep a legacy safe from bugs while the game is under construction.
 public static class LegacyExport
 {
-    private const int CurrentFormatVersion = 9;
+    private const int CurrentFormatVersion = 10;
 
     private static readonly JsonSerializerOptions Options = new(SimJson.Options) { WriteIndented = true };
 

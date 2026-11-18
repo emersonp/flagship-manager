@@ -1,18 +1,27 @@
 using System.Globalization;
+using System.Text.RegularExpressions;
 using Sim.Core.Content;
 using Sim.Core.Narrative;
+using Sim.Expressions;
 
 namespace Sim.Content;
 
-// Storylets (slice 1e): what arrives on the itinerary when traits hold, and the answers with their fixed effects.
+// Storylets (slice 1e): what arrives on the itinerary when its expressions hold on a cast, and the answers with their fixed effects.
+// From part four (design 4.2) a storylet is cast with up to three named slots and read in the expression language.
 public static partial class ContentLoader
 {
-    private const int MaxRequirements = 4;
     private const int MinOptions = 2;
     private const int MaxOptions = 4;
     private const int MaxVignetteEntries = 3;
 
-    private static List<StoryletDef> BuildStorylets(List<(string File, StoryletDto Dto)> items, TraitBook book, List<ContentError> errors)
+    // The most value combinations the no-hidden-memory check tries when it looks for the lowest values that let a storylet arrive.
+    private const int MaxWitnesses = 20_000;
+
+    private const string ScopeIsNowCast = "scope was replaced by cast in part four; a storylet for crew casts subject.";
+
+    private const string RequiresIsNowExpression = "requires is one expression since part four, not a list; write it as \"subject.trait.shaken >= 1 && subject.morale <= 25\".";
+
+    private static List<StoryletDef> BuildStorylets(List<(string File, StoryletDto Dto)> items, TraitBook book, ExpressionBook expressions, List<ContentError> errors)
     {
         var defs = new List<StoryletDef>();
         foreach ((string file, StoryletDto dto) in items)
@@ -28,38 +37,36 @@ public static partial class ContentLoader
                 Error("A storylet's stakes must be 1 to 5.");
             }
 
-            string? scope = dto.Scope is StoryletScopes.Ship or StoryletScopes.Crew or StoryletScopes.Pair ? dto.Scope : null;
-            if (scope is null)
-            {
-                Error("A storylet needs scope: ship, crew, or pair.");
-            }
-
-            List<Requirement> requires = Requirements(dto.Requires, scope, book, Error);
-            List<StoryletOption> options = Options(dto.Options, scope, book, Error);
+            Casting casting = CastOf(dto, expressions, Error);
+            List<StoryletOption> options = Options(dto.Options, casting, book, expressions, Error);
             if (dto.Effects is not null || dto.Default is not null)
             {
                 Error("A storylet's effects and default belong to a vignette; a storylet's effects are in its options.");
             }
 
-            if (requires.Count > 0 && !requires.OfType<TraitRange>().Any())
+            // Review focus 4: whatever else is shown, one answer always is.
+            if (options.Count > 0 && options.All(o => o.Requires is not null))
             {
-                Error("A storylet needs at least one trait among its requirements, so its answers can stop it returning.");
+                Error("A storylet needs an option with no requires, so it can always be answered.");
+            }
+
+            if (casting.Sound && casting.Reads.Count == 0)
+            {
+                Error("A storylet's cast and requires must read at least one trait, so its answers can stop it returning.");
             }
 
             string? name = CheckName(file, dto.Id!, dto.Name, errors);
 
-            // Only a storylet that is otherwise sound can be judged on whether its answers end it.
-            if (errors.Count == before)
+            // Only a storylet that is otherwise sound can be judged on whether it can arrive and whether its answers end it.
+            Dictionary<TraitRead, int>? lowest = errors.Count == before ? Lowest(casting, book, expressions, Error) : null;
+            if (lowest is not null)
             {
-                foreach (StoryletOption option in options.Where(o => LeavesEveryRequirementTrue(requires, o, scope!, book)))
-                {
-                    Error($"Option '{option.Id}' leaves every requirement true, so this storylet would come back every cycle.");
-                }
+                NoHiddenMemory(casting, lowest, options, book, expressions, Error);
             }
 
             if (errors.Count == before)
             {
-                defs.Add(new StoryletDef(dto.Id!, dto.Stakes, scope!, requires, options, name));
+                defs.Add(new StoryletDef(dto.Id!, dto.Stakes, casting.Cast, casting.Requires, options, name) { Reads = casting.Reads, Needs = Needs(lowest) });
             }
         }
 
@@ -67,8 +74,8 @@ public static partial class ContentLoader
     }
 
     // Vignettes (1e part two, design 4.3): a storylet's shape with no stakes, and either effects that apply when it arrives or one
-    // small choice of two options with a default. Its requirements need no trait: a cooldown, not its answers, stops it returning.
-    private static List<VignetteDef> BuildVignettes(List<(string File, StoryletDto Dto)> items, TraitBook book, List<ContentError> errors)
+    // small choice of two options with a default. Its expressions need no trait: a cooldown, not its answers, stops it returning.
+    private static List<VignetteDef> BuildVignettes(List<(string File, StoryletDto Dto)> items, TraitBook book, ExpressionBook expressions, List<ContentError> errors)
     {
         var defs = new List<VignetteDef>();
         foreach ((string file, StoryletDto dto) in items)
@@ -84,13 +91,7 @@ public static partial class ContentLoader
                 Error("A vignette has no stakes.");
             }
 
-            string? scope = dto.Scope is StoryletScopes.Ship or StoryletScopes.Crew or StoryletScopes.Pair ? dto.Scope : null;
-            if (scope is null)
-            {
-                Error("A vignette needs scope: ship, crew, or pair.");
-            }
-
-            List<Requirement> requires = Requirements(dto.Requires, scope, book, Error, "vignette");
+            Casting casting = CastOf(dto, expressions, Error);
             bool effectsWritten = dto.Effects is { Count: > 0 };
             bool optionsWritten = dto.Options is { Count: > 0 };
             var effects = new List<StoryletEffect>();
@@ -101,7 +102,7 @@ public static partial class ContentLoader
             }
             else if (optionsWritten)
             {
-                options = Options(dto.Options, scope, book, Error, vignette: true);
+                options = Options(dto.Options, casting, book, expressions, Error, vignette: true);
                 if (dto.Default is null || options.All(o => o.Id != dto.Default))
                 {
                     Error("A vignette with options needs a default, and it must be one of them.");
@@ -119,7 +120,7 @@ public static partial class ContentLoader
                     Error("A vignette with no choice has no default.");
                 }
 
-                effects = (dto.Effects ?? []).Select(e => StoryletEffectOf(e ?? [], scope, book, Error)).OfType<StoryletEffect>().ToList();
+                effects = (dto.Effects ?? []).Select(e => StoryletEffectOf(e ?? [], casting.Slots, book, Error)).OfType<StoryletEffect>().ToList();
             }
 
             if (dto.Text is { } text && text.Split('\n').Count(l => l.Trim().Length > 0) > MaxVignetteEntries)
@@ -128,174 +129,126 @@ public static partial class ContentLoader
             }
 
             string? name = CheckName(file, dto.Id!, dto.Name, errors);
+            Dictionary<TraitRead, int>? lowest = errors.Count == before ? Lowest(casting, book, expressions, Error) : null;
             if (errors.Count == before)
             {
-                defs.Add(new VignetteDef(dto.Id!, scope!, requires, effects, options, dto.Default, name));
+                string? first = casting.Slots.FirstOrDefault();
+                string? fact = casting.Checked.SelectMany(c => c.Lasts).FirstOrDefault(l => l.Slot == first)?.Kind;
+                defs.Add(new VignetteDef(dto.Id!, casting.Cast, casting.Requires, effects, options, dto.Default, name) { Reads = casting.Reads, Needs = Needs(lowest), Fact = fact });
             }
         }
 
         return defs;
     }
 
-    // Each entry is one of three kinds (design 4.2): { trait, min, max }, { stat, min, max }, or { last, not }. A range's min is 1
-    // when left out, or 0 when only max is given; max has no limit when left out. A trait's range may instead be is: a number or
-    // one of its levels (1e part three). Stats and facts are read on the subject, so a storylet for the ship cannot have them.
-    private static List<Requirement> Requirements(List<Dictionary<string, string>?>? written, string? scope, TraitBook book, Action<string> error, string noun = "storylet")
+    // A storylet's or vignette's cast and requires, each checked against the expression book with the slots it may read.
+    private sealed record Casting(List<CastSlot> Cast, Expr? Requires, List<CheckedExpression> Checked, bool Sound)
     {
-        var requires = new List<Requirement>();
-        if (written is not { Count: >= 1 and <= MaxRequirements })
-        {
-            error($"A {noun} needs one to four requirements.");
-        }
+        public IReadOnlyList<string> Slots => Cast.Select(c => c.Name).ToList();
 
-        foreach (Dictionary<string, string> entry in (written ?? []).Select(e => e ?? []))
-        {
-            string kind = entry.ContainsKey("stat") ? "stat" : entry.ContainsKey("last") ? "last" : "trait";
-            string[] keys = kind == "last" ? ["last", "not", "of"] : kind == "trait" ? ["trait", "min", "max", "is"] : [kind, "min", "max", "of"];
-            bool ok = true;
-            foreach (string key in entry.Keys.Where(k => !keys.Contains(k)))
-            {
-                error(key == "flag" ? FlagIsNowTrait
-                    : kind == "trait"
-                    ? $"A requirement takes trait, stat, or last; '{key}' is not one of them."
-                    : $"A requirement on {kind} takes {string.Join(", ", keys[1..])}; '{key}' is not one of them.");
-                ok = false;
-            }
-
-            string? name = entry.GetValueOrDefault(kind);
-            if (kind != "trait" && scope == StoryletScopes.Ship)
-            {
-                error($"A {noun} for the ship has no subject, so it cannot read {name}.");
-                ok = false;
-            }
-
-            // A stat or a fact about the last cycle may be the pair's target's (1e part three): of: target.
-            bool ofTarget = false;
-            if (entry.TryGetValue("of", out string? of))
-            {
-                if (of != StoryletScopes.Target || scope != StoryletScopes.Pair)
-                {
-                    error($"of: target is the only of, and only a {noun} for a pair has a target.");
-                    ok = false;
-                }
-
-                ofTarget = true;
-            }
-
-            if (kind == "last")
-            {
-                if (name is null || !LastCycleFacts.All.Contains(name))
-                {
-                    error($"'{name}' is not a fact about the last cycle; they are {string.Join(", ", LastCycleFacts.All)}.");
-                    ok = false;
-                }
-
-                bool not = false;
-                if (entry.TryGetValue("not", out string? notText) && !bool.TryParse(notText, out not))
-                {
-                    error("A requirement's not must be true or false.");
-                    ok = false;
-                }
-
-                if (ok)
-                {
-                    requires.Add(new LastCycle(name!, not, ofTarget));
-                }
-
-                continue;
-            }
-
-            if (kind == "stat" && (name is null || !StoryletStats.All.Contains(name)))
-            {
-                error($"'{name}' is not a stat a storylet can read; they are {string.Join(", ", StoryletStats.All)}.");
-                ok = false;
-            }
-
-            if (kind == "trait" && !entry.ContainsKey("flag") && (name is null || !Ids.IsInnerId(name)))
-            {
-                error($"Trait id '{name}' must be {Said(Ids.InnerRule)}");
-                ok = false;
-            }
-
-            bool unreadable = false;
-            int? Bound(string key)
-            {
-                if (!entry.TryGetValue(key, out string? text))
-                {
-                    return null;
-                }
-
-                if (int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out int value) && value >= 0)
-                {
-                    return value;
-                }
-
-                unreadable = true;
-                return null;
-            }
-
-            int? min = Bound("min");
-            int? max = Bound("max");
-            if (kind == "trait" && entry.TryGetValue("is", out string? isText))
-            {
-                if (entry.ContainsKey("min") || entry.ContainsKey("max"))
-                {
-                    error("A requirement has is, or min and max, not both.");
-                    continue;
-                }
-
-                if (name is null || !Ids.IsInnerId(name) || book.Is(name, isText, error) is not { } exact)
-                {
-                    continue;
-                }
-
-                (min, max) = (exact, exact);
-            }
-
-            if (unreadable)
-            {
-                error("A requirement's min and max must be whole numbers of 0 or more.");
-                continue;
-            }
-
-            int low = min ?? (entry.ContainsKey("max") ? 0 : 1);
-            if (max is { } high && high < low)
-            {
-                error($"The requirement on {name} has max {high} below min {low}.");
-                ok = false;
-            }
-
-            // In a storylet for a pair, a trait defined on a pair is the pair's; any other is the holder's own.
-            if (ok && kind == "trait" && scope is not null)
-            {
-                string place = scope == StoryletScopes.Ship ? TraitPlaces.Ship
-                    : scope == StoryletScopes.Pair && book.Def(name!) is { OnPair: true } ? TraitPlaces.Pair
-                    : TraitPlaces.Crew;
-                ok = book.CheckPlace(name!, place, error);
-            }
-
-            if (ok)
-            {
-                requires.Add(kind == "stat" ? new StatRange(name!, low, max, ofTarget) : new TraitRange(name!, low, max));
-            }
-        }
-
-        // Ranges on one trait or stat that do not overlap would make the storylet one that can never arrive.
-        IEnumerable<(string Name, int Min, int? Max)> ranges = requires.OfType<TraitRange>().Select(r => (r.Trait, r.Min, r.Max))
-            .Concat(requires.OfType<StatRange>().Select(r => (r.Stat, r.Min, r.Max)));
-        foreach (IGrouping<string, (string Name, int Min, int? Max)> same in ranges.GroupBy(r => r.Name))
-        {
-            int highestMin = same.Max(r => r.Min);
-            if (same.Any(r => r.Max < highestMin))
-            {
-                error($"No value of {same.Key} satisfies all of this {noun}'s requirements on it.");
-            }
-        }
-
-        return requires;
+        // Every trait read, in reading order, each once.
+        public IReadOnlyList<TraitRead> Reads => Checked.SelectMany(c => c.Traits).Distinct().ToList();
     }
 
-    private static List<StoryletOption> Options(List<StoryletOptionDto?>? written, string? scope, TraitBook book, Action<string> error, bool vignette = false)
+    private static Casting CastOf(StoryletDto dto, ExpressionBook expressions, Action<string> error)
+    {
+        bool sound = true;
+        if (dto.Scope is not null)
+        {
+            error(ScopeIsNowCast);
+            sound = false;
+        }
+
+        var cast = new List<CastSlot>();
+        var checkedExpressions = new List<CheckedExpression>();
+        Dictionary<string, string?> written = dto.Cast ?? [];
+        if (written.Count > StoryletScopes.MaxSlots)
+        {
+            error("A cast is at most three slots.");
+            sound = false;
+        }
+
+        foreach ((string slot, string? source) in written.Take(StoryletScopes.MaxSlots))
+        {
+            if (!Ids.IsInnerId(slot))
+            {
+                error($"Slot name '{slot}' must be {Said(Ids.InnerRule)}");
+                sound = false;
+                continue;
+            }
+
+            if (StoryletScopes.Reserved.Contains(slot))
+            {
+                error($"'{slot}' cannot name a slot; {Either(StoryletScopes.Reserved)} each mean something already.");
+                sound = false;
+                continue;
+            }
+
+            cast.Add(new CastSlot(slot, new Expr(source ?? "")));
+        }
+
+        // A slot's own expression reads the slots before it and itself; requires reads them all. Expressions are checked only once
+        // every slot's name is sound, so a bad name is not reported again as a slot no expression can read.
+        List<string> names = cast.Select(c => c.Name).ToList();
+        if (sound)
+        {
+            for (int k = 0; k < cast.Count; k++)
+            {
+                if (Check(expressions, cast[k].Condition.Source, names[..(k + 1)], $"cast.{cast[k].Name}", error) is { } read)
+                {
+                    checkedExpressions.Add(read);
+                }
+                else
+                {
+                    sound = false;
+                }
+            }
+        }
+
+        Expr? requires = null;
+        switch (dto.Requires)
+        {
+            case null:
+                break;
+            case string source:
+                requires = new Expr(source);
+                if (!sound)
+                {
+                    break;
+                }
+
+                if (Check(expressions, source, names, "requires", error) is { } read)
+                {
+                    checkedExpressions.Add(read);
+                }
+                else
+                {
+                    sound = false;
+                }
+
+                break;
+            default:
+                error(RequiresIsNowExpression);
+                sound = false;
+                break;
+        }
+
+        return new Casting(cast, requires, checkedExpressions, sound);
+    }
+
+    // One expression, or null with its error: the storylet's key and the character the error is at, counted from 1.
+    private static CheckedExpression? Check(ExpressionBook expressions, string source, IReadOnlyList<string> slots, string key, Action<string> error)
+    {
+        if (expressions.Check(source, slots, out ExpressionError? refused) is { } read)
+        {
+            return read;
+        }
+
+        error($"{key}, at character {refused!.Position + 1}: {refused.Message}");
+        return null;
+    }
+
+    private static List<StoryletOption> Options(List<StoryletOptionDto?>? written, Casting casting, TraitBook book, ExpressionBook expressions, Action<string> error, bool vignette = false)
     {
         var options = new List<StoryletOption>();
         if (vignette ? written is not { Count: 2 } : written is not { Count: >= MinOptions and <= MaxOptions })
@@ -327,15 +280,32 @@ public static partial class ContentLoader
                 error($"Option '{dto.Id}': label must be 1 to 40 characters on one line, with no spaces at either end.");
             }
 
-            List<StoryletEffect> effects = (dto.Effects ?? []).Select(e => StoryletEffectOf(e ?? [], scope, book, error)).OfType<StoryletEffect>().ToList();
-            options.Add(new StoryletOption(dto.Id ?? "", label ?? "", effects));
+            // An option's requires reads every slot (Task 6 of part four reads it in play). A vignette's choice is small and free.
+            Expr? requires = null;
+            if (dto.Requires is { } source)
+            {
+                requires = new Expr(source);
+                if (vignette)
+                {
+                    error($"Option '{dto.Id}': a vignette's options have no requires.");
+                }
+                else if (casting.Sound)
+                {
+                    Check(expressions, source, casting.Slots, $"options.{dto.Id}.requires", error);
+                }
+            }
+
+            List<StoryletEffect> effects = (dto.Effects ?? []).Select(e => StoryletEffectOf(e ?? [], casting.Slots, book, error)).OfType<StoryletEffect>().ToList();
+            options.Add(new StoryletOption(dto.Id ?? "", label ?? "", effects, requires));
         }
 
         return options;
     }
 
-    // One loyalty, morale, or trait change, or null when it is refused (each problem reported).
-    private static StoryletEffect? StoryletEffectOf(Dictionary<string, string> entry, string? scope, TraitBook book, Action<string> error)
+    // One loyalty, morale, or trait change, or null when it is refused (each problem reported). On and toward name the storylet's
+    // slots; loyalty and morale may also be on crew, a trait on the ship. A trait with no on is on the first slot, or on the ship
+    // when there is no cast.
+    private static StoryletEffect? StoryletEffectOf(Dictionary<string, string> entry, IReadOnlyList<string> slots, TraitBook book, Action<string> error)
     {
         string[] kinds = ["loyalty", "morale", "trait"];
         string[] present = kinds.Where(entry.ContainsKey).ToArray();
@@ -365,19 +335,9 @@ public static partial class ContentLoader
             return null;
         }
 
+        string casts = slots.Count == 0 ? "casts no one" : $"casts {Either(slots)}";
         string? on = entry.GetValueOrDefault("on");
-        if (on == StoryletScopes.Subject && scope == StoryletScopes.Ship)
-        {
-            error("A storylet for the ship has no subject, so nothing can be on: subject.");
-            ok = false;
-        }
-
-        if (on == StoryletScopes.Target && scope != StoryletScopes.Pair)
-        {
-            error("Only a storylet for a pair has a target, so only it can have on: target.");
-            ok = false;
-        }
-
+        bool slot = on is not null && slots.Contains(on);
         if (kind is "loyalty" or "morale")
         {
             if (!int.TryParse(entry[kind], NumberStyles.Integer, CultureInfo.InvariantCulture, out int amount))
@@ -386,9 +346,11 @@ public static partial class ContentLoader
                 ok = false;
             }
 
-            if (on is not (StoryletScopes.Subject or StoryletScopes.Crew or StoryletScopes.Target))
+            if (on is null || (on != StoryletScopes.Crew && !slot))
             {
-                error($"A {kind} change needs on: subject or crew{(scope == StoryletScopes.Pair ? ", or target" : "")}.");
+                error(on is null || on == StoryletScopes.Ship
+                    ? $"A {kind} change needs on: crew{(slots.Count == 0 ? "" : " or a slot")}; this storylet {casts}."
+                    : $"on: {on} names no slot; this storylet {casts}.");
                 ok = false;
             }
 
@@ -445,46 +407,131 @@ public static partial class ContentLoader
         }
 
         string? toward = entry.GetValueOrDefault("toward");
-        if (on is not (null or StoryletScopes.Ship or StoryletScopes.Subject or StoryletScopes.Target))
+        string holder = on ?? slots.FirstOrDefault() ?? StoryletScopes.Ship;
+        if (on is not null && on != StoryletScopes.Ship && !slot)
         {
-            error("A storylet's trait change takes on: ship, subject, or target, or no on.");
+            error(on == StoryletScopes.Crew ? $"A storylet's trait change takes on: ship or a slot, or no on; this storylet {casts}." : $"on: {on} names no slot; this storylet {casts}.");
             ok = false;
         }
-        else if (toward is not null && (toward != StoryletScopes.Target || scope != StoryletScopes.Pair || on is not (null or StoryletScopes.Subject)))
+        else if (toward is not null && !slots.Contains(toward))
         {
-            // Nothing else in a storylet names a second crew member until casting (part four).
-            error("toward: target is for a storylet for a pair, on its subject.");
+            error($"toward: {toward} names no slot; this storylet {casts}.");
             ok = false;
         }
-        else if (ok && Ids.IsInnerId(trait) && (on ?? scope) is { } where)
+        else if (toward is not null && toward == holder)
         {
-            ok &= book.CheckPlace(trait, toward is not null ? TraitPlaces.Pair : where == StoryletScopes.Ship ? TraitPlaces.Ship : TraitPlaces.Crew, error);
+            error($"toward: {toward} names the slot the trait is on; a pair trait is held toward someone else.");
+            ok = false;
+        }
+        else if (toward is not null && holder == StoryletScopes.Ship)
+        {
+            error("toward is for a trait held by a crew member, not the ship.");
+            ok = false;
+        }
+        else if (ok && Ids.IsInnerId(trait))
+        {
+            ok &= book.CheckPlace(trait, toward is not null ? TraitPlaces.Pair : holder == StoryletScopes.Ship ? TraitPlaces.Ship : TraitPlaces.Crew, error);
         }
 
         return ok ? new StoryletEffect(Trait: new TraitChange(trait, value, set, on ?? "", toward)) : null;
     }
 
-    // Applies the option's trait changes on the storylet's own scope to the lowest values that satisfy its requirements, clamped to
-    // each trait's cap as play clamps them. If every requirement still holds, the storylet would be offered again at once, and
-    // every cycle after.
-    private static bool LeavesEveryRequirementTrue(IReadOnlyList<Requirement> all, StoryletOption option, string scope, TraitBook book)
+    // The lowest values of the traits a storylet's or vignette's expressions read that let every one of them hold, read with only
+    // the traits known (a clause on anything else may still hold). Null with an error when no values do: it could never arrive.
+    private static Dictionary<TraitRead, int>? Lowest(Casting casting, TraitBook book, ExpressionBook expressions, Action<string> error)
     {
-        // Only traits: a stat or a fact is not the storylet's to move.
-        List<TraitRange> requires = all.OfType<TraitRange>().ToList();
-        // A pair's own traits are on its subject: the holder's, and the pair trait it holds toward the target.
-        string own = scope == StoryletScopes.Ship ? StoryletScopes.Ship : StoryletScopes.Subject;
-        Dictionary<string, int> values = requires.GroupBy(r => r.Trait).ToDictionary(g => g.Key, g => g.Max(r => r.Min));
-        foreach (TraitChange change in option.Effects.Select(e => e.Trait).OfType<TraitChange>().Where(c => c.On == "" || c.On == own))
+        if (casting.Reads.Count == 0)
         {
-            int current = values.GetValueOrDefault(change.Trait);
-            values[change.Trait] = (book.Def(change.Trait) ?? TraitDef.Plain(change.Trait)).Clamp(change.Set ? change.Amount : current + change.Amount);
+            return [];
         }
 
-        return requires.All(r => r.Holds(values.GetValueOrDefault(r.Trait)));
+        if (Witness(casting, casting.Reads, book).FirstOrDefault(v => MayHold(casting, expressions, v)) is { } lowest)
+        {
+            return lowest;
+        }
+
+        error("No values of the traits it reads let every expression hold, so it can never arrive.");
+        return null;
     }
 
+    private static bool MayHold(Casting casting, ExpressionBook expressions, IReadOnlyDictionary<TraitRead, int> values)
+    {
+        return casting.Checked.All(c => expressions.OnTraits(c, r => values.GetValueOrDefault(r)) != false);
+    }
+
+    // The traits it reads that its lowest values have above 0: something must set them before it can arrive (the lint's "Nothing
+    // sets").
+    private static IReadOnlyList<TraitRead> Needs(Dictionary<TraitRead, int>? lowest)
+    {
+        return lowest is null ? [] : lowest.Where(v => v.Value > 0).Select(v => v.Key).ToList();
+    }
+
+    // No hidden memory (design 4.6): no answer may leave the storylet's expressions as they were, or it would arrive again at once,
+    // and every cycle after. The expressions are read with only their traits known, at the lowest values that let every one hold
+    // and then at the values each option leaves there, clamped as play clamps them. An option that leaves none of them false is
+    // refused.
+    private static void NoHiddenMemory(Casting casting, Dictionary<TraitRead, int> witness, IReadOnlyList<StoryletOption> options, TraitBook book, ExpressionBook expressions, Action<string> error)
+    {
+        if (witness.Count == 0)
+        {
+            return;
+        }
+
+        string own = casting.Slots.FirstOrDefault() ?? StoryletScopes.Ship;
+        foreach (StoryletOption option in options)
+        {
+            var values = new Dictionary<TraitRead, int>(witness);
+            foreach (TraitChange change in option.Effects.Select(e => e.Trait).OfType<TraitChange>())
+            {
+                var read = new TraitRead(change.Trait, change.On.Length == 0 ? own : change.On, change.Toward);
+                if (values.TryGetValue(read, out int current))
+                {
+                    values[read] = (book.Def(change.Trait) ?? TraitDef.Plain(change.Trait)).Clamp(change.Set ? change.Amount : current + change.Amount);
+                }
+            }
+
+            if (MayHold(casting, expressions, values))
+            {
+                error($"Option '{option.Id}' leaves every expression true, so this storylet would come back every cycle.");
+            }
+        }
+    }
+
+    // The values of the traits read, lowest total first, then in reading order: each from 0 to one past the highest number written
+    // in the expressions, or to its cap; a trait with levels over all of them, since they are written by name.
+    private static IEnumerable<Dictionary<TraitRead, int>> Witness(Casting casting, IReadOnlyList<TraitRead> reads, TraitBook book)
+    {
+        int highest = casting.Checked.SelectMany(c => Numbers().Matches(c.Source)).Select(m => int.Parse(m.Value, CultureInfo.InvariantCulture)).DefaultIfEmpty(0).Max();
+        int top = Math.Min(highest, MaxWitnesses) + 1;
+        int[] tops = reads.Select(r => book.Def(r.Trait) ?? TraitDef.Plain(r.Trait)).Select(d => d.HasLevels ? d.Cap : Math.Min(top, d.Cap)).ToArray();
+        while (tops.Aggregate(1L, (n, t) => n * (t + 1)) > MaxWitnesses)
+        {
+            int widest = Array.IndexOf(tops, tops.Max());
+            tops[widest]--;
+        }
+
+        var combinations = new List<int[]> { new int[reads.Count] };
+        for (int k = 0; k < reads.Count; k++)
+        {
+            combinations = combinations.SelectMany(c => Enumerable.Range(0, tops[k] + 1).Select(v =>
+            {
+                int[] next = (int[])c.Clone();
+                next[k] = v;
+                return next;
+            })).ToList();
+        }
+
+        return combinations
+            .OrderBy(c => c.Sum())
+            .ThenBy(c => c, Comparer<int[]>.Create((a, b) => a.Zip(b, (x, y) => x.CompareTo(y)).FirstOrDefault(d => d != 0)))
+            .Select(c => reads.Select((r, k) => (r, c[k])).ToDictionary(p => p.r, p => p.Item2));
+    }
+
+    [GeneratedRegex(@"\d+")]
+    private static partial Regex Numbers();
+
     // A storylet's text and each option's text, as lines whose criteria are where they sit, the way an encounter's own text is.
-    // A storylet for the ship has no subject, so its text may not name one.
+    // Its speakers and the people its text names are its slots; a storylet for the ship names no one.
     private static List<LineDef> BuildStoryletLines(List<(string File, StoryletDto Dto)> items, List<SymbolDef> symbols, List<SkillDef> skills, List<ContentError> errors)
     {
         Dictionary<string, SymbolDef> symbolsById = symbols.ToDictionary(s => s.Id);
@@ -493,8 +540,7 @@ public static partial class ContentLoader
         foreach ((string file, StoryletDto dto) in items)
         {
             string id = dto.Id!;
-            bool ship = dto.Scope == StoryletScopes.Ship;
-            bool pair = dto.Scope == StoryletScopes.Pair;
+            List<string> slots = (dto.Cast ?? []).Keys.Where(k => Ids.IsInnerId(k) && !StoryletScopes.Reserved.Contains(k)).Take(StoryletScopes.MaxSlots).ToList();
             void Add(string where, string? text, string kind, CriterionDef[] when)
             {
                 if (text is null)
@@ -514,9 +560,7 @@ public static partial class ContentLoader
                     return;
                 }
 
-                BeatSpec spec = NarrativeFacts.Beats[kind];
-                // Only a storylet for a pair names its target; one for the ship names no one.
-                BeatSpec scoped = ship ? spec with { People = [] } : pair ? spec : spec with { People = spec.People.Where(p => p != StoryletScopes.Target).ToList() };
+                BeatSpec scoped = NarrativeFacts.Beats[kind] with { People = slots };
                 CheckScript(text, scoped, symbolsById, skillIds, m => Error($"cannot be read: {m}"), m => Error($"cannot be used: {m}"));
                 if (errors.Count == before)
                 {
@@ -543,9 +587,14 @@ public static partial class ContentLoader
 
         public int Stakes { get; set; }
 
+        // Gone in part four: read only to say so.
         public string? Scope { get; set; }
 
-        public List<Dictionary<string, string>?>? Requires { get; set; }
+        // Each slot to its expression, in reading order (1e part four).
+        public Dictionary<string, string?>? Cast { get; set; }
+
+        // One expression; a list is part three's form, read only to say so.
+        public object? Requires { get; set; }
 
         public string? Text { get; set; }
 
@@ -562,6 +611,8 @@ public static partial class ContentLoader
         public string? Id { get; set; }
 
         public string? Label { get; set; }
+
+        public string? Requires { get; set; }
 
         public List<Dictionary<string, string>?>? Effects { get; set; }
 

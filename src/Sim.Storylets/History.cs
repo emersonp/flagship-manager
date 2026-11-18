@@ -10,7 +10,7 @@ internal static class History
     private static readonly MissionOutcome[] Lost = [MissionOutcome.Loss, MissionOutcome.Incomplete, MissionOutcome.Withdrawal];
 
     // Who came home, who was hurt, whether the mission was lost, and, when someone died on it, every other living crew member
-    // lost a crewmate. The dead drop out.
+    // lost a crewmate and those who came home from it lost a teammate. The dead drop out.
     public static void MissionEnded(StoryletsState state, int cycle, MissionResult result, IReadOnlyList<string> roster)
     {
         HistoryCycle entry = Entry(state, cycle);
@@ -26,6 +26,11 @@ internal static class History
             if (Lost.Contains(result.Outcome))
             {
                 Mark(entry, member.Id, HistoryKinds.LostMission);
+            }
+
+            if (died.Count > 0)
+            {
+                Mark(entry, member.Id, HistoryKinds.LostTeammate);
             }
         }
 

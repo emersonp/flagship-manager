@@ -2,17 +2,15 @@ using System.Text.Json.Serialization;
 
 namespace Sim.Storylets;
 
-// A storylet offered and not yet answered. SubjectId null: a storylet for the ship.
+// A storylet offered and not yet answered. Cast: each slot to a crew member's id, in reading order; empty for a storylet for the
+// ship (1e part four).
 public sealed class WaitingStorylet
 {
     public required string OfferId { get; set; }
 
     public required string StoryletId { get; set; }
 
-    public required string? SubjectId { get; set; }
-
-    // A pair's target (1e part three).
-    public string? TargetId { get; set; }
+    public required Dictionary<string, string> Cast { get; set; }
 
     public required string? EncounterId { get; set; }
 }
@@ -26,30 +24,22 @@ public sealed class HistoryCycle
     public required Dictionary<string, List<string>> Crew { get; set; }
 }
 
-// A vignette with a choice, arrived and not yet answered (1e part two).
+// A vignette with a choice, arrived and not yet answered (1e part two). Cast: as a storylet's.
 public sealed class WaitingVignette
 {
     public required string OfferId { get; set; }
 
     public required string VignetteId { get; set; }
 
-    public required string? SubjectId { get; set; }
-
-    // A pair's target (1e part three).
-    public string? TargetId { get; set; }
-
-    public required string? Fact { get; set; }
+    public required Dictionary<string, string> Cast { get; set; }
 }
 
-// The last cycle a vignette arrived for one scope, for its cooldown.
-public sealed class VignetteArrival
+// The last cycle a storylet or vignette arrived with one cast (1e part four, design 5.3): a vignette's cooldown is for one cast.
+public sealed class Arrival
 {
-    public required string VignetteId { get; set; }
+    public required string Id { get; set; }
 
-    public required string? SubjectId { get; set; }
-
-    // A pair's target (1e part three): a vignette for a pair cools down for each pair apart.
-    public string? TargetId { get; set; }
+    public required Dictionary<string, string> Cast { get; set; }
 
     public required int Cycle { get; set; }
 }
@@ -67,6 +57,7 @@ public sealed class StoryletsState
     [JsonRequired]
     public List<WaitingVignette> Vignettes { get; set; } = new();
 
+    // One entry for each storylet or vignette and cast, the latest. A cast with a member now dead is dropped.
     [JsonRequired]
-    public List<VignetteArrival> Arrivals { get; set; } = new();
+    public List<Arrival> Arrivals { get; set; } = new();
 }

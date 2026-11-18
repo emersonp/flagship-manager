@@ -331,10 +331,11 @@ public sealed class ContentTextFilesTests(RepoContentGuard guard) : IClassFixtur
         }
     }
 
-    // A storylet that reads flag_z, which nothing raises, and trait_a, which ENCOUNTER_01 raises; trait_b, which ENCOUNTER_04 raises, goes unread.
-    private const string Unmatched = "- id: STORYLET_09\n  stakes: 1\n  scope: ship\n  requires:\n    - { trait: flag_z, min: 1 }\n    - { trait: trait_a, max: 5 }\n  options:\n"
-        + "    - { id: option_a, label: LABEL_A, effects: [{ trait: flag_z, set: 0 }] }\n"
-        + "    - { id: option_b, label: LABEL_B, effects: [{ trait: flag_z, set: 0 }] }\n";
+    // A storylet that reads trait_c, which nothing raises, and trait_a, which ENCOUNTER_01 raises; trait_b, which ENCOUNTER_04 raises, goes
+    // unread. (Since 1e part four an expression reads only a defined trait, so the fixture's trait_c stands in for an unset flag.)
+    private const string Unmatched = "- id: STORYLET_09\n  stakes: 1\n  requires: \"ship.trait.trait_c >= 1 && ship.trait.trait_a <= 5\"\n  options:\n"
+        + "    - { id: option_a, label: LABEL_A, effects: [{ trait: trait_c, set: 0 }] }\n"
+        + "    - { id: option_b, label: LABEL_B, effects: [{ trait: trait_c, set: 0 }] }\n";
 
     // 1e part three: a definition's launch rule sets the trait it belongs to, so a storylet that requires it is no warning; a
     // definition nothing reads or changes is one.
@@ -343,10 +344,13 @@ public sealed class ContentTextFilesTests(RepoContentGuard guard) : IClassFixtur
     {
         using TestApp app = NewApp();
         string traits = Disk(app, "traits/base.yaml") + "- id: trait_q\n  on: crew\n  launch: { sent: [{ set: 1 }] }\n- id: trait_r\n";
-        await Post(app.NewClient(), "/dev/content/files/storylets", Body(Disk(app, "storylets/base.yaml")
-            + "- id: STORYLET_09\n  stakes: 1\n  scope: crew\n  requires:\n    - { trait: trait_q, min: 1 }\n  options:\n"
+        // The traits first: an expression reads only a defined trait (1e part four).
+        await Post(app.NewClient(), "/dev/content/files/traits", Body(traits));
+        (HttpStatusCode saved, _) = await Post(app.NewClient(), "/dev/content/files/storylets", Body(Disk(app, "storylets/base.yaml")
+            + "- id: STORYLET_09\n  stakes: 1\n  cast:\n    subject: \"subject.trait.trait_q >= 1\"\n  options:\n"
             + "    - { id: option_a, label: LABEL_A, effects: [{ trait: trait_q, set: 0 }] }\n"
             + "    - { id: option_b, label: LABEL_B, effects: [{ trait: trait_q, set: 0 }] }\n"));
+        Assert.Equal(HttpStatusCode.OK, saved);
 
         (HttpStatusCode status, string body) = await Post(app.NewClient(), "/dev/content/files/traits", Body(traits));
 
@@ -414,20 +418,20 @@ public sealed class ContentTextFilesTests(RepoContentGuard guard) : IClassFixtur
         Assert.Equal(Unmatched, Disk(app, "storylets/base.yaml"));
         foreach (string shown in new[] { WebUtility.HtmlDecode(body), WebUtility.HtmlDecode(page) })
         {
-            Assert.Contains("Nothing sets flag_z on the ship, which STORYLET_09 requires.", shown);
+            Assert.Contains("Nothing sets trait_c on the ship, which STORYLET_09 requires.", shown);
             Assert.Contains("Nothing reads trait_b, which ENCOUNTER_04 sets.", shown);
             Assert.DoesNotContain("Nothing reads trait_a", shown);
             // The warnings sit under the text.
-            Assert.True(shown.IndexOf("</textarea>", StringComparison.Ordinal) < shown.IndexOf("Nothing sets flag_z on the ship", StringComparison.Ordinal));
+            Assert.True(shown.IndexOf("</textarea>", StringComparison.Ordinal) < shown.IndexOf("Nothing sets trait_c on the ship", StringComparison.Ordinal));
         }
     }
 
-    // A requirement with only a max holds while nothing sets its flag, so it is no warning.
+    // An expression that holds with its trait at 0 holds while nothing sets it, so it is no warning.
     [Fact]
     public async Task A_requirement_that_holds_at_zero_is_not_warned_of()
     {
         using TestApp app = NewApp();
-        string typed = "- id: STORYLET_09\n  stakes: 1\n  scope: ship\n  requires:\n    - { trait: trait_a, min: 1 }\n    - { trait: flag_y, max: 2 }\n    - { trait: trait_b, min: 0 }\n  options:\n"
+        string typed = "- id: STORYLET_09\n  stakes: 1\n  requires: \"ship.trait.trait_a >= 1 && ship.trait.trait_c <= 2 && ship.trait.trait_b >= 0\"\n  options:\n"
             + "    - { id: option_a, label: LABEL_A, effects: [{ trait: trait_a, set: 0 }] }\n"
             + "    - { id: option_b, label: LABEL_B, effects: [{ trait: trait_a, set: 0 }] }\n";
 
@@ -442,10 +446,10 @@ public sealed class ContentTextFilesTests(RepoContentGuard guard) : IClassFixtur
     public async Task A_trait_required_on_a_scope_nothing_raises_it_on_is_warned_of_for_each_scope()
     {
         using TestApp app = NewApp();
-        string typed = "- id: STORYLET_09\n  stakes: 1\n  scope: ship\n  requires:\n    - { trait: trait_b, min: 1 }\n  options:\n"
+        string typed = "- id: STORYLET_09\n  stakes: 1\n  requires: \"ship.trait.trait_b >= 1\"\n  options:\n"
             + "    - { id: option_a, label: LABEL_A, effects: [{ trait: trait_b, set: 0 }] }\n"
             + "    - { id: option_b, label: LABEL_B, effects: [{ trait: trait_b, set: 0 }] }\n"
-            + "- id: STORYLET_10\n  stakes: 1\n  scope: crew\n  requires:\n    - { trait: trait_a, min: 1 }\n  options:\n"
+            + "- id: STORYLET_10\n  stakes: 1\n  cast:\n    subject: \"subject.trait.trait_a >= 1\"\n  options:\n"
             + "    - { id: option_a, label: LABEL_A, effects: [{ trait: trait_a, set: 0 }] }\n"
             + "    - { id: option_b, label: LABEL_B, effects: [{ trait: trait_a, set: 0 }] }\n";
 
@@ -457,20 +461,20 @@ public sealed class ContentTextFilesTests(RepoContentGuard guard) : IClassFixtur
         Assert.Contains("Nothing sets trait_a on a crew member, which STORYLET_10 requires.", shown);
     }
 
-    // A storylet's own raise counts on its own scope, and "subject" is always crew.
+    // A storylet's own raise counts where it lands: with no on, the ship for a storylet with no cast; on a slot, a crew member.
     [Fact]
     public async Task A_trait_a_storylet_raises_counts_on_its_own_scope_and_subject_counts_as_crew()
     {
         using TestApp app = NewApp();
-        string typed = "- id: STORYLET_09\n  stakes: 1\n  scope: ship\n  requires:\n    - { trait: trait_a, min: 1 }\n  options:\n"
-            + "    - { id: option_a, label: LABEL_A, effects: [{ trait: flag_q, set: 1 }, { trait: flag_r, add: 1, on: subject }] }\n"
-            + "    - { id: option_b, label: LABEL_B, effects: [{ trait: flag_q, set: 1 }] }\n"
-            + "- id: STORYLET_10\n  stakes: 1\n  scope: ship\n  requires:\n    - { trait: flag_q, min: 1 }\n  options:\n"
-            + "    - { id: option_a, label: LABEL_A, effects: [{ trait: flag_q, set: 0 }] }\n"
-            + "    - { id: option_b, label: LABEL_B, effects: [{ trait: flag_q, set: 0 }] }\n"
-            + "- id: STORYLET_11\n  stakes: 1\n  scope: crew\n  requires:\n    - { trait: flag_r, min: 1 }\n  options:\n"
-            + "    - { id: option_a, label: LABEL_A, effects: [{ trait: flag_r, set: 0 }] }\n"
-            + "    - { id: option_b, label: LABEL_B, effects: [{ trait: flag_r, set: 0 }] }\n";
+        string typed = "- id: STORYLET_09\n  stakes: 1\n  cast:\n    subject: \"subject.fit\"\n  requires: \"ship.trait.trait_a == 1\"\n  options:\n"
+            + "    - { id: option_a, label: LABEL_A, effects: [{ trait: trait_a, set: 0, on: ship }, { trait: trait_c, set: 1, on: ship }, { trait: trait_f, add: 1, on: subject }] }\n"
+            + "    - { id: option_b, label: LABEL_B, effects: [{ trait: trait_a, set: 0, on: ship }, { trait: trait_c, set: 1, on: ship }] }\n"
+            + "- id: STORYLET_10\n  stakes: 1\n  requires: \"ship.trait.trait_c >= 1\"\n  options:\n"
+            + "    - { id: option_a, label: LABEL_A, effects: [{ trait: trait_c, set: 0 }] }\n"
+            + "    - { id: option_b, label: LABEL_B, effects: [{ trait: trait_c, set: 0 }] }\n"
+            + "- id: STORYLET_11\n  stakes: 1\n  cast:\n    subject: \"subject.trait.trait_f >= 1\"\n  options:\n"
+            + "    - { id: option_a, label: LABEL_A, effects: [{ trait: trait_f, set: 0 }] }\n"
+            + "    - { id: option_b, label: LABEL_B, effects: [{ trait: trait_f, set: 0 }] }\n";
 
         (_, string body) = await Post(app.NewClient(), "/dev/content/files/storylets", Body(typed));
 

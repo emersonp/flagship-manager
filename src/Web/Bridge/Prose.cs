@@ -178,9 +178,11 @@ public sealed class Prose
     }
 
     // The situation a storylet's lines are read against, apart from any mission: the storylet (and the option, for an answer's
-    // line), its subject when it has one, and for each skill a "best" speaker, the fit crew member with the highest level in it.
-    public static Situation StoryletSituation(ContentPack pack, Names names, IReadOnlyList<CrewMember> crew, string storyletId, string? subjectId, string? optionId = null, string? targetId = null)
+    // line), each slot of its cast as a person (1e part four), and for each skill a "best" speaker, the fit crew member with the
+    // highest level in it. The subject's facts are there when it has a slot named subject.
+    public static Situation StoryletSituation(ContentPack pack, Names names, IReadOnlyList<CrewMember> crew, string storyletId, IReadOnlyDictionary<string, string> cast, string? optionId = null)
     {
+        string? subjectId = cast.GetValueOrDefault(StoryletScopes.Subject);
         Dictionary<string, CrewDef> defs = pack.Crew.GroupBy(c => c.Id).ToDictionary(g => g.Key, g => g.First());
         Person PersonOf(string id) => new(id, names.Crew(id), pack.PronounsOf(defs.GetValueOrDefault(id)));
         var facts = new Dictionary<string, FactValue> { ["storylet"] = FactValue.Of(storyletId) };
@@ -199,10 +201,13 @@ public sealed class Prose
             facts["subject.seniority"] = FactValue.Of(subject.Seniority);
         }
 
-        // A pair's target (1e part three): a speaker in the storylet's text, as the subject is.
-        if (targetId is not null && crew.FirstOrDefault(m => m.Id == targetId) is { } target)
+        // Every other slot: a speaker in the storylet's text, as the subject is.
+        foreach ((string slot, string id) in cast.Where(c => c.Key != StoryletScopes.Subject))
         {
-            people["target"] = PersonOf(target.Id);
+            if (crew.FirstOrDefault(m => m.Id == id) is { } member)
+            {
+                people[slot] = PersonOf(member.Id);
+            }
         }
 
         // The sort is stable, so a tie goes to the crew member earlier on the roster.

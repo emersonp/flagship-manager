@@ -79,8 +79,9 @@ public sealed class SqliteLegacyStoreTests : IDisposable
         Assert.Equal((31, 3), (loaded.Morale, loaded.LastSentCycle));
     }
 
+    // 1e part four: the history, each cast's last arrival, and the cast on a waiting offer.
     [Fact]
-    public void Storylets_history_survives_the_store()
+    public void Storylets_history_and_casts_survive_the_store()
     {
         Guid id = Guid.NewGuid();
         SqliteLegacyStore store = NewStore();
@@ -91,11 +92,23 @@ public sealed class SqliteLegacyStoreTests : IDisposable
             Cycle = 3,
             Crew = new Dictionary<string, List<string>> { ["CREW_01"] = ["sent", "hurt", "lost_mission"], ["CREW_02"] = ["rested"] },
         });
+        record.State.Module<StoryletsState>("storylets").Waiting.Add(new WaitingStorylet
+        {
+            OfferId = "3:STORYLET_04",
+            StoryletId = "STORYLET_04",
+            Cast = new Dictionary<string, string> { ["subject"] = "CREW_02", ["target"] = "CREW_01" },
+            EncounterId = null,
+        });
+        record.State.Module<StoryletsState>("storylets").Arrivals.Add(new Arrival { Id = "VIGNETTE_01", Cast = new Dictionary<string, string> { ["subject"] = "CREW_03" }, Cycle = 3 });
         store.Commit(record.State, Array.Empty<EventEnvelope>(), 1);
 
         var types = new Dictionary<string, Type> { ["storylets"] = typeof(StoryletsState) };
-        HistoryCycle loaded = NewStore().Load(id, types)!.State.Module<StoryletsState>("storylets").History.Single();
+        StoryletsState storylets = NewStore().Load(id, types)!.State.Module<StoryletsState>("storylets");
+        HistoryCycle loaded = storylets.History.Single();
 
+        Assert.Equal(["subject", "target"], storylets.Waiting.Single().Cast.Keys);
+        Assert.Equal(["CREW_02", "CREW_01"], storylets.Waiting.Single().Cast.Values);
+        Assert.Equal(("VIGNETTE_01", "CREW_03", 3), (storylets.Arrivals.Single().Id, storylets.Arrivals.Single().Cast["subject"], storylets.Arrivals.Single().Cycle));
         Assert.Equal(3, loaded.Cycle);
         Assert.Equal(["CREW_01", "CREW_02"], loaded.Crew.Keys);
         Assert.Equal(["sent", "hurt", "lost_mission"], loaded.Crew["CREW_01"]);
@@ -216,9 +229,9 @@ public sealed class SqliteLegacyStoreTests : IDisposable
         store.Create(NewRecord(id), []);
         string json = LegacyExport.Export(store, id, ModuleTypes);
 
-        Assert.Contains("\"FormatVersion\": 9", json);
-        Assert.Throws<InvalidOperationException>(() => LegacyExport.Import(store, json.Replace("\"FormatVersion\": 9", "\"FormatVersion\": 1"), ModuleTypes));
-        Assert.Throws<InvalidOperationException>(() => LegacyExport.Import(store, json.Replace("\"FormatVersion\": 9,", ""), ModuleTypes));
+        Assert.Contains("\"FormatVersion\": 10", json);
+        Assert.Throws<InvalidOperationException>(() => LegacyExport.Import(store, json.Replace("\"FormatVersion\": 10", "\"FormatVersion\": 1"), ModuleTypes));
+        Assert.Throws<InvalidOperationException>(() => LegacyExport.Import(store, json.Replace("\"FormatVersion\": 10,", ""), ModuleTypes));
     }
 
     // Name and creation time are record facts, stored as given (time as a UTC instant).
@@ -329,7 +342,7 @@ public sealed class SqliteLegacyStoreTests : IDisposable
         Assert.Empty(store.ReadEvents(id, 7));
     }
 
-    // Format 3 held the stored events from before authored approaches, format 4 a mission result with no flags, format 5 no storylets, format 6 no morale, format 7 no itinerary, and format 8 flags in the storylets module (traits since 1e part three).
+    // Format 3 held the stored events from before authored approaches, format 4 a mission result with no flags, format 5 no storylets, format 6 no morale, format 7 no itinerary, format 8 flags in the storylets module (traits since 1e part three), and format 9 storylets by scope (cast since 1e part four).
     [Theory]
     [InlineData(2)]
     [InlineData(3)]
@@ -338,6 +351,7 @@ public sealed class SqliteLegacyStoreTests : IDisposable
     [InlineData(6)]
     [InlineData(7)]
     [InlineData(8)]
+    [InlineData(9)]
     public void An_export_at_an_earlier_format_is_refused(int format)
     {
         Guid id = Guid.NewGuid();
@@ -345,7 +359,7 @@ public sealed class SqliteLegacyStoreTests : IDisposable
         store.Create(NewRecord(id), []);
         string json = LegacyExport.Export(store, id, ModuleTypes);
 
-        Assert.Throws<InvalidOperationException>(() => LegacyExport.Import(store, json.Replace("\"FormatVersion\": 9", $"\"FormatVersion\": {format}"), ModuleTypes));
+        Assert.Throws<InvalidOperationException>(() => LegacyExport.Import(store, json.Replace("\"FormatVersion\": 10", $"\"FormatVersion\": {format}"), ModuleTypes));
     }
 
     [Fact]
@@ -415,6 +429,7 @@ public sealed class SqliteLegacyStoreTests : IDisposable
     [InlineData(8)]
     [InlineData(9)]
     [InlineData(10)]
+    [InlineData(11)]
     public void A_database_from_another_schema_is_refused(int version)
     {
         using (var connection = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={path}"))
@@ -427,7 +442,7 @@ public sealed class SqliteLegacyStoreTests : IDisposable
 
         var ex = Assert.Throws<InvalidOperationException>(() => NewStore());
 
-        Assert.Equal($"This database is from a different build (schema {version}, this build reads 11). Delete it or export its legacies with the build that wrote it.", ex.Message);
+        Assert.Equal($"This database is from a different build (schema {version}, this build reads 12). Delete it or export its legacies with the build that wrote it.", ex.Message);
     }
 
     // A phase stored as a number would parse as a member by accident; the store refuses it.
@@ -450,7 +465,7 @@ public sealed class SqliteLegacyStoreTests : IDisposable
 
     // A fresh database must carry the version later builds check.
     [Fact]
-    public void A_new_database_is_created_at_schema_version_11()
+    public void A_new_database_is_created_at_schema_version_12()
     {
         NewStore();
 
@@ -458,7 +473,7 @@ public sealed class SqliteLegacyStoreTests : IDisposable
         connection.Open();
         using Microsoft.Data.Sqlite.SqliteCommand command = connection.CreateCommand();
         command.CommandText = "PRAGMA user_version";
-        Assert.Equal(11L, command.ExecuteScalar());
+        Assert.Equal(12L, command.ExecuteScalar());
     }
 
     // Every module the state no longer holds is dropped from storage with the commit.

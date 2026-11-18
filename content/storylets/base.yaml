@@ -6,9 +6,7 @@
 - id: STORYLET_01
   name: A quirk in the sensors
   stakes: 2
-  scope: ship
-  requires:
-    - { trait: sensors_quirk, min: 1, max: 1 }
+  requires: "ship.trait.sensors_quirk == 'noticed'"
   text: |-
     > Forward array variance: 0.4 seconds, rising.
     best SKILL_A: Captain, the forward array is reading ghosts. Contacts that aren't there, and a lag on the ones that are.
@@ -28,10 +26,8 @@
 - id: STORYLET_02
   name: Someone shaken
   stakes: 3
-  scope: crew
-  requires:
-    - { trait: shaken, min: 1 }
-    - { trait: shaken_heard, max: 0 }
+  cast:
+    subject: "subject.trait.shaken >= 1 && subject.trait.shaken_heard == 0"
   text: |-
     > Request from #subject#: a word with the captain, in private.
     subject: Captain. Have you got a minute? It's about the gallery.
@@ -55,9 +51,8 @@
 - id: STORYLET_03
   name: You gave your word
   stakes: 2
-  scope: crew
-  requires:
-    - { trait: stood_down, is: broken }
+  cast:
+    subject: "subject.trait.stood_down == 'broken'"
   text: |-
     > Request from #subject#: a word with the captain.
     subject: You said I'd sit the next one out. Then you put me on the shuttle.
@@ -76,9 +71,9 @@
 - id: STORYLET_04
   name: Clear the air
   stakes: 2
-  scope: pair
-  requires:
-    - { trait: avoids, min: 3, max: 4 }
+  cast:
+    subject: "subject.aboard"
+    target: "subject.trait.avoids.toward(target) >= 3 && subject.trait.avoids.toward(target) <= 4"
   text: |-
     > Duty roster note: #subject# has asked again not to be posted with #target#.
     subject: I'll work any shift, Captain. Just not that one.

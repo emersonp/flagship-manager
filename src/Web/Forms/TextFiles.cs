@@ -54,12 +54,12 @@ internal static class TextFileFlow
         return new TextFileView(file, files.Files.GetValueOrDefault(file.Path, ""), [], notice, false) { Warnings = warnings };
     }
 
-    // Traits that cannot work as written: one a storylet requires above 0 that nothing raises on the scope it reads, one an encounter
+    // Traits that cannot work as written: one a storylet needs above 0 that nothing raises where it reads it, one an encounter
     // raises that no storylet requires, and one defined that nothing uses (1e part three). A change that can only lower a trait (add
     // below 0, set 0) does not count as setting it; a definition's launch rules and onTargetDied count, as they change crew's traits.
     internal static IReadOnlyList<string> TraitWarnings(ContentPack pack)
     {
-        // A trait is on the ship or on a crew member; the two are separate values, so each scope is raised and read apart.
+        // A trait is on the ship or on a crew member; the two are separate values, so each place is raised and read apart.
         var raised = new HashSet<(string Trait, bool Ship)>();
         foreach (EncounterDef encounter in pack.Encounters)
         {
@@ -79,29 +79,33 @@ internal static class TextFileFlow
             }
         }
 
-        // Storylets and vignettes alike (1e part two): each reads traits on its scope and may raise them.
-        var readers = pack.Storylets.Select(s => (s.Id, s.Scope, Traits: s.Traits.ToList(), Effects: s.Options.SelectMany(o => o.Effects).ToList()))
-            .Concat(pack.Vignettes.Select(v => (v.Id, v.Scope, Traits: v.Requires.OfType<TraitRange>().ToList(), Effects: v.Effects.Concat(v.Options.SelectMany(o => o.Effects)).ToList())))
+        // Storylets and vignettes alike (1e part two): each reads traits through its expressions (1e part four) and may raise them.
+        var readers = pack.Storylets.Select(s => (s.Id, Cast: s.Cast.Count, s.Reads, s.Needs, Effects: s.Options.SelectMany(o => o.Effects).ToList()))
+            .Concat(pack.Vignettes.Select(v => (v.Id, Cast: v.Cast.Count, v.Reads, v.Needs, Effects: v.Effects.Concat(v.Options.SelectMany(o => o.Effects)).ToList())))
             .ToList();
-        foreach ((string _, string scope, List<TraitRange> _, List<StoryletEffect> effects) in readers)
+        foreach ((string _, int cast, IReadOnlyList<TraitRead> _, IReadOnlyList<TraitRead> _, List<StoryletEffect> effects) in readers)
         {
             foreach (TraitChange change in effects.Select(e => e.Trait).OfType<TraitChange>().Where(f => f.Amount > 0))
             {
-                // Empty means the scope it arrived for; subject is always a crew member.
-                raised.Add((change.Trait, change.On == StoryletScopes.Ship || (change.On.Length == 0 && scope == StoryletScopes.Ship)));
+                // Empty means the first slot, or the ship with no cast; every slot is a crew member.
+                raised.Add((change.Trait, change.On == StoryletScopes.Ship || (change.On.Length == 0 && cast == 0)));
             }
         }
 
-        HashSet<string> read = readers.SelectMany(r => r.Traits).Select(r => r.Trait).ToHashSet(StringComparer.Ordinal);
+        HashSet<string> read = readers.SelectMany(r => r.Reads).Select(r => r.Trait).ToHashSet(StringComparer.Ordinal);
         // A definition that gives a trait a bite reads it too (1e part three): a check bonus, launch rules, or onTargetDied.
         read.UnionWith(pack.Traits.Where(t => t.Mission is not null || t.Launch is not null || t.OnTargetDied.Count > 0).Select(t => t.Id));
         var warnings = new List<string>();
-        foreach ((string id, string scope, List<TraitRange> traits, _) in readers)
+        foreach ((string id, _, _, IReadOnlyList<TraitRead> needs, _) in readers)
         {
-            // A requirement that holds at 0 (only a max) needs nothing to set its trait.
-            bool onShip = scope == StoryletScopes.Ship;
-            string where = onShip ? "the ship" : "a crew member";
-            warnings.AddRange(traits.Where(r => r.Min > 0).Select(r => r.Trait).Distinct().Where(f => !raised.Contains((f, onShip))).Select(f => $"Nothing sets {f} on {where}, which {id} requires."));
+            // An expression that holds with its trait at 0 needs nothing to set it.
+            foreach ((string trait, bool onShip) in needs.Select(r => (r.Trait, r.Slot == StoryletScopes.Ship)).Distinct())
+            {
+                if (!raised.Contains((trait, onShip)))
+                {
+                    warnings.Add($"Nothing sets {trait} on {(onShip ? "the ship" : "a crew member")}, which {id} requires.");
+                }
+            }
         }
 
         foreach (EncounterDef encounter in pack.Encounters)
@@ -124,7 +128,7 @@ internal static class TextFileFlow
             .Where(r => r.ChangesTrait && r.Trait is not null && r.Trait != t.Id).Select(r => r.Trait!));
         return outcomes.SelectMany(e => e.Traits ?? []).Select(c => c.Trait)
             .Concat(answers.Select(e => e.Trait?.Trait).OfType<string>())
-            .Concat(pack.Storylets.SelectMany(s => s.Traits).Concat(pack.Vignettes.SelectMany(v => v.Requires.OfType<TraitRange>())).Select(r => r.Trait))
+            .Concat(pack.Storylets.SelectMany(s => s.Reads).Concat(pack.Vignettes.SelectMany(v => v.Reads)).Select(r => r.Trait))
             .Concat(rules)
             .ToHashSet(StringComparer.Ordinal);
     }

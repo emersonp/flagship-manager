@@ -5,7 +5,8 @@ namespace Sim.Storylets;
 
 // Offers storylets and sends vignettes when the captain's itinerary opens, and applies answers' effects. It reaches crew only
 // through the roster view and the AdjustLoyalty and AdjustMorale commands, traits only through the trait view and the
-// ChangeTrait command (slice 1e, part three), and hears of missions only through their results.
+// ChangeTrait command (slice 1e, part three), and hears of missions only through their results. From part four each storylet and
+// vignette is cast with named slots, read in the expression language (design 4.4), and arrives at most once a cycle.
 public static class StoryletsModule
 {
     public const string Name = "storylets";
@@ -14,10 +15,9 @@ public static class StoryletsModule
     // traits as the mission left them.
     private const int Order = 300;
 
-    private const string ShipKey = "ship";
-
     public static void Register(EventBus bus, ContentPack pack)
     {
+        var casting = new Casting(pack);
         bus.Module<StoryletsState>(Name);
         bus.Provide<IHistoryView>(state => new HistoryView(state.Module<StoryletsState>(Name), state.Cycle));
         bus.Guard<AnswerStorylet>(Order, Name, (command, context) => CheckAnswer(pack, command, context));
@@ -38,8 +38,8 @@ public static class StoryletsModule
                     break;
                 case CyclePhase.Itinerary:
                     History.ItineraryOpened(state, e.Cycle, context.View<IRosterView>(), pack.HistoryCycles);
-                    OnItinerary(pack, e.Cycle, context);
-                    SendVignettes(pack, e.Cycle, context);
+                    OnItinerary(pack, casting, e.Cycle, context);
+                    SendVignettes(pack, casting, e.Cycle, context);
                     break;
                 case CyclePhase.Orders:
                     CloseItinerary(pack, context);
@@ -70,22 +70,24 @@ public static class StoryletsModule
     {
         StoryletsState state = context.Module<StoryletsState>();
         WaitingStorylet waiting = state.Waiting.First(w => w.OfferId == command.OfferId);
-        StoryletOption option = pack.Storylets.First(s => s.Id == waiting.StoryletId).Options.First(o => o.Id == command.OptionId);
-        Apply(option.Effects, waiting.SubjectId, waiting.TargetId, TraitCauses.Answer, context);
+        StoryletDef storylet = pack.Storylets.First(s => s.Id == waiting.StoryletId);
+        StoryletOption option = storylet.Options.First(o => o.Id == command.OptionId);
+        Apply(option.Effects, storylet.Cast, waiting.Cast, TraitCauses.Answer, context);
         state.Waiting.Remove(waiting);
-        context.Publish(new StoryletAnswered(waiting.OfferId, waiting.StoryletId, waiting.SubjectId, option.Id, waiting.TargetId));
+        context.Publish(new StoryletAnswered(waiting.OfferId, waiting.StoryletId, Copy(waiting.Cast), option.Id));
     }
 
-    // An answer's or a vignette's effects, in order: loyalty and morale through the crew module's commands, on the subject, a
-    // pair's target, or every living crew member; traits through the traits module, on the ship, the subject, or the target (no
-    // on: the scope it arrived for, the subject for a pair), and toward the target for a pair trait.
-    private static void Apply(IReadOnlyList<StoryletEffect> effects, string? subjectId, string? targetId, string cause, IBusContext context)
+    // An answer's or a vignette's effects, in order: loyalty and morale through the crew module's commands, on a slot or every
+    // living crew member; traits through the traits module, on the ship or a slot (no on: the first slot, or the ship when there
+    // is no cast), and toward a slot for a pair trait.
+    private static void Apply(IReadOnlyList<StoryletEffect> effects, IReadOnlyList<CastSlot> slots, Dictionary<string, string> cast, string cause, IBusContext context)
     {
+        string? first = slots.Count == 0 ? null : cast[slots[0].Name];
         foreach (StoryletEffect effect in effects)
         {
             IEnumerable<string> Who(string? on)
             {
-                return on == StoryletScopes.Crew ? context.View<IRosterView>().Roster : on == StoryletScopes.Target ? [targetId!] : [subjectId!];
+                return on == StoryletScopes.Crew ? context.View<IRosterView>().Roster : [cast[on!]];
             }
 
             if (effect.Loyalty != 0)
@@ -106,8 +108,8 @@ public static class StoryletsModule
 
             if (effect.Trait is { } change)
             {
-                string? crewId = change.On == StoryletScopes.Ship ? null : change.On == StoryletScopes.Target ? targetId : subjectId;
-                context.Send(new ChangeTrait(change.Trait, crewId, change.Toward is null ? null : targetId, change.Amount, change.Set, cause));
+                string? crewId = change.On == StoryletScopes.Ship ? null : change.On.Length == 0 ? first : cast[change.On];
+                context.Send(new ChangeTrait(change.Trait, crewId, change.Toward is null ? null : cast[change.Toward], change.Amount, change.Set, cause));
             }
         }
     }
@@ -131,9 +133,9 @@ public static class StoryletsModule
 
     private static void Settle(VignetteDef vignette, WaitingVignette waiting, string optionId, bool defaulted, IBusContext context)
     {
-        Apply(vignette.Options.First(o => o.Id == optionId).Effects, waiting.SubjectId, waiting.TargetId, TraitCauses.Vignette, context);
+        Apply(vignette.Options.First(o => o.Id == optionId).Effects, vignette.Cast, waiting.Cast, TraitCauses.Vignette, context);
         context.Module<StoryletsState>().Vignettes.Remove(waiting);
-        context.Publish(new VignetteAnswered(waiting.OfferId, waiting.VignetteId, waiting.SubjectId, optionId, defaulted, waiting.TargetId));
+        context.Publish(new VignetteAnswered(waiting.OfferId, waiting.VignetteId, Copy(waiting.Cast), optionId, defaulted));
     }
 
     // The itinerary closes: each vignette still waiting takes its default. One the pack has lost is dropped with no effect.
@@ -152,47 +154,46 @@ public static class StoryletsModule
         }
     }
 
-    // After the storylets: every vignette whose requirements hold on a scope and which is out of its cooldown there. Those that
-    // have waited longest since they last arrived anywhere come first (never first of all), then by id, then by the subject's
-    // place on the roster. The rest are dropped: a vignette is not a debt.
-    private static void SendVignettes(ContentPack pack, int cycle, IBusContext context)
+    // After the storylets: each vignette is cast, passing over any binding that arrived within vignettes.cooldown cycles. Those that
+    // have waited longest since they last arrived with any cast come first (never first of all), then by id, until Task 5's
+    // salience. The rest are dropped: a vignette is not a debt.
+    private static void SendVignettes(ContentPack pack, Casting casting, int cycle, IBusContext context)
     {
         StoryletsState state = context.Module<StoryletsState>();
         IReadOnlyList<string> roster = context.View<IRosterView>().Roster;
-        int Last(string vignetteId, string? subjectId, string? targetId, bool anyScope)
+        var source = new StateSource(context.View<IRosterView>(), context.View<ITraitView>(), state, cycle);
+        int Last(string id)
         {
-            return state.Arrivals.Where(a => a.VignetteId == vignetteId && (anyScope || (a.SubjectId == subjectId && a.TargetId == targetId))).Select(a => a.Cycle).DefaultIfEmpty(int.MinValue).Max();
+            return state.Arrivals.Where(a => a.Id == id).Select(a => a.Cycle).DefaultIfEmpty(int.MinValue).Max();
         }
 
-        var due = new List<(VignetteDef Vignette, Scope Scope)>();
+        var due = new List<(VignetteDef Vignette, Dictionary<string, string> Cast)>();
         foreach (VignetteDef vignette in pack.Vignettes)
         {
-            foreach (Scope scope in Scopes(vignette.Scope, roster))
+            bool Cooling(IReadOnlyDictionary<string, string> cast)
             {
-                int last = Last(vignette.Id, scope.SubjectId, scope.TargetId, anyScope: false);
-                bool cooling = last != int.MinValue && cycle - last < pack.VignetteCooldown;
-                if (!cooling && vignette.Requires.All(r => Holds(pack, r, state, scope, context)))
-                {
-                    due.Add((vignette, scope));
-                }
+                return state.Arrivals.Any(a => a.Id == vignette.Id && Same(a.Cast, cast) && cycle - a.Cycle < pack.VignetteCooldown);
+            }
+
+            CastResult result = casting.Cast(vignette.Id, source, roster, () => context.Rng(CastStream(vignette.Id, cycle)), pack.CastTries, Cooling);
+            if (result.Cast is { } cast)
+            {
+                due.Add((vignette, cast));
             }
         }
 
-        IEnumerable<(VignetteDef Vignette, Scope Scope)> ordered = due
-            .OrderBy(d => Last(d.Vignette.Id, null, null, anyScope: true))
-            .ThenBy(d => d.Vignette.Id, StringComparer.Ordinal)
-            .ThenBy(d => d.Scope.Position);
-        foreach ((VignetteDef vignette, Scope scope) in ordered.Take(pack.VignettesPerCycle).ToList())
+        IEnumerable<(VignetteDef Vignette, Dictionary<string, string> Cast)> ordered = due
+            .OrderBy(d => Last(d.Vignette.Id))
+            .ThenBy(d => d.Vignette.Id, StringComparer.Ordinal);
+        foreach ((VignetteDef vignette, Dictionary<string, string> cast) in ordered.Take(pack.VignettesPerCycle).ToList())
         {
-            (string? subjectId, string? targetId, _) = scope;
-            var offer = new WaitingVignette { OfferId = OfferId(cycle, vignette.Id, scope), VignetteId = vignette.Id, SubjectId = subjectId, TargetId = targetId, Fact = vignette.Fact };
-            state.Arrivals.RemoveAll(a => a.VignetteId == vignette.Id && a.SubjectId == subjectId && a.TargetId == targetId);
-            state.Arrivals.Add(new VignetteArrival { VignetteId = vignette.Id, SubjectId = subjectId, TargetId = targetId, Cycle = cycle });
-            context.Publish(new VignetteArrived(offer.OfferId, vignette.Id, subjectId, offer.Fact, targetId));
+            var offer = new WaitingVignette { OfferId = OfferId(cycle, vignette.Id), VignetteId = vignette.Id, Cast = cast };
+            Arrived(state, vignette.Id, cast, cycle);
+            context.Publish(new VignetteArrived(offer.OfferId, vignette.Id, Copy(cast)));
             if (vignette.Options.Count == 0)
             {
-                Apply(vignette.Effects, subjectId, targetId, TraitCauses.Vignette, context);
-                context.Publish(new VignetteAnswered(offer.OfferId, vignette.Id, subjectId, null, Defaulted: false, targetId));
+                Apply(vignette.Effects, vignette.Cast, cast, TraitCauses.Vignette, context);
+                context.Publish(new VignetteAnswered(offer.OfferId, vignette.Id, Copy(cast), null, Defaulted: false));
             }
             else
             {
@@ -206,120 +207,99 @@ public static class StoryletsModule
         History.MissionEnded(context.Module<StoryletsState>(), context.State.Cycle, ended.Result, context.View<IRosterView>().Roster);
     }
 
+    // Review focus 5: a dead cast member withdraws the offer, whichever slot they held, and takes their vignettes and arrivals with
+    // them.
     private static void OnCrewDied(CrewDied died, IBusContext context)
     {
         StoryletsState state = context.Module<StoryletsState>();
         History.Forget(state, died.CrewId);
-        // A pair's storylets and vignettes go with either of the two (1e part three).
-        state.Vignettes.RemoveAll(v => v.SubjectId == died.CrewId || v.TargetId == died.CrewId);
-        foreach (WaitingStorylet waiting in state.Waiting.Where(w => w.SubjectId == died.CrewId || w.TargetId == died.CrewId).ToList())
+        state.Vignettes.RemoveAll(v => v.Cast.ContainsValue(died.CrewId));
+        state.Arrivals.RemoveAll(a => a.Cast.ContainsValue(died.CrewId));
+        foreach (WaitingStorylet waiting in state.Waiting.Where(w => w.Cast.ContainsValue(died.CrewId)).ToList())
         {
             Withdraw(state, waiting, context);
         }
     }
 
-    private static void OnItinerary(ContentPack pack, int cycle, IBusContext context)
+    private static void OnItinerary(ContentPack pack, Casting casting, int cycle, IBusContext context)
     {
         StoryletsState state = context.Module<StoryletsState>();
         IReadOnlyList<string> roster = context.View<IRosterView>().Roster;
-        bool Gone(string? crewId)
-        {
-            return crewId is not null && !roster.Contains(crewId);
-        }
-
-        foreach (WaitingStorylet stale in state.Waiting.Where(w => pack.Storylets.All(s => s.Id != w.StoryletId) || Gone(w.SubjectId) || Gone(w.TargetId)).ToList())
+        foreach (WaitingStorylet stale in state.Waiting.Where(w => pack.Storylets.All(s => s.Id != w.StoryletId) || w.Cast.Values.Any(id => !roster.Contains(id))).ToList())
         {
             Withdraw(state, stale, context);
         }
 
-        // Every storylet whose requirements hold on a scope it is not already waiting for: highest stakes first, then by id, then
-        // by the subject's place on the roster (and a pair's target's). The rest wait for a later cycle.
-        var due = new List<(StoryletDef Storylet, Scope Scope)>();
+        // Each storylet not already waiting is cast once. Those that cast arrive highest stakes first, then in the pack's order, until
+        // Task 5's salience; the rest are cast again next cycle.
+        ITraitView traits = context.View<ITraitView>();
+        var source = new StateSource(context.View<IRosterView>(), traits, state, cycle);
+        var due = new List<(StoryletDef Storylet, Dictionary<string, string> Cast)>();
         foreach (StoryletDef storylet in pack.Storylets)
         {
-            foreach (Scope scope in Scopes(storylet.Scope, roster))
+            if (state.Waiting.Any(w => w.StoryletId == storylet.Id))
             {
-                bool waiting = state.Waiting.Any(w => w.StoryletId == storylet.Id && w.SubjectId == scope.SubjectId && w.TargetId == scope.TargetId);
-                if (!waiting && storylet.Requires.All(r => Holds(pack, r, state, scope, context)))
-                {
-                    due.Add((storylet, scope));
-                }
+                continue;
+            }
+
+            CastResult result = casting.Cast(storylet.Id, source, roster, () => context.Rng(CastStream(storylet.Id, cycle)), pack.CastTries, _ => false);
+            if (result.Cast is { } cast)
+            {
+                due.Add((storylet, cast));
             }
         }
 
-        foreach ((StoryletDef storylet, Scope scope) in due.OrderByDescending(d => d.Storylet.Stakes).ThenBy(d => d.Storylet.Id, StringComparer.Ordinal).ThenBy(d => d.Scope.Position))
+        foreach ((StoryletDef storylet, Dictionary<string, string> cast) in due.OrderByDescending(d => d.Storylet.Stakes))
         {
             if (state.Waiting.Count >= pack.StoryletsPerCycle)
             {
                 break;
             }
 
-            // Where it came from: the encounter that last changed the first required trait that is set.
-            ITraitView traits = context.View<ITraitView>();
-            string? encounterId = storylet.Traits
-                .Select(r => (r.Trait, Target: OnPair(pack, r.Trait) ? scope.TargetId : null))
-                .Where(r => traits.Value(r.Trait, scope.SubjectId, r.Target) > 0)
-                .Select(r => traits.EncounterId(r.Trait, scope.SubjectId, r.Target))
+            // Where it came from: the encounter that last changed the first trait its expressions read that is set.
+            string? encounterId = casting.Reads(storylet.Id)
+                .Select(r => (r.Trait, Crew: r.Slot == StoryletScopes.Ship ? null : cast[r.Slot], Target: r.Toward is null ? null : cast[r.Toward]))
+                .Where(r => traits.Value(r.Trait, r.Crew, r.Target) > 0)
+                .Select(r => traits.EncounterId(r.Trait, r.Crew, r.Target))
                 .FirstOrDefault();
-            var offer = new WaitingStorylet
-            {
-                OfferId = OfferId(cycle, storylet.Id, scope),
-                StoryletId = storylet.Id,
-                SubjectId = scope.SubjectId,
-                TargetId = scope.TargetId,
-                EncounterId = encounterId,
-            };
+            var offer = new WaitingStorylet { OfferId = OfferId(cycle, storylet.Id), StoryletId = storylet.Id, Cast = cast, EncounterId = encounterId };
             state.Waiting.Add(offer);
-            context.Publish(new StoryletOffered(offer.OfferId, offer.StoryletId, offer.SubjectId, offer.EncounterId, offer.TargetId));
+            Arrived(state, storylet.Id, cast, cycle);
+            context.Publish(new StoryletOffered(offer.OfferId, offer.StoryletId, Copy(cast), offer.EncounterId));
         }
     }
 
     private static void Withdraw(StoryletsState state, WaitingStorylet waiting, IBusContext context)
     {
         state.Waiting.Remove(waiting);
-        context.Publish(new StoryletWithdrawn(waiting.OfferId, waiting.StoryletId, waiting.SubjectId, waiting.TargetId));
+        context.Publish(new StoryletWithdrawn(waiting.OfferId, waiting.StoryletId, Copy(waiting.Cast)));
     }
 
-    // One requirement on one scope: the ship's traits (no subject), or a crew member's traits, stats, and last cycle. For a pair, a
-    // trait defined on a pair is the one the subject holds toward the target, and of: target reads the target's stats and facts.
-    // A fact about the last cycle reads the history (1e part four): { last: kind } is count(kind, 1) > 0.
-    private static bool Holds(ContentPack pack, Requirement requirement, StoryletsState state, Scope scope, IBusContext context)
+    private static void Arrived(StoryletsState state, string id, Dictionary<string, string> cast, int cycle)
     {
-        IRosterView roster = context.View<IRosterView>();
-        string? subjectId = scope.SubjectId;
-        int cycle = context.State.Cycle;
-        return requirement switch
-        {
-            TraitRange trait => trait.Holds(context.View<ITraitView>().Value(trait.Trait, subjectId, OnPair(pack, trait.Trait) ? scope.TargetId : null)),
-            StatRange stat when (stat.OfTarget ? scope.TargetId : subjectId) is { } who => stat.Holds(stat.Stat == StoryletStats.Morale ? roster.Morale(who) : roster.Loyalty(who)),
-            LastCycle fact when (fact.OfTarget ? scope.TargetId : subjectId) is { } who && History.AnyEnded(state, cycle) => fact.Not != (new HistoryView(state, cycle).Count(who, fact.Fact, 1) > 0),
-            _ => false,
-        };
+        state.Arrivals.RemoveAll(a => a.Id == id && Same(a.Cast, cast));
+        state.Arrivals.Add(new Arrival { Id = id, Cast = Copy(cast), Cycle = cycle });
     }
 
-    private static bool OnPair(ContentPack pack, string trait)
+    private static bool Same(IReadOnlyDictionary<string, string> a, IReadOnlyDictionary<string, string> b)
     {
-        return pack.Traits.Any(t => t.Id == trait && t.OnPair);
+        return a.Count == b.Count && a.All(p => b.TryGetValue(p.Key, out string? id) && id == p.Value);
     }
 
-    // Who a storylet or vignette arrives for: the ship; each living crew member in roster order; or, for a pair, each holder in
-    // roster order with each other living crew member as the target, in roster order.
-    private static IEnumerable<Scope> Scopes(string scope, IReadOnlyList<string> roster)
+    private static Dictionary<string, string> Copy(IReadOnlyDictionary<string, string> cast)
     {
-        return scope switch
-        {
-            StoryletScopes.Crew => roster.Select((id, i) => new Scope(id, null, i)),
-            StoryletScopes.Pair => roster.SelectMany((holder, i) => roster.Select((target, j) => (target, j)).Where(t => t.target != holder).Select(t => new Scope(holder, t.target, (i * roster.Count) + t.j))),
-            _ => [new Scope(null, null, -1)],
-        };
+        return new Dictionary<string, string>(cast, StringComparer.Ordinal);
     }
 
-    // {cycle}:{id}:{subject or "ship"}, and :{target} for a pair.
-    private static string OfferId(int cycle, string id, Scope scope)
+    // Design 5.4: casting draws from its own stream, by storylet or vignette and cycle.
+    private static string CastStream(string id, int cycle)
     {
-        return $"{cycle}:{id}:{scope.SubjectId ?? ShipKey}{(scope.TargetId is null ? "" : $":{scope.TargetId}")}";
+        return $"cast:{id}:{cycle}";
     }
 
-    // Position orders the offers of one storylet: the subject's place on the roster, then the target's.
-    private sealed record Scope(string? SubjectId, string? TargetId, int Position);
+    // {cycle}:{id}: one cast a cycle.
+    private static string OfferId(int cycle, string id)
+    {
+        return $"{cycle}:{id}";
+    }
 }

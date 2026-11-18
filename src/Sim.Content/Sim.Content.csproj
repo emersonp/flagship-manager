@@ -2,6 +2,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Sim.Core\Sim.Core.csproj" />
+    <ProjectReference Include="..\Sim.Expressions\Sim.Expressions.csproj" />
   </ItemGroup>
 
   <ItemGroup>

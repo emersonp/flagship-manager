@@ -256,7 +256,7 @@ public sealed class StoryletBridgeTests : IDisposable
         (Guid id, WebCaptain captain) = await ToItinerary(flag: null);
         await app.Sessions.Run(app.Live, id, legacy =>
         {
-            legacy.State.Module<StoryletsState>(StoryletsModule.Name).Waiting.Add(new WaitingStorylet { OfferId = "1:STORYLET_GONE:ship", StoryletId = "STORYLET_GONE", SubjectId = null, EncounterId = "ENCOUNTER_01" });
+            legacy.State.Module<StoryletsState>(StoryletsModule.Name).Waiting.Add(new WaitingStorylet { OfferId = "1:STORYLET_GONE", StoryletId = "STORYLET_GONE", Cast = [], EncounterId = "ENCOUNTER_01" });
             return legacy;
         });
 
@@ -295,14 +295,14 @@ public sealed class StoryletBridgeTests : IDisposable
         Assert.DoesNotContain("SUBJECT_SHARED_LINE", script);
     }
 
-    private const string Bare = "- id: STORYLET_03\n  stakes: 1\n  scope: ship\n  requires:\n    - { trait: trait_a, min: 1, max: 1 }\n  options:\n"
+    private const string Bare = "- id: STORYLET_03\n  stakes: 1\n  requires: \"ship.trait.trait_a == 1\"\n  options:\n"
         + "    - { id: option_a, label: BARE_A, effects: [{ trait: trait_a, set: 0 }] }\n"
         + "    - { id: option_b, label: BARE_B, effects: [{ trait: trait_a, set: 2 }] }\n";
 
     [Fact]
     public async Task A_storylet_with_no_words_shows_its_ids_and_can_be_answered()
     {
-        const string bare = "- id: STORYLET_03\n  stakes: 1\n  scope: ship\n  requires:\n    - { trait: trait_a, min: 1, max: 1 }\n  options:\n"
+        const string bare = "- id: STORYLET_03\n  stakes: 1\n  requires: \"ship.trait.trait_a == 1\"\n  options:\n"
             + "    - { id: option_a, label: BARE_A, effects: [{ trait: trait_a, set: 0 }] }\n"
             + "    - { id: option_b, label: BARE_B, effects: [{ trait: trait_a, set: 2 }] }\n";
         using var bareApp = new TestApp(scratch: true, prepare: root => File.WriteAllText(Path.Combine(root, "storylets", "base.yaml"), bare));

@@ -4,19 +4,16 @@
 # a vignette is a signal, not a ruling (GDD 5.2).
 - id: VIGNETTE_01
   name: A week aboard
-  scope: crew
-  requires:
-    - { last: rested }
-    - { stat: morale, min: 26 }
+  cast:
+    subject: "subject.history.last('rested') && subject.morale >= 26"
   text: |-
     subject: Twelve hours' sleep. I'd forgotten the ship hums when you let it.
     = #subject# came off a quiet week rested.
   effects: [{ morale: 2, on: subject }]
 - id: VIGNETTE_02
   name: The medical bay
-  scope: crew
-  requires:
-    - { last: hurt }
+  cast:
+    subject: "subject.history.last('hurt')"
   text: |-
     > Medical: #subject# under observation, bay two.
     subject: It's nothing, Captain. Doc's being careful.
@@ -32,9 +29,8 @@
       text: "#subject# was left to the doctor and the quiet."
 - id: VIGNETTE_03
   name: An empty station
-  scope: crew
-  requires:
-    - { last: lost_crewmate }
+  cast:
+    subject: "subject.history.last('lost_crewmate')"
   text: |-
     > #subject# at a station that is not theirs, after their shift.
   default: say_nothing
@@ -49,28 +45,24 @@
       text: "#subject# stayed an hour, and nobody asked them to leave."
 - id: VIGNETTE_04
   name: Overheard in a corridor
-  scope: crew
-  requires:
-    - { last: sent }
-    - { stat: morale, max: 25 }
+  cast:
+    subject: "subject.history.last('sent') && subject.morale <= 25"
   text: |-
     subject: Same team, same mess. Someone up there likes sending us.
     = #subject# was heard complaining about the away team.
   effects: [{ loyalty: -1, on: subject }]
 - id: VIGNETTE_05
   name: A ghost on the night watch
-  scope: ship
-  requires:
-    - { trait: sensors_quirk, min: 2, max: 2 }
+  requires: "ship.trait.sensors_quirk == 'let_ride'"
   text: |-
     > Forward array: contact, bearing two-one-zero. Gone on the second sweep.
     best SKILL_A: Ghost again. Logging it with the others.
   effects: [{ morale: -1, on: crew }]
 - id: VIGNETTE_06
   name: Not that shuttle
-  scope: pair
-  requires:
-    - { trait: avoids, min: 1 }
+  cast:
+    subject: "subject.aboard"
+    target: "subject.trait.avoids.toward(target) >= 1"
   text: |-
     subject: I'd rather not share a shuttle with #target#, if it's all the same.
     = #subject# asked to be kept off #target#'s shuttle.

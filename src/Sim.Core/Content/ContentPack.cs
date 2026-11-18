@@ -31,13 +31,17 @@ public sealed record ContentPack(
     // At most this many storylets wait in one itinerary (tuning storylets.perCycle).
     public int StoryletsPerCycle { get; init; } = 2;
 
+    // Casting a storylet or vignette reads at most this many expressions before it gives up "out of tries" (tuning
+    // storylets.castTries; 1e part four, design 4.4).
+    public int CastTries { get; init; } = 100;
+
     // 1e part two. Optional: a pack with no vignettes sends none.
     public IReadOnlyList<VignetteDef> Vignettes { get; init; } = [];
 
     // At most this many vignettes arrive in one itinerary (tuning vignettes.perCycle).
     public int VignettesPerCycle { get; init; } = 3;
 
-    // A vignette does not arrive again for the same scope within this many cycles (tuning vignettes.cooldown).
+    // A vignette does not arrive again with the same cast within this many cycles (tuning vignettes.cooldown).
     public int VignetteCooldown { get; init; } = 6;
 
     // The history keeps each crew member's last this many cycles (tuning history.cycles; 1e part four, design 4.8).

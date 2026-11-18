@@ -79,7 +79,7 @@ public sealed partial class ExpressionBook
         }
 
         error = null;
-        return new CheckedExpression(source, [.. slots], Clauses(lambda.Expression), rewrite.Traits, lambda);
+        return new CheckedExpression(source, [.. slots], Clauses(lambda.Expression), rewrite.Traits, rewrite.Lasts, lambda);
     }
 
     // Cast: each of the expression's slots to a living crew member's id.

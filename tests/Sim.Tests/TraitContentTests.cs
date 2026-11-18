@@ -37,7 +37,7 @@ public class TraitContentTests
     [Fact]
     public void Both_packs_load_their_traits()
     {
-        Assert.Equal(["trait_b", "trait_e", "trait_f", "trait_g", "trait_h", "trait_i", "trait_j"], TestContent.Pack.Traits.Select(t => t.Id));
+        Assert.Equal(["trait_a", "trait_c", "trait_b", "trait_e", "trait_f", "trait_g", "trait_h", "trait_i", "trait_j"], TestContent.Pack.Traits.Select(t => t.Id));
         ContentLoadResult game = ContentLoader.LoadDirectory(Path.Combine(TestContent.Root, "content"));
         Assert.Empty(game.Errors);
         Assert.Contains(game.Pack!.Traits, t => t.Id == "stood_down");
@@ -90,14 +90,15 @@ public class TraitContentTests
         ContentPack pack = LoadWith(Stood, files =>
         {
             files["storylets/base.yaml"] = files["storylets/base.yaml"]
-                .Replace("{ trait: trait_c, max: 0 }", "{ trait: trait_x, is: level_a }")
+                .Replace("subject.trait.trait_c == 0", "subject.trait.trait_x == 'level_a'")
                 .Replace("effects: [{ trait: trait_c, set: 2 }, { loyalty: -2, on: subject }]", "effects: [{ trait: trait_x, set: level_b }, { loyalty: -2, on: subject }]");
             files["encounters/base.yaml"] = files["encounters/base.yaml"].Replace("{ trait: trait_b, add: 1, on: actor }", "{ trait: trait_x, set: level_a, on: actor }");
             return files;
         }).Pack!;
 
         StoryletDef storylet = pack.Storylets.Single(s => s.Id == "STORYLET_02");
-        Assert.Contains(new TraitRange("trait_x", 1, 1), storylet.Requires);
+        Assert.Contains(new TraitRead("trait_x", "subject", null), storylet.Reads);
+        Assert.Contains(new TraitRead("trait_x", "subject", null), storylet.Needs);
         Assert.Equal(new TraitChange("trait_x", 2, true, ""), storylet.Options[1].Effects[0].Trait);
         Assert.Equal([new TraitChange("trait_x", 1, true, "actor")], pack.Encounters.Single(e => e.Id == "ENCOUNTER_04").Approaches[0].Outcomes["disaster"].Traits!);
     }
@@ -123,7 +124,14 @@ public class TraitContentTests
     {
         AssertRefused(Stood, "STORYLET_02: trait_x has no level named 'level_c'; its levels are level_a and level_b.", "storylets/base.yaml", files =>
         {
-            files["storylets/base.yaml"] = files["storylets/base.yaml"].Replace("{ trait: trait_c, max: 0 }", "{ trait: trait_x, is: level_c }");
+            files["storylets/base.yaml"] = files["storylets/base.yaml"].Replace("{ trait: trait_c, set: 2 }", "{ trait: trait_x, set: level_c }");
+            return files;
+        });
+
+        // In an expression (1e part four), the level is checked by the expression book, with its position.
+        AssertRefused(Stood, "STORYLET_02: cast.subject, at character 56: trait_x has no level named level_c; its levels are level_a, level_b.", "storylets/base.yaml", files =>
+        {
+            files["storylets/base.yaml"] = files["storylets/base.yaml"].Replace("subject.trait.trait_c == 0", "subject.trait.trait_x == 'level_c'");
             return files;
         });
     }
@@ -138,17 +146,12 @@ public class TraitContentTests
         });
         AssertRefused(Stood, "STORYLET_01: trait_x sits on a crew member, not on the ship.", "storylets/base.yaml", files =>
         {
-            files["storylets/base.yaml"] = files["storylets/base.yaml"].Replace("{ trait: trait_a, min: 1, max: 1 }", "{ trait: trait_x, min: 1, max: 1 }");
+            files["storylets/base.yaml"] = files["storylets/base.yaml"].Replace("{ trait: trait_a, set: 2 }", "{ trait: trait_x, set: 1 }");
             return files;
         });
-    }
-
-    [Fact]
-    public void A_requirement_with_is_and_a_range_is_refused()
-    {
-        AssertRefused(Stood, "STORYLET_02: A requirement has is, or min and max, not both.", "storylets/base.yaml", files =>
+        AssertRefused(Stood, "STORYLET_01: requires, at character 12: trait_x is on crew, not the ship.", "storylets/base.yaml", files =>
         {
-            files["storylets/base.yaml"] = files["storylets/base.yaml"].Replace("{ trait: trait_c, max: 0 }", "{ trait: trait_x, is: level_a, max: 1 }");
+            files["storylets/base.yaml"] = files["storylets/base.yaml"].Replace("ship.trait.trait_a == 1", "ship.trait.trait_x == 1");
             return files;
         });
     }
@@ -159,14 +162,12 @@ public class TraitContentTests
     public void An_option_is_judged_on_the_value_the_cap_leaves()
     {
         const string traits = "- id: trait_x\n  max: 2\n";
-        AssertRefused(traits, "STORYLET_X: Option 'option_b' leaves every requirement true, so this storylet would come back every cycle.", "storylets/base.yaml", files =>
+        AssertRefused(traits, "STORYLET_X: Option 'option_b' leaves every expression true, so this storylet would come back every cycle.", "storylets/base.yaml", files =>
         {
             files["storylets/base.yaml"] = """
                 - id: STORYLET_X
                   stakes: 2
-                  scope: ship
-                  requires:
-                    - { trait: trait_x, min: 2 }
+                  requires: "ship.trait.trait_x >= 2"
                   options:
                     - { id: option_a, label: LABEL_A, effects: [{ trait: trait_x, set: 0 }] }
                     - { id: option_b, label: LABEL_B, effects: [{ trait: trait_x, set: 5 }] }
@@ -224,16 +225,16 @@ public class TraitContentTests
     {
         StoryletDef pair = TestContent.Pack.Storylets.Single(s => s.Id == "STORYLET_03");
 
-        Assert.Equal(StoryletScopes.Pair, pair.Scope);
+        Assert.Equal(["subject", "target"], pair.Slots);
         Assert.Equal(new TraitChange("trait_g", 0, true, "", StoryletScopes.Target), pair.Options[0].Effects[0].Trait);
-        Assert.Equal(StoryletScopes.Pair, TestContent.Pack.Vignettes.Single(v => v.Id == "VIGNETTE_04").Scope);
+        Assert.Equal(["subject", "target"], TestContent.Pack.Vignettes.Single(v => v.Id == "VIGNETTE_04").Slots);
     }
 
     [Theory]
-    [InlineData("{ loyalty: -1, on: crew }", "{ loyalty: -1, on: target }", "STORYLET_01: Only a storylet for a pair has a target, so only it can have on: target.")]
-    [InlineData("{ trait: trait_a, set: 2 }", "{ trait: trait_a, set: 2, toward: target }", "STORYLET_01: toward: target is for a storylet for a pair, on its subject.")]
-    [InlineData("{ trait: trait_c, max: 0 }", "{ stat: morale, max: 20, of: target }", "STORYLET_02: of: target is the only of, and only a storylet for a pair has a target.")]
-    [InlineData("{ trait: trait_g, set: 5, toward: target }", "{ trait: trait_g, set: 5, on: target, toward: target }", "STORYLET_03: toward: target is for a storylet for a pair, on its subject.")]
+    [InlineData("{ loyalty: -1, on: crew }", "{ loyalty: -1, on: target }", "STORYLET_01: on: target names no slot; this storylet casts no one.")]
+    [InlineData("{ trait: trait_a, set: 2 }", "{ trait: trait_a, set: 2, toward: target }", "STORYLET_01: toward: target names no slot; this storylet casts no one.")]
+    [InlineData("subject.trait.trait_c == 0", "subject.trait.trait_c == 0 && target.morale <= 20", "STORYLET_02: cast.subject, at character 61: target is not a slot this expression can read; it reads subject, ship, and cycle.")]
+    [InlineData("{ trait: trait_g, set: 5, toward: target }", "{ trait: trait_g, set: 5, on: target, toward: target }", "STORYLET_03: toward: target names the slot the trait is on; a pair trait is held toward someone else.")]
     [InlineData("{ trait: trait_g, set: 5, toward: target }", "{ trait: trait_g, set: 5 }", "STORYLET_03: trait_g sits on a pair, so it is used with toward.")]
     [InlineData("{ trait: trait_g, set: 5, toward: target }", "{ trait: trait_b, set: 1, toward: target }", "STORYLET_03: A trait on a pair needs a definition with on: pair.")]
     public void A_pair_in_a_storylet_outside_the_rules_is_refused(string from, string to, string message)

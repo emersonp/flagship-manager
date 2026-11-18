@@ -42,6 +42,7 @@ internal sealed class Rewrite
     private readonly StringBuilder text = new();
     private readonly List<int> map = [];
     private readonly List<TraitRead> traits = [];
+    private readonly List<LastRead> lasts = [];
 
     // The trait whose read ends just before this token index, for a level compared with it.
     private (TraitDef Def, int End)? lastTrait;
@@ -57,6 +58,8 @@ internal sealed class Rewrite
     public string Text => text.ToString();
 
     public IReadOnlyList<TraitRead> Traits => traits;
+
+    public IReadOnlyList<LastRead> Lasts => lasts;
 
     // Where a position in the rewritten text came from in the source; past its end is the source's end.
     public int SourcePosition(int position)
@@ -268,6 +271,11 @@ internal sealed class Rewrite
                 Put(slot.Text, slot.Position);
                 Put(".history.last", member.Position, glued: true);
                 Put($"(\"{kind.Text}\")", kind.Position, glued: true);
+                if ((i == 0 || tokens[i - 1].Text != "!") && !lasts.Contains(new LastRead(kind.Text, slot.Text)))
+                {
+                    lasts.Add(new LastRead(kind.Text, slot.Text));
+                }
+
                 return i + 8;
             }
 

@@ -65,17 +65,17 @@ public class TraitsModuleTests
         Assert.Contains(new CrewDied("CREW_02", "MISSION_1"), events);
         Assert.Equal([new TraitChanged("trait_b", "CREW_03", null, 0, 1, TraitCauses.Mission, Encounter)], events.OfType<TraitChanged>());
         Assert.Equal(["CREW_03"], h.Traits.Traits.Select(t => t.CrewId));
-        Assert.Equal(["CREW_03"], events.OfType<StoryletOffered>().Select(o => o.SubjectId));
+        Assert.Equal(["CREW_03"], events.OfType<StoryletOffered>().Select(o => o.Cast["subject"]));
     }
 
     [Fact]
     public void An_answers_and_a_vignettes_changes_carry_their_cause()
     {
-        var glance = new VignetteDef("VIGNETTE_GLANCE", StoryletScopes.Ship, [new TraitRange("trait_a", 1, null)], [Add("trait_c", 1, "ship")], [], null);
+        var glance = new VignetteDef("VIGNETTE_GLANCE", [], new Expr("ship.trait.trait_a >= 1"), [Add("trait_c", 1, "ship")], [], null);
         var h = new Harness(Pack(2, Quirk) with { Vignettes = [glance] });
 
         List<IEvent> arrived = h.Mission(Raise("trait_a", 1));
-        List<IEvent> answered = h.Send(new AnswerStorylet("2:STORYLET_QUIRK:ship", "ride"));
+        List<IEvent> answered = h.Send(new AnswerStorylet("2:STORYLET_QUIRK", "ride"));
 
         Assert.Equal([new TraitChanged("trait_c", null, null, 0, 1, TraitCauses.Vignette, null)], arrived.OfType<TraitChanged>().Where(t => t.Trait == "trait_c"));
         Assert.Equal([new TraitChanged("trait_a", null, null, 1, 2, TraitCauses.Answer, null)], answered.OfType<TraitChanged>());
@@ -86,7 +86,7 @@ public class TraitsModuleTests
     {
         var h = new Harness(Pack(2, Quirk, Shaken));
         h.Mission(Raise("trait_a", 1));
-        h.Send(new AnswerStorylet("2:STORYLET_QUIRK:ship", "clear"));
+        h.Send(new AnswerStorylet("2:STORYLET_QUIRK", "clear"));
         h.To(CyclePhase.Orders);
 
         List<IEvent> ship = h.Send(new SetTrait("trait_a", null, null, 1));
@@ -98,7 +98,7 @@ public class TraitsModuleTests
 
         List<IEvent> itinerary = h.To(CyclePhase.Itinerary);
 
-        Assert.Equal(["3:STORYLET_SHAKEN:CREW_03", "3:STORYLET_QUIRK:ship"], itinerary.OfType<StoryletOffered>().Select(o => o.OfferId));
+        Assert.Equal(["3:STORYLET_SHAKEN", "3:STORYLET_QUIRK"], itinerary.OfType<StoryletOffered>().Select(o => o.OfferId));
         h.Send(new SetTrait("trait_b", "CREW_03", null, 0));
         Assert.Equal(0, h.Trait("trait_b", "CREW_03"));
     }

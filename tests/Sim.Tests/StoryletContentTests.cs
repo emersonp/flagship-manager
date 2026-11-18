@@ -8,9 +8,8 @@ public class StoryletContentTests
     private const string Storylet = """
         - id: STORYLET_X
           stakes: 2
-          scope: crew
-          requires:
-            - { trait: trait_a, min: 1, max: 1 }
+          cast:
+            subject: "subject.trait.trait_a == 1"
           options:
             - id: option_a
               label: LABEL_A
@@ -20,6 +19,11 @@ public class StoryletContentTests
               effects: [{ trait: trait_a, set: 2 }]
 
         """;
+
+    private const string Cast = "  cast:\n    subject: \"subject.trait.trait_a == 1\"\n";
+
+    // The same storylet for the ship: no cast, and requires on the ship.
+    private static readonly string ShipStorylet = Storylet.Replace(Cast, "  requires: \"ship.trait.trait_a == 1\"\n");
 
     private static ContentLoadResult LoadWith(string storylets, string? tuning = null)
     {
@@ -41,22 +45,29 @@ public class StoryletContentTests
         Assert.Contains(result.Errors, e => e.File == "storylets/base.yaml" && e.Message == message);
     }
 
+    private static string WithCast(string cast)
+    {
+        return Storylet.Replace(Cast, cast);
+    }
+
     [Fact]
     public void The_fixture_storylets_load()
     {
         ContentPack pack = TestContent.Pack;
 
         Assert.Equal(["STORYLET_01", "STORYLET_02", "STORYLET_03"], pack.Storylets.Select(s => s.Id));
-        Assert.Equal(2, pack.StoryletsPerCycle);
+        Assert.Equal((2, 100), (pack.StoryletsPerCycle, pack.CastTries));
         StoryletDef ship = pack.Storylets[0];
-        Assert.Equal((2, StoryletScopes.Ship, (string?)null), (ship.Stakes, ship.Scope, ship.Name));
-        Assert.Equal([new TraitRange("trait_a", 1, 1)], ship.Requires);
+        Assert.Equal((2, 0, "ship.trait.trait_a == 1", (string?)null), (ship.Stakes, ship.Cast.Count, ship.Requires?.Source, ship.Name));
+        Assert.Equal([new TraitRead("trait_a", "ship", null)], ship.Reads);
         Assert.Equal(["option_a", "option_b"], ship.Options.Select(o => o.Id));
         Assert.Equal("STORYLET_01_OPTION_A_LABEL", ship.Options[0].Label);
         Assert.Equal([new StoryletEffect(Trait: new TraitChange("trait_a", 0, true, "")), new StoryletEffect(Loyalty: -1, LoyaltyOn: "crew")], ship.Options[0].Effects);
         StoryletDef crew = pack.Storylets[1];
-        Assert.Equal(StoryletScopes.Crew, crew.Scope);
-        Assert.Equal([new TraitRange("trait_b", 1, null), new TraitRange("trait_c", 0, 0)], crew.Requires);
+        Assert.Equal([new CastSlot("subject", new Expr("subject.trait.trait_b >= 1 && subject.trait.trait_c == 0"))], crew.Cast);
+        Assert.Null(crew.Requires);
+        Assert.Equal([new TraitRead("trait_b", "subject", null), new TraitRead("trait_c", "subject", null)], crew.Reads);
+        Assert.Equal([new TraitRead("trait_b", "subject", null)], crew.Needs);
         Assert.Equal(
             [
                 new StoryletEffect(Trait: new TraitChange("trait_b", -1, false, "")),
@@ -65,6 +76,10 @@ public class StoryletContentTests
             ],
             crew.Options[0].Effects);
         Assert.Equal([new StoryletEffect(Trait: new TraitChange("trait_c", 2, true, "")), new StoryletEffect(Loyalty: -2, LoyaltyOn: "subject")], crew.Options[1].Effects);
+        StoryletDef pair = pack.Storylets[2];
+        Assert.Equal(["subject", "target"], pair.Slots);
+        Assert.Equal([new TraitRead("trait_g", "subject", "target")], pair.Reads);
+        Assert.Equal(new StoryletEffect(Trait: new TraitChange("trait_g", 0, true, "", "target")), pair.Options[0].Effects[0]);
     }
 
     [Fact]
@@ -118,49 +133,133 @@ public class StoryletContentTests
         AssertRefused(Storylet.Replace(from, to), "STORYLET_X: A storylet's stakes must be 1 to 5.");
     }
 
-    [Theory]
-    [InlineData("  scope: crew\n", "")]
-    [InlineData("scope: crew", "scope: team")]
-    public void A_scope_other_than_ship_crew_or_pair_is_refused(string from, string to)
-    {
-        AssertRefused(Storylet.Replace(from, to), "STORYLET_X: A storylet needs scope: ship, crew, or pair.");
-    }
-
-    [Theory]
-    [InlineData("requires: []")]
-    [InlineData("requires: [{ trait: trait_a }, { trait: trait_b }, { trait: trait_c }, { trait: trait_d }, { trait: trait_e }]")]
-    public void No_requirement_or_more_than_four_is_refused(string requires)
-    {
-        string storylet = Storylet.Replace("requires:\n    - { trait: trait_a, min: 1, max: 1 }", requires);
-
-        AssertRefused(storylet, "STORYLET_X: A storylet needs one to four requirements.");
-    }
-
-    [Theory]
-    [InlineData("{ trait: Trait_A, min: 1 }", "STORYLET_X: Trait id 'Trait_A' must be lower case: a letter, then letters, digits, and underscores, at most 40 in all.")]
-    [InlineData("{ min: 1 }", "STORYLET_X: Trait id '' must be lower case: a letter, then letters, digits, and underscores, at most 40 in all.")]
-    [InlineData("{ trait: trait_a, over: 1 }", "STORYLET_X: A requirement takes trait, stat, or last; 'over' is not one of them.")]
-    [InlineData("{ trait: trait_a, min: one }", "STORYLET_X: A requirement's min and max must be whole numbers of 0 or more.")]
-    [InlineData("{ trait: trait_a, min: -1 }", "STORYLET_X: A requirement's min and max must be whole numbers of 0 or more.")]
-    [InlineData("{ trait: trait_a, min: 2, max: 1 }", "STORYLET_X: The requirement on trait_a has max 1 below min 2.")]
-    [InlineData("{ trait: trait_a, max: 1, min: 3 }", "STORYLET_X: The requirement on trait_a has max 1 below min 3.")]
-    public void A_requirement_that_is_not_a_trait_and_a_range_is_refused(string requirement, string message)
-    {
-        AssertRefused(Storylet.Replace("{ trait: trait_a, min: 1, max: 1 }", requirement), message);
-    }
-
+    // 1e part four, design 4.2: casting with up to three named slots, and requires as one expression.
     [Fact]
-    public void A_requirement_with_only_a_max_starts_at_zero_and_one_with_neither_at_one()
+    public void Three_slots_load_in_reading_order_with_requires_and_the_traits_they_read()
     {
-        string storylet = Storylet.Replace("{ trait: trait_a, min: 1, max: 1 }", "{ trait: trait_a, max: 1 }\n    - { trait: trait_b }");
-
-        // Each option must still move a requirement out of range: option_a raises trait_a past its max, option_b clears trait_b.
-        storylet = storylet.Replace("{ trait: trait_a, set: 2 }", "{ trait: trait_b, set: 0 }").Replace("{ trait: trait_a, set: 0 }", "{ trait: trait_a, set: 2 }");
+        string storylet = WithCast("  cast:\n    subject: \"subject.trait.trait_a == 1\"\n    target: \"target.fit\"\n    witness: \"witness.trait.trait_g.toward(target) >= 1\"\n"
+            + "  requires: \"subject.morale < target.morale && ship.trait.trait_c == 0\"\n");
 
         ContentLoadResult result = LoadWith(storylet);
 
         Assert.Empty(result.Errors);
-        Assert.Equal([new TraitRange("trait_a", 0, 1), new TraitRange("trait_b", 1, null)], result.Pack!.Storylets.Single().Requires);
+        StoryletDef def = result.Pack!.Storylets.Single();
+        Assert.Equal(["subject", "target", "witness"], def.Slots);
+        Assert.Equal("subject.morale < target.morale && ship.trait.trait_c == 0", def.Requires?.Source);
+        Assert.Equal([new TraitRead("trait_a", "subject", null), new TraitRead("trait_g", "witness", "target"), new TraitRead("trait_c", "ship", null)], def.Reads);
+        Assert.Equal([new TraitRead("trait_a", "subject", null), new TraitRead("trait_g", "witness", "target")], def.Needs);
+    }
+
+    [Theory]
+    [InlineData("  scope: crew\n")]
+    [InlineData("  scope: ship\n")]
+    public void Scope_is_refused_with_a_pointer_to_cast(string scope)
+    {
+        AssertRefused(Storylet.Replace("  stakes: 2\n", "  stakes: 2\n" + scope), "STORYLET_X: scope was replaced by cast in part four; a storylet for crew casts subject.");
+    }
+
+    [Fact]
+    public void The_list_form_of_requires_is_refused()
+    {
+        AssertRefused(
+            Storylet.Replace(Cast, Cast + "  requires:\n    - { trait: trait_a, min: 1 }\n"),
+            "STORYLET_X: requires is one expression since part four, not a list; write it as \"subject.trait.shaken >= 1 && subject.morale <= 25\".");
+    }
+
+    [Theory]
+    [InlineData("ship")]
+    [InlineData("crew")]
+    [InlineData("captain")]
+    [InlineData("cycle")]
+    [InlineData("best")]
+    [InlineData("handler")]
+    public void A_reserved_slot_name_is_refused(string name)
+    {
+        AssertRefused(
+            WithCast($"  cast:\n    {name}: \"true\"\n    subject: \"subject.trait.trait_a == 1\"\n"),
+            $"STORYLET_X: '{name}' cannot name a slot; ship, crew, captain, cycle, best, or handler each mean something already.");
+    }
+
+    [Fact]
+    public void A_slot_name_that_is_not_lower_case_is_refused()
+    {
+        AssertRefused(WithCast("  cast:\n    Subject: \"Subject.trait.trait_a == 1\"\n"),
+            "STORYLET_X: Slot name 'Subject' must be lower case: a letter, then letters, digits, and underscores, at most 40 in all.");
+    }
+
+    [Fact]
+    public void More_than_three_slots_are_refused()
+    {
+        AssertRefused(WithCast("  cast:\n    a: \"a.trait.trait_a == 1\"\n    b: \"b.fit\"\n    c: \"c.fit\"\n    d: \"d.fit\"\n"), "STORYLET_X: A cast is at most three slots.");
+    }
+
+    [Fact]
+    public void A_slot_cannot_read_a_later_one()
+    {
+        AssertRefused(
+            WithCast("  cast:\n    subject: \"subject.trait.trait_a == 1 && subject != target\"\n    target: \"target.fit\"\n"),
+            "STORYLET_X: cast.subject, at character 42: target is not a slot this expression can read; it reads subject, ship, and cycle.");
+    }
+
+    [Fact]
+    public void A_bad_trait_is_refused_with_its_key_and_position()
+    {
+        AssertRefused(WithCast("  cast:\n    subject: \"subject.trait.nosuch >= 1\"\n"), "STORYLET_X: cast.subject, at character 15: No trait named nosuch.");
+        AssertRefused(Storylet.Replace(Cast, Cast + "  requires: \"subject.trait.trait_a == 1 && subject.rel > 0\"\n"),
+            "STORYLET_X: requires, at character 39: rel() waits for relationships (Phase 4).");
+    }
+
+    [Fact]
+    public void A_storylet_for_the_ship_cannot_read_a_slot()
+    {
+        AssertRefused(ShipStorylet.Replace("  requires: \"ship.trait.trait_a == 1\"\n", "  requires: \"ship.trait.trait_a == 1 && subject.morale < 25\"\n"),
+            "STORYLET_X: requires, at character 28: subject is not a slot this expression can read; it reads ship and cycle.");
+    }
+
+    [Fact]
+    public void Toward_may_not_name_the_slot_the_trait_is_on()
+    {
+        string pair = WithCast("  cast:\n    subject: \"subject.aboard\"\n    target: \"subject.trait.trait_g.toward(target) >= 1\"\n")
+            .Replace("effects: [{ trait: trait_a, set: 0 }]", "effects: [{ trait: trait_g, set: 0, toward: target }]");
+        Assert.Empty(LoadWith(pair.Replace("effects: [{ trait: trait_a, set: 2 }]", "effects: [{ trait: trait_g, set: 0, toward: target }]")).Errors);
+
+        AssertRefused(
+            pair.Replace("effects: [{ trait: trait_a, set: 2 }]", "effects: [{ trait: trait_g, set: 0, on: target, toward: target }]"),
+            "STORYLET_X: toward: target names the slot the trait is on; a pair trait is held toward someone else.");
+        AssertRefused(
+            pair.Replace("effects: [{ trait: trait_a, set: 2 }]", "effects: [{ trait: trait_g, set: 0, toward: subject }]"),
+            "STORYLET_X: toward: subject names the slot the trait is on; a pair trait is held toward someone else.");
+        AssertRefused(
+            pair.Replace("effects: [{ trait: trait_a, set: 2 }]", "effects: [{ trait: trait_g, set: 0, toward: witness }]"),
+            "STORYLET_X: toward: witness names no slot; this storylet casts subject or target.");
+    }
+
+    [Fact]
+    public void On_and_speakers_take_any_slot_name()
+    {
+        string storylet = WithCast("  cast:\n    boss: \"boss.trait.trait_a == 1\"\n    rookie: \"rookie.fit\"\n")
+            .Replace("  options:\n", "  text: |-\n    rookie: #boss# said so.\n    boss: Did I.\n  options:\n")
+            .Replace("effects: [{ trait: trait_a, set: 2 }]", "effects: [{ trait: trait_a, set: 2, on: boss }, { morale: 1, on: rookie }]");
+
+        ContentLoadResult result = LoadWith(storylet);
+
+        Assert.Empty(result.Errors);
+        Assert.Equal(new StoryletEffect(Morale: 1, MoraleOn: "rookie"), result.Pack!.Storylets.Single().Options[1].Effects[1]);
+    }
+
+    // Review focus 4: an option's requires is parsed and checked now (read in play from Task 6), and one option is always free.
+    [Fact]
+    public void An_option_requires_is_checked_and_one_option_must_have_none()
+    {
+        string guarded = Storylet.Replace("      label: LABEL_B\n", "      label: LABEL_B\n      requires: \"subject.loyalty >= 60\"\n");
+        ContentLoadResult result = LoadWith(guarded);
+        Assert.Empty(result.Errors);
+        Assert.Equal("subject.loyalty >= 60", result.Pack!.Storylets.Single().Options[1].Requires?.Source);
+
+        AssertRefused(Storylet.Replace("      label: LABEL_B\n", "      label: LABEL_B\n      requires: \"subject.loyalty >= target\"\n"),
+            "STORYLET_X: options.option_b.requires, at character 20: target is not a slot this expression can read; it reads subject, ship, and cycle.");
+        AssertRefused(guarded.Replace("      label: LABEL_A\n", "      label: LABEL_A\n      requires: \"subject.fit\"\n"),
+            "STORYLET_X: A storylet needs an option with no requires, so it can always be answered.");
     }
 
     [Theory]
@@ -181,11 +280,11 @@ public class StoryletContentTests
     }
 
     [Fact]
-    public void Requirements_on_one_trait_that_no_value_satisfies_are_refused()
+    public void Expressions_that_no_trait_values_satisfy_are_refused()
     {
         AssertRefused(
-            Storylet.Replace("{ trait: trait_a, min: 1, max: 1 }", "{ trait: trait_a, min: 1, max: 1 }\n    - { trait: trait_a, min: 2 }"),
-            "STORYLET_X: No value of trait_a satisfies all of this storylet's requirements on it.");
+            Storylet.Replace(Cast, Cast + "  requires: \"subject.trait.trait_a >= 2\"\n"),
+            "STORYLET_X: No values of the traits it reads let every expression hold, so it can never arrive.");
     }
 
     [Theory]
@@ -211,10 +310,11 @@ public class StoryletContentTests
     }
 
     [Theory]
-    [InlineData("{ loyalty: -1 }", "STORYLET_X: A loyalty change needs on: subject or crew.")]
-    [InlineData("{ loyalty: -1, on: ship }", "STORYLET_X: A loyalty change needs on: subject or crew.")]
+    [InlineData("{ loyalty: -1 }", "STORYLET_X: A loyalty change needs on: crew or a slot; this storylet casts subject.")]
+    [InlineData("{ loyalty: -1, on: ship }", "STORYLET_X: A loyalty change needs on: crew or a slot; this storylet casts subject.")]
+    [InlineData("{ loyalty: -1, on: target }", "STORYLET_X: on: target names no slot; this storylet casts subject.")]
     [InlineData("{ loyalty: lots, on: crew }", "STORYLET_X: A loyalty change must be a whole number.")]
-    [InlineData("{ trait: trait_b, add: 1, on: crew }", "STORYLET_X: A storylet's trait change takes on: ship, subject, or target, or no on.")]
+    [InlineData("{ trait: trait_b, add: 1, on: crew }", "STORYLET_X: A storylet's trait change takes on: ship or a slot, or no on; this storylet casts subject.")]
     [InlineData("{ trait: trait_b, add: 1, set: 1 }", "STORYLET_X: A trait change needs add or set, and only one of them.")]
     [InlineData("{ trait: trait_b }", "STORYLET_X: A trait change needs add or set, and only one of them.")]
     [InlineData("{ trait: trait_b, add: lots }", "STORYLET_X: A trait change's amount must be a whole number.")]
@@ -233,11 +333,11 @@ public class StoryletContentTests
     [Theory]
     [InlineData("{ loyalty: -1, on: subject }")]
     [InlineData("{ trait: trait_b, add: 1, on: subject }")]
-    public void A_storylet_for_the_ship_cannot_change_a_subject(string effect)
+    public void A_storylet_for_the_ship_cannot_change_a_slot(string effect)
     {
-        string storylet = Storylet.Replace("scope: crew", "scope: ship").Replace("effects: [{ trait: trait_a, set: 2 }]", $"effects: [{{ trait: trait_a, set: 2 }}, {effect}]");
+        string storylet = ShipStorylet.Replace("effects: [{ trait: trait_a, set: 2 }]", $"effects: [{{ trait: trait_a, set: 2 }}, {effect}]");
 
-        AssertRefused(storylet, "STORYLET_X: A storylet for the ship has no subject, so nothing can be on: subject.");
+        AssertRefused(storylet, "STORYLET_X: on: subject names no slot; this storylet casts no one.");
     }
 
     [Theory]
@@ -245,15 +345,13 @@ public class StoryletContentTests
     [InlineData("  text: \"#subject# waited.\"\n", "STORYLET_X: text cannot be used: #subject# names 'subject', which a storylet beat does not have.")]
     public void A_storylet_for_the_ship_cannot_name_a_subject_in_its_text(string text, string message)
     {
-        string storylet = Storylet.Replace("scope: crew\n", "scope: ship\n" + text);
-
-        AssertRefused(storylet, message);
+        AssertRefused(ShipStorylet.Replace("  options:\n", text + "  options:\n"), message);
     }
 
     [Fact]
     public void A_storylet_for_crew_may_name_its_subject_and_the_best_at_a_skill()
     {
-        string storylet = Storylet.Replace("scope: crew\n", "scope: crew\n  text: |-\n    subject: #subject.they# asked.\n    best SKILL_A: Noted.\n    = #subject# asked about #storylet#.\n")
+        string storylet = Storylet.Replace("  options:\n", "  text: |-\n    subject: #subject.they# asked.\n    best SKILL_A: Noted.\n    = #subject# asked about #storylet#.\n  options:\n")
             .Replace("label: LABEL_A\n", "label: LABEL_A\n      text: \"#subject# was heard.\"\n");
 
         ContentLoadResult result = LoadWith(storylet);
@@ -269,7 +367,7 @@ public class StoryletContentTests
     [InlineData("  text: \"\"\n", "STORYLET_X: text must not be empty.")]
     public void A_storylets_text_that_cannot_work_is_refused(string text, string message)
     {
-        AssertRefused(Storylet.Replace("scope: crew\n", "scope: crew\n" + text), message);
+        AssertRefused(Storylet.Replace("  options:\n", text + "  options:\n"), message);
     }
 
     [Fact]
@@ -286,26 +384,42 @@ public class StoryletContentTests
     [InlineData("{ trait: trait_b, set: 3 }")]
     [InlineData("{ loyalty: -1, on: crew }")]
     [InlineData("{ trait: trait_a, set: 0, on: ship }")]
-    public void An_option_that_leaves_every_requirement_true_is_refused(string effect)
+    public void An_option_that_leaves_every_expression_true_is_refused(string effect)
     {
         AssertRefused(
             Storylet.Replace("effects: [{ trait: trait_a, set: 2 }]", $"effects: [{effect}]"),
-            "STORYLET_X: Option 'option_b' leaves every requirement true, so this storylet would come back every cycle.");
+            "STORYLET_X: Option 'option_b' leaves every expression true, so this storylet would come back every cycle.");
     }
 
     [Fact]
-    public void An_option_that_moves_one_requirement_out_of_range_is_enough()
+    public void An_option_that_makes_one_trait_clause_false_is_enough()
     {
-        string storylet = Storylet.Replace("{ trait: trait_a, min: 1, max: 1 }", "{ trait: trait_a, min: 1, max: 1 }\n    - { trait: trait_b, max: 0 }")
+        string storylet = WithCast("  cast:\n    subject: \"subject.trait.trait_a == 1 && subject.trait.trait_b == 0\"\n")
             .Replace("effects: [{ trait: trait_a, set: 2 }]", "effects: [{ trait: trait_b, add: 1, on: subject }]");
 
         Assert.Empty(LoadWith(storylet).Errors);
     }
 
+    // Design 4.6: a clause on a stat or the history may still hold, so only a trait the option moves can end the storylet.
+    [Fact]
+    public void A_clause_on_a_stat_or_the_history_counts_as_may_still_hold()
+    {
+        string storylet = WithCast("  cast:\n    subject: \"subject.trait.trait_a == 1 && subject.morale < 30\"\n");
+
+        Assert.Empty(LoadWith(storylet).Errors);
+        AssertRefused(
+            storylet.Replace("effects: [{ trait: trait_a, set: 2 }]", "effects: [{ morale: 40, on: subject }]"),
+            "STORYLET_X: Option 'option_b' leaves every expression true, so this storylet would come back every cycle.");
+        AssertRefused(
+            WithCast("  cast:\n    subject: \"subject.trait.trait_a == 1 || subject.history.last('hurt')\"\n"),
+            "STORYLET_X: Option 'option_a' leaves every expression true, so this storylet would come back every cycle.");
+    }
+
     [Theory]
     [InlineData("storylets:\n  perCycle: 2", "", "storylets.perCycle is missing.")]
     [InlineData("perCycle: 2", "perCycle: -1", "storylets.perCycle must be a whole number of 0 or more, not '-1'.")]
-    public void The_storylets_per_cycle_is_a_required_tuning_value_of_0_or_more(string from, string to, string message)
+    [InlineData("castTries: 100", "castTries: 0", "storylets.castTries must be a whole number of 1 or more, not '0'.")]
+    public void The_storylets_per_cycle_and_cast_tries_are_required_tuning_values(string from, string to, string message)
     {
         string tuning = TestContent.TuningText.Replace(from, to);
 
@@ -314,24 +428,19 @@ public class StoryletContentTests
         Assert.Contains(result.Errors, e => e.File == "tuning/missions.yaml" && e.Message == message);
     }
 
-    // 1e part two (design 4.2): requirements on the subject's stats and on facts about the last cycle, and morale as an effect.
+    // 1e part two's stats and last cycle, read in expressions (design 4.3).
     [Fact]
-    public void A_stat_and_a_fact_requirement_load_beside_a_trait()
+    public void Stats_and_the_history_load_beside_a_trait()
     {
-        string storylet = Storylet.Replace(
-            "    - { trait: trait_a, min: 1, max: 1 }",
-            "    - { trait: trait_a, min: 1, max: 1 }\n    - { stat: morale, max: 25 }\n    - { stat: loyalty, min: 60 }\n    - { last: hurt, not: true }");
+        string storylet = WithCast("  cast:\n    subject: \"subject.trait.trait_a == 1 && subject.morale <= 25 && subject.loyalty >= 60 && !subject.history.last('hurt')\"\n");
 
         ContentLoadResult result = LoadWith(storylet);
 
         Assert.Empty(result.Errors);
-        Assert.Equal<Requirement>(
-            [new TraitRange("trait_a", 1, 1), new StatRange("morale", 0, 25), new StatRange("loyalty", 60, null), new LastCycle("hurt", true)],
-            result.Pack!.Storylets.Single().Requires);
     }
 
     [Fact]
-    public void A_morale_change_loads_on_the_subject_or_the_crew()
+    public void A_morale_change_loads_on_a_slot_or_the_crew()
     {
         string storylet = Storylet.Replace("effects: [{ trait: trait_a, set: 2 }]", "effects: [{ trait: trait_a, set: 2 }, { morale: 3, on: subject }, { morale: -1, on: crew }]");
 
@@ -344,35 +453,15 @@ public class StoryletContentTests
     }
 
     [Theory]
-    [InlineData("{ stat: courage, min: 1 }", "STORYLET_X: 'courage' is not a stat a storylet can read; they are morale, loyalty.")]
-    [InlineData("{ stat: morale, over: 1 }", "STORYLET_X: A requirement on stat takes min, max, of; 'over' is not one of them.")]
-    [InlineData("{ stat: morale, min: 50, max: 40 }", "STORYLET_X: The requirement on morale has max 40 below min 50.")]
-    [InlineData("{ last: promoted }", "STORYLET_X: 'promoted' is not a fact about the last cycle; they are sent, hurt, rested, lost_crewmate.")]
-    [InlineData("{ last: sent, not: maybe }", "STORYLET_X: A requirement's not must be true or false.")]
-    [InlineData("{ last: sent, min: 1 }", "STORYLET_X: A requirement on last takes not, of; 'min' is not one of them.")]
-    public void A_malformed_stat_or_fact_requirement_is_refused(string requirement, string message)
+    [InlineData("  cast:\n    subject: \"subject.morale <= 25\"\n")]
+    [InlineData("  cast:\n    subject: \"subject.fit\"\n  requires: \"subject.history.count('hurt', 3) >= 2\"\n")]
+    public void A_storylet_that_reads_no_trait_is_refused(string cast)
     {
-        AssertRefused(Storylet.Replace("    - { trait: trait_a, min: 1, max: 1 }", $"    - {{ trait: trait_a, min: 1, max: 1 }}\n    - {requirement}"), message);
+        AssertRefused(WithCast(cast), "STORYLET_X: A storylet's cast and requires must read at least one trait, so its answers can stop it returning.");
     }
 
     [Theory]
-    [InlineData("{ stat: morale, max: 25 }", "morale")]
-    [InlineData("{ last: rested }", "rested")]
-    public void A_storylet_for_the_ship_cannot_read_a_stat_or_a_fact(string requirement, string name)
-    {
-        string storylet = Storylet.Replace("scope: crew", "scope: ship").Replace("    - { trait: trait_a, min: 1, max: 1 }", $"    - {{ trait: trait_a, min: 1, max: 1 }}\n    - {requirement}");
-
-        AssertRefused(storylet, $"STORYLET_X: A storylet for the ship has no subject, so it cannot read {name}.");
-    }
-
-    [Fact]
-    public void A_storylet_with_no_trait_among_its_requirements_is_refused()
-    {
-        AssertRefused(Storylet.Replace("    - { trait: trait_a, min: 1, max: 1 }", "    - { stat: morale, max: 25 }"), "STORYLET_X: A storylet needs at least one trait among its requirements, so its answers can stop it returning.");
-    }
-
-    [Theory]
-    [InlineData("{ morale: 1 }", "STORYLET_X: A morale change needs on: subject or crew.")]
+    [InlineData("{ morale: 1 }", "STORYLET_X: A morale change needs on: crew or a slot; this storylet casts subject.")]
     [InlineData("{ morale: lots, on: crew }", "STORYLET_X: A morale change must be a whole number.")]
     [InlineData("{ morale: 1, loyalty: 1, on: crew }", "STORYLET_X: An effect changes one thing; this one changes loyalty and morale.")]
     public void A_malformed_morale_change_is_refused(string effect, string message)
@@ -384,7 +473,6 @@ public class StoryletContentTests
     [Fact]
     public void Loader_refuses_the_old_trait_key()
     {
-        AssertRefused(Storylet.Replace("{ trait: trait_a, min: 1, max: 1 }", "{ flag: trait_a, min: 1, max: 1 }"), "STORYLET_X: 'flag' is now 'trait' (GDD section 15, item 40).");
         AssertRefused(Storylet.Replace("effects: [{ trait: trait_a, set: 2 }]", "effects: [{ flag: trait_a, set: 2 }]"), "STORYLET_X: 'flag' is now 'trait' (GDD section 15, item 40).");
 
         Dictionary<string, string> files = TestContent.RepoFiles();
@@ -393,5 +481,16 @@ public class StoryletContentTests
 
         Assert.Null(result.Pack);
         Assert.Contains(result.Errors, e => e.File == "encounters/base.yaml" && e.Message.EndsWith("'flag' is now 'trait' (GDD section 15, item 40).", StringComparison.Ordinal));
+    }
+
+    // Both packs load with every storylet and vignette migrated (review focus 2).
+    [Fact]
+    public void The_games_pack_loads()
+    {
+        ContentLoadResult result = ContentLoader.LoadDirectory(Path.Combine(TestContent.Root, "content"));
+
+        Assert.Empty(result.Errors);
+        Assert.Equal(["STORYLET_01", "STORYLET_02", "STORYLET_03", "STORYLET_04"], result.Pack!.Storylets.Select(s => s.Id));
+        Assert.Equal(["rested", "hurt", "lost_crewmate", "sent", null, null], result.Pack.Vignettes.Select(v => v.Fact));
     }
 }

@@ -50,7 +50,7 @@ public static class DevReader
     public static IReadOnlyList<string> Known(ContentPack pack)
     {
         IEnumerable<string> defined = pack.Traits.Select(t => t.Id);
-        IEnumerable<string> read = pack.Storylets.SelectMany(s => s.Traits.Select(r => r.Trait));
+        IEnumerable<string> read = pack.Storylets.SelectMany(s => s.Reads.Select(r => r.Trait)).Concat(pack.Vignettes.SelectMany(v => v.Reads.Select(r => r.Trait)));
         IEnumerable<string> answered = pack.Storylets.SelectMany(s => s.Options).SelectMany(o => o.Effects).Select(e => e.Trait?.Trait).OfType<string>();
         IEnumerable<EffectDef> effects = pack.Encounters.SelectMany(e => e.Approaches.SelectMany(a => a.Outcomes.Values)
             .Concat(e.Decision is { } d ? [d.Bold, d.Safe] : []));

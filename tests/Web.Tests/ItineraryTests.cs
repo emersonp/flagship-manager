@@ -7,26 +7,32 @@ using Sim.Traits;
 namespace Web.Tests;
 
 // The captain's itinerary (1e part two), through the real app on a scratch copy of the fixture with its vignettes replaced. The second
-// cycle's itinerary follows a cycle in which nobody was sent, so every fit crew member rested: VIGNETTE_B (a choice) arrives for the
-// first two on the roster, after VIGNETTE_A (the ship's, with effects), which arrives because trait_a is set; so does STORYLET_01.
+// cycle's itinerary follows a cycle in which nobody was sent, so every fit crew member rested: VIGNETTE_B and VIGNETTE_C (each a choice)
+// are each cast with one of them (1e part four: once a cycle), after VIGNETTE_A (the ship's, with effects), which arrives because
+// trait_a is set; so does STORYLET_01.
 public sealed class ItineraryTests : IDisposable
 {
     private const string Vignettes = """
         - id: VIGNETTE_A
-          scope: ship
-          requires:
-            - { trait: trait_a, min: 1 }
+          requires: "ship.trait.trait_a >= 1"
           text: "best SKILL_A: VIGNETTE_A_LINE"
           effects: [{ morale: 2, on: crew }]
         - id: VIGNETTE_B
-          scope: crew
-          requires:
-            - { last: rested }
+          cast:
+            subject: "subject.history.last('rested')"
           text: "subject: VIGNETTE_B_LINE"
           default: say_nothing
           options:
             - { id: say_something, label: SAY_SOMETHING, effects: [{ morale: 3, on: subject }], text: VIGNETTE_B_SAID }
             - { id: say_nothing, label: SAY_NOTHING, effects: [{ loyalty: -1, on: subject }], text: VIGNETTE_B_NOTHING }
+        - id: VIGNETTE_C
+          cast:
+            subject: "subject.history.last('rested')"
+          text: "subject: VIGNETTE_C_LINE"
+          default: say_nothing
+          options:
+            - { id: say_something, label: SAY_SOMETHING, effects: [{ morale: 3, on: subject }], text: VIGNETTE_C_SAID }
+            - { id: say_nothing, label: SAY_NOTHING, effects: [{ loyalty: -1, on: subject }], text: VIGNETTE_C_NOTHING }
 
         """;
 
@@ -107,6 +113,13 @@ public sealed class ItineraryTests : IDisposable
         return legacy.State.Module<StoryletsState>(StoryletsModule.Name).Vignettes.First(v => v.VignetteId == vignette).OfferId;
     }
 
+    // Who a waiting vignette was cast with.
+    private async Task<string> Subject(Guid id, string vignette)
+    {
+        LoadedLegacy legacy = (await app.Sessions.Read(app.Live, id))!;
+        return legacy.State.Module<StoryletsState>(StoryletsModule.Name).Vignettes.First(v => v.VignetteId == vignette).Cast["subject"];
+    }
+
     // Review focus 5: the first cycle opens here, with nothing yet to say.
     [Fact]
     public async Task A_new_legacy_opens_on_an_empty_itinerary_with_captains_time()
@@ -134,6 +147,7 @@ public sealed class ItineraryTests : IDisposable
     public async Task A_waiting_storylet_and_the_vignettes_are_shown_and_the_storylet_blocks_to_orders()
     {
         Guid id = await ToSecondItinerary();
+        string subject = await Subject(id, "VIGNETTE_B");
 
         string page = await Page(id);
 
@@ -142,7 +156,7 @@ public sealed class ItineraryTests : IDisposable
         string vignettes = Section(page, "vignettes");
         Assert.Equal(3, Regex.Matches(vignettes, "<article class=\"storylet vignette\"").Count);
         Assert.True(vignettes.IndexOf("VIGNETTE_A", StringComparison.Ordinal) < vignettes.IndexOf("VIGNETTE_B", StringComparison.Ordinal));
-        Assert.Matches("<p class=\"note\">CREW_01, rested</p>", vignettes);
+        Assert.Contains($"<p class=\"note\">{subject}, rested</p>", vignettes);
         Assert.Contains("Left alone: SAY_NOTHING", vignettes);
         Assert.Matches("<button[^>]*\\sdisabled>To orders</button>", AdvanceButton(page));
         Assert.Contains("A storylet is waiting for an answer.", AdvanceButton(page));
@@ -165,13 +179,14 @@ public sealed class ItineraryTests : IDisposable
     {
         Guid id = await ToSecondItinerary();
         string vignette = await Waiting(id, "VIGNETTE_B");
+        string subject = await Subject(id, "VIGNETTE_B");
 
         (HttpStatusCode status, string stream) = await Post(id, "vignette", [new("offer", vignette), new("option", "say_something")]);
 
         Assert.Equal(HttpStatusCode.OK, status);
-        string answered = Regex.Match(Section(stream, "vignettes"), "<article[^>]*>(?:(?!</article>).)*?CREW_01, rested.*?</article>", RegexOptions.Singleline).Value;
+        string answered = Regex.Match(Section(stream, "vignettes"), $"<article[^>]*>(?:(?!</article>).)*?{subject}, rested.*?</article>", RegexOptions.Singleline).Value;
         Assert.Contains("VIGNETTE_B_SAID", answered);
-        Assert.Contains("<span class=\"fig-tag\">Morale +3 CREW_01</span>", answered);
+        Assert.Contains($"<span class=\"fig-tag\">Morale +3 {subject}</span>", answered);
         Assert.Matches("<button[^>]*\\sdisabled>To orders</button>", AdvanceButton(stream));
 
         LoadedLegacy legacy = (await app.Sessions.Read(app.Live, id))!;
@@ -213,15 +228,16 @@ public sealed class ItineraryTests : IDisposable
     {
         Guid id = await ToSecondItinerary();
         string offer = await Waiting(id, "VIGNETTE_B");
+        string subject = await Subject(id, "VIGNETTE_B");
         await Post(id, "vignette", [new("offer", offer), new("option", "say_nothing")]);
         int stored = app.Game.Store.ReadEvents(id).Count;
 
         string page = await Page(id);
         (HttpStatusCode status, string body) = await Post(id, "vignette", [new("offer", offer), new("option", "say_something")]);
-        (HttpStatusCode unknown, string unknownBody) = await Post(id, "vignette", [new("offer", await Waiting(id, "VIGNETTE_B")), new("option", "shout")]);
+        (HttpStatusCode unknown, string unknownBody) = await Post(id, "vignette", [new("offer", await Waiting(id, "VIGNETTE_C")), new("option", "shout")]);
 
         Assert.Contains("VIGNETTE_B_NOTHING", Section(page, "vignettes"));
-        Assert.Contains($"Loyalty {"−"}1 CREW_01", Section(page, "vignettes"));
+        Assert.Contains($"Loyalty {"−"}1 {subject}", Section(page, "vignettes"));
         Assert.Equal(HttpStatusCode.UnprocessableEntity, status);
         Assert.Matches("<p id=\"storylet-refusal\" role=\"alert\">That vignette is not waiting for an answer\\.</p>", body);
         Assert.Equal(HttpStatusCode.UnprocessableEntity, unknown);

@@ -58,11 +58,14 @@ public static class HistoryKinds
     // Not sent, and fit when the next itinerary opened.
     public const string Rested = "rested";
 
-    // Someone died on the cycle's mission, and this one is alive.
+    // Someone died on the cycle's mission, and this one is alive, sent or not: part two's meaning, kept by the author (2026-11-18).
     public const string LostCrewmate = "lost_crewmate";
+
+    // On a mission where someone died, and came home (design 4.3's narrower meaning, kept beside lost_crewmate by the author).
+    public const string LostTeammate = "lost_teammate";
 
     // On a mission whose objective failed or was abandoned, and came home. A death alone does not lose a mission.
     public const string LostMission = "lost_mission";
 
-    public static readonly IReadOnlyList<string> All = [Sent, Hurt, Rested, LostCrewmate, LostMission];
+    public static readonly IReadOnlyList<string> All = [Sent, Hurt, Rested, LostCrewmate, LostTeammate, LostMission];
 }

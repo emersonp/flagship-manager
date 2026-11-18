@@ -90,7 +90,7 @@ public sealed class WorkedExampleTests
         // The next itinerary: "You gave your word".
         legacy.To(CyclePhase.Itinerary, 3);
         WaitingStorylet word = legacy.Waiting("STORYLET_03");
-        Assert.Equal(subject, word.SubjectId);
+        Assert.Equal(subject, word.Cast["subject"]);
         legacy.Send(new AnswerStorylet(word.OfferId, "apologise"));
         Assert.Equal(0, legacy.Trait("stood_down", subject));
     }
@@ -106,17 +106,17 @@ public sealed class WorkedExampleTests
         legacy.To(CyclePhase.Itinerary, 2);
 
         WaitingStorylet air = legacy.Waiting("STORYLET_04");
-        Assert.Equal((holder, target), (air.SubjectId, air.TargetId));
+        Assert.Equal((holder, target), (air.Cast["subject"], air.Cast["target"]));
         legacy.Send(new AnswerStorylet(air.OfferId, "keep_apart"));
         Assert.Equal(5, legacy.Trait("avoids", holder, target));
 
         // The pair's vignette arrives once it has waited longest: in cycle 2 the rested crew's "A week aboard" filled the three places.
         legacy.To(CyclePhase.Itinerary, 3);
-        Assert.Contains(legacy.Events, e => e is VignetteArrived { VignetteId: "VIGNETTE_06" } v && v.SubjectId == holder && v.TargetId == target);
+        Assert.Contains(legacy.Events, e => e is VignetteArrived { VignetteId: "VIGNETTE_06" } v && v.Cast["subject"] == holder && v.Cast["target"] == target);
 
         // Four weeks unchanged, and the weekly step brings it back into "Clear the air"'s range.
         legacy.To(CyclePhase.Itinerary, 6);
         Assert.Equal(4, legacy.Trait("avoids", holder, target));
-        Assert.Equal((holder, target), (legacy.Waiting("STORYLET_04").SubjectId, legacy.Waiting("STORYLET_04").TargetId));
+        Assert.Equal((holder, target), (legacy.Waiting("STORYLET_04").Cast["subject"], legacy.Waiting("STORYLET_04").Cast["target"]));
     }
 }

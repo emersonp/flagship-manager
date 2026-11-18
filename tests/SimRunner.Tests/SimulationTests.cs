@@ -223,12 +223,16 @@ public class SimulationTests
     // Re-pinned: flags renamed traits, in their own module (1e part three, Task 1); SimRunner's figures for 20 x 50 are unchanged.
     // Re-pinned: pair traits (1e part three, Task 3); every offer event carries a target, null but for a pair's.
     // Re-pinned: launch rules and trait bonuses (1e part three, Task 4).
+    // Re-pinned: storylets cast in expressions (1e part four, Task 4). Casting draws from cast:<id>:<cycle>, offers are {cycle}:{id}
+    // and arrive once a cycle, and the offer events are version 2 with the cast. In SimRunner's 200 x 200 only "A week aboard" moves
+    // (101.7 to 99.6 per 100 cycles, once a cycle), with one or two missions of 40,000 after it and, under random answers, picks
+    // hashed with the new offer ids.
     [Fact]
     public void Golden_seed_1_matches_the_accepted_log()
     {
         SimSummary summary = Simulation.Run(new SimOptions(Legacies: 1, Cycles: 10, Seed: 1), Pack);
 
-        Assert.Equal("6D0CF29EB4EB15E4E555C911BB8CD308BD00330255430CB515BE50E8EA0A7B69", summary.Legacies[0].LogHash);
+        Assert.Equal("D1C7327F1819522250EE1C589F037645F4EC3641570B0EB81F042F96CDBF82EF", summary.Legacies[0].LogHash);
     }
 
     // --- The captain's policies and promises (1e part three, Task 6) ---
@@ -259,7 +263,7 @@ public class SimulationTests
         var first = (AnswerStorylet)AutoCaptain.NextCommand(game, state, Pack, AnswerPolicy.First);
         var random = (AnswerStorylet)AutoCaptain.NextCommand(game, state, Pack, AnswerPolicy.Random);
 
-        Assert.Equal(("2:STORYLET_01:ship", "option_a"), (first.OfferId, first.OptionId));
+        Assert.Equal(("2:STORYLET_01", "option_a"), (first.OfferId, first.OptionId));
         Assert.Equal(random, AutoCaptain.NextCommand(game, state, Pack, AnswerPolicy.Random));
         Assert.Equal(streams, string.Join(",", state.RngStates.Select(r => $"{r.Key}={r.Value}")));
     }

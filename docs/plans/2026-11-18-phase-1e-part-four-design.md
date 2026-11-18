@@ -145,7 +145,7 @@ A slot is read as a crew member. Every name below is one typed property or metho
 | `ship.trait.t` | int | A ship trait. |
 | `cycle.number` | int | The cycle now starting. |
 
-History kinds are `sent`, `hurt`, `rested`, `lost_crewmate` (someone died on their mission and they came home), and `lost_mission` (on a mission whose objective failed or was abandoned; decided by the author, section 8). `n` is 1 to `history.cycles`. Anything not in the table is refused by name, for example "rel() waits for relationships (Phase 4)" and "grade waits for 1h".
+History kinds are `sent`, `hurt`, `rested`, `lost_crewmate` (someone died on the cycle's mission and they are alive, sent or not), `lost_teammate` (someone died on their mission and they came home), and `lost_mission` (on a mission whose objective failed or was abandoned). The last is the author's decision of section 8, and the two kinds of loss are the author's, item 5. `n` is 1 to `history.cycles`. Anything not in the table is refused by name, for example "rel() waits for relationships (Phase 4)" and "grade waits for 1h".
 
 How `x.trait.t` is checked (the trait id is a member name, not a declared property) is the spike's main question. Either a rewrite to `x.Trait("t")` before parsing, with the id checked by the rewrite, or a typed dynamic member with a checking binder. See section 8.
 
@@ -154,7 +154,7 @@ How `x.trait.t` is checked (the trait id is a member name, not a declared proper
 For each storylet and vignette out of its global cooldown:
 
 1. If it has no `cast`, read `requires` on the ship. It holds or it doesn't.
-2. Otherwise draw a seeded order of the living crew from the stream `cast:<id>:<cycle>`. Then search depth first: for slot 1, take crew in that order whose expression holds; for each, fill slot 2 likewise, and so on, then read `requires`. Every expression read counts as a try. Stop at the first full binding that holds and is out of its `cooldown.cast`, or when `storylets.castTries` (tuning, 50) is spent.
+2. Otherwise draw a seeded order of the living crew from the stream `cast:<id>:<cycle>`. Then search depth first: for slot 1, take crew in that order whose expression holds; for each, fill slot 2 likewise, and so on, then read `requires`. Every expression read counts as a try. Stop at the first full binding that holds and is out of its `cooldown.cast`, or when `storylets.castTries` (tuning, 100; the author's, section 8 item 6) is spent.
 3. The result is one cast, "no cast", or "out of tries". The last two are told apart for Dev Play and the simulator.
 
 A storylet arrives at most once a cycle. Waiting storylets keep their cast. If any cast member dies, the storylet is withdrawn, as a subject's death withdraws one today. A storylet already waiting is not cast again.
@@ -242,9 +242,9 @@ In generated words (section 15, item 37):
 
 | Module | Order | Change in part four |
 |---|---|---|
-| `Sim.Storylets` | 300 | Casting, salience, cooldowns, check options, and the history. Reads expressions through `Sim.Expressions`. Serves `IHistoryView`, and the dry run Dev Play reads. |
-| `Sim.Expressions` (new, a library, not a module) | — | Wraps DynamicExpresso: parses an expression against the state view's types, gives errors with positions, counts clauses for specificity, lists the traits read (for the lint and "where it came from"), and evaluates against a view. Referenced by `Sim.Content` (to check at load) and `Sim.Storylets` (to run). It holds no state **(my call)**. As built (Task 2): `ExpressionBook` (built from the trait definitions, skill ids, history kinds, and `history.cycles`) with `Check` and `Evaluate`; `CheckedExpression`; the view objects; and `IStateSource`, which the view objects read and the storylets module implements over its roster, trait, and history views. |
-| `Sim.Content` | — | Reads `cast`, `requires`, `cooldown`, and `check`. Refuses `scope` and the list form. Checks expressions through `Sim.Expressions` against `TraitBook`. |
+| `Sim.Storylets` | 300 | Casting, salience, cooldowns, check options, and the history. Reads expressions through `Sim.Expressions`. Serves `IHistoryView`, and the dry run Dev Play reads. As built (Task 4): `Casting.cs` holds every storylet's and vignette's checked expressions, compiled for the life of the module, and the search of 4.4, whose result is a cast, "no cast", or "out of tries" (`CastResult`); `StateSource` is the `IStateSource` over the roster, trait, and history views. |
+| `Sim.Expressions` (new, a library, not a module) | — | Wraps DynamicExpresso: parses an expression against the state view's types, gives errors with positions, counts clauses for specificity, lists the traits read (for the lint and "where it came from"), and evaluates against a view. Referenced by `Sim.Content` (to check at load) and `Sim.Storylets` (to run). It holds no state **(my call)**. As built (Task 2): `ExpressionBook` (built from the trait definitions, skill ids, history kinds, and `history.cycles`) with `Check` and `Evaluate`; `CheckedExpression`; the view objects; and `IStateSource`, which the view objects read and the storylets module implements over its roster, trait, and history views. Task 4 adds `OnTraits`, an expression read with only its traits known (for the no-hidden-memory check), and `LastRead`, the kinds read with `last()` (for a vignette's head). |
+| `Sim.Content` | — | Reads `cast`, `requires`, `cooldown`, and `check`. Refuses `scope` and the list form. Checks expressions through `Sim.Expressions` against `TraitBook`. As built (Task 4): `cast`, `requires`, and an option's `requires`; each storylet and vignette carries the traits its expressions read (`Reads`) and those it needs above 0 to arrive (`Needs`, for the lint). |
 | `Sim.Crew`, `Sim.Traits` | 100, 250 | No change beyond being read through their views. |
 
 ### 5.2 Contracts in `Sim.Core`
@@ -276,9 +276,37 @@ public interface IHistoryView { int Count(string crewId, string kind, int cycles
 
 Exact names are the builder's, following this shape.
 
+As built (Task 4; Tasks 5 to 7 complete the shape above):
+
+```csharp
+// Content (Sim.Core/Content/StoryletContent.cs)
+public sealed record Expr(string Source);
+public sealed record CastSlot(string Name, Expr Condition);
+public sealed record TraitRead(string Trait, string Slot, string? Toward);      // moved here from Sim.Expressions; Slot "ship" for the ship
+public sealed record StoryletOption(string Id, string Label, IReadOnlyList<StoryletEffect> Effects, Expr? Requires = null);
+public sealed record StoryletDef(string Id, int Stakes, IReadOnlyList<CastSlot> Cast, Expr? Requires, IReadOnlyList<StoryletOption> Options, string? Name = null)
+{ IReadOnlyList<TraitRead> Reads { get; init; } IReadOnlyList<TraitRead> Needs { get; init; } }   // set by the loader
+public sealed record VignetteDef(string Id, IReadOnlyList<CastSlot> Cast, Expr? Requires, IReadOnlyList<StoryletEffect> Effects, IReadOnlyList<StoryletOption> Options, string? Default, string? Name = null)
+{ Reads; Needs; string? Fact { get; init; } }   // Fact: the first kind its first slot reads with last(), for its head
+// StoryletEffect keeps its shape: LoyaltyOn and MoraleOn are a slot or "crew"; TraitChange.On is "ship", a slot, or "" (the first
+// slot, or the ship with no cast); TraitChange.Toward is a slot. StoryletScopes keeps Ship and Crew, and gains Reserved and MaxSlots.
+// ContentPack gains CastTries (storylets.castTries).
+
+// Events: Cast on every one; Salience waits for Task 5, HandlerId and Roll for Task 6.
+[EventType("StoryletOffered", 2)]   StoryletOffered(string OfferId, string StoryletId, IReadOnlyDictionary<string, string> Cast, string? EncounterId)
+[EventType("StoryletAnswered", 2)]  StoryletAnswered(string OfferId, string StoryletId, IReadOnlyDictionary<string, string> Cast, string OptionId)
+[EventType("StoryletWithdrawn", 2)] StoryletWithdrawn(string OfferId, string StoryletId, IReadOnlyDictionary<string, string> Cast)
+[EventType("VignetteArrived", 2)]   VignetteArrived(string OfferId, string VignetteId, IReadOnlyDictionary<string, string> Cast)
+[EventType("VignetteAnswered", 2)]  VignetteAnswered(string OfferId, string VignetteId, IReadOnlyDictionary<string, string> Cast, string? OptionId, bool Defaulted)
+
+// Views: HistoryKinds gains LostTeammate ("lost_teammate"). LastCycleFacts, Requirement, TraitRange, StatRange, and LastCycle are gone.
+```
+
 ### 5.3 Persistence
 
 `StoryletsState` gains the history, each storylet's and each cast's last arrival cycle, and the cast on each waiting offer. It loses `LastCycle` and the subject and target fields. `SchemaVersion` goes from 11 to 12 and `CurrentFormatVersion` from 9 to 10. Old saves are refused.
+
+As built (Task 4): `Waiting` and `Vignettes` hold each offer's `Cast` (slot to crew id, in reading order); `Arrivals` holds one `Arrival` (`Id`, `Cast`, `Cycle`) for each storylet or vignette and cast, the latest, and loses an entry when a member of its cast dies. The versions are raised here, once for the part.
 
 ### 5.4 Rules that hold
 
@@ -317,6 +345,16 @@ If any of 1 to 3 fail, try NCalc against the same list and report both.
 2. **A check's outcomes are binary:** success and failure only. A partial ("it helped a little") would be one more field if wanted later.
 3. **"Lost mission"** means a mission whose objective failed or was abandoned (4.3). A death alone does not make a mission lost; that is `lost_crewmate`.
 4. **An expression reads only a defined trait** (after the spike). A trait read in an expression must have an entry in `traits/`, or the loader refuses it with its position ("No trait named nosuch"). A minimal entry is `- id: some_trait`. Effects and encounters keep part three's rule: a trait with no definition behaves as a flag did. The fixture gives `trait_a`, `trait_c`, and any other trait its expressions read a minimal entry where it has none.
+5. **Two kinds of loss** (during Task 4). Both are meaningful: someone dying aboard ship, and someone dying beside you on the away team. `lost_crewmate` keeps part two's meaning (every living crew member, sent or not, when someone died on the cycle's mission), and `lost_teammate` is 4.3's narrower one (those who came home from the mission where someone died).
+6. **`storylets.castTries` is 100** (during Task 4), not 50. At 50, a pair over 8 crew could go "out of tries" before reaching its one holder about one cycle in four (section 9, Task 4), which is more than once a cycle changes. 100 covers a pair over up to 10 crew. The author asked for a plan for 500 crew. It follows.
+
+**Casting at 500 crew (the author's request, 2026-11-18).** Today's search is blind. A slot tries crew in the seeded order, and every expression read is a try. So a pair can cost n + n(n − 1) = n² reads, which is 100 at 10 crew, 250,000 at 500 crew, and about 1.25 × 10⁸ for three slots. Raising `castTries` with the roster cannot keep up. The plan is to build it when a pack's roster outgrows `castTries`, which the simulator's "out of tries" report (Task 8) will show:
+
+1. **Candidates from the traits.** For each slot, the loader finds the traits the slot's expression is false without: read with that trait at 0, `OnTraits` is false whatever the other traits are, as the no-hidden-memory check reads it. The candidates for that slot are then only the crew who hold such a trait, and the traits module lists them from its own store through a new read on `ITraitView` (`Holders(trait)`, and for a pair trait, holder and target). Crew outside the candidates are not read and cost no try. A slot that needs no trait keeps today's whole-roster order.
+2. **Pairs from the pair trait.** When a slot's expression needs `x.trait.t.toward(y)` above 0 and `x` is bound, the candidates for `y` are `x`'s targets for `t`, read from the same store. A pair then costs its holders × their targets, not n².
+3. **Replay stays exact** (focus 3). Candidates are listed in roster order, then given the seeded order from `cast:<id>:<cycle>` as now.
+4. **`castTries` keeps its meaning:** reads, not crew. It stays the guard against a slot that needs nothing (`subject.fit` over 500 crew). That slot can still go "out of tries", the simulator reports it, and the author tightens the first slot.
+5. **With 8.1's index** (only casting storylets whose read traits or history changed), this keeps a cycle's casting near today's cost at 500 crew and hundreds of storylets. Both are deferred until the simulator shows the need.
 
 **Left to the builder:**
 
@@ -365,3 +403,21 @@ Built as 4.8 says, in `src/Sim.Storylets/History.cs`. `StoryletsState.History` i
 - **Before any cycle has ended,** a part-two fact (`{ last: kind }`, with or without `not`) holds for no one, as it did with no last cycle. From Task 4, `count` simply reads 0 there.
 - **The dead drop out** when they die (`CrewDied`) and from the mission's record.
 - **No version raise:** a store written before this task has no `History` and is refused by its strict read until Task 4 raises the versions. The store's tests gain a round trip of the history. Part two's test that the last cycle is forgotten when the orders open is replaced by `Last_reads_the_history`, which reads it there.
+
+### Task 4: expressions and casting replace the lists and the scope (2026-11-18)
+
+Built as 4.2 to 4.4 say, with arrival kept in part three's order until Task 5 (stakes, then the pack's order; vignettes the longest away first, then by id). `Casting.cs` in `Sim.Storylets` holds every expression, checked by `ExpressionBook` when the module is built and compiled on first use. Both packs, the fixture, and the storylet and vignette tests are migrated. The fixture's `trait_a` and `trait_c` gain minimal entries (8.4). Section 5 says what was built. Differences and choices:
+
+- **The author decided two things during the task (section 8, items 5 and 6):** both kinds of loss (`lost_teammate` is new, and no content reads it yet), and `castTries` 100.
+- **Out of tries, measured.** For a pair with one holder among 8 crew, each other subject costs 8 tries (itself and seven targets), so at 50 the search finishes only if the holder is among the first six in the seeded order, or seventh with the right target first: about 77% of cycles. The worked example's "Clear the air" and the pair head's bridge test failed on it. At 100 every pair search over 8 crew finishes, and both pass unchanged. Section 8 has the plan for 500 crew.
+- **No hidden memory evaluates; it is not narrowed (4.6).** `ExpressionBook.OnTraits` reads the parsed tree with only the traits known, in three-valued logic, so a clause on a stat, a skill, the history, fitness, or who is who "may still hold", and a false trait clause makes the `&&` false. The loader takes the lowest values of the traits read that let every expression hold (lowest total first, each from 0 to one past the highest number written, or its cap, and every level of a trait with levels), then applies each option's trait changes there, clamped as play clamps them. An option that leaves no expression false is refused: "Option 'x' leaves every expression true, so this storylet would come back every cycle." When no values let every expression hold, the storylet is refused as one that can never arrive; this replaces part one's "No value of X satisfies". Nothing is compiled, so the editor's save stays quick.
+- **`Needs`, for the lint.** The same lowest values give the traits a storylet needs above 0. The lint's "Nothing sets {trait} on {where}" reads those, so an expression that holds at 0 is still not warned of, as a requirement with only a max was not. Lint tests that read undefined `flag_*` traits now read the fixture's `trait_c` and `trait_f`, since 8.4 refuses an undefined one.
+- **Errors** read "{id}: {key}, at character {n}: {message}", with n counted from 1, where key is `cast.{slot}`, `requires`, or `options.{id}.requires`. A reserved slot name reads "'ship' cannot name a slot; ship, crew, captain, cycle, best, or handler each mean something already." There are at most three slots, and each name follows the inner-id rule.
+- **Effects:** loyalty and morale need `on:` crew or a slot. A trait with no `on:` is on the first slot, or on the ship for a storylet with no cast, so the migrated content keeps its effects as written. `toward:` names a slot other than the one the trait is on.
+- **Vignettes' options take no `requires`** (my call: a vignette's choice is small and free, as 4.7 says of checks). The vignette's head keeps its words ("CREW_03, lost a crewmate"): `VignetteDef.Fact` is the first kind its first slot reads with `last()` where no `!` stands directly before it. `Sim.Expressions` records these reads as `LastRead`. The head of a cast of two keeps part three's "CREW_01 · avoids CREW_03" until Task 7 lists every cast.
+- **Events at version 2** carry the cast on every storylet and vignette event, `VignetteAnswered` included. `Salience` waits for Task 5, and `HandlerId` and `Roll` for Task 6. They are added then, inside this part's one version raise.
+- **The stream.** `cast:<id>:<cycle>` is asked for only by a storylet or vignette with a cast; one for the ship draws nothing. A vignette's `vignettes.cooldown` is its cast cooldown: casting passes over a binding that arrived within it, so the next crew member in the seeded order has it.
+- **Arrivals are kept for storylets too** (for Task 5's cooldowns and freshness). An arrival whose cast holds someone now dead is dropped with them.
+- **Before any cycle has ended,** `!x.history.last(k)` holds for everyone (count reads 0), as Task 3 said it would. Part two's test of it now gates on a trait.
+- **Once a cycle in the simulator** (review focus 2). In `SimRunner cycles` (200 legacies × 200 cycles, both packs, both answer policies), the only fire count that moves under first answers is "A week aboard" (VIGNETTE_01 in both packs): 101.7 to 99.6 per 100 cycles, since it arrived for up to three rested crew in one cycle and now arrives once. One or two missions in 40,000 move from full to partial after it, through the morale it no longer gives. Under random answers, three rare counts move by 0.1 (VIGNETTE_02's leave_be, VIGNETTE_05, and the fixture's VIGNETTE_03). The random policy hashes its pick with the offer id, and offer ids are now `{cycle}:{id}`, so STORYLET_01's answer, which sets what those two vignettes read, falls differently. The storylets fire 0.0 per 100 cycles before and after. The golden hash is re-pinned ("storylets cast in expressions"). The CLI test's 2 × 3 run goes from 269 to 235 events and from 216.7 to 100.0 vignettes per 100 cycles, the same once-a-cycle, with its missions unchanged. The walkthrough's hash does not move.
+- **Tests that assumed the roster's order** now assert what casting promises: one arrival a cycle, a seeded choice among those who hold, the same choice for the same seed, and no slot bound twice. `Sim.Storylets` shows its internals to `Sim.Tests` so `Out_of_tries_is_told_apart_from_no_cast` can read `CastResult`. The itinerary's web tests gain a second rested vignette, since one vignette no longer arrives twice.

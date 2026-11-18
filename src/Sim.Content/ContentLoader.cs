@@ -1,4 +1,6 @@
+using Sim.Core;
 using Sim.Core.Content;
+using Sim.Expressions;
 using YamlDotNet.Core;
 using YamlDotNet.Serialization;
 using YamlDotNet.Serialization.NamingConventions;
@@ -125,8 +127,10 @@ public static partial class ContentLoader
         List<CrewDef> crewDefs = BuildCrew(crew, skills, crewTuning, pronounSets, errors);
         List<AssignmentDef> assignmentDefs = BuildAssignments(assignments, objectives.Select(o => o.Dto).ToList(), errors);
         List<SymbolDef> symbolDefs = BuildSymbols(symbols, errors);
-        List<StoryletDef> storyletDefs = BuildStorylets(storylets, book, errors);
-        List<VignetteDef> vignetteDefs = BuildVignettes(vignettes, book, errors);
+        // Storylets and vignettes are read in the expression language (1e part four), against the traits, skills, and history.
+        var expressions = new ExpressionBook(traitDefs, skills.Select(s => s.Id), HistoryKinds.All, Math.Max(1, cycle.HistoryCycles));
+        List<StoryletDef> storyletDefs = BuildStorylets(storylets, book, expressions, errors);
+        List<VignetteDef> vignetteDefs = BuildVignettes(vignettes, book, expressions, errors);
         List<LineDef> lineDefs = BuildLines(lines, encounters, objectives, symbolDefs, skills, encounterDefs, objectiveDefs, storylets.Concat(vignettes).Select(s => s.Dto.Id!), errors);
         lineDefs.AddRange(BuildOwnedLines(encounters, objectives, symbolDefs, skills, errors));
         lineDefs.AddRange(BuildStoryletLines(storylets, symbolDefs, skills, errors));
@@ -148,6 +152,7 @@ public static partial class ContentLoader
                 VignetteCooldown = cycle.VignetteCooldown,
                 CaptainsTimePerCycle = cycle.CaptainsTime,
                 HistoryCycles = cycle.HistoryCycles,
+                CastTries = cycle.CastTries,
             }
             : null;
         return new ContentLoadResult(pack, errors);

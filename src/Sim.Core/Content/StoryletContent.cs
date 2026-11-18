@@ -1,93 +1,71 @@
 namespace Sim.Core.Content;
 
-// One requirement of a storylet: a trait's value, a stat of the subject, or a fact about the last cycle (1e part two).
-public abstract record Requirement;
+// An expression of the storylet language (1e part four, design 4.3), true or false. Checked at load by Sim.Expressions, which also
+// compiles it for the storylets module.
+public sealed record Expr(string Source);
 
-// The trait's value lies in Min to Max (no limit when Max is null). A trait nobody has set is 0.
-public sealed record TraitRange(string Trait, int Min, int? Max) : Requirement
-{
-    public bool Holds(int value)
-    {
-        return value >= Min && (Max is null || value <= Max);
-    }
-}
+// One named crew member a storylet is cast with (design 4.2), and the expression that must hold on them. Slots are read in order:
+// a slot's expression reads the slots before it and itself, never a later one.
+public sealed record CastSlot(string Name, Expr Condition);
 
-// The subject's stat (one of StoryletStats) lies in Min to Max, as a trait's range does. OfTarget: the pair's target's (1e part three).
-public sealed record StatRange(string Stat, int Min, int? Max, bool OfTarget = false) : Requirement
-{
-    public bool Holds(int value)
-    {
-        return value >= Min && (Max is null || value <= Max);
-    }
-}
+// One trait an expression reads: on a slot or "ship", and toward a slot for a pair trait. The lint reads these, and "where it came
+// from" takes the first that is set.
+public sealed record TraitRead(string Trait, string Slot, string? Toward);
 
-// A fact about the subject in the cycle whose aftermath last ended (one of LastCycleFacts); Not turns it round. OfTarget: about
-// the pair's target (1e part three).
-public sealed record LastCycle(string Fact, bool Not, bool OfTarget = false) : Requirement;
-
-// One effect of an answer: a loyalty change, a morale change, or a trait change. LoyaltyOn and MoraleOn are "subject", "target"
-// (a pair's), or "crew" when their amount is not 0. Trait.On is "ship", "subject", "target", or "" (the scope the storylet arrived
-// for, the subject for a pair); Trait.Toward is "target" for a pair trait the subject holds toward the target.
+// One effect of an answer: a loyalty change, a morale change, or a trait change. LoyaltyOn and MoraleOn are a slot or "crew" (every
+// living crew member) when their amount is not 0. Trait.On is "ship", a slot, or "" (the first slot; the ship for a storylet with
+// no cast); Trait.Toward is a slot, for a pair trait held toward them (1e part four).
 public sealed record StoryletEffect(int Loyalty = 0, string? LoyaltyOn = null, TraitChange? Trait = null, int Morale = 0, string? MoraleOn = null);
 
-public sealed record StoryletOption(string Id, string Label, IReadOnlyList<StoryletEffect> Effects);
+// Requires: shown only while it holds, with every slot bound (read from Task 6 of part four; parsed and checked at load now).
+public sealed record StoryletOption(string Id, string Label, IReadOnlyList<StoryletEffect> Effects, Expr? Requires = null);
 
-// Scope is "ship", "crew", or "pair": whose traits the requirements read, and whether the storylet arrives for a subject, or for a
-// subject (the holder) and a target (1e part three).
-public sealed record StoryletDef(string Id, int Stakes, string Scope, IReadOnlyList<Requirement> Requires, IReadOnlyList<StoryletOption> Options, string? Name = null)
+// A storylet (1e part four, design 4.2). Cast: up to three slots, read in order; none: a storylet for the ship. Requires: read once
+// every slot is bound. Reads: every trait its expressions read, in reading order (the cast, then requires), as the loader found
+// them; empty for a storylet built by hand. Needs: those of them the lowest values that let it arrive have above 0, so something
+// must set them first.
+public sealed record StoryletDef(string Id, int Stakes, IReadOnlyList<CastSlot> Cast, Expr? Requires, IReadOnlyList<StoryletOption> Options, string? Name = null)
 {
-    // The requirements on traits, the only ones a storylet's own answers can move.
-    public IEnumerable<TraitRange> Traits => Requires.OfType<TraitRange>();
+    public IReadOnlyList<TraitRead> Reads { get; init; } = [];
+
+    public IReadOnlyList<TraitRead> Needs { get; init; } = [];
+
+    public IEnumerable<string> Slots => Cast.Select(c => c.Name);
+
+    // Every expression it reads, in reading order: each slot's, then requires.
+    public IEnumerable<Expr> Expressions => Cast.Select(c => c.Condition).Concat(Requires is null ? [] : [Requires]);
 }
 
-// The words a storylet's scope and its effects' on are written with.
+// The words a storylet's effects and speakers are written with, beside its own slot names.
 public static class StoryletScopes
 {
     public const string Ship = "ship";
     public const string Crew = "crew";
 
-    // A holder and a target (1e part three): the storylet arrives once for each pair whose requirements hold.
-    public const string Pair = "pair";
-
-    // The crew member a storylet for crew arrived for; for a pair, the holder.
+    // The slot names the game's and the fixture's storylets use; any lower-case name that is not reserved will do.
     public const string Subject = "subject";
-
-    // The other crew member a storylet for a pair arrived for.
     public const string Target = "target";
+
+    // A slot may not be called any of these (design 4.2): each already means something in an expression, an effect, or a script.
+    public static readonly IReadOnlyList<string> Reserved = ["ship", "crew", "captain", "cycle", "best", "handler"];
+
+    public const int MaxSlots = 3;
 }
 
-// The stats a requirement can read on the subject.
-public static class StoryletStats
-{
-    public const string Morale = "morale";
-    public const string Loyalty = "loyalty";
-
-    public static readonly IReadOnlyList<string> All = [Morale, Loyalty];
-}
-
-// The facts about the last cycle a requirement can read on the subject (design 4.2): history kinds, read for the last cycle.
-public static class LastCycleFacts
-{
-    // On the last mission and came home.
-    public const string Sent = HistoryKinds.Sent;
-
-    // Injured or incapacitated on it.
-    public const string Hurt = HistoryKinds.Hurt;
-
-    // Not sent, and fit.
-    public const string Rested = HistoryKinds.Rested;
-
-    // Someone died on it, and this one is alive.
-    public const string LostCrewmate = HistoryKinds.LostCrewmate;
-
-    public static readonly IReadOnlyList<string> All = [Sent, Hurt, Rested, LostCrewmate];
-}
-
-// A vignette (1e part two, design 4.3): a short storylet with no stakes. Either Effects, applied when it arrives, or exactly two
-// Options and a Default naming one of them, taken when the itinerary closes unanswered. Its words are lines of the storylet beats.
-public sealed record VignetteDef(string Id, string Scope, IReadOnlyList<Requirement> Requires, IReadOnlyList<StoryletEffect> Effects,
+// A vignette (1e part two, design 4.3; cast and expressions from part four): a short storylet with no stakes. Either Effects, applied
+// when it arrives, or exactly two Options and a Default naming one of them, taken when the itinerary closes unanswered. Its words
+// are lines of the storylet beats. Fact: the first history kind its first slot's expression reads with last(), not under a !, for
+// its head ("lost a crewmate"), as the loader found it; null when it reads none.
+public sealed record VignetteDef(string Id, IReadOnlyList<CastSlot> Cast, Expr? Requires, IReadOnlyList<StoryletEffect> Effects,
     IReadOnlyList<StoryletOption> Options, string? Default, string? Name = null)
 {
-    // The first fact about the last cycle it reads, for its head ("lost a crewmate"); null when it reads none.
-    public string? Fact => Requires.OfType<LastCycle>().FirstOrDefault(f => !f.Not)?.Fact;
+    public IReadOnlyList<TraitRead> Reads { get; init; } = [];
+
+    public IReadOnlyList<TraitRead> Needs { get; init; } = [];
+
+    public string? Fact { get; init; }
+
+    public IEnumerable<string> Slots => Cast.Select(c => c.Name);
+
+    public IEnumerable<Expr> Expressions => Cast.Select(c => c.Condition).Concat(Requires is null ? [] : [Requires]);
 }
