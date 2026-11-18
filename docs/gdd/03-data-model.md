@@ -5,7 +5,7 @@ A chapter of the [Starship Sim GDD](../gdd.md). Section numbers are permanent id
 Two kinds of data, kept strictly apart:
 
 - **Content** (author-written, in git, YAML): templates, encounters, gear, traits, storylets, and grammars. Immutable at runtime.
-- **State** (per legacy, in the database): crew, relationships, missions in flight, flags, and the event log.
+- **State** (per legacy, in the database): crew, relationships, missions in flight, traits, and the event log.
 
 Every content item carries `tags`. Tags are the glue that makes content combine (section 9).
 
@@ -61,7 +61,7 @@ excludes: [TRAIT_C]
 
 Traits never contain bespoke code. They are a list of conditional modifiers over the same expression language storylets use.
 
-**Designed for slice 1e, part three** (section 15, item 40; not yet built): traits and story flags become one thing. A trait is a whole number of 0 or more, stored generically on the ship, a crew member, or a pair of crew; ids are lower case (`trait_a`, `shaken`). A trait that has rules has a definition in `content/traits/`:
+**As built in slice 1e, part three** (2026-11-17; section 15, item 40): traits and story flags are one thing. A trait is a whole number of 0 or more, stored generically on the ship, a crew member, or a pair of crew; ids are lower case (`trait_a`, `shaken`). A trait that has rules has a definition in `content/traits/`:
 
 ```yaml
 - id: trait_a
@@ -82,7 +82,7 @@ Traits never contain bespoke code. They are a list of conditional modifiers over
   onTargetDied: [{ set: 0 }]            # pairs only
 ```
 
-The conditional modifiers above wait for the expression language (part four); part three's definitions have one modifier, the check bonus.
+The conditional modifiers above wait for the expression language (part four); part three's definitions have one modifier, the check bonus. Every key is optional but `id`. A level's name may be written wherever its number would be (`{ trait: stood_down, set: broken }`, a requirement's `is: broken`); a trait with levels is never added to, by content, a rule, or Dev Play. Every change is clamped to 0 and `max` (or the highest level). A rule's effect is `{ set }` or `{ add }` on its own trait, `{ trait, set | add }` on another, or `{ loyalty }` or `{ morale }`, with `on: holder` (the default), `target` (a pair's), or `crew` (loyalty and morale only). The loader checks every use of a trait in an encounter, storylet, or vignette against its definition: where it may sit, its levels, and no `add` to a trait with levels. The game's pack defines `sensors_quirk`, `shaken`, `shaken_heard`, `stood_down`, and `avoids`.
 
 ## 3.3 Relationship (state)
 
@@ -171,9 +171,11 @@ approaches:                               # one to four, in the order the author
     requires:                             # optional: every entry must hold for the approach to be available
       - { skill: SKILL_A, level: 4 }      # someone standing on the team has this level, after injury
       - { gear: scanner }                 # the loadout carries gear with this tag
+      - { trait: trait_a, max: 1, on: ship }   # a trait at launch (1e part three): on the ship, the lead, or anyone standing
     outcomes:                             # optional: a tier written here replaces that tier's default whole
       success: [{ progress: 1 }, { strain: -1 }, { momentum: 1 }]
-      partial: [{ strain: 1 }, { flag: flag_a, add: 1, on: ship }]   # the default's strain, and a story flag (3.8)
+      partial: [{ strain: 1 }, { trait: trait_a, add: 1, on: ship }]   # the default's strain, and a trait (3.8)
+      disaster: [{ strain: 3 }, { injuryRoll: severe }, { trait: trait_g, add: 1, on: actor, toward: lead }]   # a pair (3.8)
     text:                                 # what is said before this check, and what the log says after, by tier
       attempt: ENCOUNTER_07_APPROACH_A_ATTEMPT_TEXT
       success: ENCOUNTER_07_APPROACH_A_SUCCESS_TEXT
@@ -201,7 +203,9 @@ lines:                                    # any other line that holds only here,
 
 An encounter's approaches are the ways through that suit the situation, named and tuned by the author: one to four, usually two. An approach's `id` is unique within the encounter and is the key in saved beats and in lines. It may carry any number of `requires`, though the editor's form edits three. The loader refuses an encounter in which every approach has a `requires`, so one is always available. A tier an approach does not write takes the tuning file's default for that tier: critical and success add 1 progress and remove 1 strain, critical adds momentum, partial adds strain, failure adds strain and a light injury roll, and disaster adds more strain and a severe one. An injury roll in an outcome falls on the actor. A disaster chains the encounter's follow-on whatever its approach's disaster outcome says.
 
-An effect can also change a story flag (slice 1e): `{ flag: flag_a, add: 1, on: ship }` or `{ flag: flag_b, set: 1, on: lead }`, in an approach's outcome or a decision's answer. `add` changes the flag by a whole number, which may be negative; `set` makes it a number of 0 or more. `on` is required: `ship`, `actor` (the one who made the check; outcomes only), `lead`, or `team` (each member standing). An effect changes at most one flag; an outcome or answer may hold several. The mission's result carries every flag it changed, and the storylets module stores them when the mission ends; a flag set on someone who died on that mission is dropped. Because a written tier replaces the default whole, a tier that only adds a flag writes the default's entries beside it. The mission log tags the beat that changed a flag: "flag_a +1, ship" for an add, "flag_b = 1, CREW_02" for a set.
+An effect can also change a trait (a story flag in slice 1e's first two parts): `{ trait: trait_a, add: 1, on: ship }` or `{ trait: trait_b, set: 1, on: lead }`, in an approach's outcome or a decision's answer. `add` changes the trait by a whole number, which may be negative; `set` makes it a number of 0 or more, or one of its levels by name. `on` is required: `ship`, `actor` (the one who made the check; outcomes only), `lead`, or `team` (each member standing). An outcome's effect with `toward: lead` or `toward: actor`, beside `on: actor` or `on: lead`, makes a **pair** (3.8): the one it lands on holds it toward the other, and when actor and lead are one, no pair is made (slice 1e, part three). An effect changes at most one trait; an outcome or answer may hold several. The mission's result carries every trait it changed, and the traits module applies them when the mission ends; a trait set on someone who died on that mission, or a pair toward them, is dropped. Because a written tier replaces the default whole, a tier that only adds a trait writes the default's entries beside it. The mission log tags the beat that changed a trait: "trait_a +1, ship" for an add, "trait_b = 1, CREW_02" for a set.
+
+An approach's `requires` may read a trait (slice 1e, part three): `{ trait, min, max }` or `{ trait, is }`, `on: ship`, `lead` (the lead as the mission now stands), or `anyone` (someone standing). It reads the snapshot fixed when the team launched, never the traits as they change. The game's Debris Shoal closes its careful approach once `sensors_quirk` has been let ride. A trait can also give a **check bonus** to its holder (a definition's `mission`), added to the score of every check they make and tagged on the beat ("avoids −1"); it too is fixed at launch, before the launch rules run.
 
 The fixture's placeholder form, which the tests use, is one line to an approach: `{ id: careful, name: APPROACH_A_NAME, skill: SKILL_A, difficulty: 5, gearTag: scanner }`, and a second whose `outcomes` write the critical and success tiers with the momentum the old fast approach earned.
 
@@ -225,16 +229,16 @@ Gear, like traits, is only modifiers. Gear opens approaches (through `gearTags`)
 
 ## 3.7 Storylet (content)
 
-As built in slice 1e, part one (`content/storylets/`):
+As built in slice 1e, part one (`content/storylets/`), with part three's words (flags are traits):
 
 ```yaml
 - id: STORYLET_01
   name: STORYLET_01_NAME          # optional display name
   stakes: 2                       # 1 to 5; orders arrivals, highest first (5.1)
-  scope: crew                     # ship or crew: whose flags it reads, and whether it has a subject
-  requires:                       # one to four entries, all must hold; part three replaces this with the expression language
-    - { flag: flag_b, min: 1 }
-    - { flag: flag_c, max: 0 }
+  scope: crew                     # ship, crew, or pair (part three): whose traits it reads, and who it is for
+  requires:                       # one to four entries, all must hold; part four replaces this with the expression language
+    - { trait: trait_b, min: 1 }
+    - { trait: trait_c, max: 0 }
   text: |-                        # a script (section 6): speech, notes, narration, and a report sentence
     subject: STORYLET_01_LINE_1
     captain: STORYLET_01_LINE_2
@@ -242,19 +246,19 @@ As built in slice 1e, part one (`content/storylets/`):
   options:                        # two to four
     - id: option_a
       label: STORYLET_01_OPTION_A_LABEL                     # the answer's button, 1 to 40 characters
-      effects: [{ flag: flag_b, add: -1 }, { flag: flag_c, set: 1 }]
+      effects: [{ trait: trait_b, add: -1 }, { trait: trait_c, set: 1 }]
       text: STORYLET_01_OPTION_A_TEXT                       # what the log says once it is chosen
     - id: option_b
       label: STORYLET_01_OPTION_B_LABEL
-      effects: [{ flag: flag_c, set: 2 }, { loyalty: -2, on: subject }]
+      effects: [{ trait: trait_c, set: 2 }, { loyalty: -2, on: subject }]
       text: "#subject# STORYLET_01_OPTION_B_TEXT"
 ```
 
-- **Requires.** Each entry names a flag and a range: `min` is 1 when left out, or 0 when only `max` is given; `max` has no limit when left out. "Has it happened twice" is `min: 2`; "not yet" is `max: 0`. The loader refuses requirements no value can satisfy. Since part two an entry may instead read the subject's morale or loyalty (`{ stat: morale, max: 25 }`, with `min` and `max` as a flag's) or a fact about the cycle just ended (`{ last: sent }`, `hurt`, `rested`, or `lost_crewmate`; `not: true` turns it round); a storylet for the ship can read neither, and every storylet still needs a flag among its requirements, since only flags can be moved by its own answers.
-- **Scope.** A storylet for the ship reads the ship's flags and has no subject; its text and effects may not name one. A storylet for the crew reads one crew member's flags and arrives once for each crew member whose flags hold, as its `subject`.
-- **Text.** Speakers are `subject` (crew scope only), `captain`, and `best SKILL_ID` among the living, fit crew. An option's `text` is what the log says once it is chosen.
-- **Effects.** `loyalty` (a whole number, `on: subject` or `on: crew` for everyone living), `morale` (the same, since part two), and `flag` with `add` or `set`, `on: ship` or `on: subject`, or no `on` for the scope the storylet arrived for. Nothing else; the loader refuses the rest by name.
-- **No hidden memory.** Each option must move the storylet's own flags out of its range, to 0 (dealt with) or onward (to 2, "known and let ride", which another storylet may require). The loader refuses an option that leaves every requirement true, since the storylet would come back every cycle.
+- **Requires.** Each entry names a trait and a range (or `is:` a level or number, part three): `min` is 1 when left out, or 0 when only `max` is given; `max` has no limit when left out. "Has it happened twice" is `min: 2`; "not yet" is `max: 0`. The loader refuses requirements no value can satisfy. Since part two an entry may instead read the subject's morale or loyalty (`{ stat: morale, max: 25 }`, with `min` and `max` as a trait's) or a fact about the cycle just ended (`{ last: sent }`, `hurt`, `rested`, or `lost_crewmate`; `not: true` turns it round); a storylet for the ship can read neither, and every storylet still needs a trait among its requirements, since only traits can be moved by its own answers.
+- **Scope.** A storylet for the ship reads the ship's traits and has no subject; its text and effects may not name one. A storylet for the crew reads one crew member's traits and arrives once for each crew member whose requirements hold, as its `subject`. A storylet for a pair (part three) arrives once for each holder and target whose requirements hold: its `subject` is the holder, and its `target` the other.
+- **Text.** Speakers are `subject` (crew and pair scope), `target` (pair scope), `captain`, and `best SKILL_ID` among the living, fit crew. An option's `text` is what the log says once it is chosen.
+- **Effects.** `loyalty` (a whole number, `on: subject` or `on: crew` for everyone living), `morale` (the same, since part two), and `trait` with `add` or `set` (a level by name, part three), `on: ship`, `on: subject`, or `on: target` (pair scope), or no `on` for the scope the storylet arrived for; `toward: target` makes it the pair's (part three). `loyalty` and `morale` may also be `on: target`. Nothing else; the loader refuses the rest by name.
+- **No hidden memory.** Each option must move the storylet's own traits out of its range (clamped to their caps, part three), to 0 (dealt with) or onward (to 2, "known and let ride", which another storylet may require). The loader refuses an option that leaves every requirement true, since the storylet would come back every cycle.
 
 **Vignettes, as built in slice 1e, part two,** are a second kind on the same shape, in `content/vignettes/`:
 
@@ -276,9 +280,9 @@ As built in slice 1e, part one (`content/storylets/`):
   effects: [{ morale: 2, on: subject }]   # no choice: these apply when it arrives
 ```
 
-A vignette has no stakes and needs no flag. It has `effects` (at least one) or two `options` and a `default`, never both. Nothing in its own answers stops it returning, so a cooldown does: it does not arrive again for the same scope within `vignettes.cooldown` cycles (tuning, 6). Its words are lines of the storylet beats.
+A vignette has no stakes and needs no trait. It has `effects` (at least one) or two `options` and a `default`, never both. Nothing in its own answers stops it returning, so a cooldown does: it does not arrive again for the same scope within `vignettes.cooldown` cycles (tuning, 6). Its words are lines of the storylet beats.
 
-Part three (designed 2026-11-17 in `docs/plans/2026-11-17-phase-1e-part-three-design.md`, not yet built) renames flags to traits (`{ trait: shaken, min: 1 }`), adds `is:` for a trait's named levels, and adds `scope: pair`, with `target` as a speaker, as an `on:` for effects, and as `of: target` on stat and last-cycle requirements. Part four (renumbered on 2026-11-17; this paragraph said part three until then) replaces `requires` with the expression language over the state view, and adds casting from the crew in place of the one subject, salience in place of the fixed order, storylet cooldowns, and an option settled by a check. There is no `ifIgnored`: storylets are always answered (section 15, item 40). The fuller form it is designed towards, as sketched before slice 1e (`cost` is gone: section 15, item 35; `ifIgnored` is gone: item 40):
+Part three (built 2026-11-17; `docs/plans/2026-11-17-phase-1e-part-three-design.md`) renamed flags to traits (`{ trait: shaken, min: 1 }`; the loader refuses `flag:`), added `is:` for a trait's named levels, and added `scope: pair`: a storylet or vignette for a pair arrives once for each holder and target whose requirements hold, with `target` as a speaker, as an `on:` for effects, as `of: target` on stat and last-cycle requirements, and `toward: target` on its subject's pair trait. A trait requirement in a pair storylet reads the pair's trait when the trait is defined on a pair, and the holder's own otherwise. Part four (renumbered on 2026-11-17; this paragraph said part three until then) replaces `requires` with the expression language over the state view, and adds casting from the crew in place of the one subject, salience in place of the fixed order, storylet cooldowns, and an option settled by a check. There is no `ifIgnored`: storylets are always answered (section 15, item 40). The fuller form it is designed towards, as sketched before slice 1e (`cost` is gone: section 15, item 35; `ifIgnored` is gone: item 40):
 
 ```yaml
 id: STORYLET_031
@@ -288,7 +292,7 @@ tags: [rivalry, department]
 cast:
   a: "crew.status == 'active'"
   b: "rel(a, b).kind == 'rival' and rel(a, b).strength >= 50 and a.departmentId == b.departmentId"
-requires: "a.flag.rivalry_done == 0"
+requires: "a.trait.rivalry_done == 0"
 cooldown: { perCast: 40, global: 5 }
 text: STORYLET_031_TEXT
 options:
@@ -299,7 +303,7 @@ options:
     effects: [{ transfer: [b, otherDepartment] }, { morale: [b, -10] }]
 ifIgnored:
   afterWeeks: 3
-  effects: [{ relAdjust: [a, b, 15] }, { flag: rivalry_escalated, set: 1, on: ship }]
+  effects: [{ relAdjust: [a, b, 15] }, { trait: rivalry_escalated, set: 1, on: ship }]
   then: STORYLET_032
 ```
 
@@ -308,22 +312,21 @@ ifIgnored:
 The game is a hybrid: part stats model, part quality-based narrative (section 5).
 
 - **Stats** are typed, numeric, and simulated: skills and their grades (3.10), personality axes, morale, loyalty, renown, and standing. They are the Football Manager half. The rules compute with them, the player sees them in bands, and only the systems that own them change them (content changes them through effect commands).
-- **Story flags** are open-ended: named by content, numeric, and stored generically. They are the Fallen London half, and content invents new ones with no code change. **Every flag is a number** (section 15, item 38). A flag nobody has set is 0, a flag never goes below 0, and a flag at 0 is not stored. A flag is either a **counter**, only ever added to ("how many times": `owes_the_captain: 3`), or a **stage**, only ever set ("where this stands": `rivalry_escalated: 1`), never both; a story that needs both uses two flags, which share a prefix (`shaken` and `shaken_heard`). A flag's id is lower case (`docs/conventions.md`), and wherever it is read beside other properties it is read through `flag`: `subject.flag.shaken`, `ship.flag.sensors_quirk`.
-- **Traits and tags** stay typed content (3.2). Testing for one (`a.has('TRAIT_A')`) reads like any other quality.
+- **Traits** (story flags until slice 1e, part three; section 15, item 40) are open-ended: named by content, numeric, and stored generically. They are the Fallen London half, and content invents new ones with no code change. **Every trait is a number** (section 15, item 38). A trait nobody has set is 0, a trait never goes below 0 or above its cap, and a trait at 0 is not stored. A trait whose definition names its levels can only be set; one without can be added to and set (item 40, replacing item 38's counter-or-stage rule). Related traits share a prefix (`shaken` and `shaken_heard`). A trait's id is lower case (`docs/conventions.md`), and wherever it is read beside other properties it is read through `trait`: `subject.trait.shaken`, `ship.trait.sensors_quirk`.
+- **Tags** stay typed content. A crew member's founding personality traits (3.2) are traits like any other once the crew files name them (slice 1h or crew generation).
 
-A **quality** is anything the expression language can read through the read-only quality view, stat or flag alike: `a.skills.SKILL_A`, `a.grade.ATTRIBUTE_A`, `rel(a, b).strength`, `ship.renown`, `chronicle.count('death', dept: a.departmentId, within: 20)`, or `a.flag.x`. Only story flags are stored generically. As built in slice 1e, part one, a flag is on the ship or on one crew member, held in the storylets module's state:
+A **quality** is a stat or a trait: anything the expression language can read through the read-only **state view** (the "quality view" until 2026-11-17), stat or trait alike: `a.skills.SKILL_A`, `a.grade.ATTRIBUTE_A`, `rel(a, b).strength`, `ship.renown`, `chronicle.count('death', dept: a.departmentId, within: 20)`, or `a.trait.x`. Only traits are stored generically. As built in slice 1e, part three, a trait is on the ship, on one crew member, or on a **pair**, held in the traits module's state:
 
 ```yaml
-flag: flag_a
-crewId: null                    # null: the ship
+trait: avoids
+crewId: crew_0042               # null: the ship
+targetId: crew_0017             # a pair's target: the crew member it points at; null for a trait on one
 value: 1
-setAtWeek: 164
-encounterId: ENCOUNTER_01       # the encounter whose effect last changed it, or null for a storylet's answer
+changedAtWeek: 164              # its weekly step and expiry count from its last change
+encounterId: ENCOUNTER_01       # the encounter whose effect last changed it, or null
 ```
 
-A flag on several crew at once (`scope: [crew_0042, crew_0017]`, for a relationship) waits for part three.
-
-**Designed for slice 1e, part three** (section 15, item 40; not yet built): a quality is a **stat** or a **trait**, and the read-only view of both is the **state view**. Story flags are renamed traits and move to a module of their own, `Sim.Traits`; they keep everything above, read as `subject.trait.shaken`. Decision 38's counter-or-stage rule gives way to named levels: a trait that names its levels can only be set. A trait may sit on a **pair**: held by one crew member (`crewId`) and pointing at another (`targetId`), made by an encounter's effect with `toward` (`{ trait: avoids, add: 1, on: actor, toward: lead }`). A pair trait is not a relationship (3.3): whether relationships become pair traits with levels is Phase 4's question.
+A pair is held by one crew member (the **holder**) and points at another (the **target**), made by an encounter's effect with `toward` (`{ trait: avoids, add: 1, on: actor, toward: lead }`) or a pair storylet's `toward: target`. When the target dies, the definition's `onTargetDied` runs once and the pair goes; when the holder dies, it goes with no rule. Every change publishes `TraitChanged` with its cause (mission, answer, vignette, launch, weekly, expired, death, or developer). A pair trait is not a relationship (3.3): whether relationships become pair traits with levels is Phase 4's question.
 
 ## 3.9 Event log entry and chronicle entry (state)
 

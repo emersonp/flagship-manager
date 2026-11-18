@@ -1,3 +1,4 @@
+@using Sim.Content
 @using Sim.Core.Content
 @using Web.Forms
 @* The approaches' definitions, one row each; their words and outcomes are in the tabs below. The table never scrolls: its columns
@@ -121,7 +122,12 @@
         SkillIds = View.Choices.Skills.Select(s => s.Id).ToList();
         SkillLabels = View.Choices.Skills.Where(s => s.Name is { Length: > 0 }).ToDictionary(s => s.Id, s => Checks.Choice(s.Id, s.Name!));
         // A requirement names a skill by its id, or gear by its tag after "gear:".
-        RequirementOptions = [.. SkillIds, .. View.Choices.GearTags.Select(t => EncounterKind.GearPrefix + t)];
-        RequirementLabels = new Dictionary<string, string>(SkillLabels.Concat(View.Choices.GearTags.Select(t => KeyValuePair.Create(EncounterKind.GearPrefix + t, $"Gear: {t}"))));
+        // A trait condition already written is offered as it stands, so a save keeps it (1e part three).
+        List<RequirementModel> traits = Rows.SelectMany(r => Enumerable.Range(0, EncounterKind.RequirementRows).Select(i => r[EncounterKind.RequirementField(i, "what")]))
+            .Select(EncounterKind.ParseTrait).OfType<RequirementModel>().Distinct().ToList();
+        RequirementOptions = [.. SkillIds, .. View.Choices.GearTags.Select(t => EncounterKind.GearPrefix + t), .. traits.Select(EncounterKind.TraitWhat)];
+        RequirementLabels = new Dictionary<string, string>(SkillLabels
+            .Concat(View.Choices.GearTags.Select(t => KeyValuePair.Create(EncounterKind.GearPrefix + t, $"Gear: {t}")))
+            .Concat(traits.Select(t => KeyValuePair.Create(EncounterKind.TraitWhat(t), EncounterKind.TraitLabel(t)))));
     }
 }

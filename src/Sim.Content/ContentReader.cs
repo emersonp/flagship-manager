@@ -162,7 +162,9 @@ internal static class ContentReader
 
     private static List<RequirementModel> Requirements(YamlNode? node)
     {
-        return Sequence(node).Select(Map).Select(r => new RequirementModel(Str(Get(r, "skill")), Int(Get(r, "level")), Str(Get(r, "gear")))).ToList();
+        return Sequence(node).Select(Map).Select(r => new RequirementModel(
+            Str(Get(r, "skill")), Int(Get(r, "level")), Str(Get(r, "gear")),
+            Str(Get(r, "trait")), Int(Get(r, "min")), Int(Get(r, "max")), Str(Get(r, "is")), Str(Get(r, "on")))).ToList();
     }
 
     // In the order written; a tier listed with no entries is kept, empty.

@@ -52,7 +52,8 @@ public sealed record ObjectiveModel(
     IReadOnlyDictionary<string, string>? Text = null,
     IReadOnlyList<OwnLineModel>? Lines = null) : IContentModel;
 
-public sealed record RequirementModel(string? Skill, int? Level, string? Gear);
+// A trait requirement (1e part three) has Trait and On, and Min and Max or Is, as written.
+public sealed record RequirementModel(string? Skill, int? Level, string? Gear, string? Trait = null, int? Min = null, int? Max = null, string? Is = null, string? On = null);
 
 public sealed record ApproachModel(
     string Id,

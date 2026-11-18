@@ -1,7 +1,7 @@
 # Phase 1, slice 1e, part three: traits that bite
 
 **Spec:** `docs/gdd.md` sections 3.2, 3.5, 3.7, 3.8, 5.1 to 5.3, and 7.1, and section 15, items 36, 38, and 40. **Builds on:** `main` at 2026-11-17 (`3a1381f`), and slice 1e's first two parts (`2026-11-16-phase-1e-design.md`, `2026-11-17-phase-1e-part-two-design.md`).
-**Status:** designed 2026-11-17; being built (see "As built", section 9).
+**Status:** designed and built 2026-11-17 (see "As built", section 9).
 **Ends with:** the author plays the worked example in the browser. A crew member is shaken by a disaster. They ask for a word, and the captain promises to stand them down from the next away team. The briefing shows the promise beside their name and says what sending them would cost. Leaving them aboard keeps it; sending them breaks it, costs loyalty and morale, and brings a storylet about the broken word. `shaken` eases with the weeks. Elsewhere, a disaster on a call the lead made leaves the actor avoiding the lead, which costs them on every check they share until it fades.
 
 This records what the author said about part three on 2026-11-17, in a design interview, and designs it. Items marked **(my call)** were proposed, not asked for. Section 5 is the architecture and is kept current as the part is built.
@@ -380,3 +380,19 @@ Kept as each task of the plan (`2026-11-17-phase-1e-part-three-plan.md`) lands; 
 - The captain keeps promises: it leaves out anyone the preview lists with a `sent` or `withTarget` rule, unless the objective's smallest team cannot then be fielded, when it adds them back in roster order.
 - After its summary line, `cycles` prints what fired per 100 cycles (each storylet and vignette, and each option, a vignette's default included), each trait set from 0, and "Never fired: …". The plan's `The_walkthrough_hash_is_the_same_under_either_policy` is built as `The_random_policy_draws_from_no_game_stream`: choosing an answer leaves every stored game stream as it was, and the same offer always gets the same answer. The mission walkthrough draws no answers at all, so its hash cannot depend on the policy.
 - Neither golden hash moved. On the fixture, 20 legacies x 50 cycles: no storylet fires under either policy; VIGNETTE_01 arrives 107.7 times per 100 cycles and VIGNETTE_02 0.3; VIGNETTE_03 and VIGNETTE_04 never arrive; the only trait set from 0 is `trait_h` (owes), 2.0 times per 100 cycles.
+
+**Task 7, the game's pack and the record (2026-11-17).**
+
+- In generated words: "Someone shaken" gains *Stand them down* (`shaken_heard` heard, `stood_down` promised) and writes its levels by name; "You gave your word" (STORYLET_03) needs `stood_down` broken; `avoids` is set by the Salvagers' Picket's fast approach's disaster (the one who tripped the salvagers' lockout, toward the lead who sent them at it), with a pair vignette, "Not that shuttle" (VIGNETTE_06), and a pair storylet, "Clear the air" (STORYLET_04); the Debris Shoal's careful approach, which plots the drift on the forward array, requires `sensors_quirk` at most 1 on the ship.
+- The editor's encounter form keeps an approach's trait condition as written (offered in its condition select as "Trait: sensors_quirk at most 1, on the ship"), so the game's encounter file stays editable; writing a new one is the text's until the trait forms (part six).
+- Played in a test on the game's own pack (`WorkedExampleTests`), with the commands Dev Play and the bridge send: a crew member made shaken, asked for a word, stood down; the briefing shows "Promised a rest" and "… sent, Stood down: Stood down to broken, Loyalty −2, Morale −4"; the simulator's captain would leave them aboard; sent anyway, the promise breaks with those costs, and the next itinerary brings "You gave your word". A pair who avoid each other get "Clear the air" at 3; kept apart (5), the weekly step brings them back to 4 four weeks later and the storylet returns. Seen in the browser at 1280 pixels on a scratch copy of the game's pack, set up through Dev Play.
+- **The simulator's figures** (20 legacies x 50 cycles, seed 1, game pack): under `first` and `random` alike, no storylet and no trait fires: the game's missions never set `sensors_quirk`, `shaken`, or `avoids` in that run, so "Never fired" lists every storylet and its options, VIGNETTE_04 to VIGNETTE_06, and the vignettes' rarer options. VIGNETTE_01 arrives 107.4 times per 100 cycles. Difficulty was not changed to force anything.
+
+**For the author to judge in play:**
+
+1. Whether the game's missions should set traits often enough for storylets to come up unaided. In the simulator they never do: the trait-setting tiers (the shoal's careful partial and failure, the gallery's careful disaster, the picket's fast disaster) are not the ones the simulator's teams land in. This was so before part three.
+2. The launch rows' wording ("… sent, Stood down: Stood down to broken, Loyalty −2, Morale −4") is generated from the rule; the design's "Breaks the promise to …" would need a line of authored text per rule.
+3. Whether a pair vignette should be able to lose its place to "A week aboard" for a cycle, as it does when every fit crew member rested (it arrives the next cycle).
+4. The open questions of section 8 stand: pair traits and relationships; a rule for the target (`owes` sent without its holder); "while the target leads".
+
+**Not done:** the GDD page was rebuilt locally but not republished to its artifact. A republish from this session would first have to read the whole live page (about 72,000 tokens); the split of the page into a shell and chapter files, for which a prompt was written on 2026-11-17, removes that cost, and its first publish carries this version.

@@ -366,6 +366,32 @@ public static class ContentWriter
             entries.Add(("gear", Quote(requirement.Gear)));
         }
 
+        // A trait's (1e part three): trait, then min, max, or is, then on.
+        if (requirement.Trait is not null)
+        {
+            entries.Add(("trait", Quote(requirement.Trait)));
+        }
+
+        if (requirement.Min is { } min)
+        {
+            entries.Add(("min", Num(min)));
+        }
+
+        if (requirement.Max is { } max)
+        {
+            entries.Add(("max", Num(max)));
+        }
+
+        if (requirement.Is is not null)
+        {
+            entries.Add(("is", Quote(requirement.Is)));
+        }
+
+        if (requirement.On is not null)
+        {
+            entries.Add(("on", Quote(requirement.On)));
+        }
+
         return Map(entries);
     }
 

@@ -25,3 +25,14 @@
     sent: [{ set: broken }, { loyalty: -2 }, { morale: -4 }]
     notSent: [{ set: 0 }]
   expires: { weeks: 6 }
+# A pair: the holder keeps clear of the target, after a disaster they blame on the target's call (the Salvagers' Picket).
+- id: avoids
+  name: Avoids
+  on: pair
+  max: 5
+  briefing: Avoids
+  launch:
+    withTarget: [{ morale: -3 }]
+  mission: { checkBonus: -1, withTarget: true }
+  every: { weeks: 4, add: -1 }
+  onTargetDied: [{ set: 0 }]

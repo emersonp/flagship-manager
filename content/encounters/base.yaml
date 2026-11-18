@@ -17,6 +17,9 @@
       skill: SKILL_A
       difficulty: 5
       gearTag: scanner
+      # Plotting the drift leans on the forward array: with the quirk let ride, the plot cannot be trusted (1e part three).
+      requires:
+        - { trait: sensors_quirk, max: 1, on: ship }
       outcomes:
         partial: [{ strain: 1 }, { trait: sensors_quirk, set: 1, on: ship }]
         failure: [{ strain: 2 }, { injuryRoll: light }, { trait: sensors_quirk, set: 1, on: ship }]
@@ -102,6 +105,8 @@
       outcomes:
         critical: [{ progress: 1 }, { strain: -1 }, { momentum: 2 }]
         success: [{ progress: 1 }, { strain: -1 }, { momentum: 1 }]
+        # The one who tripped the lockout holds it against the lead who sent them at it (1e part three).
+        disaster: [{ strain: 3 }, { injuryRoll: severe }, { trait: avoids, add: 1, on: actor, toward: lead }]
       text:
         attempt: "actor: Their lockout is forty years out of date. I can be through it before they finish arguing."
         success: "#actor# slipped the salvagers' lockout while they were still arguing."

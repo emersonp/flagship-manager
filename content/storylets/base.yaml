@@ -1,7 +1,8 @@
 # Generated fiction, by the author's one-time allowance for slice 1e's storylets (GDD section 15, item 37; 2026-11-16).
 # The ids and every number are the placeholders' own; only names and words are new.
-# Flags (docs/conventions.md): sensors_quirk is a stage on the ship (1 new, 2 let ride, 0 fixed), set by the Debris Shoal.
-# shaken is a counter on a crew member, added to by the Collapsed Gallery; shaken_heard is a stage on them (1 heard, 2 turned away).
+# Traits (docs/conventions.md; their rules are in traits/base.yaml): sensors_quirk on the ship (noticed, let_ride), set by the Debris
+# Shoal; shaken on a crew member, added to by the Collapsed Gallery; shaken_heard on them (heard, turned_away); stood_down, the
+# promise of a rest (promised, broken); avoids, a pair, set by the Salvagers' Picket.
 - id: STORYLET_01
   name: A quirk in the sensors
   stakes: 2
@@ -40,9 +41,56 @@
     - id: make_time
       label: Make the time
       # Everyone's loyalty dips but the subject's: the captain is seen to have favourites.
-      effects: [{ trait: shaken, add: -1 }, { trait: shaken_heard, set: 1 }, { loyalty: -1, on: crew }, { loyalty: 1, on: subject }]
+      effects: [{ trait: shaken, add: -1 }, { trait: shaken_heard, set: heard }, { loyalty: -1, on: crew }, { loyalty: 1, on: subject }]
       text: "#subject# had the captain's door for the better part of an hour, and the rest of the crew noticed whose it was."
+    - id: stand_down
+      label: Stand them down
+      # A promise for the next away team: kept by leaving them aboard, broken by sending them (stood_down's launch rules).
+      effects: [{ trait: shaken_heard, set: heard }, { trait: stood_down, set: promised }]
+      text: "#subject# was told they would sit out the next away team, and went back on shift a little lighter."
     - id: carry_on
       label: Tell them to carry on
-      effects: [{ trait: shaken_heard, set: 2 }, { loyalty: -2, on: subject }]
+      effects: [{ trait: shaken_heard, set: turned_away }, { loyalty: -2, on: subject }]
       text: "#subject# was told to carry on, and went back on shift without another word."
+- id: STORYLET_03
+  name: You gave your word
+  stakes: 2
+  scope: crew
+  requires:
+    - { trait: stood_down, is: broken }
+  text: |-
+    > Request from #subject#: a word with the captain.
+    subject: You said I'd sit the next one out. Then you put me on the shuttle.
+    subject: I'm not asking for much, Captain. I'm asking whether your word counts.
+    = #subject# came to the captain about the promise that was broken.
+  options:
+    - id: apologise
+      label: Apologise
+      effects: [{ loyalty: 1, on: subject }, { trait: stood_down, set: 0 }]
+      text: "The captain owned the broken promise, and #subject# seemed to take that as worth something."
+    - id: stand_by
+      label: Stand by the order
+      # The whole crew hears that a promise from the bridge can be taken back.
+      effects: [{ morale: -2, on: crew }, { trait: stood_down, set: 0 }]
+      text: "The captain stood by the order, and by evening the whole ship had heard what a promise from the bridge was worth."
+- id: STORYLET_04
+  name: Clear the air
+  stakes: 2
+  scope: pair
+  requires:
+    - { trait: avoids, min: 3, max: 4 }
+  text: |-
+    > Duty roster note: #subject# has asked again not to be posted with #target#.
+    subject: I'll work any shift, Captain. Just not that one.
+    target: If they've got something to say to me, they can say it.
+    = #subject# and #target# have been keeping out of each other's way since the Salvagers' Picket.
+  options:
+    - id: work_it_out
+      label: Order them to work it out
+      effects: [{ trait: avoids, set: 0, toward: target }, { loyalty: -1, on: subject }]
+      text: "#subject# and #target# were put in a room until they had it out, and came out speaking, if not friends."
+    - id: keep_apart
+      label: Keep them apart
+      # Out of this storylet's range; the weekly step brings it back to 4 in four weeks, and they are in each other's way again.
+      effects: [{ trait: avoids, set: 5, toward: target }]
+      text: "#subject# and #target# were posted on different watches, and the roster quietly grew a rule."

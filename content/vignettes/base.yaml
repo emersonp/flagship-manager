@@ -1,5 +1,6 @@
 # Generated fiction, by the author's one-time allowance for slice 1e (GDD section 15, item 37; 2026-11-16), for part two's vignettes.
-# One for each trigger the author picked on 2026-11-17: rest, hurt, a lost crewmate, low morale, and a flag. Numbers are small:
+# One for each trigger the author picked on 2026-11-17: rest, hurt, a lost crewmate, low morale, and a trait; part three adds one for a
+# pair. Numbers are small:
 # a vignette is a signal, not a ruling (GDD 5.2).
 - id: VIGNETTE_01
   name: A week aboard
@@ -65,3 +66,12 @@
     > Forward array: contact, bearing two-one-zero. Gone on the second sweep.
     best SKILL_A: Ghost again. Logging it with the others.
   effects: [{ morale: -1, on: crew }]
+- id: VIGNETTE_06
+  name: Not that shuttle
+  scope: pair
+  requires:
+    - { trait: avoids, min: 1 }
+  text: |-
+    subject: I'd rather not share a shuttle with #target#, if it's all the same.
+    = #subject# asked to be kept off #target#'s shuttle.
+  effects: [{ morale: -1, on: subject }]

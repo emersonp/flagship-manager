@@ -133,6 +133,34 @@ internal sealed class EncounterKind : KindForm
     // A requirement's "what" for a gear tag; any other value is a skill id.
     public const string GearPrefix = "gear:";
 
+    // A requirement's "what" for a trait (1e part three): the form keeps one as written and can remove it, but writing a new one is
+    // the text's until the trait forms (part six). TraitWhat and ParseTrait are the one encoding.
+    public const string TraitPrefix = "trait:";
+
+    public static string TraitWhat(RequirementModel r) =>
+        string.Join('|', TraitPrefix + r.Trait, r.On ?? "", r.Min?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "", r.Max?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "", r.Is ?? "");
+
+    public static RequirementModel? ParseTrait(string what)
+    {
+        string[] parts = what.Split('|');
+        if (!what.StartsWith(TraitPrefix, StringComparison.Ordinal) || parts.Length != 5)
+        {
+            return null;
+        }
+
+        static int? Number(string text) => int.TryParse(text, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out int n) ? n : null;
+        static string? Text(string text) => text.Length == 0 ? null : text;
+        return new RequirementModel(null, null, null, parts[0][TraitPrefix.Length..], Number(parts[2]), Number(parts[3]), Text(parts[4]), Text(parts[1]));
+    }
+
+    // "Trait: sensors_quirk at most 1, on the ship".
+    public static string TraitLabel(RequirementModel r)
+    {
+        string range = r.Is is { } exact ? $"is {exact}" : r.Max is { } max && (r.Min ?? 0) == 0 ? $"at most {max}" : r.Max is { } top ? $"{r.Min} to {top}" : $"at least {r.Min ?? 1}";
+        string on = r.On switch { "ship" => "on the ship", "lead" => "on the lead", _ => "on anyone" };
+        return $"Trait: {r.Trait} {range}, {on}";
+    }
+
     // A trait change's fields, in an outcome and in a decision's effect row: traitMode is "add" or "set", and traitOn what it lands on.
     public static readonly IReadOnlyList<string> TraitFields = ["trait", "traitMode", "traitAmount", "traitOn"];
 
@@ -213,7 +241,9 @@ internal sealed class EncounterKind : KindForm
     public static IReadOnlyList<int?> ShadowedBy(IReadOnlyList<ApproachModel> approaches)
     {
         static bool Covers(RequirementModel later, RequirementModel earlier) =>
-            earlier.Gear is { } gear ? later.Gear == gear : later.Skill == earlier.Skill && (later.Level ?? 0) >= (earlier.Level ?? 0);
+            earlier.Trait is not null ? later == earlier
+            : earlier.Gear is { } gear ? later.Gear == gear
+            : later.Skill == earlier.Skill && (later.Level ?? 0) >= (earlier.Level ?? 0);
 
         var shadowed = new List<int?>();
         for (int i = 0; i < approaches.Count; i++)
@@ -374,7 +404,7 @@ internal sealed class EncounterKind : KindForm
         for (int r = 0; r < Math.Min(RequirementRows, approach.Requires.Count); r++)
         {
             RequirementModel requirement = approach.Requires[r];
-            fields.Add(new(Approaches.Name(row, RequirementField(r, "what")), requirement.Skill ?? (requirement.Gear is { } gear ? GearPrefix + gear : "")));
+            fields.Add(new(Approaches.Name(row, RequirementField(r, "what")), requirement.Trait is not null ? TraitWhat(requirement) : requirement.Skill ?? (requirement.Gear is { } gear ? GearPrefix + gear : "")));
             fields.Add(new(Approaches.Name(row, RequirementField(r, "level")), requirement.Skill is not null && requirement.Level is { } level ? Checks.Text(level) : ""));
         }
 
@@ -547,6 +577,20 @@ internal sealed class EncounterKind : KindForm
             string what = values.Get(whatField);
             if (what.Length == 0)
             {
+                continue;
+            }
+
+            if (what.StartsWith(TraitPrefix, StringComparison.Ordinal))
+            {
+                if (ParseTrait(what) is { } trait)
+                {
+                    requires.Add(trait);
+                }
+                else
+                {
+                    errors[whatField] = "Unknown condition.";
+                }
+
                 continue;
             }
 

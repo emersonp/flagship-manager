@@ -198,6 +198,21 @@ public class ContentFaithfulnessTests : IClassFixture<RepoContentGuard>
         Assert.DoesNotContain(files.Index(), i => i.Lossy);
     }
 
+    // 1e part three: the game's own pack holds a trait requirement on an approach and a pair (toward) on an outcome, and the editor
+    // keeps both.
+    [Fact]
+    public void The_game_packs_files_have_no_losses()
+    {
+        ContentFileSet game = ContentFileSet.ReadDirectory(System.IO.Path.Combine(TestContent.Root, "content"));
+        Assert.Contains("{ trait: sensors_quirk, max: 1, on: ship }", game.Files["encounters/base.yaml"], StringComparison.Ordinal);
+        Assert.Contains("toward: lead", game.Files["encounters/base.yaml"], StringComparison.Ordinal);
+
+        foreach (string path in game.Files.Keys)
+        {
+            Assert.Empty(ContentEdits.Losses(game, path));
+        }
+    }
+
     // The things the canonical layout changes on purpose are not losses.
     [Fact]
     public void Deliberate_layout_equivalences_are_not_losses()

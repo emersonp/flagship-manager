@@ -249,7 +249,7 @@ The read-only view through which modules and content read stats and traits.
 _Avoid_: Quality view (its name until 2026-11-17)
 
 **Story flag**:
-The name, until slice 1e's part three, for a trait. Built in part one as a counter (only added to) or a stage (only set); named levels replace that rule (section 15, item 40).
+See Trait (its name until slice 1e, part three).
 
 **Storylet**:
 A unit of narrative content with requirements, a cast, and mechanical effects.

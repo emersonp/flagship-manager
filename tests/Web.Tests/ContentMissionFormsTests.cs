@@ -1605,4 +1605,17 @@ public sealed class ContentMissionFormsTests(RepoContentGuard guard) : IClassFix
 
         guard.Verify();
     }
+
+    // 1e part three: a trait condition the form cannot write is offered as it stands, so opening and saving keeps it exactly.
+    [Fact]
+    public void A_trait_condition_round_trips_through_the_forms_encoding()
+    {
+        var levelled = new RequirementModel(null, null, null, "sensors_quirk", null, 1, null, "ship");
+        var named = new RequirementModel(null, null, null, "stood_down", null, null, "broken", "lead");
+
+        Assert.Equal(levelled, Web.Forms.EncounterKind.ParseTrait(Web.Forms.EncounterKind.TraitWhat(levelled)));
+        Assert.Equal(named, Web.Forms.EncounterKind.ParseTrait(Web.Forms.EncounterKind.TraitWhat(named)));
+        Assert.Equal("Trait: sensors_quirk at most 1, on the ship", Web.Forms.EncounterKind.TraitLabel(levelled));
+        Assert.Null(Web.Forms.EncounterKind.ParseTrait("trait:x"));
+    }
 }
