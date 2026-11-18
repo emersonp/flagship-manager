@@ -630,3 +630,9 @@ td.approaches__acts .btn + .btn { margin-top: var(--space-2xs); }
 .itinerary__time { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-2xs) var(--space-sm); color: var(--color-ink-2); }
 .itinerary__time .m { font-family: var(--font-outlier); font-variant-numeric: tabular-nums slashed-zero; color: var(--color-ink); }
 .vignette__default { font-size: var(--text-sm); color: var(--color-muted); align-self: center; }
+
+/* Traits (1e part three). The roster's cell is interim until the crew file (1e part five); remove it then. */
+.trait-chips { display: inline-flex; flex-wrap: wrap; gap: var(--space-2xs); margin-left: var(--space-xs); vertical-align: baseline; }
+td.traits .trait-chips { margin-left: 0; }
+.launch-list { margin: 0; list-style: none; font-size: var(--text-sm); color: var(--color-ink-2); }
+.launch-list li + li { margin-top: var(--space-2xs); }

@@ -16,11 +16,11 @@
             {
                 <div class="tw dev__tw" tabindex="0" role="region" aria-label="Traits, scrolls sideways">
                     <table>
-                        <thead><tr><th scope="col">Trait</th><th scope="col">On</th><th scope="col" class="n">Value</th><th scope="col" class="n">Week</th><th scope="col">Last changed in play by</th></tr></thead>
+                        <thead><tr><th scope="col">Trait</th><th scope="col">On</th><th scope="col">Toward</th><th scope="col" class="n">Value</th><th scope="col" class="n">Week</th><th scope="col">Last changed in play by</th></tr></thead>
                         <tbody>
                             @foreach (DevTraitRow row in View.Traits)
                             {
-                                <tr><td class="dev__trait">@row.Trait</td><td>@row.On</td><td class="n">@row.Value</td><td class="n">@row.Week</td><td>@(row.From ?? "None")</td></tr>
+                                <tr><td class="dev__trait">@row.Trait@(row.Hidden ? " (hidden)" : "")</td><td>@row.On</td><td>@(row.Toward ?? "")</td><td class="n">@row.Value@(row.Level is null ? "" : $" ({row.Level})")</td><td class="n">@row.Week</td><td>@(row.From ?? "None")</td></tr>
                             }
                         </tbody>
                     </table>
@@ -63,13 +63,23 @@
                         }
                     </select>
                 </div>
+                <div class="field">
+                    <label for="dev-toward">Toward</label>
+                    <select id="dev-toward" name="toward" aria-describedby="dev-hint">
+                        <option value="" selected="@(Toward.Length == 0)">No one</option>
+                        @foreach (DevTarget target in View.Targets.Where(t => t.Id != DevReader.Ship))
+                        {
+                            <option value="@target.Id" selected="@(target.Id == Toward)">@target.Shown</option>
+                        }
+                    </select>
+                </div>
                 <div class="field dev__value">
                     <label for="dev-value">Value</label>
-                    <input id="dev-value" name="value" type="text" inputmode="numeric" value="@Value" required maxlength="2" autocomplete="off" aria-describedby="dev-hint">
+                    <input id="dev-value" name="value" type="text" value="@Value" required maxlength="40" autocomplete="off" spellcheck="false" aria-describedby="dev-hint">
                 </div>
                 <button class="btn btn--dev" type="submit" data-attr:disabled="$devbusy" data-attr:aria-busy="$devbusy ? 'true' : false">Set trait</button>
             </div>
-            <p class="hint" id="dev-hint">0 to @View.Most, and 0 clears it. Storylets and vignettes arrive as the itinerary opens, so set a trait before then.</p>
+            <p class="hint" id="dev-hint">0 to @View.Most, or a level's name, and 0 clears it. A trait on a pair needs Toward: whom it points at. Storylets and vignettes arrive as the itinerary opens, so set a trait before then.</p>
             <p id="dev-result" class="@(Error ? "error" : "dev__ok")" role="status">@Message</p>
         </form>
     </div>
@@ -84,6 +94,8 @@
     [Parameter] public string Trait { get; set; } = "";
 
     [Parameter] public string On { get; set; } = DevReader.Ship;
+
+    [Parameter] public string Toward { get; set; } = "";
 
     [Parameter] public string Value { get; set; } = "1";
 

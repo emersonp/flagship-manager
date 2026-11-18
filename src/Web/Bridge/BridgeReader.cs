@@ -45,7 +45,7 @@ public static class BridgeReader
             // Only while the mission plays: the aftermath names the team in its head instead.
             mission is null || phase != CyclePhase.Resolution ? roster : MarkAway(roster, mission.Team, mission.LeadId),
             showSite ? new SiteView(site!.AssignmentId, objectives, names.Assignment(site.AssignmentId)) : null,
-            showBriefing ? Briefing(pack, names, site!, objectives, roster) : null,
+            showBriefing ? Briefing(state, pack, names, site!, objectives, roster) : null,
             mission,
             showAftermath ? Aftermath(site, state, pack, cycleEvents, names) with { Report = prose is null ? null : Report.Build(beats, prose.Log(_ => []), names) } : null,
             itinerary);
@@ -95,7 +95,10 @@ public static class BridgeReader
         }
 
         // Stable sort: the dead go last, the rest keep roster order.
-        return MarkShared(crew.Members.OrderBy(m => m.Status == CrewStatus.Dead).Select(m => Row(m, pack.CrewTuning, names)).ToList());
+        List<StoredTrait> traits = state.TryModule(TraitsModule.Name, out TraitsState? held) ? held.Traits : [];
+        return MarkShared(crew.Members.OrderBy(m => m.Status == CrewStatus.Dead)
+            .Select(m => Row(m, pack.CrewTuning, names) with { Traits = TraitWords.Shown(pack, names, traits, m.Id, names.Crew) })
+            .ToList());
     }
 
     private static CrewRow Row(CrewMember member, CrewTuning tuning, Names names)
@@ -143,14 +146,48 @@ public static class BridgeReader
             template is null);
     }
 
-    private static BriefingView Briefing(ContentPack pack, Names names, SiteState site, IReadOnlyList<ObjectiveView> objectives, IReadOnlyList<CrewRow> roster)
+    private static BriefingView Briefing(LegacyState state, ContentPack pack, Names names, SiteState site, IReadOnlyList<ObjectiveView> objectives, IReadOnlyList<CrewRow> roster)
     {
         AssignmentDef? assignment = pack.Assignments.FirstOrDefault(a => a.Id == site.AssignmentId);
+        List<CrewRow> living = roster.Where(c => c.Status != nameof(CrewStatus.Dead)).ToList();
+        TraitsState traits = state.TryModule(TraitsModule.Name, out TraitsState? held) ? held : new TraitsState();
+
+        // A chip for each trait with a briefing line (1e part three, design 4.7): a pair's names its target.
+        var chips = new List<BriefingChip>();
+        foreach (StoredTrait trait in traits.Traits)
+        {
+            if (pack.Traits.FirstOrDefault(t => t.Id == trait.Trait) is { Briefing: { } line, Shown: true } && living.Any(c => c.Id == trait.CrewId))
+            {
+                chips.Add(new BriefingChip(trait.CrewId!, trait.TargetId, trait.TargetId is { } target ? $"{line} {names.Crew(target)}" : line));
+            }
+        }
+
+        // The launch rules, from the function the launch itself runs, so what is shown is what happens.
+        List<LaunchRow> launch = TraitsModule.Preview(traits, pack.Traits, living.Select(c => c.Id).ToList())
+            .Where(TraitWords.Costs)
+            .Select(rule => new LaunchRow(rule.HolderId, rule.TargetId, rule.When, LaunchText(pack, names, rule)))
+            .ToList();
         return new BriefingView(
             objectives,
-            MarkShared(roster.Where(c => c.Status != nameof(CrewStatus.Dead)).ToList()),
+            MarkShared(living),
             MarkShared(pack.Gear.Select(g => new GearChoice(g.Id, g.Tag, names.Gear(g.Id))).ToList()),
-            assignment?.LoadoutLimit ?? 0);
+            assignment?.LoadoutLimit ?? 0)
+        {
+            Chips = chips,
+            Launch = launch,
+        };
+    }
+
+    // "CREW_01 sent, Stood down: ...", "CREW_01 left behind, ...", "CREW_01 and CREW_03 together, Avoids: ...".
+    private static string LaunchText(ContentPack pack, Names names, LaunchPreview rule)
+    {
+        string who = rule.When switch
+        {
+            LaunchWhen.Sent => $"{names.Crew(rule.HolderId)} sent",
+            LaunchWhen.NotSent => $"{names.Crew(rule.HolderId)} left behind",
+            _ => $"{names.Crew(rule.HolderId)} and {names.Crew(rule.TargetId!)} together",
+        };
+        return $"{who}, {names.Trait(rule.Trait)}: {TraitWords.Effects(pack, names, rule, names.Crew)}";
     }
 
     private static MissionView Mission(MissionInFlight mission, Briefing? briefing, IReadOnlyList<IEvent> cycleEvents, Names names, List<MissionBeat> beats, Prose prose)
@@ -357,7 +394,7 @@ public static class BridgeReader
                 said = Prose.Storylet(pack, saying, $"{seed}|{arrived.OfferId}|{optionId}")?.Entries ?? [Systems(optionId)];
             }
 
-            views.Add(new VignetteView(arrived.OfferId, names.Storylet(vignette.Id), about, script, options, defaultLabel, true, said, StoryletTags(ChangesBefore(cycleEvents, at), living, shown), answered.Defaulted));
+            views.Add(new VignetteView(arrived.OfferId, names.Storylet(vignette.Id), about, script, options, defaultLabel, true, said, StoryletTags(pack, ChangesBefore(cycleEvents, at), living, shown), answered.Defaulted));
         }
 
         return views;
@@ -453,7 +490,7 @@ public static class BridgeReader
             List<IEvent> changes = ChangesBefore(cycleEvents, i);
             Situation situation = Prose.StoryletSituation(pack, names, crew, answered.StoryletId, answered.SubjectId, answered.OptionId, answered.TargetId);
             IReadOnlyList<ProseEntry> said = Prose.Storylet(pack, situation, $"{seed}|{answered.OfferId}|{answered.OptionId}")?.Entries ?? [Systems(answered.OptionId)];
-            settled.Add(new SettledStoryletView(names.Storylet(answered.StoryletId), said, StoryletTags(changes, living, shown)));
+            settled.Add(new SettledStoryletView(names.Storylet(answered.StoryletId), said, StoryletTags(pack, changes, living, shown)));
         }
 
         return (waiting, settled);
@@ -488,7 +525,7 @@ public static class BridgeReader
     }
 
     // Tags in the log's figure style. A loyalty or morale change shared alike by every living crew member is one tag for all crew.
-    private static List<string> StoryletTags(IReadOnlyList<IEvent> changes, IReadOnlySet<string> living, Func<string, string> crew)
+    private static List<string> StoryletTags(ContentPack pack, IReadOnlyList<IEvent> changes, IReadOnlySet<string> living, Func<string, string> crew)
     {
         var tags = new List<string>();
         void Stat(string word, IEnumerable<(string CrewId, int Delta)> moved)
@@ -503,10 +540,11 @@ public static class BridgeReader
         Stat("Loyalty", changes.OfType<LoyaltyChanged>().Select(l => (l.CrewId, l.To - l.From)));
         Stat("Morale", changes.OfType<MoraleChanged>().Select(m => (m.CrewId, m.To - m.From)));
 
+        // A level's name where it has one, "stood_down promised to broken" (1e part three); a pair names both.
         foreach (TraitChanged trait in changes.OfType<TraitChanged>())
         {
-            string on = trait.CrewId is null ? "" : $", {crew(trait.CrewId)}";
-            tags.Add(Inv($"{trait.Trait} {trait.From} to {trait.To}{on}"));
+            string on = trait.CrewId is null ? "" : trait.TargetId is null ? $", {crew(trait.CrewId)}" : $", {crew(trait.CrewId)} toward {crew(trait.TargetId)}";
+            tags.Add($"{trait.Trait} {TraitWords.Value(pack, trait.Trait, trait.From)} to {TraitWords.Value(pack, trait.Trait, trait.To)}{on}");
         }
 
         return tags;

@@ -7,7 +7,8 @@ public sealed record BridgeView(TopBarView TopBar, IReadOnlyList<CrewRow> Roster
 
 public sealed record TopBarView(string LegacyName, int Week, int Cycle, CyclePhase Phase, string? PackWarning);
 
-public sealed record CrewRow(string Id, int Seniority, string Status, bool Fit, IReadOnlyList<SkillCell> Skills, IReadOnlyList<int> LightInjuryHealWeeks, int? ReturnsAtWeek, int Loyalty, int AwayMissions, bool IsAway = false, bool IsLead = false, string? Name = null, bool Disambiguate = false, string Morale = "Steady")
+// Traits (1e part three): a chip for each shown trait, for the roster's interim cell; the crew file (1e part five) replaces it.
+public sealed record CrewRow(string Id, int Seniority, string Status, bool Fit, IReadOnlyList<SkillCell> Skills, IReadOnlyList<int> LightInjuryHealWeeks, int? ReturnsAtWeek, int Loyalty, int AwayMissions, bool IsAway = false, bool IsLead = false, string? Name = null, bool Disambiguate = false, string Morale = "Steady", IReadOnlyList<string>? Traits = null)
 {
     // Disambiguate: another row in view shows the same name, so this one also shows its id.
     // The crew member's display name; the id stays the key.
@@ -29,7 +30,21 @@ public sealed record ObjectiveView(string Id, string TemplateId, IReadOnlyList<s
     public IReadOnlyList<string> SkillsShown => PossibleSkillNames ?? PossibleSkills;
 }
 
-public sealed record BriefingView(IReadOnlyList<ObjectiveView> Objectives, IReadOnlyList<CrewRow> Crew, IReadOnlyList<GearChoice> Gear, int LoadoutLimit);
+// Chips and Launch (1e part three, design 4.7): what each picked crew member's traits say, and every launch rule the picks could fire;
+// the page shows each whose condition its picks meet. Nothing here blocks a launch.
+public sealed record BriefingView(IReadOnlyList<ObjectiveView> Objectives, IReadOnlyList<CrewRow> Crew, IReadOnlyList<GearChoice> Gear, int LoadoutLimit)
+{
+    public IReadOnlyList<BriefingChip> Chips { get; init; } = [];
+
+    public IReadOnlyList<LaunchRow> Launch { get; init; } = [];
+}
+
+// A trait's briefing line beside its holder, shown while they are picked (and, for a pair, while the target is too).
+public sealed record BriefingChip(string HolderId, string? TargetId, string Text);
+
+// One launch rule: When is one of LaunchWhen, read with the holder (and a pair's target) against the picks. Text: "CREW_01 sent,
+// Stood down: Stood down to broken, Loyalty −2, Morale −4".
+public sealed record LaunchRow(string HolderId, string? TargetId, string When, string Text);
 
 public sealed record GearChoice(string Id, string Tag, string? Name = null, bool Disambiguate = false)
 {

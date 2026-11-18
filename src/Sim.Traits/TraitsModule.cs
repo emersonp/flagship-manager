@@ -95,6 +95,12 @@ public static class TraitsModule
         }
     }
 
+    // The preview for a page that reads the stored state (the briefing): the same function the launch runs.
+    public static IReadOnlyList<LaunchPreview> Preview(TraitsState state, IReadOnlyList<TraitDef> defs, IReadOnlyList<string> roster)
+    {
+        return Preview(state, new Definitions(defs), roster);
+    }
+
     // Every launch rule that could fire: holders in roster order, each holder's traits in definition order (a trait with no
     // definition has none), a trait's pairs in their targets' roster order; for each, sent, then notSent, then withTarget.
     internal static IReadOnlyList<LaunchPreview> Preview(TraitsState state, Definitions defs, IReadOnlyList<string> roster)

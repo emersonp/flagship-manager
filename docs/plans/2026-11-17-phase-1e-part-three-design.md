@@ -364,3 +364,12 @@ Kept as each task of the plan (`2026-11-17-phase-1e-part-three-plan.md`) lands; 
 - Two pairs of one trait that both give a bonus are one `TraitBonus`, their amounts summed, so the beat names the trait once.
 - The launch rules run on `MissionStarted` at order 250, after the missions module has built the team's snapshot and before the mission's own `MissionEnded` (queued behind it), so a mission that ends at once still sees its traits as they were at launch.
 - Both golden hashes moved; the fixture's simulation now plays differently (918 full successes in 20 x 50, from 906), from `trait_h`'s +1 when holder and target are sent together.
+
+**Task 5, the screens (2026-11-17).**
+
+- The briefing's chips and its "What launching will do" list are rendered by the server for every trait and rule that could apply, each with its condition as a `data-show` on a new page signal, `$_team` (the picked ids between spaces), which the crew boxes' existing count keeps. The list's rows come from `TraitsModule.Preview` (now also public, over the stored state, for a page), and their conditions mirror `LaunchPreview.Fires`; a rule for one left behind that only clears its own trait is not listed. The rows read "CREW_01 sent, Stood down: Stood down to broken, Loyalty −2, Morale −4" and "CREW_01 and CREW_03 together, Avoids: Morale −3 CREW_01", in generated words, not the design's "Breaks the promise to …", which would need authored text per rule.
+- A pair's chip is its briefing line and the target's name ("Avoids CREW_03"), shown while both are picked.
+- The roster's interim "Traits" cell shows each shown trait's chip ("Shaken 2", "Stood down: promised", "Avoids CREW_03"), marked interim in the component and the CSS.
+- Dev Play lists every trait with its target, its level's name, and "(hidden)" for a hidden one; its form gains Toward and takes a level's name as the value. The endpoint refuses a pair trait with no target, a target for a trait not on a pair, and a pair of one crew member.
+- The itinerary's trait tags give a level's name ("stood_down promised to broken") and name a pair's holder and target.
+- Looked at in headless Edge at 1280 and 400 pixels (driven over the DevTools protocol, so the crew boxes could be ticked) on a scratch copy of the fixture: the briefing's chips and list show for the picks, and nothing scrolls the page sideways at 400 pixels; the roster and Dev Play's tables scroll inside their own regions, as before. Not checked: a screen reader's reading of the chips that appear as boxes are ticked.

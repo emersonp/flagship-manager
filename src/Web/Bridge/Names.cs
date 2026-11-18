@@ -14,6 +14,8 @@ public sealed class Names(ContentPack pack)
     private readonly Dictionary<string, string> assignments = Index(pack.Assignments.Select(a => (a.Id, a.Name)));
     // Vignettes too: they are storylets to the reader (1e part two), and their ids are unique among items.
     private readonly Dictionary<string, string> storylets = Index(pack.Storylets.Select(s => (s.Id, s.Name)).Concat(pack.Vignettes.Select(v => (v.Id, v.Name))));
+    // 1e part three: traits' display names, from their definitions.
+    private readonly Dictionary<string, string> traits = Index(pack.Traits.Select(t => (t.Id, t.Name)));
 
     // An approach id is unique only within its encounter, so these are keyed by both.
     private readonly Dictionary<(string, string), string> approaches = pack.Encounters
@@ -59,6 +61,11 @@ public sealed class Names(ContentPack pack)
     public string Storylet(string id)
     {
         return Of(storylets, id);
+    }
+
+    public string Trait(string id)
+    {
+        return Of(traits, id);
     }
 
     // The approach's name, or its id when it has none.

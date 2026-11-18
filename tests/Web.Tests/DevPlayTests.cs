@@ -126,4 +126,44 @@ public sealed class DevPlayTests
         request.Headers.Add("Origin", "https://elsewhere.example");
         Assert.Equal(HttpStatusCode.Forbidden, (await client.SendAsync(request)).StatusCode);
     }
+
+    // 1e part three, Task 5: a pair and a level. The fixture's trait_g sits on a pair; trait_e has levels level_a and level_b; trait_f is hidden.
+    [Fact]
+    public async Task Setting_a_pair_and_a_level_stores_them_and_the_panel_shows_every_trait()
+    {
+        using var app = new TestApp(developerMode: true, scratch: true);
+        HttpClient client = app.NewClient();
+        Guid id = await app.Sessions.CreateLegacy(app.Live, "LEGACY_ONE", 1);
+
+        string pair = await Post(client, $"/dev/legacy/{id}/trait", Form(("trait", "trait_g"), ("on", "CREW_02"), ("toward", "CREW_03"), ("value", "2")));
+        string level = await Post(client, $"/dev/legacy/{id}/trait", Form(("trait", "trait_e"), ("on", "CREW_01"), ("toward", ""), ("value", "level_b")));
+        string hidden = await Post(client, $"/dev/legacy/{id}/trait", Form(("trait", "trait_f"), ("on", "ship"), ("value", "1")));
+
+        Assert.Contains("trait_g is now 2 on CREW_02 toward CREW_03.", pair);
+        Assert.Contains("trait_e is now 2 on CREW_01.", level);
+        Assert.Contains("<td class=\"dev__trait\">trait_g</td><td>CREW_02</td><td>CREW_03</td><td class=\"n\">2</td>", hidden);
+        Assert.Contains("<td class=\"dev__trait\">trait_e</td><td>CREW_01</td><td></td><td class=\"n\">2 (level_b)</td>", hidden);
+        Assert.Contains("<td class=\"dev__trait\">trait_f (hidden)</td>", hidden);
+        LoadedLegacy after = (await app.Sessions.Read(app.Live, id))!;
+        Assert.Contains(after.State.Module<TraitsState>(TraitsModule.Name).Traits, t => (t.Trait, t.CrewId, t.TargetId, t.Value) == ("trait_g", "CREW_02", "CREW_03", 2));
+    }
+
+    [Theory]
+    [InlineData("trait_e", "CREW_01", "", "3", "trait_e is set to 0 or one of its levels: level_a (1), level_b (2).")]
+    [InlineData("trait_e", "CREW_01", "", "level_c", "trait_e is set to 0 or one of its levels: level_a, level_b.")]
+    [InlineData("trait_g", "CREW_02", "", "1", "trait_g sits on a pair: choose whom it points at.")]
+    [InlineData("trait_b", "CREW_02", "CREW_03", "1", "trait_b does not sit on a pair, so it points at no one.")]
+    [InlineData("trait_g", "CREW_02", "CREW_02", "1", "A pair is two crew members: choose a holder, and another as the target.")]
+    [InlineData("trait_b", "CREW_02", "", "6", "trait_b is at most 5.")]
+    public async Task A_refused_pair_or_level_says_why_and_changes_nothing(string trait, string on, string toward, string value, string reason)
+    {
+        using var app = new TestApp(developerMode: true, scratch: true);
+        HttpClient client = app.NewClient();
+        Guid id = await app.Sessions.CreateLegacy(app.Live, "LEGACY_ONE", 1);
+
+        string body = await Post(client, $"/dev/legacy/{id}/trait", Form(("trait", trait), ("on", on), ("toward", toward), ("value", value)));
+
+        Assert.Contains("<p id=\"dev-result\" class=\"error\" role=\"status\">" + reason, body);
+        Assert.DoesNotContain(app.Game.Store.ReadEvents(id, 1), e => e.Type is "TraitSetByDeveloper" or "TraitChanged");
+    }
 }

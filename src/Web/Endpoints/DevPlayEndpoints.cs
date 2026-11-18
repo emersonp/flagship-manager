@@ -1,5 +1,6 @@
 using System.Globalization;
 using Sim.Core;
+using Sim.Core.Content;
 using Web.Bridge;
 using Web.Components;
 
@@ -53,6 +54,8 @@ public static class DevPlayEndpoints
         IFormCollection? form = await BridgeEndpoints.ReadForm(http.Request, cancellation);
         string trait = (form is null ? null : BridgeEndpoints.Single(form, "trait"))?.Trim() ?? "";
         string on = (form is null ? null : BridgeEndpoints.Single(form, "on")) ?? DevReader.Ship;
+        // A pair's target (1e part three): blank for a trait on one.
+        string toward = (form is null ? null : BridgeEndpoints.Single(form, "toward")) ?? "";
         string text = (form is null ? null : BridgeEndpoints.Single(form, "value"))?.Trim() ?? "";
         LivePack live = RequestPack.Of(http);
         if (!Guid.TryParse(id, out Guid legacyId))
@@ -60,14 +63,21 @@ public static class DevPlayEndpoints
             return await BridgeEndpoints.NotFound(render, http);
         }
 
-        var kept = new Dictionary<string, object?> { ["Trait"] = trait, ["On"] = on, ["Value"] = text };
+        var kept = new Dictionary<string, object?> { ["Trait"] = trait, ["On"] = on, ["Toward"] = toward, ["Value"] = text };
         string? crewId = on == DevReader.Ship ? null : on;
+        string? targetId = toward.Length == 0 ? null : toward;
+        // A trait with levels may be set by a level's name as well as its number.
+        TraitDef? def = live.Pack.Traits.FirstOrDefault(t => t.Id == trait);
+        if (def?.Levels.FirstOrDefault(l => l.Value == text) is { Value: not null } level)
+        {
+            text = level.Key.ToString(CultureInfo.InvariantCulture);
+        }
         string? done = null;
         string? refused = null;
         DevView? view;
         if (!int.TryParse(text, NumberStyles.None, CultureInfo.InvariantCulture, out int value))
         {
-            refused = $"A trait's value is 0 to {SetTrait.Most}.";
+            refused = def is { HasLevels: true } ? $"{trait} is set to 0 or one of its levels: {string.Join(", ", def.Levels.OrderBy(l => l.Key).Select(l => l.Value))}." : $"A trait's value is 0 to {SetTrait.Most}.";
             view = await Current(live, legacyId, sessions, cancellation);
         }
         else
@@ -76,8 +86,18 @@ public static class DevPlayEndpoints
             {
                 view = await sessions.Run(live, legacyId, legacy =>
                 {
-                    legacy.Send(new SetTrait(trait, crewId, null, value));
-                    string where = crewId is null ? "the ship" : live.Names.Crew(crewId);
+                    if (def is { OnPair: true } != (targetId is not null))
+                    {
+                        throw new CommandRejectedException(def is { OnPair: true } ? $"{trait} sits on a pair: choose whom it points at." : $"{trait} does not sit on a pair, so it points at no one.");
+                    }
+
+                    if (targetId is not null && (crewId is null || targetId == crewId))
+                    {
+                        throw new CommandRejectedException("A pair is two crew members: choose a holder, and another as the target.");
+                    }
+
+                    legacy.Send(new SetTrait(trait, crewId, targetId, value));
+                    string where = crewId is null ? "the ship" : targetId is null ? live.Names.Crew(crewId) : $"{live.Names.Crew(crewId)} toward {live.Names.Crew(targetId)}";
                     done = value == 0 ? $"Cleared {trait} on {where}." : $"{trait} is now {value} on {where}.";
                     return DevReader.Read(legacy.State, live.Game, live.Pack, live.Names);
                 }, cancellation);

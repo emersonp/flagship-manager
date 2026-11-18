@@ -14,6 +14,8 @@
                     <th scope="col">Morale</th>
                     <th scope="col" class="n">Loyalty</th>
                     <th scope="col" class="n">Away</th>
+                    @* Interim until the crew file (1e part five); remove then (GDD 7.5). *@
+                    <th scope="col">Traits</th>
                 </tr>
             </thead>
             <tbody>
@@ -35,6 +37,13 @@
                         <td class="morale">@row.Morale</td>
                         <td class="n">@row.Loyalty</td>
                         <td class="n">@row.AwayMissions</td>
+                        <td class="traits">@if (row.Traits is { Count: > 0 } traits)
+                            {
+                                <span class="trait-chips">@foreach (string chip in traits)
+                                    {
+                                        <span class="tag">@chip</span>
+                                    }</span>
+                            }</td>
                     </tr>
                 }
             </tbody>

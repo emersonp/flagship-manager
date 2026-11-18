@@ -3,7 +3,7 @@
         <h1>@(Heading ?? "Briefing")</h1>
         <p class="note">Choose one objective, an away team, and gear.</p>
     </div>
-    <form id="briefing" data-signals:_picked="0" data-signals:_min="@Initial.Min" data-signals:_max="@Initial.Max" data-signals:_skills="@InitialSkills" data-signals:_gear="0" data-indicator:_launching data-on:submit="@Launch">
+    <form id="briefing" data-signals:_picked="0" data-signals:_team="' '" data-signals:_min="@Initial.Min" data-signals:_max="@Initial.Max" data-signals:_skills="@InitialSkills" data-signals:_gear="0" data-indicator:_launching data-on:submit="@Launch">
         <section class="well" aria-labelledby="h-obj">
             <div class="well__head"><h2 id="h-obj">Objective</h2></div>
             <fieldset>
@@ -65,6 +65,12 @@
                             <td class="who">@row.Shown@if (row.Disambiguate)
                                 {
                                     @(" ")<span class="quiet">@row.Id</span>
+                                }@if (Briefing.Chips.Any(c => c.HolderId == row.Id))
+                                {
+                                    <span class="trait-chips">@foreach (BriefingChip chip in Briefing.Chips.Where(c => c.HolderId == row.Id))
+                                        {
+                                            <span class="tag" style="display: none" data-show="@Picked(chip.HolderId, chip.TargetId)">@chip.Text</span>
+                                        }</span>
                                 }</td>
                             <td class="status"><CrewStatusText Row="row" /></td>
                             @foreach (string skill in Skills)
@@ -116,6 +122,20 @@
         </div>
 
         <StampFields Bar="Bar" />
+        @if (Briefing.Launch.Count > 0)
+        {
+            @* What launching will do (1e part three, design 4.7): every rule the picks could fire, each shown while the picks meet its
+               condition. A warning only: nothing here stops the launch. *@
+            <section class="well launch-preview" aria-labelledby="h-launching" style="display: none" data-show="@AnyLaunch">
+                <div class="well__head"><h2 id="h-launching">What launching will do</h2></div>
+                <ul class="launch-list well__body">
+                    @foreach (LaunchRow row in Briefing.Launch)
+                    {
+                        <li style="display: none" data-show="@Fires(row)">@row.Text</li>
+                    }
+                </ul>
+            </section>
+        }
         <div class="actions well">
             <p class="count"><span>Team</span><span><output class="m" data-text="$_picked">0</output><span data-text="@Range2"></span></span></p>
             <button class="btn" type="button" data-indicator:_sending data-attr:disabled="@Busy" data-attr:aria-busy="$_sending ? 'true' : false" data-on:click="@SendNobody">Send nobody</button>
@@ -202,5 +222,27 @@
     // Both actions wait while either is in flight.
     private const string Busy = "$_launching || $_sending";
 
-    private const string Count = "$_picked = el.form.querySelectorAll('input[name=crew]:checked').length";
+    // The count, and the picked ids between spaces (1e part three) for the chips and the launch rows: " CREW_01 CREW_03 ".
+    private const string Count = "$_picked = el.form.querySelectorAll('input[name=crew]:checked').length; $_team = ' ' + [...el.form.querySelectorAll('input[name=crew]:checked')].map(i => i.value).join(' ') + ' '";
+
+    private static string Has(string crewId) => $"$_team.includes(' {crewId} ')";
+
+    // A chip shows while its holder is picked, and a pair's while the target is too.
+    private static string Picked(string holderId, string? targetId)
+    {
+        return targetId is null ? Has(holderId) : $"{Has(holderId)} && {Has(targetId)}";
+    }
+
+    // The same conditions as LaunchPreview.Fires, read from the picks: a rule for one left behind waits for someone to be sent.
+    private static string Fires(LaunchRow row)
+    {
+        return row.When switch
+        {
+            Sim.Core.LaunchWhen.Sent => Has(row.HolderId),
+            Sim.Core.LaunchWhen.NotSent => $"$_picked > 0 && !{Has(row.HolderId)}",
+            _ => Picked(row.HolderId, row.TargetId),
+        };
+    }
+
+    private string AnyLaunch => string.Join(" || ", Briefing.Launch.Select(r => $"({Fires(r)})"));
 }
