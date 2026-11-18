@@ -66,7 +66,7 @@ Notes from the author on 2026-11-16, before slice 1e (design in `docs/plans/2026
 Decided by the author on 2026-11-16, while slice 1e's first part was designed and built:
 
 38. **Every flag is a number, and the first thread is thin.**
-    - Every story flag is a number, after Fallen London: a mark today is a count tomorrow, and "has this happened twice?" must not need a rewrite. A flag is a **counter** (only ever added to) or a **stage** (only ever set), never both; a story that needs both uses two flags. See 3.8.
+    - Every story flag is a number, after Fallen London (flags became traits, and the counter-or-stage rule gave way to named levels, in item 40): a mark today is a count tomorrow, and "has this happened twice?" must not need a rewrite. A flag is a **counter** (only ever added to) or a **stage** (only ever set), never both; a story that needs both uses two flags. See 3.8.
     - The first thread is thin. The shaken crew member asks the captain for a word; an earlier draft had them ask to be kept off the next away team, which needs a flag that changes the briefing and one that moves when a mission launches. Those are part three (section 11.1). In part one loyalty has no effect on play yet and no rule reads a flag; that is accepted.
     - Naming conventions were adopted the same day (`docs/conventions.md`): ids are upper case for items with their own page in the editor and lower case with underscores for what lives inside an item or is typed into text (approaches, options, flags, symbols, tags); `.`, `-`, `#`, `:`, and `|` are never in an id; a flag is read beside other properties through `flag` (`subject.flag.shaken`).
 
@@ -76,3 +76,19 @@ Decided by the author on 2026-11-17, before slice 1e's second part (design in `d
     - **Morale bites.** Low morale is a small minus on a crew member's checks and high morale a small plus; it is not only shown. It moves with the mission's result, being hurt, a crewmate's death, a cycle not sent, and a weekly drift back to a resting value.
     - **A vignette can arrive on a flag, a crew member's morale, or a fact about the last cycle** (sent, hurt, rested, lost a crewmate), a small fixed set ahead of part three's expression language.
     - **The captain's itinerary** is a screen after the aftermath and before the briefing. It lists storylets and vignettes, taken in any order; every storylet must be answered before the briefing. It shows the captain's time, 3, which does nothing yet. Built as the first phase of each cycle, before the orders.
+
+Decided by the author on 2026-11-17, in a design interview before slice 1e's third part (design in `docs/plans/2026-11-17-phase-1e-part-three-design.md`):
+
+40. **Traits that bite, and storylets as events.**
+    - **Part three is one thread first:** the worked example (a shaken crew member stood down from the next away team) built end to end. The storylet engine in full (the expression language, casting, salience, storylet cooldowns, an option settled by a check) is a new part four, and the crew file and the storylet forms become parts five and six (section 11.1).
+    - **No library for the storylet engine.** What part three builds is game rules any engine would leave to us. The expression language, in part four, sits on an off-the-shelf evaluator (NCalc or DynamicExpresso) rather than a hand-written parser.
+    - **Qualities are stats or traits.** A quality is anything a requirement reads. A stat is typed and owned by a system (skills, morale, loyalty). A trait is named by content, numeric, and stored generically; section 3.2's traits and the story flags of item 38 are one thing, and "flag" is retired. A trait that only marks story progress is hidden. The "quality view" is the state view.
+    - **Trait ids are lower case** for every trait, an exception to the rule that items with their own editor page are upper case: traits are typed into text far more than they are opened as pages (`docs/conventions.md`).
+    - **Stages are numbers, with named levels.** After StoryNexus and Fallen London, where every quality is a number and its meaning lives in level descriptions: a trait may name its levels, and one that does can only be set, to a named level or 0. This replaces item 38's counter-or-stage rule.
+    - **Traits are defined in `content/traits/`** when they have rules or sit on a pair: shown or hidden, where they sit, levels, a cap, a briefing line, launch rules, a check bonus, a signed weekly step, expiry, and what a pair's target's death does. Heavier than one example needs, accepted for a shape that grows.
+    - **Pair traits:** a trait held by one crew member that points at another, for "I just can't be around so-and-so", with a cost when both are sent.
+    - **A promise can be broken.** The briefing warns and says what sending someone will cost; nothing blocks the launch.
+    - **Storylets are events, as in Crusader Kings III,** and are always answered when presented between missions. There is no `ifIgnored` (section 5.3 is rewritten). What can be left alone and get worse is a trait.
+    - **The roster's trait cell is interim,** until the crew file (part five), and is documented as such.
+    - **The simulator's captain answers by `first` or `random`.** No `ignore` policy.
+    - **The roadmap was revisited the same day:** the skills, attributes, and gear overhaul became slice 1h, before the playtest (the author's note on the GDD page); planets and a sector map joined the art track; seniority joined Phase 6.

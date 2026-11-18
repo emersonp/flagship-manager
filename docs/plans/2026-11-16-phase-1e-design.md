@@ -32,9 +32,9 @@ The author expects to change a lot once it can be played, as with encounters. So
 **Non-goals of part one** (each is on the GDD's roadmap, section 11.1)
 
 - Vignettes and morale (part two).
-- The expression language, casting beyond the flag's own subject, salience scoring, cooldowns, `ifIgnored`, flags that change a mission, and an answer settled by a check (part three).
-- The crew file and the chronicle list (part four).
-- Forms for writing storylets in the editor (part five). In part one a storylet is written in its YAML file, which the editor shows as a text file.
+- The expression language, casting beyond the flag's own subject, salience scoring, cooldowns, `ifIgnored`, flags that change a mission, and an answer settled by a check (part three; since 2026-11-17, flags that change a mission are part three and the rest part four, and there is no `ifIgnored`).
+- The crew file and the chronicle list (part four; part five since 2026-11-17).
+- Forms for writing storylets in the editor (part five; part six since 2026-11-17). In part one a storylet is written in its YAML file, which the editor shows as a text file.
 - Captain's time (slice 1g).
 
 **Anti-goals**
@@ -153,7 +153,7 @@ Aftermath
 ### 4.7 The editor
 
 - **Encounters.** The effect rows of a decision's answers, and each outcome's fields on an approach's tab, gain "Flag", "Add or set", "Amount", and "On". Without this the encounters file could not be saved faithfully from the form once any encounter sets a flag.
-- **Storylets.** `content/storylets/base.yaml` appears on the editor's index as a text file, validated on save by the loader like the tuning file. The storylet form is part five.
+- **Storylets.** `content/storylets/base.yaml` appears on the editor's index as a text file, validated on save by the loader like the tuning file. The storylet form is part five (part six since 2026-11-17).
 
 ### 4.8 The game's pack
 

@@ -230,14 +230,26 @@ _Avoid_: Simulator (that plays whole cycles), test harness
 ### Life aboard
 
 **Quality**:
-Any readable fact about the legacy that content can test: a skill level, a relationship strength, a chronicle fact, or a story flag.
+Anything a requirement can read: a stat or a trait (section 15, item 40). Read through the state view.
 
 **Stat**:
 A typed, simulated number owned by a system: a skill, a grade, a personality axis, morale, loyalty, renown, or standing. A quality content can read, but changes only through commands.
 _Avoid_: Attribute (that is a grouping of skills)
 
+**Trait**:
+A quality named by content: a whole number of 0 or more (0 is absent), stored generically, on the ship, a crew member, or a pair of crew. It may have a definition that names its levels and gives it rules. Shown traits appear to the player; hidden ones mark story progress. Replaces the story flag in slice 1e, part three.
+_Avoid_: Flag, story flag (retired 2026-11-17)
+
+**Pair trait**:
+A trait held by one crew member (the holder) that points at another (the target): "avoids CREW_03".
+_Avoid_: Relationship (a stat, Phase 4)
+
+**State view**:
+The read-only view through which modules and content read stats and traits.
+_Avoid_: Quality view (its name until 2026-11-17)
+
 **Story flag**:
-A free-form numeric quality named by content, stored generically, that tracks story state on the ship or on a crew member. A flag is either a counter, only ever added to, or a stage, only ever set; never both.
+The name, until slice 1e's part three, for a trait. Built in part one as a counter (only added to) or a stage (only set); named levels replace that rule (section 15, item 40).
 
 **Storylet**:
 A unit of narrative content with requirements, a cast, and mechanical effects.
@@ -247,14 +259,14 @@ How a crew member feels, 0 to 100, seen as Low, Steady, or High. Missions, hurts
 _Avoid_: Mood, happiness
 
 **Captain storylet**:
-A storylet that arrives and requires a choice.
+A storylet that arrives and requires a choice. It is an event: always answered, never ignored.
 
 **Vignette**:
 A short, free storylet that carries information and changes something small. Usually it has no choice; sometimes it offers one small one, with a default if unanswered. It arrives on the captain's itinerary and does not hold it.
 _Avoid_: Flavour event
 
 **Storyline**:
-Storylets linked by story flags, often one flag counting the storyline's progress. It advances whether or not the captain attends to it.
+Storylets linked by traits, often one trait counting the storyline's progress. It advances through answers and through traits that rise or fall on their own, whether or not the captain attends to them.
 _Avoid_: Waypoint
 
 **Captain's time**:

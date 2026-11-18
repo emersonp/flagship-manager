@@ -42,7 +42,7 @@ else                                → initiative (lead picks the option their 
 ```
 
 - The player names each team's lead, defaulting to the highest rank. Choosing the lead is choosing what you will be asked.
-- The operational parameters are priority, autonomy, and develop juniors. Risk tolerance is not among them: it no longer chooses an approach, and returns with the overhaul of skills, attributes, and gear (section 11).
+- The operational parameters are priority, autonomy, and develop juniors. Risk tolerance is not among them: it no longer chooses an approach, and returns with the overhaul of skills, attributes, and gear (slice 1h, section 11.1).
 - `parameters.autonomy` runs from −1 ("check in often") to +1 ("use your judgement"). This is the player's lever on how many calls they get.
 - A cautious, disciplined lead calls about most things. A reckless one mostly takes initiatives, some of which the captain would not have chosen. Lead and autonomy weigh about equally: on the prototype's bench a cautious lead makes 3.1, 2.5, or 1.2 calls per mission across the three autonomy settings, and a reckless one 0.8, 0.2, or 0.2.
 - Some encounters set `commsBlocked`, forcing an initiative whatever the lead is like. Who you sent matters most then.

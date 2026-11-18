@@ -29,8 +29,8 @@ This records what the author said about part two on 2026-11-17 and designs it. I
 
 - Spending captain's time (slice 1g). Part two only shows the count.
 - Insight and bands that hide the figure (Phase 5). The roster shows morale as a word because the word is what changes a check; nothing is hidden yet.
-- Salience, casting, the expression language, `ifIgnored`, and cooldowns for storylets (part three). Vignettes get a fixed cooldown here because, unlike a storylet, nothing in their own answers stops them returning.
-- Writing vignettes in a form (part five). The vignettes file opens in the editor as a text file, as the storylets file does.
+- Salience, casting, the expression language, `ifIgnored`, and cooldowns for storylets (part three; since 2026-11-17 part four, and `ifIgnored` is dropped: storylets are always answered). Vignettes get a fixed cooldown here because, unlike a storylet, nothing in their own answers stops them returning.
+- Writing vignettes in a form (part five; part six since 2026-11-17). The vignettes file opens in the editor as a text file, as the storylets file does.
 - Morale that makes someone refuse orders or leave (Phase 6).
 
 **Anti-goals**

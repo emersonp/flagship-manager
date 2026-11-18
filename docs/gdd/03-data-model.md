@@ -61,6 +61,29 @@ excludes: [TRAIT_C]
 
 Traits never contain bespoke code. They are a list of conditional modifiers over the same expression language storylets use.
 
+**Designed for slice 1e, part three** (section 15, item 40; not yet built): traits and story flags become one thing. A trait is a whole number of 0 or more, stored generically on the ship, a crew member, or a pair of crew; ids are lower case (`trait_a`, `shaken`). A trait that has rules has a definition in `content/traits/`:
+
+```yaml
+- id: trait_a
+  shown: true                           # false: a marker, never on the roster or the crew file
+  on: crew                              # ship | crew | pair
+  levels: { 1: level_a, 2: level_b }    # named values; a trait with levels can only be set
+  max: 2
+  briefing: TRAIT_A_BRIEFING            # the chip beside the holder in the briefing
+  launch:                               # when a mission starts: sent, notSent, withTarget (pairs)
+    sent: [{ set: level_b }, { loyalty: -2 }]
+    notSent: [{ set: 0 }]
+  mission: { checkBonus: -1 }           # on every check the holder makes; withTarget: true for pairs
+  expires: { weeks: 6 }                 # back to 0 after this many weeks unchanged
+- id: trait_b
+  on: pair
+  max: 5
+  every: { weeks: 4, add: -1 }          # a signed weekly step; not on a trait with levels; rising needs max
+  onTargetDied: [{ set: 0 }]            # pairs only
+```
+
+The conditional modifiers above wait for the expression language (part four); part three's definitions have one modifier, the check bonus.
+
 ## 3.3 Relationship (state)
 
 ```yaml
@@ -255,7 +278,7 @@ As built in slice 1e, part one (`content/storylets/`):
 
 A vignette has no stakes and needs no flag. It has `effects` (at least one) or two `options` and a `default`, never both. Nothing in its own answers stops it returning, so a cooldown does: it does not arrive again for the same scope within `vignettes.cooldown` cycles (tuning, 6). Its words are lines of the storylet beats.
 
-Part three replaces `requires` with the expression language over the quality view, and adds casting from the crew in place of the one subject, salience in place of the fixed order, cooldowns, `ifIgnored` with an expiry, and an option settled by a check. The fuller form it is designed towards, as sketched before slice 1e (`cost` is gone: section 15, item 35):
+Part three (designed 2026-11-17 in `docs/plans/2026-11-17-phase-1e-part-three-design.md`, not yet built) renames flags to traits (`{ trait: shaken, min: 1 }`), adds `is:` for a trait's named levels, and adds `scope: pair`, with `target` as a speaker, as an `on:` for effects, and as `of: target` on stat and last-cycle requirements. Part four (renumbered on 2026-11-17; this paragraph said part three until then) replaces `requires` with the expression language over the state view, and adds casting from the crew in place of the one subject, salience in place of the fixed order, storylet cooldowns, and an option settled by a check. There is no `ifIgnored`: storylets are always answered (section 15, item 40). The fuller form it is designed towards, as sketched before slice 1e (`cost` is gone: section 15, item 35; `ifIgnored` is gone: item 40):
 
 ```yaml
 id: STORYLET_031
@@ -299,6 +322,8 @@ encounterId: ENCOUNTER_01       # the encounter whose effect last changed it, or
 ```
 
 A flag on several crew at once (`scope: [crew_0042, crew_0017]`, for a relationship) waits for part three.
+
+**Designed for slice 1e, part three** (section 15, item 40; not yet built): a quality is a **stat** or a **trait**, and the read-only view of both is the **state view**. Story flags are renamed traits and move to a module of their own, `Sim.Traits`; they keep everything above, read as `subject.trait.shaken`. Decision 38's counter-or-stage rule gives way to named levels: a trait that names its levels can only be set. A trait may sit on a **pair**: held by one crew member (`crewId`) and pointing at another (`targetId`), made by an encounter's effect with `toward` (`{ trait: avoids, add: 1, on: actor, toward: lead }`). A pair trait is not a relationship (3.3): whether relationships become pair traits with levels is Phase 4's question.
 
 ## 3.9 Event log entry and chronicle entry (state)
 

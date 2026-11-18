@@ -12,5 +12,5 @@ A chapter of the [Starship Sim GDD](../gdd.md). Section numbers are permanent id
 | 6 | Agents eroding module boundaries | The dependency rules in 7.1 enforced by an architecture test. Events additive only. Golden seeds. |
 | 7 | Death feels arbitrary | Death needs a failed severe roll, which needs a failure or disaster, which strain and the abort rule give warning of. The report names the chain of causes. |
 | 8 | Delegation hides the game from the player | Digest lines are one click from full detail. Salience promotes anything touching crew the player has invested in. |
-| 9 | Expression language grows into a programming language | Keep it to boolean and arithmetic expressions over the quality view, with no loops or assignment. New capability comes from new quality functions, not new syntax. |
+| 9 | Expression language grows into a programming language | Keep it to boolean and arithmetic expressions over the state view, with no loops or assignment. New capability comes from new quality functions, not new syntax. |
 | 10 | Save compatibility over years | State tables migrate normally. Events are never replayed to load. Content version pinned per legacy. |

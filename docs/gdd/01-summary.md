@@ -21,7 +21,7 @@ None of these is the game by itself. Developing juniors is one consideration amo
 | Stack | C# backend, Postgres (SQLite locally), Datastar front end |
 | Resolver | Step-wise, resumable, seeded, serialisable |
 | State | Current-state tables plus append-only event log |
-| Qualities | Typed model behind a read-only quality view |
+| Qualities | Typed model behind a read-only state view |
 | Scale | Every crew member simulated identically, up to roughly 500 |
 | Permanence | Permadeath, single autosave, no game over |
 | Online | Isolated legacies per player; shared universe later |
