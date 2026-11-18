@@ -5,7 +5,8 @@ namespace Web.Bridge;
 // Everything a bridge screen is drawn from. Ids, numbers, and enum names only: no seeds, no stream states.
 public sealed record BridgeView(TopBarView TopBar, IReadOnlyList<CrewRow> Roster, SiteView? Site, BriefingView? Briefing, MissionView? Mission, AftermathView? Aftermath, ItineraryView? Itinerary = null);
 
-public sealed record TopBarView(string LegacyName, int Week, int Cycle, CyclePhase Phase, string? PackWarning);
+// Dev: drawn for Dev Play, so ids and links to the content editor show; never set outside developer mode.
+public sealed record TopBarView(string LegacyName, int Week, int Cycle, CyclePhase Phase, string? PackWarning, bool Dev = false);
 
 // Traits (1e part three): a chip for each shown trait, for the roster's interim cell; the crew file (1e part five) replaces it.
 public sealed record CrewRow(string Id, int Seniority, string Status, bool Fit, IReadOnlyList<SkillCell> Skills, IReadOnlyList<int> LightInjuryHealWeeks, int? ReturnsAtWeek, int Loyalty, int AwayMissions, bool IsAway = false, bool IsLead = false, string? Name = null, bool Disambiguate = false, string Morale = "Steady", IReadOnlyList<string>? Traits = null)
@@ -37,7 +38,13 @@ public sealed record BriefingView(IReadOnlyList<ObjectiveView> Objectives, IRead
     public IReadOnlyList<BriefingChip> Chips { get; init; } = [];
 
     public IReadOnlyList<LaunchRow> Launch { get; init; } = [];
+
+    // The last cycle's picks, made again where they still can be; null when the last cycle sent nobody.
+    public BriefingPicks? Picks { get; init; }
 }
+
+// Crew: those still fit to go. Lead: null when the last lead is not among them. Gear: still in the content, up to the loadout limit.
+public sealed record BriefingPicks(IReadOnlyList<string> Crew, string? Lead, IReadOnlyList<string> Gear, int Priority, int Autonomy);
 
 // A trait's briefing line beside its holder, shown while they are picked (and, for a pair, while the target is too).
 public sealed record BriefingChip(string HolderId, string? TargetId, string Text);
@@ -65,8 +72,10 @@ public readonly record struct LinePart(bool IsName, string Text);
 // A stage line also carries its encounter, blocked flag, and figures as data; every other line has them null.
 // Parts is the structural line cut into names and text; Text is always their join. Prose is what the captain reads: an authored
 // line when Authored, otherwise the structural parts again. Tags are the figures the beat changed.
-public sealed record LogLine(int Index, string Kind, string Text, string? EncounterId = null, bool? CommsBlocked = null, int? Momentum = null, int? Strain = null, IReadOnlyList<LinePart>? Parts = null, string? EncounterName = null, IReadOnlyList<LinePart>? Prose = null, IReadOnlyList<string>? Tags = null, bool Authored = false, IReadOnlyList<ProseEntry>? Script = null)
+public sealed record LogLine(int Index, string Kind, string Text, string? EncounterId = null, bool? CommsBlocked = null, int? Momentum = null, int? Strain = null, IReadOnlyList<LinePart>? Parts = null, string? EncounterName = null, IReadOnlyList<LinePart>? Prose = null, IReadOnlyList<string>? Tags = null, bool Authored = false, IReadOnlyList<ProseEntry>? Script = null, string? Source = null)
 {
+    // Source: the content editor's page for the line that said it, when an authored line did; shown only in Dev Play.
+
     // True when the authored prose is more than one sentence of narration, so it is shown as a script: speech, notes, and narration each on a line.
     public bool IsScript => Authored && Script is not null && Script is not [{ Kind: Sim.Core.Narrative.EntryKind.Narration }];
 

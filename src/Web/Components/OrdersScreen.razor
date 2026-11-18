@@ -14,14 +14,20 @@
             <div class="tw">
                 <table class="site">
                     <thead>
-                        <tr><th scope="col">Objective</th><th scope="col" class="oid">Id</th><th scope="col">Possible skills</th><th scope="col" class="n wide">Team</th><th scope="col" class="n wide">Unattended difficulty</th></tr>
+                        <tr><th scope="col">Objective</th>@if (Bar.Dev)
+                            {
+                                <th scope="col" class="oid">Id</th>
+                            }<th scope="col">Possible skills</th><th scope="col" class="n wide">Team</th><th scope="col" class="n wide">Unattended difficulty</th></tr>
                     </thead>
                     <tbody>
                         @foreach (ObjectiveView objective in Site.Objectives)
                         {
                             <tr>
                                 <td class="who">@objective.Shown</td>
-                                <td class="oid">@objective.Id</td>
+                                @if (Bar.Dev)
+                                {
+                                    <td class="oid"><a href="@EditorLinks.Item(Sim.Content.ContentKind.Objective, objective.TemplateId)" target="_blank" rel="noopener">@objective.Id</a></td>
+                                }
                                 <td class="skills">@Figures.Items(objective.SkillsShown)</td>
                                 <td class="n wide">@objective.TeamSizeMin to @objective.TeamSizeMax</td>
                                 <td class="n wide">@objective.UnattendedDifficulty</td>

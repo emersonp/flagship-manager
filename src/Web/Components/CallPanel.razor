@@ -58,5 +58,5 @@
     // Every answer waits while any one is in flight.
     private string AnyInFlight => string.Join(" || ", Enumerable.Range(0, Call?.Options.Count ?? 0).Select(i => $"$_answer{i}"));
 
-    private string Answer => $"@post('/legacy/{LegacyId}/answer', {{contentType: 'form'}})";
+    private string Answer => $"@post('{BridgeRoutes.Action(Bar, LegacyId, "answer")}', {{contentType: 'form'}})";
 }

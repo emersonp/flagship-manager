@@ -7,7 +7,7 @@ using Web.Components;
 namespace Web.Endpoints;
 
 // Dev Play: the bridge with the developer's panel. Mapped only in developer mode, under /dev, so the one check on that prefix
-// (today the setting, one day a permission) covers it. Play itself still posts to the bridge's own routes.
+// (today the setting, one day a permission) covers it. Its pages post the bridge's actions here too, so their answers are drawn for Dev Play.
 public static class DevPlayEndpoints
 {
     public static void Map(IEndpointRouteBuilder app)
@@ -16,6 +16,8 @@ public static class DevPlayEndpoints
         dev.MapGet("/{id}", Page);
         dev.MapGet("/{id}/panel", Panel);
         dev.MapPost("/{id}/trait", Set);
+        // The bridge's own actions, answered for Dev Play.
+        BridgeEndpoints.MapActions(dev, dev: true);
     }
 
     private static async Task<IResult> Page(string id, HttpContext http, GameServices game, LegacySession sessions, Render render, CancellationToken cancellation)
@@ -30,7 +32,7 @@ public static class DevPlayEndpoints
         string html = await render.Html<BridgePage>(new Dictionary<string, object?>
         {
             ["LegacyId"] = legacyId,
-            ["View"] = BridgeEndpoints.View(game, live, legacy),
+            ["View"] = BridgeEndpoints.View(game, live, legacy, true),
             ["Dev"] = DevReader.Read(legacy.State, live.Game, live.Pack, live.Names),
         });
         return Results.Content(html, "text/html; charset=utf-8");

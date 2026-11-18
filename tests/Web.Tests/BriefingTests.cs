@@ -119,7 +119,7 @@ public sealed class BriefingTests : IDisposable
     }
 
     [Fact]
-    public async Task Orders_and_briefing_give_the_objectives_own_id_its_own_column()
+    public async Task Orders_and_briefing_keep_the_objectives_own_id_for_dev_play()
     {
         Guid id = await NewLegacy();
         string orders = await Page(id);
@@ -128,9 +128,9 @@ public sealed class BriefingTests : IDisposable
 
         foreach (string html in new[] { orders, briefing })
         {
-            Assert.Contains("<th scope=\"col\" class=\"oid\">Id</th>", html);
-            Assert.Matches("<td class=\"oid\">o_1_1</td>", html);
-            Assert.DoesNotMatch("OBJECTIVE_TEMPLATE_\\d+\\s*<span class=\"note\">o_", html);
+            Assert.DoesNotContain("class=\"oid\"", html);
+            Assert.DoesNotContain("o_1_1</", html);
+            Assert.DoesNotContain(", o_1_1, team", html);
             Assert.Contains("<th scope=\"col\" class=\"n wide\">Team</th>", html);
             Assert.Contains("<th scope=\"col\" class=\"n wide\">Unattended difficulty</th>", html);
             Assert.Matches("<td class=\"skills\"><span class=\"nw\">SKILL_", html);
@@ -232,6 +232,70 @@ public sealed class BriefingTests : IDisposable
 
         AssertRefusal(stream, reason);
         Assert.Equal(before, Snapshot(id));
+    }
+
+    // The next briefing picks the last team, lead, gear, and parameters again, less anyone no longer fit to go.
+    [Fact]
+    public async Task The_next_briefing_picks_the_last_cycles_team_again()
+    {
+        using var played = new TestApp(noCalls: true);
+        HttpClient playing = played.NewClient();
+        Guid id = await played.CreateAtOrders("LEGACY_ONE", 3);
+        var captain = new WebCaptain(played, playing, id);
+        int firstCycle = (await captain.Read()).State.Cycle;
+        for (int step = 0; step < 100; step++)
+        {
+            LegacyState state = (await captain.Read()).State;
+            if (state.Phase == CyclePhase.Briefing && state.Cycle > firstCycle)
+            {
+                break;
+            }
+
+            await captain.Step();
+        }
+
+        Assert.Equal(CyclePhase.Briefing, (await captain.Read()).State.Phase);
+        TeamAssigned last = played.Game.Store.ReadEvents(id).Where(e => e.Type == "TeamAssigned").Select(played.Live.Game.Events.FromEnvelope).OfType<TeamAssigned>().Single();
+        string html = WebUtility.HtmlDecode(await playing.GetStringAsync($"/legacy/{id}"));
+
+        Assert.Contains("The last mission's team, gear, and parameters are picked again", html);
+        MatchCollection boxes = Regex.Matches(html, "name=\"crew\" value=\"([^\"]+)\" aria-label=\"[^\"]+\"( disabled)?( checked)?");
+        Assert.Equal(8, boxes.Count);
+        foreach (Match box in boxes)
+        {
+            bool fit = !box.Groups[2].Success;
+            Assert.Equal(fit && last.CrewIds.Contains(box.Groups[1].Value), box.Groups[3].Success);
+        }
+
+        List<string> picked = boxes.Where(b => b.Groups[3].Success).Select(b => b.Groups[1].Value).ToList();
+        Assert.NotEmpty(picked);
+        Assert.Contains($"data-signals:_picked=\"{picked.Count}\"", html);
+        // The ids between spaces, in any order: the page only asks whether one is there.
+        string signal = Regex.Match(html, "data-signals:_team=\"'( [^']*)'\"").Groups[1].Value;
+        Assert.EndsWith(" ", signal);
+        Assert.Equal(picked.Order(), signal.Split(' ', StringSplitOptions.RemoveEmptyEntries).Order());
+        if (picked.Contains(last.LeadId))
+        {
+            Assert.Matches($"name=\"lead\" value=\"{last.LeadId}\" aria-label=\"[^\"]+\" checked", html);
+        }
+
+        Assert.Contains($"name=\"priority\" value=\"{last.Parameters.Priority}\" checked", html);
+        Assert.Contains($"name=\"autonomy\" value=\"{last.Parameters.Autonomy}\" checked", html);
+        foreach (string gear in last.GearIds)
+        {
+            Assert.Contains($"name=\"gear\" value=\"{gear}\" checked", html);
+        }
+    }
+
+    [Fact]
+    public async Task The_first_briefing_picks_nothing_and_leaves_the_parameters_balanced()
+    {
+        string html = WebUtility.HtmlDecode(await Page(await NewBriefing()));
+
+        Assert.Contains("Choose one objective, an away team, and gear.", html);
+        Assert.DoesNotMatch("name=\"(crew|lead|gear)\"[^>]* checked", html);
+        Assert.Contains("data-signals:_picked=\"0\" data-signals:_team=\"' '\"", html);
+        Assert.Contains("name=\"priority\" value=\"0\" checked", html);
     }
 
     // Risk tolerance is gone (approaches plan, Task 4): the briefing does not ask for it.

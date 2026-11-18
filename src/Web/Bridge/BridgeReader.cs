@@ -19,7 +19,8 @@ public static class BridgeReader
     }
 
     // The names are the snapshot's own, so a page never mixes one pack's tables with another's names.
-    public static BridgeView Read(LegacyRecord record, ContentPack pack, IReadOnlyList<IEvent> cycleEvents, Names names)
+    // lastTeam: the team the last cycle sent, which the briefing picks again; null when it sent nobody.
+    public static BridgeView Read(LegacyRecord record, ContentPack pack, IReadOnlyList<IEvent> cycleEvents, Names names, TeamAssigned? lastTeam = null)
     {
         LegacyState state = record.State;
         IReadOnlyList<CrewRow> roster = Roster(state, pack, names);
@@ -39,13 +40,13 @@ public static class BridgeReader
         Prose? prose = inFlight is not null && (showMission || showAftermath)
             ? new Prose(pack, names, state.Seed, inFlight, beats, StartLead(inFlight, site!.Briefing, cycleEvents) ?? inFlight.State.LeadId)
             : null;
-        MissionView? mission = showMission ? Mission(inFlight!, site!.Briefing, cycleEvents, names, beats, prose!) : null;
+        MissionView? mission = showMission ? Mission(pack, inFlight!, site!.Briefing, cycleEvents, names, beats, prose!) : null;
         return new BridgeView(
             TopBar(record, pack),
             // Only while the mission plays: the aftermath names the team in its head instead.
             mission is null || phase != CyclePhase.Resolution ? roster : MarkAway(roster, mission.Team, mission.LeadId),
             showSite ? new SiteView(site!.AssignmentId, objectives, names.Assignment(site.AssignmentId)) : null,
-            showBriefing ? Briefing(state, pack, names, site!, objectives, roster) : null,
+            showBriefing ? Briefing(state, pack, names, site!, objectives, roster, lastTeam) : null,
             mission,
             showAftermath ? Aftermath(site, state, pack, cycleEvents, names) with { Report = prose is null ? null : Report.Build(beats, prose.Log(_ => []), names) } : null,
             itinerary);
@@ -146,7 +147,7 @@ public static class BridgeReader
             template is null);
     }
 
-    private static BriefingView Briefing(LegacyState state, ContentPack pack, Names names, SiteState site, IReadOnlyList<ObjectiveView> objectives, IReadOnlyList<CrewRow> roster)
+    private static BriefingView Briefing(LegacyState state, ContentPack pack, Names names, SiteState site, IReadOnlyList<ObjectiveView> objectives, IReadOnlyList<CrewRow> roster, TeamAssigned? lastTeam)
     {
         AssignmentDef? assignment = pack.Assignments.FirstOrDefault(a => a.Id == site.AssignmentId);
         List<CrewRow> living = roster.Where(c => c.Status != nameof(CrewStatus.Dead)).ToList();
@@ -167,15 +168,25 @@ public static class BridgeReader
             .Where(TraitWords.Costs)
             .Select(rule => new LaunchRow(rule.HolderId, rule.TargetId, rule.When, LaunchText(pack, names, rule)))
             .ToList();
+        int limit = assignment?.LoadoutLimit ?? 0;
         return new BriefingView(
             objectives,
             MarkShared(living),
             MarkShared(pack.Gear.Select(g => new GearChoice(g.Id, g.Tag, names.Gear(g.Id))).ToList()),
-            assignment?.LoadoutLimit ?? 0)
+            limit)
         {
             Chips = chips,
             Launch = launch,
+            Picks = lastTeam is null ? null : Picks(lastTeam, living, pack, limit),
         };
+    }
+
+    // The last team again, less anyone no longer fit to go and any gear no longer in the content or over this site's limit.
+    private static BriefingPicks Picks(TeamAssigned last, IReadOnlyList<CrewRow> living, ContentPack pack, int limit)
+    {
+        List<string> crew = last.CrewIds.Where(id => living.Any(c => c.Id == id && c.Fit)).ToList();
+        List<string> gear = last.GearIds.Where(id => pack.Gear.Any(g => g.Id == id)).Take(limit).ToList();
+        return new BriefingPicks(crew, crew.Contains(last.LeadId) ? last.LeadId : null, gear, last.Parameters.Priority, last.Parameters.Autonomy);
     }
 
     // "CREW_01 sent, Stood down: ...", "CREW_01 left behind, ...", "CREW_01 and CREW_03 together, Avoids: ...".
@@ -190,10 +201,10 @@ public static class BridgeReader
         return $"{who}, {names.Trait(rule.Trait)}: {TraitWords.Effects(pack, names, rule, names.Crew)}";
     }
 
-    private static MissionView Mission(MissionInFlight mission, Briefing? briefing, IReadOnlyList<IEvent> cycleEvents, Names names, List<MissionBeat> beats, Prose prose)
+    private static MissionView Mission(ContentPack pack, MissionInFlight mission, Briefing? briefing, IReadOnlyList<IEvent> cycleEvents, Names names, List<MissionBeat> beats, Prose prose)
     {
         MissionState state = mission.State;
-        List<LogLine> log = Lines(beats, names, prose);
+        List<LogLine> log = Lines(pack, beats, names, prose);
         CallView? call = null;
         if (state.Pending is { } pending)
         {
@@ -225,7 +236,7 @@ public static class BridgeReader
 
     // The log's stage beats are numbered from 1 in order; the beat's own cursor also counts skipped slots. Each line carries its
     // prose and tags beside the structural text, which stays the line's detail.
-    private static List<LogLine> Lines(IReadOnlyList<MissionBeat> beats, Names names, Prose prose)
+    private static List<LogLine> Lines(ContentPack pack, IReadOnlyList<MissionBeat> beats, Names names, Prose prose)
     {
         int stage = 0;
         var lines = new List<LogLine>();
@@ -236,7 +247,7 @@ public static class BridgeReader
         }
 
         IReadOnlyList<BeatProse> texts = prose.Log(i => lines[i].Segments);
-        return lines.Select((line, i) => line with { Prose = texts[i].Parts, Tags = BeatLines.Tags(beats[i].Beat, names), Authored = texts[i].Authored, Script = texts[i].Entries }).ToList();
+        return lines.Select((line, i) => line with { Prose = texts[i].Parts, Tags = BeatLines.Tags(beats[i].Beat, names), Authored = texts[i].Authored, Script = texts[i].Entries, Source = EditorLinks.Line(pack, texts[i].LineId) }).ToList();
     }
 
     // The lead the team was sent with: a later lead change is in the log, not here.

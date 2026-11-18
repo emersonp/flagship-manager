@@ -20,6 +20,10 @@ A starship captain management sim, played in the browser, with a headless simula
 
 A `starship-sim.db` from an earlier build is refused at start with a message; delete it to start fresh.
 
+- A legacy is deleted from the legacies page: Delete, then "Yes, delete". It cannot be undone.
+- Each briefing picks the last cycle's team, lead, gear, and parameters again, less anyone no longer fit to go.
+- In developer mode, Dev Play (on the legacies page) is the bridge with the developer's panel. It also shows each objective's id, and links into the content editor: each objective to its template, each encounter on the route, each authored log line to where it is written, and each storylet and vignette to its file. Dev Play's pages post to `/dev/legacy/...`, so the route alone decides what is drawn for it; normal play is never sent any of it.
+
 ## Edit the content
 
 `./run.sh` turns developer mode on, which adds a content editor at `/dev/content` (`http://127.0.0.1:5080/dev/content` by default). Developer mode is off unless a run turns it on, and with it off the editor does not exist.

@@ -75,6 +75,15 @@ public sealed class LegacySession(GameServices services)
         return id;
     }
 
+    // Deletes under the legacy's lock, so no request is half-way through it, and leaves no lock behind. False when there was none.
+    public async Task<bool> DeleteLegacy(Guid legacyId, CancellationToken cancellation = default)
+    {
+        using Held held = await Hold(legacyId, cancellation);
+        bool deleted = services.Store.Delete(legacyId);
+        held.Forget();
+        return deleted;
+    }
+
     // Loads under the held lock; a legacy that does not exist leaves no lock behind.
     private LoadedLegacy? Load(LivePack live, Held held)
     {

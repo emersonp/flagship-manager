@@ -137,4 +137,43 @@ public sealed class LegaciesTests : IDisposable
             Assert.DoesNotContain("<script>x</script>", html);
         }
     }
+
+    [Fact]
+    public async Task Each_legacy_has_a_delete_that_asks_first_and_deleting_removes_it_whole()
+    {
+        HttpClient client = app.NewClient();
+        Guid kept = await app.Sessions.CreateLegacy(app.Live, "LEGACY_KEPT", 1);
+        Guid gone = await app.Sessions.CreateLegacy(app.Live, "LEGACY_GONE", 2);
+
+        string list = await client.GetStringAsync("/");
+        HttpResponseMessage deleted = await client.PostAsync($"/legacies/{gone}/delete", null);
+        string after = await client.GetStringAsync("/");
+
+        Assert.Contains($"<form method=\"post\" action=\"/legacies/{gone}/delete\"", list);
+        Assert.Contains("Delete LEGACY_GONE for good?", list);
+        Assert.Equal(HttpStatusCode.SeeOther, deleted.StatusCode);
+        Assert.Equal("/", deleted.Headers.Location!.ToString());
+        Assert.DoesNotContain("LEGACY_GONE", after);
+        Assert.Contains("LEGACY_KEPT", after);
+        Assert.Null(app.Game.Store.Load(gone, app.Live.Game.ModuleTypes));
+        Assert.Empty(app.Game.Store.ReadEvents(gone));
+        Assert.NotEmpty(app.Game.Store.ReadEvents(kept));
+        Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync($"/legacy/{gone}")).StatusCode);
+        // The kept legacy's lock stays; the deleted one's is gone.
+        Assert.Equal(1, app.Sessions.LockCount);
+    }
+
+    [Theory]
+    [InlineData("not-a-guid")]
+    [InlineData("3f2504e0-4f89-11d3-9a0c-0305e82c3301")]
+    public async Task Deleting_a_legacy_that_is_not_there_goes_back_to_the_list(string id)
+    {
+        Guid kept = await app.Sessions.CreateLegacy(app.Live, "LEGACY_KEPT", 1);
+
+        HttpResponseMessage response = await app.NewClient().PostAsync($"/legacies/{id}/delete", null);
+
+        Assert.Equal(HttpStatusCode.SeeOther, response.StatusCode);
+        Assert.Equal("/", response.Headers.Location!.ToString());
+        Assert.Single(app.Game.Store.ListLegacies(), l => l.LegacyId == kept);
+    }
 }

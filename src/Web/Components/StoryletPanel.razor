@@ -2,6 +2,10 @@
 <article class="storylet" aria-labelledby="@Head">
     <div class="storylet__head">
         <h3 id="@Head">@Title</h3>
+        @if (Bar.Dev)
+        {
+            <a class="dev-edit" href="@EditorLinks.File("storylets")" target="_blank" rel="noopener">Edit storylets</a>
+        }
         @if (Waiting?.About is { } about)
         {
             <p class="note">@about</p>
@@ -67,5 +71,5 @@
     // Datastar writes a true value as an empty attribute, so the in-flight style gets the string "true".
     private string Busy(int option) => $"${Signal(option)} ? 'true' : false";
 
-    private string Post => $"@post('/legacy/{LegacyId}/storylet', {{contentType: 'form'}})";
+    private string Post => $"@post('{BridgeRoutes.Action(Bar, LegacyId, "storylet")}', {{contentType: 'form'}})";
 }

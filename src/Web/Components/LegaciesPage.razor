@@ -20,10 +20,13 @@
                     else
                     {
                         <ol class="legacy-list">
-                            @foreach (LegacyListing legacy in Legacies)
+                            @for (int i = 0; i < Legacies.Count; i++)
                             {
+                                LegacyListing legacy = Legacies[i];
                                 string head = $"legacy-{legacy.LegacyId:N}";
-                                <li class="legacy">
+                                string confirm = $"_confirm{i}";
+                                string opener = $"delete-open-{legacy.LegacyId:N}";
+                                <li class="legacy" @attributes="Hidden(confirm)">
                                     <div class="legacy__id">
                                         <h3 class="legacy__name" id="@head">@legacy.Name</h3>
                                         <dl class="legacy__facts">
@@ -38,7 +41,14 @@
                                         {
                                             <a class="btn btn--dev" href="/dev/legacy/@legacy.LegacyId" aria-describedby="@head">Dev Play</a>
                                         }
+                                        <button class="btn" type="button" id="@opener" aria-describedby="@head" aria-controls="@($"delete-confirm-{legacy.LegacyId:N}")" data-attr:aria-expanded="@($"${confirm} ? 'true' : 'false'")" data-on:click="@($"${confirm} = !${confirm}")">Delete</button>
                                     </div>
+                                    @* A plain post, so the list comes back without the legacy; the second button is the one that deletes. *@
+                                    <form method="post" action="/legacies/@legacy.LegacyId/delete" id="@($"delete-confirm-{legacy.LegacyId:N}")" class="legacy__delete" data-show="@($"${confirm}")" style="display: none">
+                                        <p class="note">Delete @legacy.Name for good? Its whole career goes, and this cannot be undone.</p>
+                                        <button class="btn btn--harm" type="submit">Yes, delete</button>
+                                        <button class="btn" type="button" data-on:click="@($"${confirm} = false; document.getElementById('{opener}').focus()")">Keep it</button>
+                                    </form>
                                 </li>
                             }
                         </ol>
@@ -73,4 +83,7 @@
     [Parameter] public string? Name { get; set; }
 
     [Parameter] public string? Error { get; set; }
+
+    // The local signal that shows a legacy's delete confirmation, starting hidden.
+    private static Dictionary<string, object> Hidden(string signal) => new() { [$"data-signals:{signal}"] = "false" };
 }

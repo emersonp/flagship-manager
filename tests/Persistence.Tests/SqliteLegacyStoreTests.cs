@@ -735,4 +735,28 @@ public sealed class SqliteLegacyStoreTests : IDisposable
 
         Assert.All(stateProperties, name => Assert.Contains(name, carried));
     }
+
+    [Fact]
+    public void Delete_removes_the_legacy_its_modules_and_its_events_and_leaves_the_others()
+    {
+        SqliteLegacyStore store = NewStore();
+        Guid gone = Guid.NewGuid();
+        Guid kept = Guid.NewGuid();
+        LegacyRecord record = NewRecord(gone);
+        record.State.Module<FuelState>("fuel").Units = 3;
+        store.Create(record, []);
+        store.Create(NewRecord(kept), []);
+        LegacyRecord loaded = store.Load(gone, ModuleTypes)!;
+        store.Commit(loaded.State, [new EventEnvelope(1, 0, "Probe", 1, "{}")], 1);
+
+        Assert.True(store.Delete(gone));
+
+        Assert.Null(store.Load(gone, ModuleTypes));
+        Assert.Empty(store.ReadEvents(gone));
+        Assert.Equal([kept], store.ListLegacies().Select(l => l.LegacyId));
+        Assert.False(store.Delete(gone));
+        // Its id is free again, module rows and all.
+        store.Create(NewRecord(gone), []);
+        Assert.Equal(0, store.Load(gone, ModuleTypes)!.State.Module<FuelState>("fuel").Units);
+    }
 }

@@ -19,13 +19,23 @@ public static class BridgeEndpoints
     public static void Map(IEndpointRouteBuilder app)
     {
         app.MapGet("/legacy/{id}", Page);
-        app.MapPost("/legacy/{id}/advance", Advance);
-        app.MapPost("/legacy/{id}/launch", Launch);
-        app.MapPost("/legacy/{id}/answer", Answer);
-        app.MapPost("/legacy/{id}/storylet", (string id, HttpContext http, GameServices game, LegacySession sessions, Render render, CancellationToken cancellation)
-            => AnswerItinerary(id, http, game, sessions, render, (offer, option) => new AnswerStorylet(offer, option), cancellation));
-        app.MapPost("/legacy/{id}/vignette", (string id, HttpContext http, GameServices game, LegacySession sessions, Render render, CancellationToken cancellation)
-            => AnswerItinerary(id, http, game, sessions, render, (offer, option) => new AnswerVignette(offer, option), cancellation));
+        MapActions(app.MapGroup("/legacy"), dev: false);
+    }
+
+    // The bridge's actions under a prefix: /legacy for play, and /dev/legacy for Dev Play, which is mapped only in developer mode.
+    // The route alone says whether the answer is drawn for Dev Play; nothing the browser sends can ask for it.
+    internal static void MapActions(RouteGroupBuilder group, bool dev)
+    {
+        group.MapPost("/{id}/advance", (string id, HttpContext http, GameServices game, LegacySession sessions, Render render, CancellationToken cancellation)
+            => Advance(id, http, game, sessions, render, dev, cancellation));
+        group.MapPost("/{id}/launch", (string id, HttpContext http, GameServices game, LegacySession sessions, Render render, IOptions<WebSettings> settings, CancellationToken cancellation)
+            => Launch(id, http, game, sessions, render, settings, dev, cancellation));
+        group.MapPost("/{id}/answer", (string id, HttpContext http, GameServices game, LegacySession sessions, Render render, IOptions<WebSettings> settings, CancellationToken cancellation)
+            => Answer(id, http, game, sessions, render, settings, dev, cancellation));
+        group.MapPost("/{id}/storylet", (string id, HttpContext http, GameServices game, LegacySession sessions, Render render, CancellationToken cancellation)
+            => AnswerItinerary(id, http, game, sessions, render, (offer, option) => new AnswerStorylet(offer, option), dev, cancellation));
+        group.MapPost("/{id}/vignette", (string id, HttpContext http, GameServices game, LegacySession sessions, Render render, CancellationToken cancellation)
+            => AnswerItinerary(id, http, game, sessions, render, (offer, option) => new AnswerVignette(offer, option), dev, cancellation));
     }
 
     private static async Task<IResult> Page(string id, HttpContext http, GameServices game, LegacySession sessions, Render render, CancellationToken cancellation)
@@ -37,17 +47,17 @@ public static class BridgeEndpoints
             return await NotFound(render, http);
         }
 
-        string html = await render.Html<BridgePage>(new Dictionary<string, object?> { ["LegacyId"] = legacyId, ["View"] = View(game, live, legacy) });
+        string html = await render.Html<BridgePage>(new Dictionary<string, object?> { ["LegacyId"] = legacyId, ["View"] = View(game, live, legacy, false) });
         return Results.Content(html, "text/html; charset=utf-8");
     }
 
-    private static async Task<IResult> Advance(string id, HttpContext http, GameServices game, LegacySession sessions, Render render, CancellationToken cancellation)
+    private static async Task<IResult> Advance(string id, HttpContext http, GameServices game, LegacySession sessions, Render render, bool dev, CancellationToken cancellation)
     {
         Stamp? stamp = StampOf(await ReadForm(http.Request, cancellation));
         LivePack live = RequestPack.Of(http);
-        return await Send(id, http, game, live, sessions, render, legacy =>
+        return await Send(id, http, game, live, sessions, render, dev, legacy =>
         {
-            Check(stamp, game, live, legacy);
+            Check(stamp, dev, game, live, legacy);
             // Aftermath goes on through the advance phase, so one request starts the next cycle.
             bool fromAftermath = legacy.State.Phase == CyclePhase.Aftermath;
             try
@@ -65,15 +75,15 @@ public static class BridgeEndpoints
         }, cancellation);
     }
 
-    private static async Task<IResult> Launch(string id, HttpContext http, GameServices game, LegacySession sessions, Render render, IOptions<WebSettings> settings, CancellationToken cancellation)
+    private static async Task<IResult> Launch(string id, HttpContext http, GameServices game, LegacySession sessions, Render render, IOptions<WebSettings> settings, bool dev, CancellationToken cancellation)
     {
         IFormCollection? form = await ReadForm(http.Request, cancellation);
         Stamp? stamp = StampOf(form);
         AssignTeam? team = Bind(form);
         LivePack live = RequestPack.Of(http);
-        return await SendPaced<Refusal>(id, http, game, live, sessions, render, settings.Value.BeatDelayMs, legacy =>
+        return await SendPaced<Refusal>(id, http, game, live, sessions, render, settings.Value.BeatDelayMs, dev, legacy =>
         {
-            Check(stamp, game, live, legacy);
+            Check(stamp, dev, game, live, legacy);
             if (team is null)
             {
                 throw new CommandRejectedException(Incomplete);
@@ -84,15 +94,15 @@ public static class BridgeEndpoints
         }, cancellation);
     }
 
-    private static async Task<IResult> Answer(string id, HttpContext http, GameServices game, LegacySession sessions, Render render, IOptions<WebSettings> settings, CancellationToken cancellation)
+    private static async Task<IResult> Answer(string id, HttpContext http, GameServices game, LegacySession sessions, Render render, IOptions<WebSettings> settings, bool dev, CancellationToken cancellation)
     {
         IFormCollection? form = await ReadForm(http.Request, cancellation);
         Stamp? stamp = StampOf(form);
         AnswerCall? answer = BindAnswer(form);
         LivePack live = RequestPack.Of(http);
-        return await SendPaced<CallRefusal>(id, http, game, live, sessions, render, settings.Value.BeatDelayMs, legacy =>
+        return await SendPaced<CallRefusal>(id, http, game, live, sessions, render, settings.Value.BeatDelayMs, dev, legacy =>
         {
-            Check(stamp, game, live, legacy);
+            Check(stamp, dev, game, live, legacy);
             if (answer is null)
             {
                 throw new CommandRejectedException(Incomplete);
@@ -104,7 +114,7 @@ public static class BridgeEndpoints
 
     // A storylet's or a vignette's answer. Any refusal redraws the page from the stored state, with the reason beside the
     // itinerary's panels when they are on screen, else in the bar.
-    private static async Task<IResult> AnswerItinerary(string id, HttpContext http, GameServices game, LegacySession sessions, Render render, Func<string, string, ICommand> command, CancellationToken cancellation)
+    private static async Task<IResult> AnswerItinerary(string id, HttpContext http, GameServices game, LegacySession sessions, Render render, Func<string, string, ICommand> command, bool dev, CancellationToken cancellation)
     {
         IFormCollection? form = await ReadForm(http.Request, cancellation);
         Stamp? stamp = StampOf(form);
@@ -121,14 +131,14 @@ public static class BridgeEndpoints
         {
             view = await sessions.Run(live, legacyId, legacy =>
             {
-                Check(stamp, game, live, legacy);
+                Check(stamp, dev, game, live, legacy);
                 if (string.IsNullOrEmpty(offer) || string.IsNullOrEmpty(option))
                 {
                     throw new CommandRejectedException(Incomplete);
                 }
 
                 legacy.Send(command(offer, option));
-                return View(game, live, legacy);
+                return View(game, live, legacy, dev);
             }, cancellation);
         }
         catch (StalePageException stale)
@@ -142,7 +152,7 @@ public static class BridgeEndpoints
                 return await NotFound(render, http);
             }
 
-            BridgeView corrected = View(game, live, current);
+            BridgeView corrected = View(game, live, current, dev);
             bool shown = corrected.Itinerary is { IsEmpty: false };
             return await Patches(render, legacyId, corrected, shown ? null : rejected.Message, storyletReason: shown ? rejected.Message : null, status: RefusedStatus(http));
         }
@@ -159,7 +169,7 @@ public static class BridgeEndpoints
 
     // Commits first, then plays this request's new beats one at a time; the view before the commit rides along so the
     // opening patches and the held-back parts do not give the result away.
-    private static async Task<IResult> SendPaced<TRefusal>(string id, HttpContext http, GameServices game, LivePack live, LegacySession sessions, Render render, int beatDelayMs, Action<LoadedLegacy> commands, CancellationToken cancellation)
+    private static async Task<IResult> SendPaced<TRefusal>(string id, HttpContext http, GameServices game, LivePack live, LegacySession sessions, Render render, int beatDelayMs, bool dev, Action<LoadedLegacy> commands, CancellationToken cancellation)
         where TRefusal : IComponent
     {
         if (!Guid.TryParse(id, out Guid legacyId))
@@ -172,9 +182,9 @@ public static class BridgeEndpoints
         {
             turn = await sessions.Run(live, legacyId, legacy =>
             {
-                BridgeView before = View(game, live, legacy);
+                BridgeView before = View(game, live, legacy, dev);
                 commands(legacy);
-                return new Turn(before, View(game, live, legacy));
+                return new Turn(before, View(game, live, legacy, dev));
             }, cancellation);
         }
         catch (StalePageException stale)
@@ -187,7 +197,7 @@ public static class BridgeEndpoints
             // waiting call's panel or, with none waiting, in the bar, so the page never stays on a dead call.
             if (typeof(TRefusal) == typeof(CallRefusal) && await sessions.Read(live, legacyId, cancellation) is { } current)
             {
-                BridgeView corrected = View(game, live, current);
+                BridgeView corrected = View(game, live, current, dev);
                 return corrected.Mission?.Call is null
                     ? await Patches(render, legacyId, corrected, rejected.Message)
                     : await Patches(render, legacyId, corrected, null, rejected.Message);
@@ -225,10 +235,10 @@ public static class BridgeEndpoints
         for (int count = known + 1; mission is not null && count <= mission.Log.Count; count++)
         {
             List<LogLine> shown = mission.Log.Take(count).ToList();
-            var patches = new List<string> { await render.Html<MissionLog>(new Dictionary<string, object?> { ["Lines"] = shown }) };
+            var patches = new List<string> { await render.Html<MissionLog>(new Dictionary<string, object?> { ["Lines"] = shown, ["Dev"] = dev }) };
             if (shown[^1] is { Kind: "stage" } stage)
             {
-                patches.Add(await render.Html<StageRoute>(new Dictionary<string, object?> { ["Lines"] = shown }));
+                patches.Add(await render.Html<StageRoute>(new Dictionary<string, object?> { ["Lines"] = shown, ["Dev"] = dev }));
                 if (!launching && stage is { Momentum: int momentum, Strain: int strain })
                 {
                     patches.Add(await render.Html<Meter>(new Dictionary<string, object?> { ["Mission"] = mission with { Momentum = momentum, Strain = strain } }));
@@ -239,7 +249,7 @@ public static class BridgeEndpoints
         }
 
         // Once the result line has been shown, the route no longer has a current stage.
-        string? endedRoute = mission?.Outcome is null ? null : await render.Html<StageRoute>(new Dictionary<string, object?> { ["Lines"] = mission.Log, ["Ended"] = true });
+        string? endedRoute = mission?.Outcome is null ? null : await render.Html<StageRoute>(new Dictionary<string, object?> { ["Lines"] = mission.Log, ["Ended"] = true, ["Dev"] = dev });
         string meter = await render.Html<Meter>(new Dictionary<string, object?> { ["Mission"] = mission });
         string call = await render.Html<CallPanel>(new Dictionary<string, object?> { ["LegacyId"] = legacyId, ["Bar"] = after.TopBar, ["MissionId"] = mission?.MissionId ?? "", ["Call"] = mission?.Call });
         string footer = await render.Html<ResolutionFooter>(new Dictionary<string, object?> { ["LegacyId"] = legacyId, ["Bar"] = after.TopBar, ["Show"] = mission is null || mission.Outcome is not null });
@@ -319,7 +329,7 @@ public static class BridgeEndpoints
     }
 
     // Commits the commands in one run, then answers with the three patches or, on a rejection, the refusal alone.
-    private static async Task<IResult> Send(string id, HttpContext http, GameServices game, LivePack live, LegacySession sessions, Render render, Action<LoadedLegacy> commands, CancellationToken cancellation)
+    private static async Task<IResult> Send(string id, HttpContext http, GameServices game, LivePack live, LegacySession sessions, Render render, bool dev, Action<LoadedLegacy> commands, CancellationToken cancellation)
     {
         if (!Guid.TryParse(id, out Guid legacyId))
         {
@@ -332,7 +342,7 @@ public static class BridgeEndpoints
             view = await sessions.Run(live, legacyId, legacy =>
             {
                 commands(legacy);
-                return View(game, live, legacy);
+                return View(game, live, legacy, dev);
             }, cancellation);
         }
         catch (StalePageException stale)
@@ -392,7 +402,7 @@ public static class BridgeEndpoints
     }
 
     // At the edge, inside the lock and before any command: a page drawn in another cycle or phase sends nothing.
-    private static void Check(Stamp? stamp, GameServices game, LivePack live, LoadedLegacy legacy)
+    private static void Check(Stamp? stamp, bool dev, GameServices game, LivePack live, LoadedLegacy legacy)
     {
         if (stamp is null)
         {
@@ -401,7 +411,7 @@ public static class BridgeEndpoints
 
         if (stamp.Cycle != legacy.State.Cycle || stamp.Phase != legacy.State.Phase)
         {
-            throw new StalePageException(View(game, live, legacy));
+            throw new StalePageException(View(game, live, legacy, dev));
         }
     }
 
@@ -455,12 +465,18 @@ public static class BridgeEndpoints
     }
 
     // This cycle's stored events plus any not yet committed, so a page built inside a run sees its own commands.
-    internal static BridgeView View(GameServices game, LivePack live, LoadedLegacy legacy)
+    // dev: drawn for Dev Play, so the screens show ids and links to the content editor.
+    internal static BridgeView View(GameServices game, LivePack live, LoadedLegacy legacy, bool dev)
     {
         int cycle = legacy.State.Cycle;
         List<IEvent> events = game.Store.ReadEvents(legacy.State.LegacyId, cycle).Select(live.Game.Events.FromEnvelope).ToList();
         events.AddRange(legacy.Envelopes.Where(e => e.Cycle == cycle).Select(live.Game.Events.FromEnvelope));
-        return BridgeReader.Read(legacy.Record, live.Pack, events, live.Names);
+        // The briefing picks the last cycle's team again; a cycle that sent nobody leaves nothing to pick.
+        TeamAssigned? last = legacy.State.Phase == CyclePhase.Briefing && cycle > 0
+            ? game.Store.ReadEvents(legacy.State.LegacyId, cycle - 1).Select(live.Game.Events.FromEnvelope).OfType<TeamAssigned>().LastOrDefault()
+            : null;
+        BridgeView view = BridgeReader.Read(legacy.Record, live.Pack, events, live.Names, last);
+        return dev ? view with { TopBar = view.TopBar with { Dev = true } } : view;
     }
 
     // A Datastar request gets the words as a patch of the main screen; a 404 page would change nothing on screen.

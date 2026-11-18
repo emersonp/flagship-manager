@@ -35,6 +35,9 @@
             else
             {
                 <span>@Body(line)</span>
+            }@if (Dev && line.Source is { } source)
+            {
+                @(" ")<a class="dev-edit" href="@source" target="_blank" rel="noopener">Edit line</a>
             }@if (newest)
             {
                 <span class="tag">Newest</span>
@@ -54,6 +57,9 @@
 
     // No mission: the well is in the page, hidden, so a later patch has somewhere to land.
     [Parameter] public bool None { get; set; }
+
+    // Dev Play: each authored line links to where it is written in the content editor.
+    [Parameter] public bool Dev { get; set; }
 
     // Newest first: each paced patch replaces the list whole, so its first line is the newest beat.
     private static string Css(LogLine line, bool newest)

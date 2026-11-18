@@ -111,6 +111,17 @@ gameRoutes.MapPost("/legacies", async Task<IResult> (HttpContext http, HttpReque
     }
 });
 
+// Back to the list either way: a legacy already gone, or an id that is none, has nothing left to delete.
+gameRoutes.MapPost("/legacies/{id}/delete", async (string id, LegacySession sessions, CancellationToken cancellation) =>
+{
+    if (Guid.TryParse(id, out Guid legacyId))
+    {
+        await sessions.DeleteLegacy(legacyId, cancellation);
+    }
+
+    return new SeeOtherResult("/");
+});
+
 BridgeEndpoints.Map(gameRoutes);
 
 if (app.Services.GetRequiredService<IOptions<WebSettings>>().Value.DeveloperMode)

@@ -1,9 +1,9 @@
 <main id="main">
     <div class="view-head">
         <h1>@(Heading ?? "Briefing")</h1>
-        <p class="note">Choose one objective, an away team, and gear.</p>
+        <p class="note">@(Briefing.Picks is null ? "Choose one objective, an away team, and gear." : "Choose one objective. The last mission's team, gear, and parameters are picked again where they still can be.")</p>
     </div>
-    <form id="briefing" data-signals:_picked="0" data-signals:_team="' '" data-signals:_min="@Initial.Min" data-signals:_max="@Initial.Max" data-signals:_skills="@InitialSkills" data-signals:_gear="0" data-indicator:_launching data-on:submit="@Launch">
+    <form id="briefing" data-signals:_picked="@PickedCrew.Count" data-signals:_team="@InitialTeam" data-signals:_min="@Initial.Min" data-signals:_max="@Initial.Max" data-signals:_skills="@InitialSkills" data-signals:_gear="@PickedGear.Count" data-indicator:_launching data-on:submit="@Launch">
         <section class="well" aria-labelledby="h-obj">
             <div class="well__head"><h2 id="h-obj">Objective</h2></div>
             <fieldset>
@@ -11,7 +11,10 @@
                 <div class="tw">
                     <table class="pick">
                         <thead>
-                            <tr><th scope="col">Objective</th><th scope="col" class="oid">Id</th><th scope="col">Possible skills</th><th scope="col" class="n wide">Team</th><th scope="col" class="n wide">Unattended difficulty</th></tr>
+                            <tr><th scope="col">Objective</th>@if (Bar.Dev)
+                            {
+                                <th scope="col" class="oid">Id</th>
+                            }<th scope="col">Possible skills</th><th scope="col" class="n wide">Team</th><th scope="col" class="n wide">Unattended difficulty</th></tr>
                         </thead>
                         <tbody>
                             @foreach (ObjectiveView objective in Briefing.Objectives)
@@ -21,16 +24,22 @@
                                     // The editor deleted its template: shown so the site's offer is complete, never launched.
                                     <tr class="is-off">
                                         <td class="lg"><span class="obj obj--gone">@objective.Shown</span><span class="note">No longer in the content</span></td>
-                                        <td class="oid">@objective.Id</td>
+                                        @if (Bar.Dev)
+                                        {
+                                            <td class="oid">@objective.Id</td>
+                                        }
                                         <td colspan="3"></td>
                                     </tr>
                                     continue;
                                 }
                                 <tr>
                                     <td class="lg">
-                                        <label class="obj" for="objective-@objective.Id"><span class="hit"><input type="radio" id="objective-@objective.Id" name="objective" value="@objective.Id" required checked="@(Launchable.Count == 1)" data-min="@objective.TeamSizeMin" data-max="@objective.TeamSizeMax" data-skills="@string.Join(' ', objective.PossibleSkills)" data-on:change="@Range"></span>@objective.Shown<span class="visually-hidden">, @objective.Id, team @objective.TeamSizeMin to @objective.TeamSizeMax</span></label>
+                                        <label class="obj" for="objective-@objective.Id"><span class="hit"><input type="radio" id="objective-@objective.Id" name="objective" value="@objective.Id" required checked="@(Launchable.Count == 1)" data-min="@objective.TeamSizeMin" data-max="@objective.TeamSizeMax" data-skills="@string.Join(' ', objective.PossibleSkills)" data-on:change="@Range"></span>@objective.Shown<span class="visually-hidden">@(Bar.Dev ? $", {objective.Id}" : ""), team @objective.TeamSizeMin to @objective.TeamSizeMax</span></label>
                                     </td>
-                                    <td class="oid">@objective.Id</td>
+                                    @if (Bar.Dev)
+                                {
+                                    <td class="oid"><a href="@EditorLinks.Item(Sim.Content.ContentKind.Objective, objective.TemplateId)" target="_blank" rel="noopener">@objective.Id</a></td>
+                                }
                                     <td class="skills">@Figures.Items(objective.SkillsShown)</td>
                                     <td class="n wide">@objective.TeamSizeMin to @objective.TeamSizeMax</td>
                                     <td class="n wide">@objective.UnattendedDifficulty</td>
@@ -77,8 +86,8 @@
                             {
                                 <td class="n" data-label="@SkillName(skill)" data-show="@Shows(skill)"><SkillLevel Row="row" Skill="@skill" /></td>
                             }
-                            <td class="c"><label class="hit"><input type="checkbox" id="crew-@row.Id" name="crew" value="@row.Id" aria-label="@Named("Team", row)" disabled="@(!row.Fit)" data-on:change="@Count"></label></td>
-                            <td class="c"><label class="hit"><input type="radio" id="lead-@row.Id" name="lead" value="@row.Id" aria-label="@Named("Lead", row)" disabled="@(!row.Fit)"></label></td>
+                            <td class="c"><label class="hit"><input type="checkbox" id="crew-@row.Id" name="crew" value="@row.Id" aria-label="@Named("Team", row)" disabled="@(!row.Fit)" checked="@PickedCrew.Contains(row.Id)" data-on:change="@Count"></label></td>
+                            <td class="c"><label class="hit"><input type="radio" id="lead-@row.Id" name="lead" value="@row.Id" aria-label="@Named("Lead", row)" disabled="@(!row.Fit)" checked="@(Briefing.Picks?.Lead == row.Id)"></label></td>
                         </tr>
                     }
                 </tbody>
@@ -92,7 +101,7 @@
                 <ul class="gear well__body">
                     @foreach (GearChoice gear in Briefing.Gear)
                     {
-                        <li><label for="gear-@gear.Id"><span class="hit"><input type="checkbox" id="gear-@gear.Id" name="gear" value="@gear.Id" data-on:change="@GearCount" data-attr:disabled="@GearFull"></span><span class="gear__id">@gear.Shown@if (gear.Disambiguate)
+                        <li><label for="gear-@gear.Id"><span class="hit"><input type="checkbox" id="gear-@gear.Id" name="gear" value="@gear.Id" checked="@PickedGear.Contains(gear.Id)" data-on:change="@GearCount" data-attr:disabled="@GearFull"></span><span class="gear__id">@gear.Shown@if (gear.Disambiguate)
                             {
                                 @(" ")<span class="quiet">@gear.Id</span>
                             }</span><span class="gear__kind">@gear.Tag</span></label></li>
@@ -111,7 +120,7 @@
                                 @for (int i = 0; i < 3; i++)
                                 {
                                     int value = i - 1;
-                                    <input type="radio" id="@name-@value" name="@name" value="@value" checked="@(value == 0)">
+                                    <input type="radio" id="@name-@value" name="@name" value="@value" checked="@(value == Picked(name))">
                                     <label for="@name-@value">@words[i]</label>
                                 }
                             </div>
@@ -214,10 +223,10 @@
     // Display only: at the loadout limit the unchecked boxes disable; the server still judges the loadout.
     private string GearFull => $"!el.checked && $_gear >= {Briefing.LoadoutLimit}";
 
-    private string Launch => $"@post('/legacy/{LegacyId}/launch', {{contentType: 'form'}})";
+    private string Launch => $"@post('{BridgeRoutes.Action(Bar, LegacyId, "launch")}', {{contentType: 'form'}})";
 
     // Sends only the small stamp form: the briefing's own fields and its checks do not apply to sending nobody.
-    private string SendNobody => $"@post('/legacy/{LegacyId}/advance', {{contentType: 'form', selector: '#send-nobody'}})";
+    private string SendNobody => $"@post('{BridgeRoutes.Action(Bar, LegacyId, "advance")}', {{contentType: 'form', selector: '#send-nobody'}})";
 
     // Both actions wait while either is in flight.
     private const string Busy = "$_launching || $_sending";
@@ -243,6 +252,16 @@
             _ => Picked(row.HolderId, row.TargetId),
         };
     }
+
+    private IReadOnlyList<string> PickedCrew => Briefing.Picks?.Crew ?? [];
+
+    private IReadOnlyList<string> PickedGear => Briefing.Picks?.Gear ?? [];
+
+    // The picked ids between spaces, as Count writes them: " CREW_01 CREW_03 ".
+    private string InitialTeam => $"' {string.Join(' ', PickedCrew)}{(PickedCrew.Count > 0 ? " " : "")}'";
+
+    // A parameter's last value; Balanced (0) with no picks.
+    private int Picked(string parameter) => parameter == "priority" ? Briefing.Picks?.Priority ?? 0 : Briefing.Picks?.Autonomy ?? 0;
 
     private string AnyLaunch => string.Join(" || ", Briefing.Launch.Select(r => $"({Fires(r)})"));
 }

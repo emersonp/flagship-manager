@@ -13,7 +13,14 @@
                 {
                     LogLine stop = Stages[i];
                     bool current = !Ended && i == Stages.Count - 1;
-                    <li class="stop" aria-current="@(current ? "step" : null)"><span class="stop__no">Stage <span class="m">@(i + 1)</span>@(current ? ", current" : "")</span><span class="stop__id">@(stop.EncounterName ?? stop.EncounterId)</span>@if (stop.CommsBlocked == true)
+                    <li class="stop" aria-current="@(current ? "step" : null)"><span class="stop__no">Stage <span class="m">@(i + 1)</span>@(current ? ", current" : "")</span><span class="stop__id">@if (Dev)
+                        {
+                            <a href="@EditorLinks.Item(Sim.Content.ContentKind.Encounter, stop.EncounterId!)" target="_blank" rel="noopener">@(stop.EncounterName ?? stop.EncounterId)</a>
+                        }
+                        else
+                        {
+                            @(stop.EncounterName ?? stop.EncounterId)
+                        }</span>@if (stop.CommsBlocked == true)
                         {
                             <span class="stop__note">Comms blocked</span>
                         }</li>
@@ -30,6 +37,9 @@
 
     // The mission has ended and the log has shown it: no stage is the current one.
     [Parameter] public bool Ended { get; set; }
+
+    // Dev Play: each stage's encounter links to its page in the content editor.
+    [Parameter] public bool Dev { get; set; }
 
     private List<LogLine> Stages => (Lines ?? []).Where(l => l.Kind == "stage" && l.EncounterId is not null).ToList();
 }

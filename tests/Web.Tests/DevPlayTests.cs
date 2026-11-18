@@ -166,4 +166,83 @@ public sealed class DevPlayTests
         Assert.Contains("<p id=\"dev-result\" class=\"error\" role=\"status\">" + reason, body);
         Assert.DoesNotContain(app.Game.Store.ReadEvents(id, 1), e => e.Type is "TraitSetByDeveloper" or "TraitChanged");
     }
+
+    // Ids and links into the editor are drawn for Dev Play alone: on its page, and on every patch that answers one of its posts.
+    [Fact]
+    public async Task Dev_play_shows_each_objectives_id_as_a_link_to_its_template_and_keeps_it_on_the_patches()
+    {
+        using var app = new TestApp(developerMode: true, scratch: true);
+        HttpClient client = app.NewClient();
+        Guid id = await app.CreateAtOrders("LEGACY_ONE", 1);
+
+        (_, string dev) = await Get(client, $"/dev/legacy/{id}");
+        (_, string play) = await Get(client, $"/legacy/{id}");
+        string devPatch = await Post(client, $"/dev/legacy/{id}/advance", new FormUrlEncodedContent(app.Stamped(id, [])));
+
+        Assert.Matches("<td class=\"oid\"><a href=\"/dev/content/objectives/OBJECTIVE_TEMPLATE_[0-9]+\" target=\"_blank\" rel=\"noopener\">o_1_1</a></td>", dev);
+        Assert.Contains($"@post('/dev/legacy/{id}/advance'", dev);
+        Assert.DoesNotContain("class=\"oid\"", play);
+        Assert.Contains($"@post('/legacy/{id}/advance'", play);
+        Assert.DoesNotContain("/dev/legacy", play);
+        // The briefing the advance answers with is still Dev Play's.
+        Assert.Matches("<td class=\"oid\"><a href=\"/dev/content/objectives/", devPatch);
+        Assert.Contains($"@post('/dev/legacy/{id}/launch'", devPatch);
+    }
+
+    [Fact]
+    public async Task Outside_developer_mode_dev_plays_actions_do_not_exist_and_plays_answers_draw_nothing_for_it()
+    {
+        using var app = new TestApp();
+        HttpClient client = app.NewClient();
+        Guid id = await app.CreateAtOrders("LEGACY_ONE", 1);
+
+        HttpResponseMessage dev = await client.PostAsync($"/dev/legacy/{id}/advance", new FormUrlEncodedContent(app.Stamped(id, [])));
+        string patch = await Post(client, $"/legacy/{id}/advance", new FormUrlEncodedContent(app.Stamped(id, [])));
+
+        Assert.Equal(HttpStatusCode.NotFound, dev.StatusCode);
+        Assert.Contains("id=\"main\"", patch);
+        Assert.DoesNotContain("class=\"oid\"", patch);
+        Assert.DoesNotContain("/dev/", patch);
+    }
+
+    // Dev Play's actions are developer pages: a post from another site is refused before it reaches the legacy.
+    [Fact]
+    public async Task Dev_plays_actions_refuse_a_post_from_another_site()
+    {
+        using var app = new TestApp(developerMode: true, scratch: true);
+        HttpClient client = app.NewClient();
+        Guid id = await app.CreateAtOrders("LEGACY_ONE", 1);
+        var request = new HttpRequestMessage(HttpMethod.Post, $"/dev/legacy/{id}/advance") { Content = new FormUrlEncodedContent(app.Stamped(id, [])) };
+        request.Headers.Add("Sec-Fetch-Site", "cross-site");
+
+        HttpResponseMessage response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        Assert.Equal(CyclePhase.Orders, (await app.Sessions.Read(app.Live, id))!.State.Phase);
+    }
+
+    // A launched mission's route links each encounter, and each authored log line links the page it is written on.
+    [Fact]
+    public async Task In_dev_play_the_route_and_the_authored_log_lines_link_into_the_editor()
+    {
+        using var app = new TestApp(developerMode: true, scratch: true);
+        HttpClient client = app.NewClient();
+        Guid id = await app.CreateAtOrders("LEGACY_ONE", 1);
+        await Post(client, $"/dev/legacy/{id}/advance", new FormUrlEncodedContent(app.Stamped(id, [])));
+        LoadedLegacy legacy = (await app.Sessions.Read(app.Live, id))!;
+        var team = (Sim.Missions.AssignTeam)SimRunner.AutoCaptain.NextCommand(app.Live.Game, legacy.State, app.Live.Pack)!;
+        var form = new List<KeyValuePair<string, string>>
+        {
+            new("objective", team.ObjectiveId), new("lead", team.LeadId), new("priority", "0"), new("autonomy", "0"),
+        };
+        form.AddRange(team.CrewIds.Select(c => new KeyValuePair<string, string>("crew", c)));
+
+        string launch = await Post(client, $"/dev/legacy/{id}/launch", new FormUrlEncodedContent(app.Stamped(id, form)));
+        (_, string page) = await Get(client, $"/dev/legacy/{id}");
+        (_, string play) = await Get(client, $"/legacy/{id}");
+
+        Assert.Matches("<span class=\"stop__id\"><a href=\"/dev/content/encounters/[A-Z0-9_]+\" target=\"_blank\" rel=\"noopener\">", launch);
+        Assert.Matches("<a class=\"dev-edit\" href=\"/dev/content/(lines|encounters|objectives)/[A-Z0-9_]+\" target=\"_blank\" rel=\"noopener\">Edit line</a>", page);
+        Assert.DoesNotContain("/dev/content/", play.Replace("href=\"/dev/content\"", ""));
+    }
 }

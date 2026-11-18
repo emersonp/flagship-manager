@@ -30,4 +30,7 @@ public interface ILegacyStore
 
     // Newest first.
     IReadOnlyList<LegacyListing> ListLegacies();
+
+    // One transaction: the legacy row, its module rows, and its events. False when there was no such legacy.
+    bool Delete(Guid legacyId);
 }

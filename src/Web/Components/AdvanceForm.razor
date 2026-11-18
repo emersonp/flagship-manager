@@ -28,5 +28,5 @@ else
     // Datastar writes a true value as an empty attribute, so the in-flight style gets the string "true".
     private string BusyAttr => $"${Signal} ? 'true' : false";
 
-    private string Post => $"@post('/legacy/{LegacyId}/advance', {{contentType: 'form'}})";
+    private string Post => $"@post('{BridgeRoutes.Action(Bar, LegacyId, "advance")}', {{contentType: 'form'}})";
 }

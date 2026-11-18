@@ -180,6 +180,18 @@ public sealed class SqliteLegacyStore : ILegacyStore
         return listings;
     }
 
+    public bool Delete(Guid legacyId)
+    {
+        using SqliteConnection connection = Open();
+        using SqliteTransaction transaction = connection.BeginTransaction();
+        (string, object) id = ("$id", legacyId.ToString());
+        Execute(connection, transaction, "DELETE FROM event_log WHERE legacy_id = $id", id);
+        Execute(connection, transaction, "DELETE FROM module_state WHERE legacy_id = $id", id);
+        int deleted = Execute(connection, transaction, "DELETE FROM legacy WHERE legacy_id = $id", id);
+        transaction.Commit();
+        return deleted == 1;
+    }
+
     private IReadOnlyList<EventEnvelope> ReadEvents(Guid legacyId, string filter, params (string Name, object Value)[] parameters)
     {
         using SqliteConnection connection = Open();
