@@ -17,17 +17,13 @@ public sealed class WaitingStorylet
     public required string? EncounterId { get; set; }
 }
 
-// What the cycle whose aftermath last began did to the crew, for requirements on the last cycle (1e part two). Crew ids.
-public sealed class LastCycleRecord
+// One cycle of the history (1e part four, design 4.8): the kinds that happened to each living crew member in it, by crew id, in
+// the order recorded. A crew member nothing happened to has no entry.
+public sealed class HistoryCycle
 {
     public required int Cycle { get; set; }
 
-    // Sent and came home.
-    public required List<string> Sent { get; set; }
-
-    public required List<string> Hurt { get; set; }
-
-    public required List<string> Died { get; set; }
+    public required Dictionary<string, List<string>> Crew { get; set; }
 }
 
 // A vignette with a choice, arrived and not yet answered (1e part two).
@@ -64,8 +60,9 @@ public sealed class StoryletsState
     [JsonRequired]
     public List<WaitingStorylet> Waiting { get; set; } = new();
 
-    // Null until a cycle's aftermath has begun, and again once the next orders open.
-    public LastCycleRecord? LastCycle { get; set; }
+    // The last history.cycles cycles, oldest first (1e part four). The dead drop out.
+    [JsonRequired]
+    public List<HistoryCycle> History { get; set; } = new();
 
     [JsonRequired]
     public List<WaitingVignette> Vignettes { get; set; } = new();

@@ -73,8 +73,15 @@ public class StoryletsModuleTests
 
         public List<IEvent> End(MissionTrait[] traits, params CrewResult[] crew)
         {
-            return Send(new EndMission(new MissionResult(MissionOutcome.PartialSuccess, 1, 2, 0, 0, crew, traits)));
+            return End(MissionOutcome.PartialSuccess, traits, crew);
         }
+
+        public List<IEvent> End(MissionOutcome outcome, MissionTrait[] traits, params CrewResult[] crew)
+        {
+            return Send(new EndMission(new MissionResult(outcome, 1, 2, 0, 0, crew, traits)));
+        }
+
+        public IHistoryView History => Bus.View<IHistoryView>(State);
 
         // A mission that changes these traits, then the next cycle's itinerary, where its storylets arrive; the events of both.
         public List<IEvent> Mission(params MissionTrait[] traits)
@@ -429,16 +436,86 @@ public class StoryletsModuleTests
         Assert.False(WaitingBySubject(h).ContainsKey("STORYLET_SENT"));
     }
 
+    // 1e part four (design 4.8): the history. It replaces the last cycle's record, so the last cycle is no longer forgotten when
+    // the next orders open.
     [Fact]
-    public void The_last_cycle_is_forgotten_when_the_next_orders_open()
+    public void Last_reads_the_history()
     {
-        var h = new Harness(Pack(100));
-        h.To(CyclePhase.Itinerary);
-        Assert.NotNull(h.Storylets.LastCycle);
+        var h = new Harness(Pack(100, Fact(LastCycleFacts.Sent, not: true)));
+        Assert.Empty(h.Waiting);
 
+        h.To(CyclePhase.Resolution);
+        h.End([], Home("CREW_01"));
+        h.To(CyclePhase.Itinerary);
+
+        Assert.DoesNotContain("CREW_01", WaitingBySubject(h)["STORYLET_SENT_NOT"]);
+        Assert.Equal(7, WaitingBySubject(h)["STORYLET_SENT_NOT"].Count);
+
+        // Without the storylets, which hold the itinerary: the last cycle is still read once the orders open.
+        h.Rebuild(Pack(100));
         h.To(CyclePhase.Orders);
 
-        Assert.Null(h.Storylets.LastCycle);
+        Assert.Equal(1, h.History.Count("CREW_01", HistoryKinds.Sent, 1));
+        Assert.Equal(0, h.History.Count("CREW_02", HistoryKinds.Sent, 1));
+        Assert.Equal(1, h.History.Count("CREW_02", HistoryKinds.Rested, 1));
+    }
+
+    [Fact]
+    public void History_keeps_the_last_N_cycles()
+    {
+        var h = new Harness(Pack(100) with { HistoryCycles = 3 });
+        h.To(CyclePhase.Resolution);
+        h.End([], Home("CREW_01", injury: 1));
+        for (int i = 0; i < 5; i++)
+        {
+            h.To(CyclePhase.Itinerary);
+        }
+
+        // Five cycles have ended: the sixth is in its itinerary. Cycle 1's mission has fallen out; cycles 3 to 5 are kept.
+        Assert.Equal(6, h.State.Cycle);
+        Assert.Equal([3, 4, 5], h.Storylets.History.Select(c => c.Cycle));
+        Assert.Equal(3, h.History.Count("CREW_01", HistoryKinds.Rested, 3));
+        Assert.Equal(1, h.History.Count("CREW_01", HistoryKinds.Rested, 1));
+        Assert.Equal(0, h.History.Count("CREW_01", HistoryKinds.Hurt, 3));
+        Assert.Equal(0, h.History.Count("CREW_01", HistoryKinds.Sent, 3));
+    }
+
+    [Theory]
+    [InlineData(MissionOutcome.Loss, true)]
+    [InlineData(MissionOutcome.Withdrawal, true)]
+    [InlineData(MissionOutcome.Incomplete, true)]
+    [InlineData(MissionOutcome.PartialSuccess, false)]
+    [InlineData(MissionOutcome.FullSuccess, false)]
+    public void Lost_mission_means_failed_or_abandoned_not_a_death(MissionOutcome outcome, bool lost)
+    {
+        var h = new Harness(Pack(100));
+        h.To(CyclePhase.Resolution);
+        h.End(outcome, [], Home("CREW_01"), Home("CREW_02", injury: 1), Died("CREW_03"));
+        h.To(CyclePhase.Itinerary);
+
+        Assert.Equal(lost ? 1 : 0, h.History.Count("CREW_01", HistoryKinds.LostMission, 1));
+        Assert.Equal(lost ? 1 : 0, h.History.Count("CREW_02", HistoryKinds.LostMission, 1));
+        Assert.Equal(0, h.History.Count("CREW_04", HistoryKinds.LostMission, 1));
+        Assert.Equal(1, h.History.Count("CREW_01", HistoryKinds.LostCrewmate, 1));
+        Assert.Equal(1, h.History.Count("CREW_04", HistoryKinds.LostCrewmate, 1));
+    }
+
+    [Fact]
+    public void The_dead_drop_out()
+    {
+        var h = new Harness(Pack(100));
+        h.To(CyclePhase.Resolution);
+        h.End([], Home("CREW_03", injury: 1), Home("CREW_01"));
+        h.To(CyclePhase.Itinerary);
+        Assert.Equal(1, h.History.Count("CREW_03", HistoryKinds.Hurt, 1));
+
+        h.To(CyclePhase.Resolution);
+        h.End([], Died("CREW_03"), Home("CREW_01"));
+        h.To(CyclePhase.Itinerary);
+
+        Assert.Equal(0, h.History.Count("CREW_03", HistoryKinds.Sent, 20));
+        Assert.DoesNotContain(h.Storylets.History, c => c.Crew.ContainsKey("CREW_03"));
+        Assert.Equal(2, h.History.Count("CREW_01", HistoryKinds.Sent, 20));
     }
 
     [Fact]

@@ -2,6 +2,7 @@ using System.Text.Json;
 using Persistence;
 using Sim.Core;
 using Sim.Crew;
+using Sim.Storylets;
 
 namespace Persistence.Tests;
 
@@ -76,6 +77,28 @@ public sealed class SqliteLegacyStoreTests : IDisposable
         Assert.Equal([4], loaded.LightInjuriesHealAtWeek);
         Assert.Equal(1.5, loaded.Skills["SKILL_A"].Xp);
         Assert.Equal((31, 3), (loaded.Morale, loaded.LastSentCycle));
+    }
+
+    [Fact]
+    public void Storylets_history_survives_the_store()
+    {
+        Guid id = Guid.NewGuid();
+        SqliteLegacyStore store = NewStore();
+        LegacyRecord record = NewRecord(id);
+        store.Create(record, []);
+        record.State.Module<StoryletsState>("storylets").History.Add(new HistoryCycle
+        {
+            Cycle = 3,
+            Crew = new Dictionary<string, List<string>> { ["CREW_01"] = ["sent", "hurt", "lost_mission"], ["CREW_02"] = ["rested"] },
+        });
+        store.Commit(record.State, Array.Empty<EventEnvelope>(), 1);
+
+        var types = new Dictionary<string, Type> { ["storylets"] = typeof(StoryletsState) };
+        HistoryCycle loaded = NewStore().Load(id, types)!.State.Module<StoryletsState>("storylets").History.Single();
+
+        Assert.Equal(3, loaded.Cycle);
+        Assert.Equal(["CREW_01", "CREW_02"], loaded.Crew.Keys);
+        Assert.Equal(["sent", "hurt", "lost_mission"], loaded.Crew["CREW_01"]);
     }
 
     [Fact]

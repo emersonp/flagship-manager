@@ -353,3 +353,15 @@ Built as Task 1 said: the rewrite (`Rewrite.cs`), DynamicExpresso.Core 2.19.6 wi
 - **Compiled on first evaluation.** `Check` parses only; a `CheckedExpression` compiles its delegate the first time it is evaluated and keeps it. The cost falls on the first cycle that reads it, once, and the editor's save, which only checks, never pays it.
 - **`IStateSource` and the view objects live in `Sim.Expressions`,** not `Sim.Core`: they are the language's, and only the storylets module implements the source. The history kinds are passed to the book; Task 3 gives them their constants.
 - `x == y` compares who the crew members are through the view's own operator; the view's id is internal, so no expression can read it.
+
+### Task 3: the history (2026-11-18)
+
+Built as 4.8 says, in `src/Sim.Storylets/History.cs`. `StoryletsState.History` is a list of cycles, oldest first, each with the kinds recorded for each crew member by id; it replaces `LastCycle`. `IHistoryView` and the kinds' constants (`HistoryKinds`) are in `Sim.Core`'s `Views.cs`; `LastCycleFacts` names the same strings until Task 4 removes it. The tuning key is `history.cycles` (20 in both packs, at least 1). No golden hash moved. Differences and choices:
+
+- **When each kind is recorded.** `sent`, `hurt`, `lost_mission`, and `lost_crewmate` are recorded when the mission ends; the aftermath adds the cycle with nothing in it when no team was sent. `rested` is recorded when the next itinerary opens, not at the aftermath: fitness is read after the week's recovery, as part two read it, so nobody who rested changes.
+- **`lost_crewmate` keeps part two's meaning:** every living crew member, sent or not, when someone died on the cycle's mission. 4.3 says "someone died on their mission and they came home", which is narrower; narrowing it would change who the game's "lost a crewmate" vignette reaches and move the hash, so it is the author's to decide.
+- **`lost_mission`** is recorded for those who came home from a mission that ended lost, incomplete, or withdrawn.
+- **Read in the cycle after.** `Count(crew, kind, n)` reads the `n` cycles before the current one, so in a cycle's aftermath its own record is not yet read. Cycles older than `history.cycles` fall out when the itinerary opens.
+- **Before any cycle has ended,** a part-two fact (`{ last: kind }`, with or without `not`) holds for no one, as it did with no last cycle. From Task 4, `count` simply reads 0 there.
+- **The dead drop out** when they die (`CrewDied`) and from the mission's record.
+- **No version raise:** a store written before this task has no `History` and is refused by its strict read until Task 4 raises the versions. The store's tests gain a round trip of the history. Part two's test that the last cycle is forgotten when the orders open is replaced by `Last_reads_the_history`, which reads it there.

@@ -37,3 +37,32 @@ public interface ITraitView
     // traits module applies exactly the entries whose condition the team meets, so the briefing and the launch never disagree.
     IReadOnlyList<LaunchPreview> Preview(IReadOnlyList<string> roster);
 }
+
+// Each living crew member's recent cycles (1e part four, design 4.8), served by the storylets module so part five's chronicle can
+// read it. Read in the cycle after: the cycle whose aftermath last ended is the last one.
+public interface IHistoryView
+{
+    // How many of the last `cycles` cycles this kind happened to this crew member in; 0 for an unknown or dead one.
+    int Count(string crewId, string kind, int cycles);
+}
+
+// What the history records of a crew member in one cycle (design 4.3).
+public static class HistoryKinds
+{
+    // On the mission and came home.
+    public const string Sent = "sent";
+
+    // Injured or incapacitated on it.
+    public const string Hurt = "hurt";
+
+    // Not sent, and fit when the next itinerary opened.
+    public const string Rested = "rested";
+
+    // Someone died on the cycle's mission, and this one is alive.
+    public const string LostCrewmate = "lost_crewmate";
+
+    // On a mission whose objective failed or was abandoned, and came home. A death alone does not lose a mission.
+    public const string LostMission = "lost_mission";
+
+    public static readonly IReadOnlyList<string> All = [Sent, Hurt, Rested, LostCrewmate, LostMission];
+}

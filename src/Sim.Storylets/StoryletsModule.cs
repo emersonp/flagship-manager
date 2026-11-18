@@ -19,6 +19,7 @@ public static class StoryletsModule
     public static void Register(EventBus bus, ContentPack pack)
     {
         bus.Module<StoryletsState>(Name);
+        bus.Provide<IHistoryView>(state => new HistoryView(state.Module<StoryletsState>(Name), state.Cycle));
         bus.Guard<AnswerStorylet>(Order, Name, (command, context) => CheckAnswer(pack, command, context));
         bus.Guard<AdvancePhase>(Order, Name, (_, context) => context.State.Phase == CyclePhase.Itinerary && Answerable(pack, context).Any() ? AnswerStorylet.WaitingReason : null);
         bus.Handle<AnswerStorylet>((command, context) => OnAnswer(pack, command, context));
@@ -31,17 +32,17 @@ public static class StoryletsModule
             StoryletsState state = context.Module<StoryletsState>();
             switch (e.Phase)
             {
-                case CyclePhase.Aftermath when state.LastCycle?.Cycle != e.Cycle:
-                    // No team was sent: the cycle still ran, and everyone fit rested.
-                    state.LastCycle = new LastCycleRecord { Cycle = e.Cycle, Sent = [], Hurt = [], Died = [] };
+                case CyclePhase.Aftermath:
+                    // When no team was sent, the cycle still ran.
+                    History.AftermathBegan(state, e.Cycle);
                     break;
                 case CyclePhase.Itinerary:
+                    History.ItineraryOpened(state, e.Cycle, context.View<IRosterView>(), pack.HistoryCycles);
                     OnItinerary(pack, e.Cycle, context);
                     SendVignettes(pack, e.Cycle, context);
                     break;
                 case CyclePhase.Orders:
                     CloseItinerary(pack, context);
-                    state.LastCycle = null;
                     break;
             }
         });
@@ -202,20 +203,13 @@ public static class StoryletsModule
 
     private static void OnMissionEnded(MissionEnded ended, IBusContext context)
     {
-        StoryletsState state = context.Module<StoryletsState>();
-        IReadOnlyList<CrewResult> crew = ended.Result.Crew;
-        state.LastCycle = new LastCycleRecord
-        {
-            Cycle = context.State.Cycle,
-            Sent = crew.Where(c => c.Status != MemberStatus.Dead).Select(c => c.Id).ToList(),
-            Hurt = crew.Where(c => c.Status == MemberStatus.Incapacitated || (c.Status == MemberStatus.Active && c.Injury > 0)).Select(c => c.Id).ToList(),
-            Died = crew.Where(c => c.Status == MemberStatus.Dead).Select(c => c.Id).ToList(),
-        };
+        History.MissionEnded(context.Module<StoryletsState>(), context.State.Cycle, ended.Result, context.View<IRosterView>().Roster);
     }
 
     private static void OnCrewDied(CrewDied died, IBusContext context)
     {
         StoryletsState state = context.Module<StoryletsState>();
+        History.Forget(state, died.CrewId);
         // A pair's storylets and vignettes go with either of the two (1e part three).
         state.Vignettes.RemoveAll(v => v.SubjectId == died.CrewId || v.TargetId == died.CrewId);
         foreach (WaitingStorylet waiting in state.Waiting.Where(w => w.SubjectId == died.CrewId || w.TargetId == died.CrewId).ToList())
@@ -288,23 +282,17 @@ public static class StoryletsModule
 
     // One requirement on one scope: the ship's traits (no subject), or a crew member's traits, stats, and last cycle. For a pair, a
     // trait defined on a pair is the one the subject holds toward the target, and of: target reads the target's stats and facts.
+    // A fact about the last cycle reads the history (1e part four): { last: kind } is count(kind, 1) > 0.
     private static bool Holds(ContentPack pack, Requirement requirement, StoryletsState state, Scope scope, IBusContext context)
     {
         IRosterView roster = context.View<IRosterView>();
-        LastCycleRecord? last = state.LastCycle;
         string? subjectId = scope.SubjectId;
+        int cycle = context.State.Cycle;
         return requirement switch
         {
             TraitRange trait => trait.Holds(context.View<ITraitView>().Value(trait.Trait, subjectId, OnPair(pack, trait.Trait) ? scope.TargetId : null)),
             StatRange stat when (stat.OfTarget ? scope.TargetId : subjectId) is { } who => stat.Holds(stat.Stat == StoryletStats.Morale ? roster.Morale(who) : roster.Loyalty(who)),
-            LastCycle fact when (fact.OfTarget ? scope.TargetId : subjectId) is { } who && last is not null => fact.Not != fact.Fact switch
-            {
-                LastCycleFacts.Sent => last.Sent.Contains(who),
-                LastCycleFacts.Hurt => last.Hurt.Contains(who),
-                LastCycleFacts.Rested => !last.Sent.Contains(who) && !last.Died.Contains(who) && roster.IsFit(who),
-                LastCycleFacts.LostCrewmate => last.Died.Count > 0 && !last.Died.Contains(who),
-                _ => false,
-            },
+            LastCycle fact when (fact.OfTarget ? scope.TargetId : subjectId) is { } who && History.AnyEnded(state, cycle) => fact.Not != (new HistoryView(state, cycle).Count(who, fact.Fact, 1) > 0),
             _ => false,
         };
     }

@@ -40,6 +40,9 @@ public sealed record ContentPack(
     // A vignette does not arrive again for the same scope within this many cycles (tuning vignettes.cooldown).
     public int VignetteCooldown { get; init; } = 6;
 
+    // The history keeps each crew member's last this many cycles (tuning history.cycles; 1e part four, design 4.8).
+    public int HistoryCycles { get; init; } = 20;
+
     // Shown on the itinerary and not yet spent (tuning captainsTime.perCycle; slice 1g spends it).
     public int CaptainsTimePerCycle { get; init; } = 3;
 

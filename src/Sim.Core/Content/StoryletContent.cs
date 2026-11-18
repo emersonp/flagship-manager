@@ -65,20 +65,20 @@ public static class StoryletStats
     public static readonly IReadOnlyList<string> All = [Morale, Loyalty];
 }
 
-// The facts about the last cycle a requirement can read on the subject (design 4.2).
+// The facts about the last cycle a requirement can read on the subject (design 4.2): history kinds, read for the last cycle.
 public static class LastCycleFacts
 {
     // On the last mission and came home.
-    public const string Sent = "sent";
+    public const string Sent = HistoryKinds.Sent;
 
     // Injured or incapacitated on it.
-    public const string Hurt = "hurt";
+    public const string Hurt = HistoryKinds.Hurt;
 
     // Not sent, and fit.
-    public const string Rested = "rested";
+    public const string Rested = HistoryKinds.Rested;
 
     // Someone died on it, and this one is alive.
-    public const string LostCrewmate = "lost_crewmate";
+    public const string LostCrewmate = HistoryKinds.LostCrewmate;
 
     public static readonly IReadOnlyList<string> All = [Sent, Hurt, Rested, LostCrewmate];
 }

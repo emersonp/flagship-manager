@@ -147,6 +147,7 @@ public static partial class ContentLoader
                 VignettesPerCycle = cycle.VignettesPerCycle,
                 VignetteCooldown = cycle.VignetteCooldown,
                 CaptainsTimePerCycle = cycle.CaptainsTime,
+                HistoryCycles = cycle.HistoryCycles,
             }
             : null;
         return new ContentLoadResult(pack, errors);
