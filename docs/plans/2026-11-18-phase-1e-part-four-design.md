@@ -316,6 +316,7 @@ If any of 1 to 3 fail, try NCalc against the same list and report both.
 1. **5.1 step 1, the index** (only evaluating storylets whose tags or qualities could have changed) is deferred. At the size of Phase 1 every storylet is cast every cycle, which is cheap. It is worth building when a pack has hundreds and the simulator says so.
 2. **A check's outcomes are binary:** success and failure only. A partial ("it helped a little") would be one more field if wanted later.
 3. **"Lost mission"** means a mission whose objective failed or was abandoned (4.3). A death alone does not make a mission lost; that is `lost_crewmate`.
+4. **An expression reads only a defined trait** (after the spike). A trait read in an expression must have an entry in `traits/`, or the loader refuses it with its position ("No trait named nosuch"). A minimal entry is `- id: some_trait`. Effects and encounters keep part three's rule: a trait with no definition behaves as a flag did. The fixture gives `trait_a`, `trait_c`, and any other trait its expressions read a minimal entry where it has none.
 
 **Left to the builder:**
 
