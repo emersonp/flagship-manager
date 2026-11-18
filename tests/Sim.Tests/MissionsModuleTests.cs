@@ -4,6 +4,7 @@ using Sim.Core.Content;
 using Sim.Crew;
 using Sim.Cycle;
 using Sim.Missions;
+using Sim.Traits;
 
 namespace Sim.Tests;
 
@@ -17,6 +18,7 @@ public class MissionsModuleTests
         CycleModule.Register(bus);
         CrewModule.Register(bus, pack ?? TestContent.Pack);
         MissionsModule.Register(bus, pack ?? TestContent.Pack);
+        TraitsModule.Register(bus, pack ?? TestContent.Pack);
         return bus;
     }
 
@@ -674,5 +676,27 @@ public class MissionsModuleTests
         Assert.NotEqual(first, h.Mission.State.Seed);
         Assert.Equal(RngStream.For(5, 2, "mission:m_2_1").NextUInt64(), h.Mission.State.Seed);
         Assert.Equal(RngStream.For(5, 1, "mission:m_1_1").NextUInt64(), first);
+    }
+
+    // Focus 4 (1e part three, Task 4): the crew walk on board as they were. trait_x's check bonus is fixed into the team before its
+    // launch rule, which clears it, runs.
+    [Fact]
+    public void Bonuses_are_fixed_before_the_launch_rules_run()
+    {
+        TraitDef def = TraitDef.Plain("trait_x") with { On = TraitPlaces.Crew, Mission = new TraitMission(5, false), Launch = new TraitLaunch([new TraitRuleEffect(null, 0, true, 0, 0, TraitRuleOn.Holder)], [], []) };
+        ContentPack pack = TestContent.Pack with { Traits = [def] };
+        var h = new Harness(pack: pack);
+        h.Send(new SetTrait("trait_x", "CREW_01", null, 1));
+        h.GoTo(CyclePhase.Briefing);
+
+        h.Send(h.Assign(Pair));
+        h.GoTo(CyclePhase.Resolution);
+
+        TeamMember member = h.Mission!.State.Team.Single(m => m.Member.Id == "CREW_01").Member;
+        Assert.Equal([new TraitBonus("trait_x", 5)], member.TraitBonuses!);
+        Assert.Equal(new Dictionary<string, int> { ["trait_x"] = 1 }, member.Traits!);
+        Assert.Equal(0, h.Bus.View<ITraitView>(h.State).Value("trait_x", "CREW_01"));
+        Assert.Contains(h.Events.Select(e => e.Event), e => e is TraitChanged { Cause: TraitCauses.Launch, To: 0 });
+        Assert.All(h.Mission.State.Team.Where(m => m.Member.Id != "CREW_01"), m => Assert.Null(m.Member.TraitBonuses));
     }
 }

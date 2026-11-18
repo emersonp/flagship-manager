@@ -308,4 +308,93 @@ public class TraitsModuleTests
         Assert.DoesNotContain(events, e => e is MoraleChanged { Cause: MoraleCauses.Trait });
         Assert.Empty(h.Traits.Traits);
     }
+
+    // --- Launch rules and bonuses (1e part three, Task 4): the fixture's trait_e is the stood_down shape, trait_g the avoids shape ---
+
+    private static List<IEvent> SetUp(Harness h, string trait, string holder, int value, string? target = null)
+    {
+        return h.Send(new ChangeTrait(trait, holder, target, value, true, TraitCauses.Answer));
+    }
+
+    [Fact]
+    public void Sent_and_notSent_fire_at_launch()
+    {
+        var h = new Harness(Pack(2));
+        SetUp(h, "trait_e", "CREW_01", 1);
+        SetUp(h, "trait_e", "CREW_04", 1);
+        int loyalty = h.Crew.Members.Single(m => m.Id == "CREW_01").Loyalty;
+
+        List<IEvent> events = h.Launch("CREW_01", "CREW_02");
+
+        Assert.Equal(
+            [new TraitChanged("trait_e", "CREW_01", null, 1, 2, TraitCauses.Launch, null), new TraitChanged("trait_e", "CREW_04", null, 1, 0, TraitCauses.Launch, null)],
+            Changes(events));
+        Assert.Equal(loyalty - 2, h.Crew.Members.Single(m => m.Id == "CREW_01").Loyalty);
+        MoraleChanged morale = Assert.Single(events.OfType<MoraleChanged>());
+        Assert.Equal(("CREW_01", -4, MoraleCauses.Trait), (morale.CrewId, morale.To - morale.From, morale.Cause));
+    }
+
+    [Fact]
+    public void NotSent_does_not_fire_when_nobody_is_sent()
+    {
+        var h = new Harness(Pack(2));
+        SetUp(h, "trait_e", "CREW_04", 1);
+        ITraitView view = h.Bus.View<ITraitView>(h.State);
+
+        List<IEvent> week = Week(h);
+
+        Assert.Empty(Changes(week));
+        Assert.Equal(1, h.Trait("trait_e", "CREW_04"));
+        Assert.All(view.Preview(["CREW_04"]), p => Assert.False(p.Fires([])));
+    }
+
+    [Fact]
+    public void WithTarget_fires_when_both_are_sent()
+    {
+        var h = new Harness(Pack(2));
+        SetUp(h, "trait_g", "CREW_02", 2, "CREW_03");
+
+        Assert.Empty(h.Launch("CREW_02", "CREW_01").OfType<MoraleChanged>());
+        MoraleChanged morale = Assert.Single(h.Launch("CREW_02", "CREW_03").OfType<MoraleChanged>());
+
+        Assert.Equal(("CREW_02", -3), (morale.CrewId, morale.To - morale.From));
+        Assert.Equal(2, h.Trait("trait_g", "CREW_02", "CREW_03"));
+    }
+
+    [Fact]
+    public void WithTarget_bonus_only_when_both_are_on_the_team()
+    {
+        var h = new Harness(Pack(2));
+        SetUp(h, "trait_g", "CREW_02", 2, "CREW_03");
+        SetUp(h, "trait_h", "CREW_02", 1, "CREW_04");
+        ITraitView view = h.Bus.View<ITraitView>(h.State);
+
+        Assert.Empty(view.Bonuses("CREW_02", ["CREW_02", "CREW_01"]));
+        Assert.Equal([new TraitBonus("trait_g", -1)], view.Bonuses("CREW_02", ["CREW_02", "CREW_03"]));
+        Assert.Equal([new TraitBonus("trait_g", -1), new TraitBonus("trait_h", 1)], view.Bonuses("CREW_02", ["CREW_03", "CREW_02", "CREW_04"]));
+        Assert.Empty(view.Bonuses("CREW_03", ["CREW_02", "CREW_03"]));
+    }
+
+    // Focus 4: the rules run from the preview. Every entry the preview lists for this team fires, in its order, and nothing else does.
+    [Fact]
+    public void The_rules_apply_what_Preview_says()
+    {
+        var h = new Harness(Pack(2));
+        SetUp(h, "trait_e", "CREW_03", 1);
+        SetUp(h, "trait_g", "CREW_02", 2, "CREW_03");
+        SetUp(h, "trait_e", "CREW_01", 1);
+        IReadOnlyList<LaunchPreview> preview = h.Bus.View<ITraitView>(h.State).Preview(h.Bus.View<IRosterView>(h.State).Roster);
+        string[] team = ["CREW_02", "CREW_03"];
+
+        Assert.Equal(
+            [("trait_e", "CREW_01", "sent"), ("trait_e", "CREW_01", "notSent"), ("trait_g", "CREW_02", "withTarget"), ("trait_e", "CREW_03", "sent"), ("trait_e", "CREW_03", "notSent")],
+            preview.Select(p => (p.Trait, p.HolderId, p.When)));
+        List<IEvent> events = h.Launch(team);
+
+        Assert.Equal(
+            [new TraitChanged("trait_e", "CREW_01", null, 1, 0, TraitCauses.Launch, null), new TraitChanged("trait_e", "CREW_03", null, 1, 2, TraitCauses.Launch, null)],
+            Changes(events));
+        Assert.Equal(["CREW_02", "CREW_03"], events.OfType<MoraleChanged>().Select(m => m.CrewId));
+        Assert.Equal(preview.Where(p => p.Fires(team)).Sum(p => p.Effects.Count(e => e.Morale != 0)), events.OfType<MoraleChanged>().Count());
+    }
 }

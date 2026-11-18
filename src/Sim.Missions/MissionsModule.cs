@@ -272,18 +272,28 @@ public static class MissionsModule
         }
 
         IRosterView roster = context.View<IRosterView>();
+        // The traits each member walks on board with (1e part three): fixed now, before the launch rules run on MissionStarted.
+        ITraitView traits = context.View<ITraitView>();
         List<TeamMember> members = briefing.CrewIds
             .Select(c => roster.Member(c) ?? throw new InvalidOperationException($"Crew member '{c}' is no longer available for mission {id}."))
+            .Select(m => m with { Traits = Own(traits.Held(m.Id)), TraitBonuses = traits.Bonuses(m.Id, briefing.CrewIds) is { Count: > 0 } b ? b : null })
             .ToList();
         // Gear deleted since the launch stays behind.
         List<string> gearTags = briefing.GearIds.Select(g => pack.Gear.FirstOrDefault(d => d.Id == g)?.Tag).OfType<string>().ToList();
         ulong seed = context.Rng($"mission:{id}").NextUInt64();
 
         context.Publish(new MissionStarted(id, objective.Id, template.Id, briefing.CrewIds, briefing.LeadId));
-        MissionState state = MissionResolver.Start(template, pack.Encounters, new Team(members, briefing.LeadId), gearTags, briefing.Parameters, pack.Tuning, seed);
+        MissionState state = MissionResolver.Start(template, pack.Encounters, new Team(members, briefing.LeadId, Own(traits.Held(null))), gearTags, briefing.Parameters, pack.Tuning, seed);
         var mission = new MissionInFlight { Id = id, ObjectiveId = objective.Id, State = state, BeatCount = 0 };
         site.Mission = mission;
         Run(mission, MissionResolver.Advance(state), context);
+    }
+
+    // One's own traits by id, the pairs held left out; null when there are none.
+    private static Dictionary<string, int>? Own(IReadOnlyList<TraitHeld> held)
+    {
+        Dictionary<string, int> own = held.Where(t => t.TargetId is null).ToDictionary(t => t.Trait, t => t.Value);
+        return own.Count == 0 ? null : own;
     }
 
     private static void Run(MissionInFlight mission, MissionStep step, IBusContext context)

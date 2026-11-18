@@ -57,6 +57,9 @@ public sealed class MissionState
 
     public required string LeadId { get; set; }
 
+    // The ship's traits at launch, for approach requirements (1e part three); null when it had none.
+    public Dictionary<string, int>? ShipTraits { get; set; }
+
     public required List<string> GearTags { get; set; }
 
     public required Parameters Parameters { get; set; }

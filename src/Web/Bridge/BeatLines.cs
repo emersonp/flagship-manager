@@ -75,6 +75,9 @@ public static partial class BeatLines
                     tags.Add($"morale {Signed(b.MoraleBonus)}");
                 }
 
+                // Each trait's check bonus, as morale's is (1e part three): "avoids −1".
+                tags.AddRange((b.TraitBonuses ?? []).Select(t => $"{t.Trait} {Signed(t.Amount)}"));
+
                 if (b.MomentumAfter is { } momentum && momentum != b.Momentum)
                 {
                     tags.Add($"momentum {Signed(momentum - b.Momentum)}");

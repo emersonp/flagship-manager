@@ -785,6 +785,50 @@ public class MissionRulesTests
         Assert.Empty(step.Beats.OfType<CheckBeat>().Single().Traits!);
     }
 
+    // --- Traits on missions (1e part three, Task 4) ---
+
+    private static RequirementDef TraitAt(string on, int min, int? max) => new(null, 0, null, "trait_x", min, max, on);
+
+    [Fact]
+    public void A_trait_requirement_on_the_ship_closes_an_approach()
+    {
+        EncounterDef encounter = AOrC(requiresC: [TraitAt("ship", 0, 1)]);
+        MemberState member = Standing(Skilled("CREW_01", 5, ("SKILL_A", 3), ("SKILL_C", 3)));
+
+        Assert.Equal(["a", "c"], MissionResolver.Available(encounter, [member], [], null, "CREW_01").Select(a => a.Id));
+        Assert.Equal(["a", "c"], MissionResolver.Available(encounter, [member], [], new Dictionary<string, int> { ["trait_x"] = 1 }, "CREW_01").Select(a => a.Id));
+        Assert.Equal(["a"], MissionResolver.Available(encounter, [member], [], new Dictionary<string, int> { ["trait_x"] = 2 }, "CREW_01").Select(a => a.Id));
+    }
+
+    [Fact]
+    public void Anyone_reads_members_standing_and_lead_reads_the_lead()
+    {
+        TeamMember marked = Skilled("CREW_02", 4, ("SKILL_C", 3)) with { Traits = new Dictionary<string, int> { ["trait_x"] = 2 } };
+        MemberState lead = Standing(Skilled("CREW_01", 5, ("SKILL_A", 3)));
+        MemberState other = Standing(marked);
+        EncounterDef anyone = AOrC(requiresC: [TraitAt("anyone", 2, null)]);
+        EncounterDef byLead = AOrC(requiresC: [TraitAt("lead", 2, null)]);
+
+        Assert.Equal(["a", "c"], MissionResolver.Available(anyone, [lead, other], [], null, "CREW_01").Select(a => a.Id));
+        Assert.Equal(["a"], MissionResolver.Available(anyone, [lead], [], null, "CREW_01").Select(a => a.Id));
+        Assert.Equal(["a"], MissionResolver.Available(byLead, [lead, other], [], null, "CREW_01").Select(a => a.Id));
+        Assert.Equal(["a", "c"], MissionResolver.Available(byLead, [lead, other], [], null, "CREW_02").Select(a => a.Id));
+    }
+
+    [Fact]
+    public void A_trait_bonus_is_added_to_every_check_and_the_beat_names_it()
+    {
+        TeamMember plain = Skilled("CREW_01", 5, ("SKILL_A", 4));
+        TeamMember marked = plain with { TraitBonuses = [new TraitBonus("trait_g", -1), new TraitBonus("trait_h", 3)] };
+
+        CheckBeat without = CheckOf(new Team([plain], "CREW_01"), AOrC());
+        CheckBeat with = CheckOf(new Team([marked], "CREW_01"), AOrC());
+
+        Assert.Null(without.TraitBonuses);
+        Assert.Equal(without.Score + 2, with.Score);
+        Assert.Equal([new TraitBonus("trait_g", -1), new TraitBonus("trait_h", 3)], with.TraitBonuses!);
+    }
+
     // The first lead alone has the skill, so they make the impossible check and take its disaster's severe roll. At the seeds where it
     // downs them, the decision that follows lands on the new lead.
     [Fact]

@@ -120,12 +120,13 @@ public class MissionWalkthroughTests
     // Re-pinned: a mission's result and a check's beat carry the flags they changed (1e part one, Task 1).
     // Re-pinned: a check's beat carries the morale bonus (1e part two, Task 1); every member starts at resting, so no total changed.
     // Re-pinned: flags renamed traits, in their own module (1e part three, Task 1); the beat's field is renamed, nothing else moved.
+    // Re-pinned: a check's beat carries trait bonuses (1e part three, Task 4); the walkthrough's team has none.
     [Fact]
     public void Golden_mission_matches_the_accepted_beats()
     {
         (_, List<Beat> beats, _) = TestContent.Play(TestContent.Team(1, 1, 3, 5), seed: 1);
 
-        Assert.Equal("D78FE5FCCA45D5510B03C51BAF31DB9190F2E7A5F0139BFF00BC4C81DBF19715", Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(Json(beats)))));
+        Assert.Equal("0839206BCE0F5E5ABECF31CE67EC9117C7D03582F1FBD11CC2AE56256449D16D", Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(Json(beats)))));
     }
 
     // Replays injuries from the beats to find the score the senior would have had acting as best qualified.

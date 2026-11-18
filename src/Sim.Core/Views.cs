@@ -28,4 +28,12 @@ public interface ITraitView
 
     // The encounter that last changed it, or null.
     string? EncounterId(string trait, string? crewId, string? targetId = null);
+
+    // The check bonuses this crew member's traits give on this team (design 4.6): one entry for each trait, a pair's withTarget
+    // bonus only when its target is on the team.
+    IReadOnlyList<TraitBonus> Bonuses(string crewId, IReadOnlyCollection<string> team);
+
+    // Every launch rule that could fire for these crew, with the condition it needs, in the order the rules run at launch. The
+    // traits module applies exactly the entries whose condition the team meets, so the briefing and the launch never disagree.
+    IReadOnlyList<LaunchPreview> Preview(IReadOnlyList<string> roster);
 }

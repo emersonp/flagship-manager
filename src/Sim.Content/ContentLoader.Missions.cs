@@ -62,7 +62,7 @@ public static partial class ContentLoader
                 }
 
                 string? approachName = CheckName(file, $"{dto.Id} approach {label}", approach.Name, errors);
-                List<RequirementDef> requires = Requirements(label, approach.Requires, skillIds, gearTags, Error);
+                List<RequirementDef> requires = Requirements(label, approach.Requires, skillIds, gearTags, book, Error);
                 Dictionary<string, EffectDef> outcomes = Outcomes(label, approach.Outcomes, book, Error);
                 approaches.Add(new ApproachDef(approach.Id ?? "", approach.Skill ?? "", approach.Difficulty, approach.GearTag, requires, outcomes, approachName));
             }
@@ -120,16 +120,33 @@ public static partial class ContentLoader
         return defs;
     }
 
-    // Any number of requirements; each names exactly one of a skill (with a level of 1 or more) and a gear tag some gear carries.
-    private static List<RequirementDef> Requirements(string label, List<RequirementDto?>? items, HashSet<string> skillIds, HashSet<string> gearTags, Action<string> error)
+    // Any number of requirements; each names exactly one of a skill (with a level of 1 or more), a gear tag some gear carries, and a
+    // trait on the ship, the lead, or anyone standing (1e part three, design 4.6).
+    private static List<RequirementDef> Requirements(string label, List<RequirementDto?>? items, HashSet<string> skillIds, HashSet<string> gearTags, TraitBook book, Action<string> error)
     {
         var requires = new List<RequirementDef>();
         for (int j = 0; j < (items?.Count ?? 0); j++)
         {
             RequirementDto requirement = items![j] ?? new RequirementDto();
-            if ((requirement.Skill is null) == (requirement.Gear is null))
+            if (new[] { requirement.Skill, requirement.Gear, requirement.Trait }.Count(n => n is not null) != 1)
             {
-                error($"The {label} approach's requirement {j + 1} must name one of skill and gear.");
+                error($"The {label} approach's requirement {j + 1} must name one of skill, gear, and trait.");
+                continue;
+            }
+
+            if (requirement.Trait is { } trait)
+            {
+                if (TraitRequirement(label, j, requirement, trait, book, error) is { } def)
+                {
+                    requires.Add(def);
+                }
+
+                continue;
+            }
+
+            if (requirement.Min is not null || requirement.Max is not null || requirement.Is is not null || requirement.On is not null)
+            {
+                error($"The {label} approach's requirement {j + 1}: min, max, is, and on belong to a trait.");
                 continue;
             }
 
@@ -156,6 +173,64 @@ public static partial class ContentLoader
         }
 
         return requires;
+    }
+
+    // { trait, min, max, is, on }: min is 1 when left out, or 0 when only max is given, as on a storylet. A pair trait cannot be
+    // required here.
+    private static RequirementDef? TraitRequirement(string label, int j, RequirementDto requirement, string trait, TraitBook book, Action<string> error)
+    {
+        string where = $"The {label} approach's requirement {j + 1}";
+        if (!Ids.IsInnerId(trait))
+        {
+            error($"Trait id '{trait}' must be {Said(Ids.InnerRule)}");
+            return null;
+        }
+
+        if (requirement.On is not (TraitOn.Ship or TraitOn.Lead or TraitOn.Anyone))
+        {
+            error($"{where} needs on: ship, lead, or anyone.");
+            return null;
+        }
+
+        if (requirement.Level != 0)
+        {
+            error($"{where}: a trait takes min, max, or is, not level.");
+            return null;
+        }
+
+        int min = requirement.Min ?? (requirement.Max is not null ? 0 : 1);
+        int? max = requirement.Max;
+        if (requirement.Is is { } exact)
+        {
+            if (requirement.Min is not null || requirement.Max is not null)
+            {
+                error("A requirement has is, or min and max, not both.");
+                return null;
+            }
+
+            if (book.Is(trait, exact, error) is not { } value)
+            {
+                return null;
+            }
+
+            (min, max) = (value, value);
+        }
+
+        if (min < 0 || max < 0)
+        {
+            error("A requirement's min and max must be whole numbers of 0 or more.");
+            return null;
+        }
+
+        if (max < min)
+        {
+            error($"The requirement on {trait} has max {max} below min {min}.");
+            return null;
+        }
+
+        return book.CheckPlace(trait, requirement.On == TraitOn.Ship ? TraitPlaces.Ship : TraitPlaces.Crew, error)
+            ? new RequirementDef(null, 0, null, trait, min, max, requirement.On)
+            : null;
     }
 
     // An outcome written under a tier word replaces that tier's default whole; an empty list is an outcome that does nothing.
@@ -458,6 +533,17 @@ public static partial class ContentLoader
         public int Level { get; set; }
 
         public string? Gear { get; set; }
+
+        // A trait's (1e part three).
+        public string? Trait { get; set; }
+
+        public int? Min { get; set; }
+
+        public int? Max { get; set; }
+
+        public string? Is { get; set; }
+
+        public string? On { get; set; }
     }
 
     private sealed class DecisionDto

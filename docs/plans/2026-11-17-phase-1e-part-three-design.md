@@ -245,8 +245,12 @@ public interface ITraitView
     IReadOnlyList<TraitHeld> Held(string? crewId);              // a crew member's traits, pairs they hold included; null: the ship's
     string? EncounterId(string trait, string? crewId, string? targetId = null);
     IReadOnlyList<TraitBonus> Bonuses(string crewId, IReadOnlyCollection<string> team);
-    IReadOnlyList<LaunchPreview> Preview(IReadOnlyCollection<string> roster);   // every launch rule that could fire, with its condition, for the briefing
+    IReadOnlyList<LaunchPreview> Preview(IReadOnlyList<string> roster);   // every launch rule that could fire, with its condition, for the briefing
 }
+
+// As built (Task 4): the rule's effects are the definition's own; Fires(team) is the one test of the condition, used by both.
+public sealed record LaunchPreview(string Trait, string HolderId, string? TargetId, string When, IReadOnlyList<TraitRuleEffect> Effects) { public bool Fires(IReadOnlyCollection<string> team); }
+public static class LaunchWhen { Sent, NotSent, WithTarget }   // "sent", "notSent", "withTarget"
 
 // Team
 public sealed record TraitBonus(string Trait, int Amount);
@@ -351,3 +355,12 @@ Kept as each task of the plan (`2026-11-17-phase-1e-part-three-plan.md`) lands; 
 - The lint counts a trait whose definition gives it a check bonus, launch rules, or `onTargetDied` as read, so `owes` and `looks_up_to`, which no storylet reads, are no warning.
 - The fixture's pair traits are `trait_g` (avoids), `trait_h` (owes), `trait_i` (looks up to), and `trait_j` (the grief two of them leave), set by ENCOUNTER_05's careful disaster, ENCOUNTER_07's careful critical, and ENCOUNTER_03's careful success, each the actor toward the lead; STORYLET_03 and VIGNETTE_04 are for a pair. None of those outcomes comes up in the 20 x 50 simulation.
 - A pair's head names the first pair trait the storylet requires by its id ("CREW_01 · trait_g CREW_03"); Task 5 gives traits their display names.
+
+**Task 4, traits on missions (2026-11-17).**
+
+- `LaunchPreview` carries the definition's own rule effects and one method, `Fires(team)`, which both the traits module and (Task 5) the briefing use to decide whether an entry fires. `Preview` takes the roster as a list, for its order. Section 5.2 shows both.
+- `RequirementDef` gains `Trait`, `Min`, `Max`, and `On` (`ship`, `lead`, or `anyone`, the last a new word in `TraitOn`); `is` resolves to `Min` and `Max` at load. "lead" is the lead as the mission now stands, after a lead change.
+- `TeamMember.Traits` holds the member's own traits only, not the pairs they hold, since no approach can require a pair trait; it, `TraitBonuses`, and `Team.ShipTraits` are null when empty, and the mission's state keeps the ship's traits for its requirements.
+- Two pairs of one trait that both give a bonus are one `TraitBonus`, their amounts summed, so the beat names the trait once.
+- The launch rules run on `MissionStarted` at order 250, after the missions module has built the team's snapshot and before the mission's own `MissionEnded` (queued behind it), so a mission that ends at once still sees its traits as they were at launch.
+- Both golden hashes moved; the fixture's simulation now plays differently (918 full successes in 20 x 50, from 906), from `trait_h`'s +1 when holder and target are sent together.

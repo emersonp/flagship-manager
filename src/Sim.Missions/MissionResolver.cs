@@ -38,6 +38,7 @@ public static class MissionResolver
             Progress = 0,
             Team = team.Members.Select(m => new MemberState { Member = m, Injury = 0, Status = MemberStatus.Active, Experience = [], Loyalty = 0 }).ToList(),
             LeadId = team.LeadId,
+            ShipTraits = team.ShipTraits is { Count: > 0 } ship ? new Dictionary<string, int>(ship) : null,
             GearTags = gearTags.ToList(),
             Parameters = parameters,
             Pending = null,
@@ -111,14 +112,26 @@ public static class MissionResolver
         };
     }
 
-    // The approaches whose every requirement holds for the team as it stands, in the encounter's order.
-    internal static IReadOnlyList<ApproachDef> Available(EncounterDef encounter, IReadOnlyList<MemberState> standing, IReadOnlyCollection<string> gearTags)
+    // The approaches whose every requirement holds for the team as it stands, in the encounter's order. A trait is read from the
+    // snapshot fixed at launch (1e part three): the ship's, the lead's as the lead now stands, or anyone standing's.
+    internal static IReadOnlyList<ApproachDef> Available(EncounterDef encounter, IReadOnlyList<MemberState> standing, IReadOnlyCollection<string> gearTags,
+        IReadOnlyDictionary<string, int>? shipTraits = null, string? leadId = null)
     {
+        static int Own(MemberState member, string trait)
+        {
+            return member.Member.Traits?.GetValueOrDefault(trait) ?? 0;
+        }
+
         bool Holds(RequirementDef requirement)
         {
-            return requirement.Skill is { } skill
-                ? standing.Any(m => m.Member.Skills.GetValueOrDefault(skill) - m.Injury >= requirement.Level)
-                : gearTags.Contains(requirement.Gear!);
+            return requirement switch
+            {
+                { Skill: { } skill } => standing.Any(m => m.Member.Skills.GetValueOrDefault(skill) - m.Injury >= requirement.Level),
+                { Trait: { } trait, On: TraitOn.Ship } => requirement.HoldsAt(shipTraits?.GetValueOrDefault(trait) ?? 0),
+                { Trait: { } trait, On: TraitOn.Lead } => standing.FirstOrDefault(m => m.Member.Id == leadId) is { } lead && requirement.HoldsAt(Own(lead, trait)),
+                { Trait: { } trait } => standing.Any(m => requirement.HoldsAt(Own(m, trait))),
+                _ => gearTags.Contains(requirement.Gear!),
+            };
         }
 
         return encounter.Approaches.Where(a => a.Requires.All(Holds)).ToList();
@@ -242,7 +255,7 @@ public static class MissionResolver
         private void Check(EncounterDef encounter)
         {
             Parameters p = State.Parameters;
-            IReadOnlyList<ApproachDef> available = Available(encounter, Active, State.GearTags);
+            IReadOnlyList<ApproachDef> available = Available(encounter, Active, State.GearTags, State.ShipTraits, State.LeadId);
             ApproachDef def = Choose(available, Lead);
             int Skill(MemberState m)
             {
@@ -274,7 +287,8 @@ public static class MissionResolver
             int momentum = State.Momentum;
             int strain = State.Strain;
             int morale = actor.Member.MoraleBonus;
-            int score = actorSkill + assist + gear + morale + momentum - strain;
+            IReadOnlyList<TraitBonus>? bonuses = actor.Member.TraitBonuses is { Count: > 0 } held ? held : null;
+            int score = actorSkill + assist + gear + morale + (bonuses?.Sum(b => b.Amount) ?? 0) + momentum - strain;
             int roll = T.CheckDice.Roll(Dice($"check:{encounter.Id}"));
             int margin = score + roll - target;
             Tier tier = margin >= T.TierCritical ? Tier.Critical
@@ -304,7 +318,7 @@ public static class MissionResolver
 
             Beats.Add(new CheckBeat(
                 encounter.Id, def.Id, available.Count, def.Skill, actor.Member.Id, helper?.Member.Id, supervised,
-                actorSkill, assist, gear, momentum, strain, score, roll, target, margin, tier, experience, mentoring, helperExperience, State.Momentum, State.Strain, traits, morale));
+                actorSkill, assist, gear, momentum, strain, score, roll, target, margin, tier, experience, mentoring, helperExperience, State.Momentum, State.Strain, traits, morale, bonuses));
 
             // The roll falls on the actor after the check's beat, under the key the default rolls always used, so its dice do not move.
             if (outcome.InjuryRoll is { } severity)

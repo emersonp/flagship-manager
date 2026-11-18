@@ -6,8 +6,16 @@ public enum InjurySeverity
     Severe,
 }
 
-// Exactly one of Skill and Gear is set. Skill with Level: someone standing has that level after injury. Gear: the loadout carries the tag.
-public sealed record RequirementDef(string? Skill, int Level, string? Gear);
+// Exactly one of Skill, Gear, and Trait is set. Skill with Level: someone standing has that level after injury. Gear: the loadout
+// carries the tag. Trait (1e part three): its value at launch lies in Min to Max (no limit when Max is null), on the ship, the lead,
+// or anyone standing (On, one of TraitOn's ship, lead, and anyone).
+public sealed record RequirementDef(string? Skill, int Level, string? Gear, string? Trait = null, int Min = 0, int? Max = null, string? On = null)
+{
+    public bool HoldsAt(int value)
+    {
+        return value >= Min && (Max is null || value <= Max);
+    }
+}
 
 // One way to take an encounter. Id is unique within its encounter and is what beats and lines name.
 public sealed record ApproachDef(string Id, string Skill, int Difficulty, string? GearTag,
@@ -28,6 +36,9 @@ public static class TraitOn
     public const string Actor = "actor";
     public const string Lead = "lead";
     public const string Team = "team";
+
+    // Someone standing: an approach's trait requirement only (1e part three).
+    public const string Anyone = "anyone";
 
 }
 

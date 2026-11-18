@@ -14,6 +14,9 @@ public class StoryletsModuleTests
 
     internal sealed record EndMission(MissionResult Result) : ICommand;
 
+    // Stands in for the missions module's start of a mission (1e part three): the team as launched.
+    internal sealed record StartMission(IReadOnlyList<string> CrewIds) : ICommand;
+
     // Cycle, crew, traits, and storylets on one bus; a test command stands in for the missions module's end of a mission.
     internal sealed class Harness
     {
@@ -63,6 +66,11 @@ public class StoryletsModuleTests
             return events;
         }
 
+        public List<IEvent> Launch(params string[] crew)
+        {
+            return Send(new StartMission(crew));
+        }
+
         public List<IEvent> End(MissionTrait[] traits, params CrewResult[] crew)
         {
             return Send(new EndMission(new MissionResult(MissionOutcome.PartialSuccess, 1, 2, 0, 0, crew, traits)));
@@ -92,6 +100,7 @@ public class StoryletsModuleTests
             TraitsModule.Register(bus, pack);
             StoryletsModule.Register(bus, pack);
             bus.Handle<EndMission>((command, context) => context.Publish(new MissionEnded("MISSION_1", "OBJECTIVE_1", command.Result)));
+            bus.Handle<StartMission>((command, context) => context.Publish(new MissionStarted("MISSION_1", "OBJECTIVE_1", "OBJECTIVE_TEMPLATE_1", command.CrewIds, command.CrewIds[0])));
             return bus;
         }
     }

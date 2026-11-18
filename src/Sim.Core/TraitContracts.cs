@@ -1,3 +1,5 @@
+using Sim.Core.Content;
+
 namespace Sim.Core;
 
 // Contracts of the traits module (slice 1e, part three), here so the storylets module, the bridge, and the simulator never
@@ -45,6 +47,29 @@ public static class TraitCauses
     public const string Death = "death";
 
     public const string Developer = "developer";
+}
+
+// One launch rule that could fire (design 4.7): the holder's trait (a pair's target too), when it fires, and what it does.
+// When is one of LaunchWhen.
+public sealed record LaunchPreview(string Trait, string HolderId, string? TargetId, string When, IReadOnlyList<TraitRuleEffect> Effects)
+{
+    // Whether a mission with this team fires it. NotSent waits for a mission: a cycle with nobody sent fires nothing.
+    public bool Fires(IReadOnlyCollection<string> team)
+    {
+        return When switch
+        {
+            LaunchWhen.Sent => team.Contains(HolderId),
+            LaunchWhen.NotSent => team.Count > 0 && !team.Contains(HolderId),
+            _ => team.Contains(HolderId) && TargetId is not null && team.Contains(TargetId),
+        };
+    }
+}
+
+public static class LaunchWhen
+{
+    public const string Sent = "sent";
+    public const string NotSent = "notSent";
+    public const string WithTarget = "withTarget";
 }
 
 // One trait as it stands. TargetId: the crew member a pair trait points at. EncounterId: the last encounter that changed it,

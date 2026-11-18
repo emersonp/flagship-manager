@@ -20,12 +20,13 @@ public static class TraitsModule
         var defs = new Definitions(pack.Traits);
         bus.Module<TraitsState>(Name);
         // The factory reads the state on every call: the state may not exist until a trait is first set.
-        bus.Provide<ITraitView>(state => new TraitView(state.Module<TraitsState>(Name)));
+        bus.Provide<ITraitView>(state => new TraitView(state.Module<TraitsState>(Name), defs));
         // Content the loader accepted never adds to a trait with levels; this keeps anything else from doing so.
         bus.Guard<ChangeTrait>(Order, Name, (command, _) => !command.Set && command.Amount != 0 && defs[command.Trait].HasLevels ? defs[command.Trait].LevelsAreSet : null);
         bus.Handle<ChangeTrait>((command, context) => Change(defs, context, command.Trait, command.CrewId, command.TargetId, command.Amount, command.Set, command.Cause, command.EncounterId));
         bus.Guard<SetTrait>(Order, Name, (command, context) => CheckSet(defs, command, context));
         bus.Handle<SetTrait>((command, context) => OnSet(defs, command, context));
+        bus.Subscribe<MissionStarted>(Order, Name, (e, context) => OnMissionStarted(defs, e, context));
         bus.Subscribe<MissionEnded>(Order, Name, (e, context) => OnMissionEnded(defs, e, context));
         bus.Subscribe<WeekAdvanced>(Order, Name, (e, context) => OnWeek(defs, e, context));
         bus.Subscribe<CrewDied>(Order, Name, (e, context) => OnCrewDied(defs, e, context));
@@ -81,6 +82,53 @@ public static class TraitsModule
     {
         context.Publish(new TraitSetByDeveloper(command.Trait, command.CrewId, command.TargetId, command.Value));
         Change(defs, context, command.Trait, command.CrewId, command.TargetId, command.Value, true, TraitCauses.Developer, null);
+    }
+
+    // The launch rules (design 4.6): exactly the entries of the preview whose condition this team meets, in the preview's order, so
+    // what the briefing showed is what happens. The team's check bonuses were fixed before this, as the crew walked on board.
+    private static void OnMissionStarted(Definitions defs, MissionStarted started, IBusContext context)
+    {
+        IReadOnlyList<LaunchPreview> preview = Preview(context.Module<TraitsState>(), defs, context.View<IRosterView>().Roster);
+        foreach (LaunchPreview rule in preview.Where(p => p.Fires(started.CrewIds)))
+        {
+            Apply(defs, context, defs[rule.Trait], rule.HolderId, rule.TargetId, rule.Effects, TraitCauses.Launch);
+        }
+    }
+
+    // Every launch rule that could fire: holders in roster order, each holder's traits in definition order (a trait with no
+    // definition has none), a trait's pairs in their targets' roster order; for each, sent, then notSent, then withTarget.
+    internal static IReadOnlyList<LaunchPreview> Preview(TraitsState state, Definitions defs, IReadOnlyList<string> roster)
+    {
+        var preview = new List<LaunchPreview>();
+        foreach (string holder in roster)
+        {
+            foreach (TraitDef def in defs.All.Where(d => d.Launch is not null))
+            {
+                TraitLaunch launch = def.Launch!;
+                IEnumerable<StoredTrait> held = state.Traits
+                    .Where(t => t.CrewId == holder && t.Trait == def.Id && (t.TargetId is null || roster.Contains(t.TargetId)))
+                    .OrderBy(t => t.TargetId is null ? -1 : roster.ToList().IndexOf(t.TargetId));
+                foreach (StoredTrait trait in held)
+                {
+                    if (launch.Sent.Count > 0)
+                    {
+                        preview.Add(new LaunchPreview(def.Id, holder, trait.TargetId, LaunchWhen.Sent, launch.Sent));
+                    }
+
+                    if (launch.NotSent.Count > 0)
+                    {
+                        preview.Add(new LaunchPreview(def.Id, holder, trait.TargetId, LaunchWhen.NotSent, launch.NotSent));
+                    }
+
+                    if (trait.TargetId is not null && launch.WithTarget.Count > 0)
+                    {
+                        preview.Add(new LaunchPreview(def.Id, holder, trait.TargetId, LaunchWhen.WithTarget, launch.WithTarget));
+                    }
+                }
+            }
+        }
+
+        return preview;
     }
 
     private static void OnMissionEnded(Definitions defs, MissionEnded ended, IBusContext context)
@@ -202,10 +250,12 @@ public static class TraitsModule
         context.Publish(new TraitChanged(trait, crewId, targetId, from, to, cause, encounterId));
     }
 
-    // The pack's definitions by id; a trait the pack does not define has none of their rules.
-    private sealed class Definitions(IReadOnlyList<TraitDef> defs)
+    // The pack's definitions by id, and in their order; a trait the pack does not define has none of their rules.
+    internal sealed class Definitions(IReadOnlyList<TraitDef> defs)
     {
         private readonly Dictionary<string, TraitDef> byId = defs.ToDictionary(d => d.Id);
+
+        public IReadOnlyList<TraitDef> All => defs;
 
         public TraitDef this[string trait] => byId.GetValueOrDefault(trait) ?? TraitDef.Plain(trait);
     }

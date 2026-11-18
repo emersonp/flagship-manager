@@ -47,11 +47,13 @@ public sealed record CheckBeat(
     int? MomentumAfter = null,
     int? StrainAfter = null,
     IReadOnlyList<MissionTrait>? Traits = null,
-    int MoraleBonus = 0) : Beat;
+    int MoraleBonus = 0,
+    IReadOnlyList<TraitBonus>? TraitBonuses = null) : Beat;
 
 // MomentumAfter and StrainAfter are the team's state after the tier's effects; null in beats stored before slice 1d.
 // Traits: what the tier's outcome changed; null when it changed none.
 // MoraleBonus: the actor's, from their morale when the mission launched; part of Score.
+// TraitBonuses: the actor's trait check bonuses, fixed when the mission launched (1e part three); part of Score; null when none.
 
 public sealed record EffectsBeat(EffectDef Effects) : Beat;
 

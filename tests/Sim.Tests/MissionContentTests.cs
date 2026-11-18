@@ -204,13 +204,13 @@ public class MissionContentTests
     [Fact]
     public void A_requirement_naming_both_a_skill_and_gear_is_refused()
     {
-        AssertRefused(FastWith("requires: [{ skill: SKILL_A, level: 1, gear: scanner }]"), "The fast approach's requirement 1 must name one of skill and gear.");
+        AssertRefused(FastWith("requires: [{ skill: SKILL_A, level: 1, gear: scanner }]"), "The fast approach's requirement 1 must name one of skill, gear, and trait.");
     }
 
     [Fact]
     public void A_requirement_naming_neither_a_skill_nor_gear_is_refused()
     {
-        AssertRefused(FastWith("requires: [{ gear: scanner }, { level: 2 }]"), "The fast approach's requirement 2 must name one of skill and gear.");
+        AssertRefused(FastWith("requires: [{ gear: scanner }, { level: 2 }]"), "The fast approach's requirement 2 must name one of skill, gear, and trait.");
     }
 
     [Theory]
