@@ -243,7 +243,7 @@ In generated words (section 15, item 37):
 | Module | Order | Change in part four |
 |---|---|---|
 | `Sim.Storylets` | 300 | Casting, salience, cooldowns, check options, and the history. Reads expressions through `Sim.Expressions`. Serves `IHistoryView`, and the dry run Dev Play reads. |
-| `Sim.Expressions` (new, a library, not a module) | — | Wraps DynamicExpresso: parses an expression against the state view's types, gives errors with positions, counts clauses for specificity, lists the traits read (for the lint and "where it came from"), and evaluates against a view. Referenced by `Sim.Content` (to check at load) and `Sim.Storylets` (to run). It holds no state **(my call)**. |
+| `Sim.Expressions` (new, a library, not a module) | — | Wraps DynamicExpresso: parses an expression against the state view's types, gives errors with positions, counts clauses for specificity, lists the traits read (for the lint and "where it came from"), and evaluates against a view. Referenced by `Sim.Content` (to check at load) and `Sim.Storylets` (to run). It holds no state **(my call)**. As built (Task 2): `ExpressionBook` (built from the trait definitions, skill ids, history kinds, and `history.cycles`) with `Check` and `Evaluate`; `CheckedExpression`; the view objects; and `IStateSource`, which the view objects read and the storylets module implements over its roster, trait, and history views. |
 | `Sim.Content` | — | Reads `cast`, `requires`, `cooldown`, and `check`. Refuses `scope` and the list form. Checks expressions through `Sim.Expressions` against `TraitBook`. |
 | `Sim.Crew`, `Sim.Traits` | 100, 250 | No change beyond being read through their views. |
 
@@ -340,3 +340,16 @@ Run on DynamicExpresso.Core 2.19.6 (MIT), .NET 10, in a throwaway console with s
 5. **Cost: well inside the budget.** Through a compiled `Func<…, bool>`, an evaluation is about 0.2 µs: 200 storylets × 50 tries is about 2 ms a cycle. `Lambda.Invoke` (reflection) is about 1.3 µs and is not to be used. Parsing with the whitelist is about 0.14 ms an expression and compiling about 0.4 ms more, so 200 expressions cost about 30 ms to check and 100 ms to compile. The loader parses only, and `Sim.Storylets` compiles once when the module is built, so a pack of hundreds stays quick to save in the editor.
 
 **For Task 2:** the rewrite, the whitelist visitor, and the compiled delegate with a fixed signature (three slot parameters, unused ones named so no expression can read them, then `ship` and `cycle`) are `Sim.Expressions`. The view's members are lower case, as the language is. Content can't divide or take a remainder, which none needs.
+
+### Task 2: `Sim.Expressions` (2026-11-18)
+
+Built as Task 1 said: the rewrite (`Rewrite.cs`), DynamicExpresso.Core 2.19.6 with `InterpreterOptions.SystemKeywords` and assignment off, the whitelist (`Whitelist.cs`, in `Interpreter.Visitors`), and a compiled delegate with the fixed signature. Differences and choices:
+
+- **The rewrite refuses more than it rewrites.** It reads the source as tokens and allows only names, whole numbers, quoted names, `( ) , . ! < > + - *`, and `&& || == != <= >=`. So `/`, `%`, `[`, `?`, `;`, `@`, and a lone `=` or `&` are refused with their position before the parser sees them. A name where a value starts must be a slot it may read, `ship`, `cycle`, `true`, or `false`; after a slot only the words of 4.3 follow, and nothing follows a complete read ("Nothing is read from subject.morale"). So most of the escape list is refused by name and position in the rewrite, and the whitelist is the second wall: a test parses the spike's escapes past the rewrite and the whitelist refuses each on its own.
+- **Quoted names hold only letters, digits, and `_`**, since they are only history kinds and level names. A quoted name anywhere else is refused ("A quoted name is a level of the trait it is compared with, or a history kind"). A level may be written on either side of `==` or `!=`.
+- **`history.count`'s kind and `n` are checked in the rewrite**, with their positions, not in the whitelist (which still requires both to be constants).
+- **Hints:** `and`, `or`, and `not` are refused as "and is written &&" and so on. `chronicle` is refused as waiting for part five, beside `rel` and `grade`.
+- **The indexer is an `Index` node** in DynamicExpresso's tree, not a call to `get_Item`; the whitelist allows it only on the view types with a constant id.
+- **Compiled on first evaluation.** `Check` parses only; a `CheckedExpression` compiles its delegate the first time it is evaluated and keeps it. The cost falls on the first cycle that reads it, once, and the editor's save, which only checks, never pays it.
+- **`IStateSource` and the view objects live in `Sim.Expressions`,** not `Sim.Core`: they are the language's, and only the storylets module implements the source. The history kinds are passed to the book; Task 3 gives them their constants.
+- `x == y` compares who the crew members are through the view's own operator; the view's id is internal, so no expression can read it.

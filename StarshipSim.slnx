@@ -7,6 +7,7 @@
     <Project Path="src/Sim.Core/Sim.Core.csproj" />
     <Project Path="src/Sim.Crew/Sim.Crew.csproj" />
     <Project Path="src/Sim.Cycle/Sim.Cycle.csproj" />
+    <Project Path="src/Sim.Expressions/Sim.Expressions.csproj" />
     <Project Path="src/Sim.Missions/Sim.Missions.csproj" />
     <Project Path="src/Sim.Narrative/Sim.Narrative.csproj" />
     <Project Path="src/Sim.Storylets/Sim.Storylets.csproj" />

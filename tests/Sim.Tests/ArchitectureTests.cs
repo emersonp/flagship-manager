@@ -18,18 +18,36 @@ public class ArchitectureTests
         return data;
     }
 
+    // The expression language (1e part four) is a library, not a module: the loader checks with it, and the storylets module runs it.
+    private static readonly string[] ExpressionUsers = ["Sim.Content", "Sim.Storylets"];
+
     [Theory]
     [MemberData(nameof(SimProjects))]
     public void Sim_projects_reference_only_Sim_Core(string project)
     {
-        Assert.All(References(project), reference => Assert.Equal("Sim.Core", reference));
+        string[] allowed = ExpressionUsers.Contains(project) ? ["Sim.Core", "Sim.Expressions"] : ["Sim.Core"];
+        Assert.All(References(project), reference => Assert.Contains(reference, allowed));
     }
 
     // Named on its own so the rule holds before the folder exists for the theory above to find.
     [Fact]
-    public void The_storylets_module_references_only_Sim_Core()
+    public void The_storylets_module_references_only_Sim_Core_and_the_expression_language()
     {
-        Assert.Equal(new[] { "Sim.Core" }, References("Sim.Storylets"));
+        Assert.All(References("Sim.Storylets"), reference => Assert.Contains(reference, new[] { "Sim.Core", "Sim.Expressions" }));
+    }
+
+    // It holds no state and joins no bus, and it reads only the evaluator's package beside Sim.Core.
+    [Fact]
+    public void The_expression_language_is_a_library_not_a_module()
+    {
+        Assert.Equal(new[] { "Sim.Core" }, References("Sim.Expressions"));
+        Assert.Equal(new[] { "DynamicExpresso.Core" }, Packages("Sim.Expressions"));
+        Assert.All(Directory.EnumerateFiles(Path.Combine(Root, "src", "Sim.Expressions"), "*.cs"), file =>
+        {
+            string text = File.ReadAllText(file);
+            Assert.DoesNotContain("EventBus", text, StringComparison.Ordinal);
+            Assert.DoesNotContain("LegacyState", text, StringComparison.Ordinal);
+        });
     }
 
     [Fact]
@@ -82,6 +100,12 @@ public class ArchitectureTests
         XDocument csproj = XDocument.Load(Path.Combine(Root, "src", project, project + ".csproj"));
         return csproj.Descendants("ProjectReference")
             .Select(r => Path.GetFileNameWithoutExtension(r.Attribute("Include")!.Value.Replace('\\', '/')));
+    }
+
+    private static IEnumerable<string> Packages(string project)
+    {
+        XDocument csproj = XDocument.Load(Path.Combine(Root, "src", project, project + ".csproj"));
+        return csproj.Descendants("PackageReference").Select(r => r.Attribute("Include")!.Value);
     }
 
     private static string FindRoot()
