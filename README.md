@@ -8,7 +8,7 @@ A starship captain management sim, played in the browser, with a headless simula
 
 ## Checks
 
-`./check.sh` is the gate: it builds, runs the tests, runs the headless simulator and the mission bench, and starts the web app on a scratch database and a scratch copy of `tests/fixtures/content/` to create and open a legacy and to edit content through the editor, then starts it again with developer mode off to check that the editor is gone.
+`./check.sh` is the gate: it builds, runs the tests, runs the headless simulator and the mission bench, and starts the web app on a scratch database and a scratch copy of `tests/fixtures/content/` to create and open a legacy and to edit content through the editor, then starts it again with developer mode off to check that the editor is gone. It runs in bash on Linux and macOS, and in Git Bash on Windows, and needs `curl` and Python 3 (as `python3` or `python`). `tests/web-app.sh`, which it and the browser scripts share, starts the built app on a free port and stops it.
 
 `tests/browser/play.sh` plays one cycle in a real browser through `playwright-cli`, double-clicking every action; it is not part of the gate.
 

@@ -11,25 +11,14 @@ echo "Mission bench: 3 x 2000 missions. OK."
 game=$(dotnet run --no-build --project src/SimRunner -- cycles --legacies 3 --cycles 5 --seed 1 --content content) || { echo "$game" >&2; exit 1; }
 echo "Game content: $game"
 
-# Web smoke check: scratch database and a scratch copy of tests/fixtures/content/, free port, everything removed on exit.
-port=$(python3 -c 'import socket; s=socket.socket(); s.bind(("127.0.0.1",0)); print(s.getsockname()[1])')
+# Web smoke check: scratch database and a scratch copy of tests/fixtures/content/, free port, everything removed on exit. The app
+# is started and stopped by tests/web-app.sh, which needs no setsid and finds Python 3 by either name, so this runs on Windows too.
+root="$PWD"
+. tests/web-app.sh
+python=$(web_python)
 tmp=$(mktemp -d)
-base="http://127.0.0.1:$port"
-app_pid=""
-stop_app() {
-  if [ -n "$app_pid" ]; then
-    # The app runs in its own process group (setsid), so one signal reaches dotnet run and its child.
-    kill -TERM -- "-$app_pid" 2>/dev/null || true
-    for _ in $(seq 1 50); do
-      kill -0 -- "-$app_pid" 2>/dev/null || break
-      sleep 0.1
-    done
-    kill -KILL -- "-$app_pid" 2>/dev/null || true
-    app_pid=""
-  fi
-}
 cleanup() {
-  stop_app
+  web_stop
   rm -rf "$tmp"
 }
 trap cleanup EXIT
@@ -48,20 +37,10 @@ content_before=$(content_sum content)
 fixture_before=$(content_sum tests/fixtures/content)
 cp -r tests/fixtures/content "$tmp/content"
 
-# Starts the app with developer mode $1 (true or false) and waits until it answers.
+# Starts the app with developer mode $1 (true or false) and waits until it answers; base is its address.
 start_app() {
-  ASPNETCORE_URLS="$base" Web__DatabasePath="$tmp/check-$1.db" Web__ContentDirectory="$tmp/content" Web__BeatDelayMs=0 Web__DeveloperMode="$1" ASPNETCORE_ENVIRONMENT=Production \
-    setsid dotnet run --no-build --project src/Web > "$tmp/app.log" 2>&1 &
-  app_pid=$!
-  local ready=""
-  for _ in $(seq 1 60); do
-    if [ "$(curl -s -o /dev/null -w '%{http_code}' "$base/" || true)" = "200" ]; then
-      ready=1
-      break
-    fi
-    sleep 0.5
-  done
-  [ -n "$ready" ] || web_fail "GET / never answered 200 within 30 seconds (developer mode $1)."
+  web_start "$tmp/app.log" Web__DatabasePath="$tmp/check-$1.db" Web__ContentDirectory="$tmp/content" Web__BeatDelayMs=0 Web__DeveloperMode="$1"     || web_fail "the app did not start (developer mode $1)."
+  base="$web_base"
 }
 
 start_app true
@@ -90,7 +69,7 @@ status=$(curl -s -o "$tmp/index.html" -w '%{http_code}' "$base/dev/content" || t
 grep -q "CREW_01" "$tmp/index.html" || web_fail "GET /dev/content did not list CREW_01."
 status=$(curl -s -o "$tmp/crew.html" -w '%{http_code}' "$base/dev/content/crew/CREW_01" || true)
 [ "$status" = "200" ] || web_fail "GET /dev/content/crew/CREW_01 answered $status, expected 200."
-python3 - "$tmp/crew.html" "$tmp/crew.fields" <<'PY'
+"$python" - "$tmp/crew.html" "$tmp/crew.fields" <<'PY'
 import html.parser, sys, urllib.parse
 class Form(html.parser.HTMLParser):
     def __init__(self):
@@ -119,7 +98,7 @@ status=$(curl -s -o "$tmp/legacy.html" -w '%{http_code}' "$base$location" || tru
 grep -q "NAME_PLACEHOLDER" "$tmp/legacy.html" || web_fail "The legacy's page does not show the new name."
 
 # With developer mode off the editor does not exist.
-stop_app
+web_stop
 start_app false
 status=$(curl -s -o /dev/null -w '%{http_code}' "$base/dev/content" || true)
 [ "$status" = "404" ] || web_fail "GET /dev/content answered $status with developer mode off, expected 404."

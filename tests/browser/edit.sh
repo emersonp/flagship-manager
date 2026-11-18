@@ -8,25 +8,19 @@
 set -euo pipefail
 root="$(cd "$(dirname "$0")/../.." && pwd)"
 
-port=$(python3 -c 'import socket; s=socket.socket(); s.bind(("127.0.0.1",0)); print(s.getsockname()[1])')
+# The app is started and stopped by tests/web-app.sh, which needs no setsid and finds Python 3 by either name.
+. "$root/tests/web-app.sh"
+python=$(web_python)
 tmp=$(mktemp -d)
-base="http://127.0.0.1:$port"
+base=""
 session="edit-$$"
-app_group=""
 browser=""
 
 cleanup() {
   if [ -n "$browser" ]; then
     (cd "$tmp" && timeout 30 playwright-cli -s="$session" close > /dev/null 2>&1) || true
   fi
-  if [ -n "$app_group" ]; then
-    kill -TERM -- "-$app_group" 2>/dev/null || true
-    for _ in $(seq 1 50); do
-      kill -0 -- "-$app_group" 2>/dev/null || break
-      sleep 0.1
-    done
-    kill -KILL -- "-$app_group" 2>/dev/null || true
-  fi
+  web_stop
   rm -rf "$tmp"
 }
 trap cleanup EXIT
@@ -97,24 +91,9 @@ before_fixture=$(sum_of "$fixture")
 status_before=$(git -C "$root" status --porcelain content tests/fixtures/content)
 cp -r "$fixture" "$tmp/content"
 
-# The app is its own session leader, so one signal to its group stops dotnet run and the app it starts.
-(cd "$root" && ASPNETCORE_URLS="$base" Web__DatabasePath="$tmp/edit.db" Web__ContentDirectory="$tmp/content" Web__BeatDelayMs=0 Web__DeveloperMode=true ASPNETCORE_ENVIRONMENT=Production \
-  setsid bash -c 'echo $$ > "$0"; exec dotnet run --no-build --project src/Web' "$tmp/app.pid" > "$tmp/app.log" 2>&1 &)
-for _ in $(seq 1 60); do
-  [ -s "$tmp/app.pid" ] && break
-  sleep 0.1
-done
-app_group=$(cat "$tmp/app.pid")
-
-ready=""
-for _ in $(seq 1 60); do
-  if [ "$(curl -s -o /dev/null -w '%{http_code}' "$base/" || true)" = "200" ]; then
-    ready=1
-    break
-  fi
-  sleep 0.5
-done
-[ -n "$ready" ] || fail "GET / never answered 200 within 30 seconds."
+web_start "$tmp/app.log" Web__DatabasePath="$tmp/edit.db" Web__ContentDirectory="$tmp/content" Web__BeatDelayMs=0 Web__DeveloperMode=true \
+  || fail "the app did not start."
+base="$web_base"
 
 crew_name="NAME_PLACEHOLDER_CREW"
 skill_name="NAME_PLACEHOLDER_SKILL"

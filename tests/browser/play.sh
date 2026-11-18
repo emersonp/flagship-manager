@@ -4,25 +4,19 @@
 set -euo pipefail
 root="$(cd "$(dirname "$0")/../.." && pwd)"
 
-port=$(python3 -c 'import socket; s=socket.socket(); s.bind(("127.0.0.1",0)); print(s.getsockname()[1])')
+# The app is started and stopped by tests/web-app.sh, which needs no setsid and finds Python 3 by either name.
+. "$root/tests/web-app.sh"
+python=$(web_python)
 tmp=$(mktemp -d)
-base="http://127.0.0.1:$port"
+base=""
 session="play-$$"
-app_group=""
 browser=""
 
 cleanup() {
   if [ -n "$browser" ]; then
     (cd "$tmp" && timeout 30 playwright-cli -s="$session" close > /dev/null 2>&1) || true
   fi
-  if [ -n "$app_group" ]; then
-    kill -TERM -- "-$app_group" 2>/dev/null || true
-    for _ in $(seq 1 50); do
-      kill -0 -- "-$app_group" 2>/dev/null || break
-      sleep 0.1
-    done
-    kill -KILL -- "-$app_group" 2>/dev/null || true
-  fi
+  web_stop
   rm -rf "$tmp"
 }
 trap cleanup EXIT
@@ -64,10 +58,10 @@ dotnet build --nologo -v quiet "$root/src/Web" > "$tmp/build.log" 2>&1 || { cat 
 # The app reads a scratch copy of the tests' placeholder pack, never the game's content/.
 cp -r "$root/tests/fixtures/content" "$tmp/content"
 # In the copy STORYLET_01 holds while trait_a is 5 or less, so it waits in the first aftermath whatever the mission did; either answer ends it.
-python3 - "$tmp/content/storylets/base.yaml" <<'PY'
+"$python" - "$tmp/content/storylets/base.yaml" <<'PY'
 import sys
 path = sys.argv[1]
-text = open(path, encoding="utf-8").read()
+text = open(path, encoding="utf-8", newline="").read()
 edits = [
     ("- { trait: trait_a, min: 1, max: 1 }", "- { trait: trait_a, max: 5 }"),
     ("effects: [{ trait: trait_a, set: 0 }, { loyalty: -1, on: crew }]", "effects: [{ trait: trait_a, set: 9 }, { loyalty: -1, on: crew }]"),
@@ -76,27 +70,12 @@ edits = [
 for old, new in edits:
     assert text.count(old) == 1, old
     text = text.replace(old, new)
-open(path, "w", encoding="utf-8").write(text)
+open(path, "w", encoding="utf-8", newline="").write(text)
 PY
 
-# The app is its own session leader, so one signal to its group stops dotnet run and the app it starts.
-(cd "$root" && ASPNETCORE_URLS="$base" Web__DatabasePath="$tmp/play.db" Web__ContentDirectory="$tmp/content" Web__BeatDelayMs=50 Web__DeveloperMode=false ASPNETCORE_ENVIRONMENT=Production \
-  setsid bash -c 'echo $$ > "$0"; exec dotnet run --no-build --project src/Web' "$tmp/app.pid" > "$tmp/app.log" 2>&1 &)
-for _ in $(seq 1 60); do
-  [ -s "$tmp/app.pid" ] && break
-  sleep 0.1
-done
-app_group=$(cat "$tmp/app.pid")
-
-ready=""
-for _ in $(seq 1 60); do
-  if [ "$(curl -s -o /dev/null -w '%{http_code}' "$base/" || true)" = "200" ]; then
-    ready=1
-    break
-  fi
-  sleep 0.5
-done
-[ -n "$ready" ] || fail "GET / never answered 200 within 30 seconds."
+web_start "$tmp/app.log" Web__DatabasePath="$tmp/play.db" Web__ContentDirectory="$tmp/content" Web__BeatDelayMs=50 Web__DeveloperMode=false \
+  || fail "the app did not start."
+base="$web_base"
 
 browser=1
 pw open "$base/" > /dev/null
