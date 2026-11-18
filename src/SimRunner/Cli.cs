@@ -13,7 +13,7 @@ public static class Cli
 {
     public const string Usage = """
         Usage:
-          SimRunner cycles [--legacies N] [--cycles N] [--seed N] [--content DIR] [--out FILE]
+          SimRunner cycles [--legacies N] [--cycles N] [--seed N] [--answers first|random] [--content DIR] [--out FILE]
           SimRunner bench --objective ID [--runs N] [--seed N]
                           [--team rookie|mixed|veteran|sweep] [--lead cautious|average|reckless]
                           [--autonomy -1|0|1] [--priority -1|0|1] [--develop]
@@ -45,8 +45,8 @@ public static class Cli
 
     private static int Cycles(string[] args, TextWriter output, TextWriter error)
     {
-        var line = new CommandLine(args, ["--legacies", "--cycles", "--seed", "--content", "--out"], []);
-        var options = new SimOptions(line.Int("--legacies", 200, 1, 1_000_000), line.Int("--cycles", 500, 1, 1_000_000), line.Seed("--seed", 1));
+        var line = new CommandLine(args, ["--legacies", "--cycles", "--seed", "--answers", "--content", "--out"], []);
+        var options = new SimOptions(line.Int("--legacies", 200, 1, 1_000_000), line.Int("--cycles", 500, 1, 1_000_000), line.Seed("--seed", 1), line.Choice("--answers", AnswerPolicy.First));
         if (LoadContent(line.Text("--content", "content"), error) is not { } pack)
         {
             return 1;
@@ -76,7 +76,55 @@ public static class Cli
             + $"Storylets per 100 cycles: {PerHundred(l => l.StoryletsOffered)} offered, {PerHundred(l => l.StoryletsAnswered)} answered. "
             + $"Vignettes per 100 cycles: {PerHundred(l => l.VignettesArrived)} arrived, {PerHundred(l => l.VignettesDefaulted)} left to their default. "
             + $"Morale at the end: {summary.Legacies.Sum(l => l.MoraleLow)} low, {summary.Legacies.Sum(l => l.MoraleSteady)} steady, {summary.Legacies.Sum(l => l.MoraleHigh)} high. OK.");
+        Report(pack, summary, options, output);
         return 0;
+    }
+
+    // What fired, per 100 cycles of one legacy (1e part three, design 4.10): each storylet and vignette and each of its options, and
+    // each trait set from 0; then whatever never fired. A warning only: nothing here fails a run.
+    private static void Report(ContentPack pack, SimSummary summary, SimOptions options, TextWriter output)
+    {
+        double cycles = summary.Legacies.Count * (double)options.Cycles;
+        int Total(Func<LegacySummary, IReadOnlyDictionary<string, int>> of, string key)
+        {
+            return summary.Legacies.Sum(l => of(l).GetValueOrDefault(key));
+        }
+
+        string Rate(int count)
+        {
+            return (count * 100.0 / cycles).ToString("0.0", CultureInfo.InvariantCulture);
+        }
+
+        var never = new List<string>();
+        var items = new List<string>();
+        foreach ((string id, IEnumerable<string> optionIds) in pack.Storylets.Select(s => (s.Id, s.Options.Select(o => o.Id)))
+            .Concat(pack.Vignettes.Select(v => (v.Id, v.Options.Select(o => o.Id)))))
+        {
+            int arrived = Total(l => l.Fired, id);
+            never.AddRange(arrived == 0 ? [id] : []);
+            var parts = new List<string>();
+            foreach (string option in optionIds)
+            {
+                int taken = Total(l => l.Fired, $"{id} {option}");
+                parts.Add($"{option} {Rate(taken)}");
+                never.AddRange(taken == 0 ? [$"{id} {option}"] : []);
+            }
+
+            items.Add(parts.Count == 0 ? $"{id} {Rate(arrived)}" : $"{id} {Rate(arrived)} ({string.Join(", ", parts)})");
+        }
+
+        output.WriteLine($"Fired per 100 cycles ({Kebab(options.Answers)} answers): {(items.Count == 0 ? "nothing to fire" : string.Join("; ", items))}.");
+        List<string> traits = summary.Legacies.SelectMany(l => l.TraitsSet.Keys).Distinct().Order(StringComparer.Ordinal).ToList();
+        output.WriteLine($"Traits set from 0 per 100 cycles: {(traits.Count == 0 ? "none" : string.Join("; ", traits.Select(t => $"{t} {Rate(Total(l => l.TraitsSet, t))}")))}.");
+        if (never.Count > 0)
+        {
+            output.WriteLine($"Never fired: {string.Join(", ", never)}.");
+        }
+    }
+
+    private static string Kebab(AnswerPolicy policy)
+    {
+        return policy.ToString().ToLowerInvariant();
     }
 
     private static int BenchCommand(string[] args, TextWriter output, TextWriter error)

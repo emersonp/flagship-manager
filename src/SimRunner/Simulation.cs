@@ -7,7 +7,8 @@ using Sim.Crew;
 
 namespace SimRunner;
 
-public sealed record SimOptions(int Legacies, int Cycles, ulong Seed);
+// Answers: how the captain answers storylets and vignettes (1e part three).
+public sealed record SimOptions(int Legacies, int Cycles, ulong Seed, AnswerPolicy Answers = AnswerPolicy.First);
 
 public sealed record LegacySummary(
     ulong Seed,
@@ -24,7 +25,15 @@ public sealed record LegacySummary(
     int VignettesDefaulted,
     int MoraleLow,
     int MoraleSteady,
-    int MoraleHigh);
+    int MoraleHigh)
+{
+    // What fired (1e part three, design 4.10), by key: a storylet or vignette's id when it arrived, and "{id} {option}" when that
+    // option was taken (a vignette's default included).
+    public IReadOnlyDictionary<string, int> Fired { get; init; } = new Dictionary<string, int>();
+
+    // How many times each trait went from 0 to more, anywhere.
+    public IReadOnlyDictionary<string, int> TraitsSet { get; init; } = new Dictionary<string, int>();
+}
 
 public sealed record SimSummary(IReadOnlyList<LegacySummary> Legacies);
 
@@ -41,7 +50,7 @@ public static class Simulation
             var events = new List<PublishedEvent>();
             while (state.Cycle <= options.Cycles)
             {
-                events.AddRange(AutoCaptain.PlayCycle(game, state, pack));
+                events.AddRange(AutoCaptain.PlayCycle(game, state, pack, options.Answers));
             }
 
             legacies.Add(Summarise(game, state, pack, seed, options.Cycles, events));
@@ -68,9 +77,42 @@ public static class Simulation
         int defaulted = events.Count(e => e.Event is VignetteAnswered { Defaulted: true });
         // The living crew's morale at the end, in the three bands that change a check (GDD 10's morale distribution).
         List<int> morale = members.Where(m => m.Status != CrewStatus.Dead).Select(m => pack.CrewTuning.MoraleBonus(m.Morale)).ToList();
+        var fired = new Dictionary<string, int>();
+        void Count(string key)
+        {
+            fired[key] = fired.GetValueOrDefault(key) + 1;
+        }
+
+        var set = new Dictionary<string, int>();
+        foreach (IEvent e in events.Select(p => p.Event))
+        {
+            switch (e)
+            {
+                case StoryletOffered o:
+                    Count(o.StoryletId);
+                    break;
+                case StoryletAnswered a:
+                    Count($"{a.StoryletId} {a.OptionId}");
+                    break;
+                case VignetteArrived v:
+                    Count(v.VignetteId);
+                    break;
+                case VignetteAnswered { OptionId: { } option } v:
+                    Count($"{v.VignetteId} {option}");
+                    break;
+                case TraitChanged { From: 0, To: > 0 } t:
+                    set[t.Trait] = set.GetValueOrDefault(t.Trait) + 1;
+                    break;
+            }
+        }
+
         return new LegacySummary(
             seed, cycles, events.Count, Hash(events.Select(game.Events.ToEnvelope)), missions, deaths, alive, highest, offered, answered,
-            arrived, defaulted, morale.Count(b => b < 0), morale.Count(b => b == 0), morale.Count(b => b > 0));
+            arrived, defaulted, morale.Count(b => b < 0), morale.Count(b => b == 0), morale.Count(b => b > 0))
+        {
+            Fired = fired,
+            TraitsSet = set,
+        };
     }
 
     // The golden-seed fingerprint: any change to what happens, or in what order, changes it.

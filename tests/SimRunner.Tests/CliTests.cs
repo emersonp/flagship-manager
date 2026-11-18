@@ -45,7 +45,7 @@ public class CliTests
             (int exit, string output, _) = Run("cycles", "--legacies", "2", "--cycles", "3", "--content", Content, "--out", file);
 
             Assert.Equal(0, exit);
-            Assert.Equal("Content CORE v1: 2 legacies x 3 cycles, 269 events. Missions: 3 full, 2 partial, 0 incomplete, 1 withdrawn, 0 lost. Deaths: 0. Storylets per 100 cycles: 0.0 offered, 0.0 answered. Vignettes per 100 cycles: 216.7 arrived, 0.0 left to their default. Morale at the end: 0 low, 16 steady, 0 high. OK.", output.Trim());
+            Assert.Equal("Content CORE v1: 2 legacies x 3 cycles, 269 events. Missions: 3 full, 2 partial, 0 incomplete, 1 withdrawn, 0 lost. Deaths: 0. Storylets per 100 cycles: 0.0 offered, 0.0 answered. Vignettes per 100 cycles: 216.7 arrived, 0.0 left to their default. Morale at the end: 0 low, 16 steady, 0 high. OK.", output.Split('\n')[0].Trim());
             Assert.Contains("LogHash", File.ReadAllText(file), StringComparison.Ordinal);
         }
         finally
@@ -220,5 +220,18 @@ public class CliTests
         }
 
         return directory?.FullName ?? throw new InvalidOperationException("Repository root not found.");
+    }
+
+    // 1e part three (design 4.10): what fired per 100 cycles, by storylet, vignette, and option, and what never did, as a warning.
+    [Fact]
+    public void Cycles_reports_what_fired_and_what_never_did()
+    {
+        (int exit, string output, _) = Run("cycles", "--legacies", "2", "--cycles", "3", "--answers", "random", "--content", Content);
+
+        Assert.Equal(0, exit);
+        Assert.Contains("Fired per 100 cycles (random answers): STORYLET_01 0.0 (option_a 0.0, option_b 0.0);", output, StringComparison.Ordinal);
+        Assert.Contains("Traits set from 0 per 100 cycles: ", output, StringComparison.Ordinal);
+        Assert.Contains("Never fired: STORYLET_01, STORYLET_01 option_a,", output, StringComparison.Ordinal);
+        Assert.Equal(2, Run("cycles", "--answers", "ignore", "--content", Content).Exit);
     }
 }

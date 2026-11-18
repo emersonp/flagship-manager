@@ -230,4 +230,66 @@ public class SimulationTests
 
         Assert.Equal("6D0CF29EB4EB15E4E555C911BB8CD308BD00330255430CB515BE50E8EA0A7B69", summary.Legacies[0].LogHash);
     }
+
+    // --- The captain's policies and promises (1e part three, Task 6) ---
+
+    [Fact]
+    public void Random_answers_are_reproducible()
+    {
+        var options = new SimOptions(Legacies: 2, Cycles: 15, Seed: 3, Answers: AnswerPolicy.Random);
+
+        Assert.Equal(Simulation.Run(options, Pack).Legacies.Select(l => l.LogHash), Simulation.Run(options, Pack).Legacies.Select(l => l.LogHash));
+    }
+
+    // Focus 5: the policy draws only from its own stream, hashed with the offer, so choosing an answer moves no game stream and the
+    // same offer always gets the same answer. A waiting storylet is set up by hand: the fixture's storylets do not come up in play.
+    [Fact]
+    public void The_random_policy_draws_from_no_game_stream()
+    {
+        Game game = Game.Build(Pack);
+        LegacyState state = TestPack.NewLegacy(1);
+        AutoCaptain.Step(game, state, Pack);
+        game.Bus.Send(state, new SetTrait("trait_a", null, null, 1));
+        while (state.Phase != CyclePhase.Itinerary || state.Cycle != 2)
+        {
+            AutoCaptain.Step(game, state, Pack);
+        }
+
+        string streams = string.Join(",", state.RngStates.Select(r => $"{r.Key}={r.Value}"));
+        var first = (AnswerStorylet)AutoCaptain.NextCommand(game, state, Pack, AnswerPolicy.First);
+        var random = (AnswerStorylet)AutoCaptain.NextCommand(game, state, Pack, AnswerPolicy.Random);
+
+        Assert.Equal(("2:STORYLET_01:ship", "option_a"), (first.OfferId, first.OptionId));
+        Assert.Equal(random, AutoCaptain.NextCommand(game, state, Pack, AnswerPolicy.Random));
+        Assert.Equal(streams, string.Join(",", state.RngStates.Select(r => $"{r.Key}={r.Value}")));
+    }
+
+    [Fact]
+    public void The_captain_keeps_a_promise_when_it_can()
+    {
+        (Game game, LegacyState state) = AtBriefing();
+        var before = (AssignTeam)AutoCaptain.NextCommand(game, state, Pack);
+        game.Bus.Send(state, new SetTrait("trait_e", before.CrewIds[0], null, 1));
+
+        var after = (AssignTeam)AutoCaptain.NextCommand(game, state, Pack);
+
+        Assert.DoesNotContain(before.CrewIds[0], after.CrewIds);
+        Assert.Equal(before.CrewIds.Count, after.CrewIds.Count);
+    }
+
+    [Fact]
+    public void The_captain_breaks_it_rather_than_send_nobody()
+    {
+        (Game game, LegacyState state) = AtBriefing();
+        IReadOnlyList<string> roster = game.Bus.View<IRosterView>(state).Roster;
+        foreach (string crewId in roster)
+        {
+            game.Bus.Send(state, new SetTrait("trait_e", crewId, null, 1));
+        }
+
+        var team = (AssignTeam)AutoCaptain.NextCommand(game, state, Pack);
+        ObjectiveDef template = Pack.Objectives.Single(o => o.Id == state.Module<MissionsState>("missions").Site!.Objectives[0].TemplateId);
+
+        Assert.Equal(template.TeamSizeMin, team.CrewIds.Count);
+    }
 }
