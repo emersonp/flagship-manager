@@ -1,4 +1,5 @@
-- [ ] Mission log newest first, prompt on top
+- [x] Mission log newest first, prompt on top
 - [ ] Discussion with Claude on front end overhaul
   - Add planets and sector map to roadmap for art, in addition to paper dolls
 - [ ] Inquire about Seniority
+- [ ] Player glossary: explain momentum, strain, unattended difficulty, morale words, and the like where they appear in play (the editor's BeatGlossary has text to reuse)
