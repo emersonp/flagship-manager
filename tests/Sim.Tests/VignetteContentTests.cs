@@ -49,7 +49,7 @@ public class VignetteContentTests
     {
         ContentPack pack = TestContent.Pack;
 
-        Assert.Equal(["VIGNETTE_01", "VIGNETTE_02", "VIGNETTE_03"], pack.Vignettes.Select(v => v.Id));
+        Assert.Equal(["VIGNETTE_01", "VIGNETTE_02", "VIGNETTE_03", "VIGNETTE_04"], pack.Vignettes.Select(v => v.Id));
         Assert.Equal((3, 6, 3), (pack.VignettesPerCycle, pack.VignetteCooldown, pack.CaptainsTimePerCycle));
         VignetteDef choice = pack.Vignettes[1];
         Assert.Equal(("option_b", 2, LastCycleFacts.LostCrewmate), (choice.Default, choice.Options.Count, choice.Fact));
@@ -80,7 +80,7 @@ public class VignetteContentTests
     [InlineData("    - { id: option_b, label: LABEL_B, effects: [] }\n", "", "VIGNETTE_X: A vignette's choice is two options.")]
     [InlineData("  default: option_b\n", "  default: option_b\n  effects: [{ morale: 1, on: subject }]\n", "VIGNETTE_X: A vignette has effects or two options, not both.")]
     [InlineData("  scope: crew\n", "  stakes: 2\n  scope: crew\n", "VIGNETTE_X: A vignette has no stakes.")]
-    [InlineData("  scope: crew\n", "  scope: team\n", "VIGNETTE_X: A vignette needs scope: ship or crew.")]
+    [InlineData("  scope: crew\n", "  scope: team\n", "VIGNETTE_X: A vignette needs scope: ship, crew, or pair.")]
     [InlineData("  text: \"subject: LINE\"\n", "  text: |-\n    subject: ONE\n    subject: TWO\n    subject: THREE\n    = FOUR\n", "VIGNETTE_X: A vignette's text is one to three entries.")]
     public void A_malformed_vignette_with_a_choice_is_refused(string from, string to, string message)
     {

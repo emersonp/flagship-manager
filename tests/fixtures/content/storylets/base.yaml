@@ -1,4 +1,5 @@
-# Placeholders. The author replaces these. STORYLET_01 is for the ship and STORYLET_02 for one crew member at a time.
+# Placeholders. The author replaces these. STORYLET_01 is for the ship, STORYLET_02 for one crew member at a time, and STORYLET_03
+# for a pair: a holder of trait_g and its target.
 - id: STORYLET_01
   stakes: 2
   scope: ship
@@ -24,3 +25,15 @@
   options:
     - { id: option_a, label: STORYLET_02_OPTION_A_LABEL, effects: [{ trait: trait_b, add: -1 }, { trait: trait_c, set: 1 }, { trait: trait_e, set: level_a }], text: STORYLET_02_OPTION_A_TEXT }
     - { id: option_b, label: STORYLET_02_OPTION_B_LABEL, effects: [{ trait: trait_c, set: 2 }, { loyalty: -2, on: subject }], text: "#subject# STORYLET_02_OPTION_B_TEXT" }
+- id: STORYLET_03
+  stakes: 2
+  scope: pair
+  requires:
+    - { trait: trait_g, min: 3, max: 4 }
+  text: |-
+    subject: STORYLET_03_LINE_1
+    target: STORYLET_03_LINE_2
+    = #subject# STORYLET_03_REPORT #target#
+  options:
+    - { id: option_a, label: STORYLET_03_OPTION_A_LABEL, effects: [{ trait: trait_g, set: 0, toward: target }, { loyalty: -1, on: subject }], text: STORYLET_03_OPTION_A_TEXT }
+    - { id: option_b, label: STORYLET_03_OPTION_B_LABEL, effects: [{ trait: trait_g, set: 5, toward: target }], text: STORYLET_03_OPTION_B_TEXT }

@@ -46,7 +46,7 @@ public class StoryletContentTests
     {
         ContentPack pack = TestContent.Pack;
 
-        Assert.Equal(["STORYLET_01", "STORYLET_02"], pack.Storylets.Select(s => s.Id));
+        Assert.Equal(["STORYLET_01", "STORYLET_02", "STORYLET_03"], pack.Storylets.Select(s => s.Id));
         Assert.Equal(2, pack.StoryletsPerCycle);
         StoryletDef ship = pack.Storylets[0];
         Assert.Equal((2, StoryletScopes.Ship, (string?)null), (ship.Stakes, ship.Scope, ship.Name));
@@ -121,9 +121,9 @@ public class StoryletContentTests
     [Theory]
     [InlineData("  scope: crew\n", "")]
     [InlineData("scope: crew", "scope: team")]
-    public void A_scope_other_than_ship_or_crew_is_refused(string from, string to)
+    public void A_scope_other_than_ship_crew_or_pair_is_refused(string from, string to)
     {
-        AssertRefused(Storylet.Replace(from, to), "STORYLET_X: A storylet needs scope: ship or crew.");
+        AssertRefused(Storylet.Replace(from, to), "STORYLET_X: A storylet needs scope: ship, crew, or pair.");
     }
 
     [Theory]
@@ -214,7 +214,7 @@ public class StoryletContentTests
     [InlineData("{ loyalty: -1 }", "STORYLET_X: A loyalty change needs on: subject or crew.")]
     [InlineData("{ loyalty: -1, on: ship }", "STORYLET_X: A loyalty change needs on: subject or crew.")]
     [InlineData("{ loyalty: lots, on: crew }", "STORYLET_X: A loyalty change must be a whole number.")]
-    [InlineData("{ trait: trait_b, add: 1, on: crew }", "STORYLET_X: A storylet's trait change takes on: ship or subject, or no on.")]
+    [InlineData("{ trait: trait_b, add: 1, on: crew }", "STORYLET_X: A storylet's trait change takes on: ship, subject, or target, or no on.")]
     [InlineData("{ trait: trait_b, add: 1, set: 1 }", "STORYLET_X: A trait change needs add or set, and only one of them.")]
     [InlineData("{ trait: trait_b }", "STORYLET_X: A trait change needs add or set, and only one of them.")]
     [InlineData("{ trait: trait_b, add: lots }", "STORYLET_X: A trait change's amount must be a whole number.")]
@@ -345,11 +345,11 @@ public class StoryletContentTests
 
     [Theory]
     [InlineData("{ stat: courage, min: 1 }", "STORYLET_X: 'courage' is not a stat a storylet can read; they are morale, loyalty.")]
-    [InlineData("{ stat: morale, over: 1 }", "STORYLET_X: A requirement on stat takes min, max; 'over' is not one of them.")]
+    [InlineData("{ stat: morale, over: 1 }", "STORYLET_X: A requirement on stat takes min, max, of; 'over' is not one of them.")]
     [InlineData("{ stat: morale, min: 50, max: 40 }", "STORYLET_X: The requirement on morale has max 40 below min 50.")]
     [InlineData("{ last: promoted }", "STORYLET_X: 'promoted' is not a fact about the last cycle; they are sent, hurt, rested, lost_crewmate.")]
     [InlineData("{ last: sent, not: maybe }", "STORYLET_X: A requirement's not must be true or false.")]
-    [InlineData("{ last: sent, min: 1 }", "STORYLET_X: A requirement on last takes not; 'min' is not one of them.")]
+    [InlineData("{ last: sent, min: 1 }", "STORYLET_X: A requirement on last takes not, of; 'min' is not one of them.")]
     public void A_malformed_stat_or_fact_requirement_is_refused(string requirement, string message)
     {
         AssertRefused(Storylet.Replace("    - { trait: trait_a, min: 1, max: 1 }", $"    - {{ trait: trait_a, min: 1, max: 1 }}\n    - {requirement}"), message);

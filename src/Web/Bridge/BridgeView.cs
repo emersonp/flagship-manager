@@ -87,7 +87,8 @@ public sealed record VignetteView(string OfferId, string Title, string? About, I
     string? DefaultLabel, bool Settled, IReadOnlyList<ProseEntry> Said, IReadOnlyList<string> Tags, bool Defaulted = false);
 
 // A storylet waiting for an answer. From says where it came from ("From ENCOUNTER_01 · trait_a"), when an encounter set its trait.
-public sealed record StoryletView(string OfferId, string Title, string? From, IReadOnlyList<ProseEntry> Script, IReadOnlyList<StoryletOptionView> Options);
+// About names a pair (1e part three): "CREW_01 · avoids CREW_03"; null for a storylet for the ship or one crew member.
+public sealed record StoryletView(string OfferId, string Title, string? From, IReadOnlyList<ProseEntry> Script, IReadOnlyList<StoryletOptionView> Options, string? About = null);
 
 public sealed record StoryletOptionView(string Id, string Label);
 

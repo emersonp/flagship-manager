@@ -221,11 +221,12 @@ public class SimulationTests
     // Re-pinned: morale changes after missions and each week, and moves checks at its thresholds (1e part two, Task 1).
     // Re-pinned: the cycle opens on the captain's itinerary, where storylets and vignettes arrive (1e part two, Task 3).
     // Re-pinned: flags renamed traits, in their own module (1e part three, Task 1); SimRunner's figures for 20 x 50 are unchanged.
+    // Re-pinned: pair traits (1e part three, Task 3); every offer event carries a target, null but for a pair's.
     [Fact]
     public void Golden_seed_1_matches_the_accepted_log()
     {
         SimSummary summary = Simulation.Run(new SimOptions(Legacies: 1, Cycles: 10, Seed: 1), Pack);
 
-        Assert.Equal("B5F255314791EC1E5A1DADED110CD6F9F037FE64960EB009C113C90E84CA066A", summary.Legacies[0].LogHash);
+        Assert.Equal("1AB196F04561E4476EC51EEAAB90670E8E6106259A647856F4909C0FB619D062", summary.Legacies[0].LogHash);
     }
 }

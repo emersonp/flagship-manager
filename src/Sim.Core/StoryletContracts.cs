@@ -14,23 +14,24 @@ public sealed record AdjustLoyalty(string CrewId, int Delta) : ICommand;
 public sealed record LoyaltyChanged(string CrewId, int From, int To) : IEvent;
 
 // SubjectId null: a storylet for the ship. EncounterId: where the trait that brought it was last changed by a mission, if anywhere.
+// TargetId: a pair's target (1e part three), on every offer event.
 [EventType("StoryletOffered", 1)]
-public sealed record StoryletOffered(string OfferId, string StoryletId, string? SubjectId, string? EncounterId) : IEvent;
+public sealed record StoryletOffered(string OfferId, string StoryletId, string? SubjectId, string? EncounterId, string? TargetId = null) : IEvent;
 
 [EventType("StoryletAnswered", 1)]
-public sealed record StoryletAnswered(string OfferId, string StoryletId, string? SubjectId, string OptionId) : IEvent;
+public sealed record StoryletAnswered(string OfferId, string StoryletId, string? SubjectId, string OptionId, string? TargetId = null) : IEvent;
 
 [EventType("StoryletWithdrawn", 1)]
-public sealed record StoryletWithdrawn(string OfferId, string StoryletId, string? SubjectId) : IEvent;
+public sealed record StoryletWithdrawn(string OfferId, string StoryletId, string? SubjectId, string? TargetId = null) : IEvent;
 
 // 1e part two: vignettes. Answered only while the itinerary is open; one left unanswered takes its default when it closes.
 public sealed record AnswerVignette(string OfferId, string OptionId) : ICommand;
 
 // SubjectId null: a vignette for the ship. Fact: the fact about the last cycle that brought it, or null.
 [EventType("VignetteArrived", 1)]
-public sealed record VignetteArrived(string OfferId, string VignetteId, string? SubjectId, string? Fact) : IEvent;
+public sealed record VignetteArrived(string OfferId, string VignetteId, string? SubjectId, string? Fact, string? TargetId = null) : IEvent;
 
 // Published after the changes it made, as StoryletAnswered is. OptionId null: a vignette with no choice, whose effects applied
 // as it arrived. Defaulted: the itinerary closed without an answer.
 [EventType("VignetteAnswered", 1)]
-public sealed record VignetteAnswered(string OfferId, string VignetteId, string? SubjectId, string? OptionId, bool Defaulted) : IEvent;
+public sealed record VignetteAnswered(string OfferId, string VignetteId, string? SubjectId, string? OptionId, bool Defaulted, string? TargetId = null) : IEvent;

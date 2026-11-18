@@ -759,6 +759,32 @@ public class MissionRulesTests
         Assert.All(step.Result.Traits, f => Assert.Equal(("trait_a", 1, false, "ENCOUNTER_01"), (f.Trait, f.Amount, f.Set, f.EncounterId)));
     }
 
+    // 1e part three (design 4.5): toward makes a pair, the one it lands on holding it toward the other.
+    [Fact]
+    public void Toward_makes_a_pair_from_actor_to_lead()
+    {
+        var team = new Team([Skilled("CREW_01", 5, ("SKILL_A", 1)), Skilled("CREW_02", 4, ("SKILL_A", 6))], "CREW_01");
+        EffectDef pair = new(Traits: [new TraitChange("trait_g", 1, false, "actor", "lead")]);
+
+        MissionStep step = MissionResolver.Advance(Start(team, new Parameters(), AOrC(difficulty: 1, outcomes: OnAnySuccess(pair))));
+
+        Assert.Equal([new MissionTrait("trait_g", 1, false, "CREW_02", "ENCOUNTER_01", "CREW_01")], step.Result!.Traits);
+        Assert.Equal(step.Result.Traits, step.Beats.OfType<CheckBeat>().Single().Traits!);
+    }
+
+    [Fact]
+    public void No_pair_when_actor_is_lead()
+    {
+        var team = new Team([Skilled("CREW_01", 5, ("SKILL_A", 6)), Skilled("CREW_02", 4, ("SKILL_A", 1))], "CREW_01");
+        EffectDef pair = new(Traits: [new TraitChange("trait_g", 1, false, "actor", "lead")]);
+
+        MissionStep step = MissionResolver.Advance(Start(team, new Parameters(), AOrC(difficulty: 1, outcomes: OnAnySuccess(pair))));
+
+        Assert.Equal("CREW_01", step.Beats.OfType<CheckBeat>().Single().ActorId);
+        Assert.Empty(step.Result!.Traits);
+        Assert.Empty(step.Beats.OfType<CheckBeat>().Single().Traits!);
+    }
+
     // The first lead alone has the skill, so they make the impossible check and take its disaster's severe roll. At the seeds where it
     // downs them, the decision that follows lands on the new lead.
     [Fact]

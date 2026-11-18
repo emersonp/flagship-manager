@@ -1,5 +1,5 @@
 # Placeholders. The author replaces these. VIGNETTE_01 has effects and no choice, VIGNETTE_02 one small choice with a default,
-# and VIGNETTE_03 is for the ship.
+# VIGNETTE_03 is for the ship, and VIGNETTE_04 for a pair (1e part three).
 - id: VIGNETTE_01
   scope: crew
   requires:
@@ -25,3 +25,11 @@
   text: |-
     best SKILL_A: VIGNETTE_03_LINE_1
   effects: [{ morale: -1, on: crew }]
+- id: VIGNETTE_04
+  scope: pair
+  requires:
+    - { trait: trait_g, min: 1 }
+  text: |-
+    subject: VIGNETTE_04_LINE_1
+    target: VIGNETTE_04_LINE_2
+  effects: [{ morale: -1, on: subject }]

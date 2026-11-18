@@ -430,7 +430,7 @@ public static class ContentWriter
             entries.Add(("withdraw", "true"));
         }
 
-        // A trait change last, as trait, then add or set, then on.
+        // A trait change last, as trait, then add or set, then on, then toward.
         if (effect.Trait is not null)
         {
             entries.Add(("trait", Quote(effect.Trait)));
@@ -444,6 +444,11 @@ public static class ContentWriter
         if (effect.TraitOn is not null)
         {
             entries.Add(("on", Quote(effect.TraitOn)));
+        }
+
+        if (effect.TraitToward is not null)
+        {
+            entries.Add(("toward", Quote(effect.TraitToward)));
         }
 
         return Map(entries);

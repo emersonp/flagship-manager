@@ -137,9 +137,10 @@ internal sealed class EncounterKind : KindForm
     public static readonly IReadOnlyList<string> TraitFields = ["trait", "traitMode", "traitAmount", "traitOn"];
 
     // Declared after TraitFields, which it reads as it starts.
-    // own is "true" when the tier is written; the next four are then its one effect, a blank meaning 0 or no roll, and the last four
-    // its one trait change, a blank trait meaning none.
-    public static readonly IReadOnlyList<string> OutcomeFields = ["own", "progress", "momentum", "strain", "injury", .. TraitFields];
+    // own is "true" when the tier is written; the next four are then its one effect, a blank meaning 0 or no roll, and the next four
+    // its one trait change, a blank trait meaning none; traitToward makes it a pair's (1e part three), blank for none. A decision's
+    // rows have no toward: a pair needs an actor.
+    public static readonly IReadOnlyList<string> OutcomeFields = ["own", "progress", "momentum", "strain", "injury", .. TraitFields, "traitToward"];
 
     // What a trait change may land on in an approach's outcome; a decision's answer has no actor.
     public static readonly IReadOnlyList<string> OutcomeTargets = [TraitOn.Ship, TraitOn.Actor, TraitOn.Lead, TraitOn.Team];
@@ -147,6 +148,9 @@ internal sealed class EncounterKind : KindForm
     public static readonly IReadOnlyList<string> AnswerTargets = [TraitOn.Ship, TraitOn.Lead, TraitOn.Team];
 
     public static readonly IReadOnlyList<string> TraitModes = ["add", "set"];
+
+    // Whom a pair trait points at, in an approach's outcome.
+    public static readonly IReadOnlyList<string> Towards = [TraitOn.Lead, TraitOn.Actor];
 
     // An approach's requirements, outcomes, and words post with its row, as approaches[0].r0.what, approaches[0].out.success.own,
     // and approaches[0].text.attempt, so they move and go with it.
@@ -389,7 +393,7 @@ internal sealed class EncounterKind : KindForm
             fields.Add(new(Approaches.Name(row, OutcomeField(tier, "strain")), Sum(effects.Select(e => e.Strain))));
             fields.Add(new(Approaches.Name(row, OutcomeField(tier, "injury")), effects.LastOrDefault(e => e.InjuryRoll is not null)?.InjuryRoll ?? ""));
             // The form holds one trait change a tier; an outcome with more is marked as content the editor cannot keep.
-            AddTrait(fields, f => Approaches.Name(row, OutcomeField(tier, f)), effects.FirstOrDefault(e => e.Trait is not null));
+            AddTrait(fields, f => Approaches.Name(row, OutcomeField(tier, f)), effects.FirstOrDefault(e => e.Trait is not null), toward: true);
         }
 
         OwnedText.Add(fields, Approaches.Name(row, ""), NarrativeFacts.ApproachTexts, approach.Text);
@@ -414,16 +418,20 @@ internal sealed class EncounterKind : KindForm
         }
     }
 
-    private static void AddTrait(List<KeyValuePair<string, string>> fields, Func<string, string> name, EffectModel? effect)
+    private static void AddTrait(List<KeyValuePair<string, string>> fields, Func<string, string> name, EffectModel? effect, bool toward = false)
     {
         fields.Add(new(name("trait"), effect?.Trait ?? ""));
         fields.Add(new(name("traitMode"), effect?.Trait is null ? "" : effect.TraitSet ? "set" : "add"));
         fields.Add(new(name("traitAmount"), effect?.TraitAmount is { } amount ? Checks.Text(amount) : ""));
         fields.Add(new(name("traitOn"), effect?.TraitOn ?? ""));
+        if (toward)
+        {
+            fields.Add(new(name("traitToward"), effect?.TraitToward ?? ""));
+        }
     }
 
     // The trait change a form's fields hold, or null when the trait is blank (an amount without one is refused). Each problem is put beside its field.
-    private static EffectModel? BindTrait(FormValues values, Func<string, string> name, IReadOnlyList<string> targets, Dictionary<string, string> errors)
+    private static EffectModel? BindTrait(FormValues values, Func<string, string> name, IReadOnlyList<string> targets, Dictionary<string, string> errors, bool toward = false)
     {
         string trait = values.Get(name("trait")).Trim();
         string mode = values.Get(name("traitMode"));
@@ -455,7 +463,13 @@ internal sealed class EncounterKind : KindForm
                 : $"Choose {string.Join(", ", targets.Take(targets.Count - 1))}, or {targets[^1]}.";
         }
 
-        return new EffectModel(null, null, null, null, false, trait, amount, mode == "set", on);
+        string? towardWho = toward ? values.Get(name("traitToward")) : "";
+        if (towardWho.Length > 0 && !Towards.Contains(towardWho))
+        {
+            errors[name("traitToward")] = "Choose lead or actor, or leave it blank.";
+        }
+
+        return new EffectModel(null, null, null, null, false, trait, amount, mode == "set", on, towardWho.Length == 0 ? null : towardWho);
     }
 
     // One row is one approach, in the order shown. The count and the ids are checked here as the loader checks them.
@@ -602,7 +616,7 @@ internal sealed class EncounterKind : KindForm
                 effects.Add(new EffectModel(null, null, null, injury));
             }
 
-            if (BindTrait(values, Field, OutcomeTargets, errors) is { } trait)
+            if (BindTrait(values, Field, OutcomeTargets, errors, toward: true) is { } trait)
             {
                 effects.Add(trait);
             }

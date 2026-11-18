@@ -27,7 +27,7 @@ public static class CrewModule
         bus.Guard<AdjustLoyalty>(SubscriberOrder, Name, (command, context) => IsLiving(context, command.CrewId) ? null : $"Crew member '{command.CrewId}' is not on the roster.");
         bus.Handle<AdjustLoyalty>((command, context) => OnAdjustLoyalty(tuning, command, context));
         bus.Guard<AdjustMorale>(SubscriberOrder, Name, (command, context) => IsLiving(context, command.CrewId) ? null : $"Crew member '{command.CrewId}' is not on the roster.");
-        bus.Handle<AdjustMorale>((command, context) => ChangeMorale(tuning, Find(context, command.CrewId), command.Delta, MoraleCauses.Answer, context));
+        bus.Handle<AdjustMorale>((command, context) => ChangeMorale(tuning, Find(context, command.CrewId), command.Delta, command.Cause, context));
         bus.Subscribe<LegacyFounded>(SubscriberOrder, "crew-found", (_, context) => OnFounded(pack, context));
         bus.Subscribe<MissionEnded>(SubscriberOrder, "crew-mission-ended", (e, context) => OnMissionEnded(tuning, e, context));
         bus.Subscribe<WeekAdvanced>(SubscriberOrder, "crew-week", (e, context) => OnWeekAdvanced(tuning, e, context));

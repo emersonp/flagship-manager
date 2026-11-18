@@ -28,7 +28,7 @@ public static class TraitsModule
         bus.Handle<SetTrait>((command, context) => OnSet(defs, command, context));
         bus.Subscribe<MissionEnded>(Order, Name, (e, context) => OnMissionEnded(defs, e, context));
         bus.Subscribe<WeekAdvanced>(Order, Name, (e, context) => OnWeek(defs, e, context));
-        bus.Subscribe<CrewDied>(Order, Name, (e, context) => OnCrewDied(e, context));
+        bus.Subscribe<CrewDied>(Order, Name, (e, context) => OnCrewDied(defs, e, context));
     }
 
     internal static StoredTrait? Find(TraitsState state, string trait, string? crewId, string? targetId)
@@ -88,13 +88,13 @@ public static class TraitsModule
         IReadOnlyList<string> roster = context.View<IRosterView>().Roster;
         foreach (MissionTrait trait in ended.Result.Traits)
         {
-            // Someone who died on the mission has left the roster by now; what the mission set on them goes with them.
-            if (trait.CrewId is not null && !roster.Contains(trait.CrewId))
+            // Someone who died on the mission has left the roster by now; what the mission set on them, or toward them, goes with them.
+            if ((trait.CrewId is not null && !roster.Contains(trait.CrewId)) || (trait.TargetId is not null && !roster.Contains(trait.TargetId)))
             {
                 continue;
             }
 
-            Change(defs, context, trait.Trait, trait.CrewId, null, trait.Amount, trait.Set, TraitCauses.Mission, trait.EncounterId);
+            Change(defs, context, trait.Trait, trait.CrewId, trait.TargetId, trait.Amount, trait.Set, TraitCauses.Mission, trait.EncounterId);
         }
     }
 
@@ -118,9 +118,57 @@ public static class TraitsModule
         }
     }
 
-    private static void OnCrewDied(CrewDied died, IBusContext context)
+    // A pair whose target died runs its onTargetDied first, once; then every trait on the dead or pointing at them goes to 0,
+    // a pair the dead held with no rule (design 4.4).
+    private static void OnCrewDied(Definitions defs, CrewDied died, IBusContext context)
     {
-        context.Module<TraitsState>().Traits.RemoveAll(t => t.CrewId == died.CrewId);
+        TraitsState state = context.Module<TraitsState>();
+        foreach (StoredTrait pair in state.Traits.Where(t => t.TargetId == died.CrewId).ToList())
+        {
+            Apply(defs, context, defs[pair.Trait], pair.CrewId!, pair.TargetId, defs[pair.Trait].OnTargetDied, TraitCauses.Death);
+        }
+
+        foreach (StoredTrait gone in state.Traits.Where(t => t.CrewId == died.CrewId || t.TargetId == died.CrewId).ToList())
+        {
+            Change(defs, context, gone.Trait, gone.CrewId, gone.TargetId, 0, true, TraitCauses.Death, null);
+        }
+    }
+
+    // A rule's effects, in order, for one holder (and a pair's target): a trait change (its own trait, on the pair when it sits on
+    // one, or another trait on the holder or the target), or loyalty and morale through the crew module. A target who is not on
+    // the roster (one who has just died) is passed over.
+    private static void Apply(Definitions defs, IBusContext context, TraitDef owner, string holderId, string? targetId, IReadOnlyList<TraitRuleEffect> effects, string cause)
+    {
+        IReadOnlyList<string> roster = context.View<IRosterView>().Roster;
+        foreach (TraitRuleEffect effect in effects)
+        {
+            IEnumerable<string> who = effect.On switch
+            {
+                TraitRuleOn.Crew => roster,
+                TraitRuleOn.Target when targetId is not null => [targetId],
+                TraitRuleOn.Target => [],
+                _ => [holderId],
+            };
+            foreach (string crewId in who.Where(roster.Contains).ToList())
+            {
+                if (effect.Loyalty != 0)
+                {
+                    context.Send(new AdjustLoyalty(crewId, effect.Loyalty));
+                }
+                else if (effect.Morale != 0)
+                {
+                    context.Send(new AdjustMorale(crewId, effect.Morale, MoraleCauses.Trait));
+                }
+                else if (effect.Trait is null && effect.On == TraitRuleOn.Holder)
+                {
+                    Change(defs, context, owner.Id, holderId, owner.OnPair ? targetId : null, effect.Amount, effect.Set, cause, null);
+                }
+                else
+                {
+                    Change(defs, context, effect.Trait ?? owner.Id, crewId, null, effect.Amount, effect.Set, cause, null);
+                }
+            }
+        }
     }
 
     // Adds to or sets one trait, clamped to 0 and its definition's cap. A trait at 0 is not stored, and a change that changes

@@ -237,4 +237,75 @@ public class TraitsModuleTests
         Assert.Empty(h.Send(new ChangeTrait("trait_y", null, null, -1, false, TraitCauses.Answer)));
         Assert.Equal(week, h.Traits.Traits.Single().ChangedAtWeek);
     }
+
+    // --- Pairs (1e part three, Task 3): the fixture's trait_g avoids, trait_h owes, and trait_j is the grief trait_h leaves ---
+
+    private static MissionTrait Toward(string trait, int amount, string holderId, string targetId)
+    {
+        return new MissionTrait(trait, amount, false, holderId, Encounter, targetId);
+    }
+
+    [Fact]
+    public void A_pair_is_stored_with_its_target()
+    {
+        var h = new Harness(Pack(2));
+        h.To(CyclePhase.Resolution);
+
+        List<IEvent> events = h.End([Toward("trait_g", 2, "CREW_02", "CREW_03")]);
+
+        Assert.Equal([new TraitChanged("trait_g", "CREW_02", "CREW_03", 0, 2, TraitCauses.Mission, Encounter)], Changes(events));
+        Assert.Equal((2, 0, 0), (h.Trait("trait_g", "CREW_02", "CREW_03"), h.Trait("trait_g", "CREW_02"), h.Trait("trait_g", "CREW_03", "CREW_02")));
+    }
+
+    [Fact]
+    public void A_pair_whose_target_or_holder_died_on_the_mission_is_not_stored()
+    {
+        var h = new Harness(Pack(2));
+        h.To(CyclePhase.Resolution);
+
+        List<IEvent> events = h.End([Toward("trait_g", 1, "CREW_02", "CREW_03"), Toward("trait_g", 1, "CREW_03", "CREW_04")], Died("CREW_03"));
+
+        Assert.Empty(Changes(events));
+        Assert.Empty(h.Traits.Traits);
+    }
+
+    // trait_h's onTargetDied: morale -10 and trait_j +1 for the holder; trait_g's: set 0. Each runs once, then every trait on the dead or
+    // pointing at them goes, with cause death.
+    [Fact]
+    public void The_targets_death_runs_onTargetDied_then_drops_the_pair()
+    {
+        var h = new Harness(Pack(2));
+        h.To(CyclePhase.Resolution);
+        h.End([Toward("trait_h", 1, "CREW_02", "CREW_03"), Toward("trait_g", 2, "CREW_04", "CREW_03"), Raise("trait_b", 1, "CREW_03")]);
+        int morale = h.Crew.Members.Single(m => m.Id == "CREW_02").Morale;
+
+        List<IEvent> events = h.End([], Died("CREW_03"));
+
+        Assert.Equal(
+            [
+                new TraitChanged("trait_j", "CREW_02", null, 0, 1, TraitCauses.Death, null),
+                new TraitChanged("trait_g", "CREW_04", "CREW_03", 2, 0, TraitCauses.Death, null),
+                new TraitChanged("trait_h", "CREW_02", "CREW_03", 1, 0, TraitCauses.Death, null),
+                new TraitChanged("trait_b", "CREW_03", null, 1, 0, TraitCauses.Death, null),
+            ],
+            Changes(events));
+        MoraleChanged grief = Assert.Single(events.OfType<MoraleChanged>(), m => m.Cause == MoraleCauses.Trait);
+        Assert.Equal(("CREW_02", -10), (grief.CrewId, grief.To - grief.From));
+        Assert.True(grief.From <= morale);
+        Assert.Equal([("trait_j", "CREW_02")], h.Traits.Traits.Select(t => (t.Trait, t.CrewId)));
+    }
+
+    [Fact]
+    public void The_holders_death_drops_the_pair_with_no_rule()
+    {
+        var h = new Harness(Pack(2));
+        h.To(CyclePhase.Resolution);
+        h.End([Toward("trait_h", 1, "CREW_02", "CREW_03")]);
+
+        List<IEvent> events = h.End([], Died("CREW_02"));
+
+        Assert.Equal([new TraitChanged("trait_h", "CREW_02", "CREW_03", 1, 0, TraitCauses.Death, null)], Changes(events));
+        Assert.DoesNotContain(events, e => e is MoraleChanged { Cause: MoraleCauses.Trait });
+        Assert.Empty(h.Traits.Traits);
+    }
 }

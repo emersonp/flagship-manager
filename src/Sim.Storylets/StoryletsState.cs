@@ -11,6 +11,9 @@ public sealed class WaitingStorylet
 
     public required string? SubjectId { get; set; }
 
+    // A pair's target (1e part three).
+    public string? TargetId { get; set; }
+
     public required string? EncounterId { get; set; }
 }
 
@@ -36,6 +39,9 @@ public sealed class WaitingVignette
 
     public required string? SubjectId { get; set; }
 
+    // A pair's target (1e part three).
+    public string? TargetId { get; set; }
+
     public required string? Fact { get; set; }
 }
 
@@ -45,6 +51,9 @@ public sealed class VignetteArrival
     public required string VignetteId { get; set; }
 
     public required string? SubjectId { get; set; }
+
+    // A pair's target (1e part three): a vignette for a pair cools down for each pair apart.
+    public string? TargetId { get; set; }
 
     public required int Cycle { get; set; }
 }

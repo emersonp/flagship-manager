@@ -216,7 +216,7 @@ The test fixture: placeholder traits of every shape (`trait_a` to `trait_f`): a 
 
 | Module | Order | Change in part three |
 |---|---|---|
-| `Sim.Crew` | 100 | Unchanged. Handles `AdjustLoyalty` and `AdjustMorale` from the traits module as from the storylets module. |
+| `Sim.Crew` | 100 | Handles `AdjustLoyalty` and `AdjustMorale` from the traits module as from the storylets module; `AdjustMorale` gains a cause, so a rule's morale change is published with cause `trait`, not `answer` (as built, Task 3). |
 | `Sim.Missions` | 200 | Builds each `TeamMember`'s trait snapshot and bonuses from `ITraitView` at launch; checks trait requirements on approaches from the snapshot; its result lists trait changes (`MissionTrait`, with `TargetId`) in place of flags. Never sends a trait command. |
 | `Sim.Traits` (new) | 250 | Owns trait state and the definitions' rules. Serves `ITraitView`. Handles `ChangeTrait` and `SetTrait` (Dev Play). Applies a mission's trait changes on `MissionEnded`, runs launch rules on `MissionStarted`, weekly steps and expiry on `WeekAdvanced`, and `onTargetDied` and drops on `CrewDied`. Sends `AdjustLoyalty` and `AdjustMorale` for rule effects. |
 | `Sim.Storylets` | 300 | Loses trait state and trait storage. Reads traits through `ITraitView`; sends `ChangeTrait` for answers' and vignettes' trait effects. Gains pair scope. |
@@ -340,3 +340,14 @@ Kept as each task of the plan (`2026-11-17-phase-1e-part-three-plan.md`) lands; 
 - The lint shows on the traits page as well as the storylets and vignettes pages.
 - The fixture's definitions: `trait_b` (falls 1 every 3 weeks, cap 5), `trait_e` (levels, launch rules, expires; set by STORYLET_02's first answer), and `trait_f` (hidden, rises to a cap of 3; added to by STORYLET_01's second answer). The fixture's `trait_e` has no display name, since the web tests' odd-names copy gives every item one.
 - **Neither golden hash moved,** though the plan expected the simulation's to. In 20 legacies x 50 cycles on either pack, no mission sets a trait at all, so no storylet is ever offered (0.0 per 100 cycles, as before part three); the weekly step has nothing to step. This is the "never fired" problem Task 6 is to report; it is not changed here.
+
+**Task 3, pairs (2026-11-17).**
+
+- `TraitChange` gains `Toward` and `MissionTrait` gains `TargetId`, both last with null defaults; `StatRange` and `LastCycle` gain `OfTarget`. Every offer event (`StoryletOffered`, `StoryletAnswered`, `StoryletWithdrawn`, `VignetteArrived`, `VignetteAnswered`) gains `TargetId`, null but for a pair's, so the simulation's golden hash moved.
+- `AdjustMorale` gains a cause, and `MoraleCauses` gains `trait`: a rule's morale change (here `onTargetDied`, from Task 4 the launch rules) is not mistaken for an answer's in the itinerary's tags. Section 5.1 says so.
+- A pair storylet or vignette arrives for each holder in roster order, with each other living crew member as the target in roster order; offer ids end `:{target}`. A vignette for a pair cools down for each pair apart.
+- A death: the traits module runs `onTargetDied` for each pair whose target died, in the order stored, then sets every trait on the dead or pointing at them to 0 with cause `death`, publishing each (in Task 1 the dead's own traits went silently). A rule effect on the target, who has just died, is passed over.
+- The editor's encounter form holds `toward` on an approach's outcome (a "Toward" select: lead, actor, or no one), so the fixture's pair outcomes stay editable; a decision's rows have no toward, since a pair needs an actor.
+- The lint counts a trait whose definition gives it a check bonus, launch rules, or `onTargetDied` as read, so `owes` and `looks_up_to`, which no storylet reads, are no warning.
+- The fixture's pair traits are `trait_g` (avoids), `trait_h` (owes), `trait_i` (looks up to), and `trait_j` (the grief two of them leave), set by ENCOUNTER_05's careful disaster, ENCOUNTER_07's careful critical, and ENCOUNTER_03's careful success, each the actor toward the lead; STORYLET_03 and VIGNETTE_04 are for a pair. None of those outcomes comes up in the 20 x 50 simulation.
+- A pair's head names the first pair trait the storylet requires by its id ("CREW_01 · trait_g CREW_03"); Task 5 gives traits their display names.

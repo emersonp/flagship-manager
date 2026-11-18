@@ -93,6 +93,8 @@ internal static class TextFileFlow
         }
 
         HashSet<string> read = readers.SelectMany(r => r.Traits).Select(r => r.Trait).ToHashSet(StringComparer.Ordinal);
+        // A definition that gives a trait a bite reads it too (1e part three): a check bonus, launch rules, or onTargetDied.
+        read.UnionWith(pack.Traits.Where(t => t.Mission is not null || t.Launch is not null || t.OnTargetDied.Count > 0).Select(t => t.Id));
         var warnings = new List<string>();
         foreach ((string id, string scope, List<TraitRange> traits, _) in readers)
         {

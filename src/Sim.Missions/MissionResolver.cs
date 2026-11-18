@@ -416,6 +416,14 @@ public static class MissionResolver
                     TraitOn.Team => [.. Active.Select(m => m.Member.Id)],
                     _ => throw new InvalidOperationException($"{encounterId}: a trait change on '{change.On}' names no one."),
                 };
+                if (change.Toward is { } toward)
+                {
+                    // A pair (1e part three): the one it lands on holds it toward the other. Actor and lead in one makes no pair.
+                    string? target = toward == TraitOn.Lead ? State.LeadId : actor?.Member.Id;
+                    made.AddRange(on.Where(id => id != target).Select(id => new MissionTrait(change.Trait, change.Amount, change.Set, id, encounterId, target)));
+                    continue;
+                }
+
                 made.AddRange(on.Select(id => new MissionTrait(change.Trait, change.Amount, change.Set, id, encounterId)));
             }
 

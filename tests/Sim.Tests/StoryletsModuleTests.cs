@@ -560,4 +560,108 @@ public class StoryletsModuleTests
         Assert.Empty(h.Storylets.Vignettes);
         Assert.DoesNotContain(left, e => e is VignetteAnswered or LoyaltyChanged);
     }
+
+    // --- Pairs (1e part three, Task 3): the fixture defines trait_g on a pair; trait_j sits on crew ---
+
+    private static MissionTrait Toward(string trait, int amount, string holderId, string targetId)
+    {
+        return new MissionTrait(trait, amount, false, holderId, Encounter, targetId);
+    }
+
+    private static StoryletDef Pair(string id, Requirement[] requires, params StoryletOption[] options)
+    {
+        return new StoryletDef(id, 2, StoryletScopes.Pair, requires, options);
+    }
+
+    private static StoryletEffect Toward(string trait, int value)
+    {
+        return new StoryletEffect(Trait: new TraitChange(trait, value, true, "", StoryletScopes.Target));
+    }
+
+    private static readonly StoryletDef Avoiding = Pair("STORYLET_PAIR", [new TraitRange("trait_g", 1, null)], Option("clear", Toward("trait_g", 0)), Option("keep", Toward("trait_g", 0)));
+
+    [Fact]
+    public void A_pair_storylet_arrives_once_for_each_pair()
+    {
+        var h = new Harness(Pack(4, Avoiding));
+
+        List<IEvent> events = h.Mission(Toward("trait_g", 1, "CREW_02", "CREW_03"), Toward("trait_g", 1, "CREW_01", "CREW_03"));
+
+        Assert.Equal(
+            [
+                new StoryletOffered("2:STORYLET_PAIR:CREW_01:CREW_03", "STORYLET_PAIR", "CREW_01", Encounter, "CREW_03"),
+                new StoryletOffered("2:STORYLET_PAIR:CREW_02:CREW_03", "STORYLET_PAIR", "CREW_02", Encounter, "CREW_03"),
+            ],
+            events.OfType<StoryletOffered>());
+        Assert.Equal("CREW_03", h.Storylets.Waiting[0].TargetId);
+
+        // Waiting already: the next itinerary offers it again for neither.
+        h.Send(new AnswerStorylet("2:STORYLET_PAIR:CREW_01:CREW_03", "clear"));
+        h.Send(new AnswerStorylet("2:STORYLET_PAIR:CREW_02:CREW_03", "clear"));
+        Assert.DoesNotContain(h.To(CyclePhase.Itinerary), e => e is StoryletOffered);
+    }
+
+    [Fact]
+    public void A_trait_not_on_a_pair_is_read_on_the_holder_in_a_pair_storylet()
+    {
+        StoryletDef storylet = Pair("STORYLET_PAIR", [new TraitRange("trait_g", 1, null), new TraitRange("trait_j", 1, null)], Option("clear", Toward("trait_g", 0)), Option("keep", Toward("trait_g", 0)));
+        var h = new Harness(Pack(4, storylet));
+
+        List<IEvent> events = h.Mission(Toward("trait_g", 1, "CREW_02", "CREW_03"), Toward("trait_g", 1, "CREW_01", "CREW_03"), Raise("trait_j", 1, "CREW_02"));
+
+        Assert.Equal(["2:STORYLET_PAIR:CREW_02:CREW_03"], events.OfType<StoryletOffered>().Select(o => o.OfferId));
+    }
+
+    [Fact]
+    public void Of_target_reads_the_targets_stats_and_last_cycle()
+    {
+        StoryletDef low = Pair("STORYLET_LOW", [new TraitRange("trait_g", 1, null), new StatRange("morale", 0, 25, OfTarget: true)], Option("clear", Toward("trait_g", 0)), Option("keep", Toward("trait_g", 0)));
+        StoryletDef hurt = Pair("STORYLET_HURT", [new TraitRange("trait_g", 1, null), new LastCycle("hurt", false, OfTarget: true)], Option("clear", Toward("trait_g", 0)), Option("keep", Toward("trait_g", 0)));
+        var h = new Harness(Pack(4, low, hurt));
+        h.To(CyclePhase.Resolution);
+        h.End([Toward("trait_g", 1, "CREW_02", "CREW_03"), Toward("trait_g", 1, "CREW_03", "CREW_02")], new CrewResult("CREW_03", MemberStatus.Active, 1, new Dictionary<string, double>(), 0));
+        h.Crew.Members.Single(m => m.Id == "CREW_02").Morale = 10;
+
+        List<IEvent> events = h.To(CyclePhase.Itinerary);
+
+        Assert.Equal(["2:STORYLET_HURT:CREW_02:CREW_03", "2:STORYLET_LOW:CREW_03:CREW_02"], events.OfType<StoryletOffered>().Select(o => o.OfferId));
+    }
+
+    [Fact]
+    public void On_target_changes_the_target()
+    {
+        StoryletDef storylet = Pair(
+            "STORYLET_PAIR",
+            [new TraitRange("trait_g", 1, null)],
+            Option("blame", Toward("trait_g", 0), Loyalty(-2, "target"), new StoryletEffect(Trait: new TraitChange("trait_j", 1, false, "target")), new StoryletEffect(Morale: 3, MoraleOn: "subject")),
+            Option("keep", Toward("trait_g", 0)));
+        var h = new Harness(Pack(4, storylet));
+        h.Mission(Toward("trait_g", 2, "CREW_02", "CREW_03"));
+
+        List<IEvent> events = h.Send(new AnswerStorylet("2:STORYLET_PAIR:CREW_02:CREW_03", "blame"));
+
+        Assert.Equal(
+            [new TraitChanged("trait_g", "CREW_02", "CREW_03", 2, 0, TraitCauses.Answer, null), new TraitChanged("trait_j", "CREW_03", null, 0, 1, TraitCauses.Answer, null)],
+            events.OfType<TraitChanged>());
+        Assert.Equal(["CREW_03"], events.OfType<LoyaltyChanged>().Select(l => l.CrewId));
+        Assert.Equal(["CREW_02"], events.OfType<MoraleChanged>().Select(m => m.CrewId));
+        Assert.Equal(new StoryletAnswered("2:STORYLET_PAIR:CREW_02:CREW_03", "STORYLET_PAIR", "CREW_02", "blame", "CREW_03"), events.OfType<StoryletAnswered>().Single());
+    }
+
+    [Theory]
+    [InlineData("CREW_02")]
+    [InlineData("CREW_03")]
+    public void A_pair_offer_is_withdrawn_when_either_dies(string dead)
+    {
+        var glance = new VignetteDef("VIGNETTE_PAIR", StoryletScopes.Pair, [new TraitRange("trait_g", 1, null)], [], [Option("a"), Option("b")], "a");
+        var h = new Harness(Pack(4, Avoiding) with { Vignettes = [glance] });
+        h.Mission(Toward("trait_g", 1, "CREW_02", "CREW_03"));
+        Assert.Single(h.Storylets.Vignettes);
+
+        List<IEvent> events = h.End([], Died(dead));
+
+        Assert.Equal([new StoryletWithdrawn("2:STORYLET_PAIR:CREW_02:CREW_03", "STORYLET_PAIR", "CREW_02", "CREW_03")], events.OfType<StoryletWithdrawn>());
+        Assert.Empty(h.Waiting);
+        Assert.Empty(h.Storylets.Vignettes);
+    }
 }

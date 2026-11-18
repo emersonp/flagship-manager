@@ -28,10 +28,10 @@ public static partial class ContentLoader
                 Error("A storylet's stakes must be 1 to 5.");
             }
 
-            string? scope = dto.Scope is StoryletScopes.Ship or StoryletScopes.Crew ? dto.Scope : null;
+            string? scope = dto.Scope is StoryletScopes.Ship or StoryletScopes.Crew or StoryletScopes.Pair ? dto.Scope : null;
             if (scope is null)
             {
-                Error("A storylet needs scope: ship or crew.");
+                Error("A storylet needs scope: ship, crew, or pair.");
             }
 
             List<Requirement> requires = Requirements(dto.Requires, scope, book, Error);
@@ -84,10 +84,10 @@ public static partial class ContentLoader
                 Error("A vignette has no stakes.");
             }
 
-            string? scope = dto.Scope is StoryletScopes.Ship or StoryletScopes.Crew ? dto.Scope : null;
+            string? scope = dto.Scope is StoryletScopes.Ship or StoryletScopes.Crew or StoryletScopes.Pair ? dto.Scope : null;
             if (scope is null)
             {
-                Error("A vignette needs scope: ship or crew.");
+                Error("A vignette needs scope: ship, crew, or pair.");
             }
 
             List<Requirement> requires = Requirements(dto.Requires, scope, book, Error, "vignette");
@@ -151,7 +151,7 @@ public static partial class ContentLoader
         foreach (Dictionary<string, string> entry in (written ?? []).Select(e => e ?? []))
         {
             string kind = entry.ContainsKey("stat") ? "stat" : entry.ContainsKey("last") ? "last" : "trait";
-            string[] keys = kind == "last" ? ["last", "not"] : kind == "trait" ? ["trait", "min", "max", "is"] : [kind, "min", "max"];
+            string[] keys = kind == "last" ? ["last", "not", "of"] : kind == "trait" ? ["trait", "min", "max", "is"] : [kind, "min", "max", "of"];
             bool ok = true;
             foreach (string key in entry.Keys.Where(k => !keys.Contains(k)))
             {
@@ -167,6 +167,19 @@ public static partial class ContentLoader
             {
                 error($"A {noun} for the ship has no subject, so it cannot read {name}.");
                 ok = false;
+            }
+
+            // A stat or a fact about the last cycle may be the pair's target's (1e part three): of: target.
+            bool ofTarget = false;
+            if (entry.TryGetValue("of", out string? of))
+            {
+                if (of != StoryletScopes.Target || scope != StoryletScopes.Pair)
+                {
+                    error($"of: target is the only of, and only a {noun} for a pair has a target.");
+                    ok = false;
+                }
+
+                ofTarget = true;
             }
 
             if (kind == "last")
@@ -186,7 +199,7 @@ public static partial class ContentLoader
 
                 if (ok)
                 {
-                    requires.Add(new LastCycle(name!, not));
+                    requires.Add(new LastCycle(name!, not, ofTarget));
                 }
 
                 continue;
@@ -252,14 +265,18 @@ public static partial class ContentLoader
                 ok = false;
             }
 
+            // In a storylet for a pair, a trait defined on a pair is the pair's; any other is the holder's own.
             if (ok && kind == "trait" && scope is not null)
             {
-                ok = book.CheckPlace(name!, scope == StoryletScopes.Ship ? TraitPlaces.Ship : TraitPlaces.Crew, error);
+                string place = scope == StoryletScopes.Ship ? TraitPlaces.Ship
+                    : scope == StoryletScopes.Pair && book.Def(name!) is { OnPair: true } ? TraitPlaces.Pair
+                    : TraitPlaces.Crew;
+                ok = book.CheckPlace(name!, place, error);
             }
 
             if (ok)
             {
-                requires.Add(kind == "stat" ? new StatRange(name!, low, max) : new TraitRange(name!, low, max));
+                requires.Add(kind == "stat" ? new StatRange(name!, low, max, ofTarget) : new TraitRange(name!, low, max));
             }
         }
 
@@ -332,7 +349,7 @@ public static partial class ContentLoader
         string[] keys = kind switch
         {
             "loyalty" or "morale" => [kind, "on"],
-            "trait" => ["trait", "add", "set", "on"],
+            "trait" => ["trait", "add", "set", "on", "toward"],
             _ => [],
         };
         bool ok = true;
@@ -355,6 +372,12 @@ public static partial class ContentLoader
             ok = false;
         }
 
+        if (on == StoryletScopes.Target && scope != StoryletScopes.Pair)
+        {
+            error("Only a storylet for a pair has a target, so only it can have on: target.");
+            ok = false;
+        }
+
         if (kind is "loyalty" or "morale")
         {
             if (!int.TryParse(entry[kind], NumberStyles.Integer, CultureInfo.InvariantCulture, out int amount))
@@ -363,9 +386,9 @@ public static partial class ContentLoader
                 ok = false;
             }
 
-            if (on is not (StoryletScopes.Subject or StoryletScopes.Crew))
+            if (on is not (StoryletScopes.Subject or StoryletScopes.Crew or StoryletScopes.Target))
             {
-                error($"A {kind} change needs on: subject or crew.");
+                error($"A {kind} change needs on: subject or crew{(scope == StoryletScopes.Pair ? ", or target" : "")}.");
                 ok = false;
             }
 
@@ -421,17 +444,24 @@ public static partial class ContentLoader
             ok = false;
         }
 
-        if (on is not (null or StoryletScopes.Ship or StoryletScopes.Subject))
+        string? toward = entry.GetValueOrDefault("toward");
+        if (on is not (null or StoryletScopes.Ship or StoryletScopes.Subject or StoryletScopes.Target))
         {
-            error("A storylet's trait change takes on: ship or subject, or no on.");
+            error("A storylet's trait change takes on: ship, subject, or target, or no on.");
             ok = false;
         }
-        else if (Ids.IsInnerId(trait) && (on ?? scope) is { } where)
+        else if (toward is not null && (toward != StoryletScopes.Target || scope != StoryletScopes.Pair || on is not (null or StoryletScopes.Subject)))
         {
-            ok &= book.CheckPlace(trait, where == StoryletScopes.Ship ? TraitPlaces.Ship : TraitPlaces.Crew, error);
+            // Nothing else in a storylet names a second crew member until casting (part four).
+            error("toward: target is for a storylet for a pair, on its subject.");
+            ok = false;
+        }
+        else if (ok && Ids.IsInnerId(trait) && (on ?? scope) is { } where)
+        {
+            ok &= book.CheckPlace(trait, toward is not null ? TraitPlaces.Pair : where == StoryletScopes.Ship ? TraitPlaces.Ship : TraitPlaces.Crew, error);
         }
 
-        return ok ? new StoryletEffect(Trait: new TraitChange(trait, value, set, on ?? "")) : null;
+        return ok ? new StoryletEffect(Trait: new TraitChange(trait, value, set, on ?? "", toward)) : null;
     }
 
     // Applies the option's trait changes on the storylet's own scope to the lowest values that satisfy its requirements, clamped to
@@ -441,6 +471,7 @@ public static partial class ContentLoader
     {
         // Only traits: a stat or a fact is not the storylet's to move.
         List<TraitRange> requires = all.OfType<TraitRange>().ToList();
+        // A pair's own traits are on its subject: the holder's, and the pair trait it holds toward the target.
         string own = scope == StoryletScopes.Ship ? StoryletScopes.Ship : StoryletScopes.Subject;
         Dictionary<string, int> values = requires.GroupBy(r => r.Trait).ToDictionary(g => g.Key, g => g.Max(r => r.Min));
         foreach (TraitChange change in option.Effects.Select(e => e.Trait).OfType<TraitChange>().Where(c => c.On == "" || c.On == own))
@@ -463,6 +494,7 @@ public static partial class ContentLoader
         {
             string id = dto.Id!;
             bool ship = dto.Scope == StoryletScopes.Ship;
+            bool pair = dto.Scope == StoryletScopes.Pair;
             void Add(string where, string? text, string kind, CriterionDef[] when)
             {
                 if (text is null)
@@ -483,7 +515,9 @@ public static partial class ContentLoader
                 }
 
                 BeatSpec spec = NarrativeFacts.Beats[kind];
-                CheckScript(text, ship ? spec with { People = [] } : spec, symbolsById, skillIds, m => Error($"cannot be read: {m}"), m => Error($"cannot be used: {m}"));
+                // Only a storylet for a pair names its target; one for the ship names no one.
+                BeatSpec scoped = ship ? spec with { People = [] } : pair ? spec : spec with { People = spec.People.Where(p => p != StoryletScopes.Target).ToList() };
+                CheckScript(text, scoped, symbolsById, skillIds, m => Error($"cannot be read: {m}"), m => Error($"cannot be used: {m}"));
                 if (errors.Count == before)
                 {
                     lines.Add(new LineDef($"{id}.{where}", kind, when, text.ReplaceLineEndings("\n"), null, id));

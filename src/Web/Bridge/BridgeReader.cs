@@ -337,8 +337,9 @@ public static class BridgeReader
                 continue;
             }
 
-            string? about = Join(arrived.SubjectId is null ? null : shown(arrived.SubjectId), arrived.Fact is null ? null : FactWords.GetValueOrDefault(arrived.Fact));
-            Situation situation = Prose.StoryletSituation(pack, names, crew, vignette.Id, arrived.SubjectId);
+            string? who = arrived.TargetId is null ? arrived.SubjectId is null ? null : shown(arrived.SubjectId) : Pair(pack, vignette.Requires, arrived.SubjectId!, arrived.TargetId, shown);
+            string? about = Join(who, arrived.Fact is null ? null : FactWords.GetValueOrDefault(arrived.Fact));
+            Situation situation = Prose.StoryletSituation(pack, names, crew, vignette.Id, arrived.SubjectId, targetId: arrived.TargetId);
             IReadOnlyList<ProseEntry> script = Prose.Storylet(pack, situation, $"{seed}|{arrived.OfferId}")?.Entries ?? [Systems(vignette.Id)];
             List<StoryletOptionView> options = vignette.Options.Select(o => new StoryletOptionView(o.Id, o.Label.Length > 0 ? o.Label : o.Id)).ToList();
             string? defaultLabel = options.FirstOrDefault(o => o.Id == vignette.Default)?.Label;
@@ -352,7 +353,7 @@ public static class BridgeReader
             IReadOnlyList<ProseEntry> said = [];
             if (answered.OptionId is { } optionId)
             {
-                Situation saying = Prose.StoryletSituation(pack, names, crew, vignette.Id, arrived.SubjectId, optionId);
+                Situation saying = Prose.StoryletSituation(pack, names, crew, vignette.Id, arrived.SubjectId, optionId, arrived.TargetId);
                 said = Prose.Storylet(pack, saying, $"{seed}|{arrived.OfferId}|{optionId}")?.Entries ?? [Systems(optionId)];
             }
 
@@ -417,6 +418,7 @@ public static class BridgeReader
         StoryletsState? storylets = state.TryModule(StoryletsModule.Name, out StoryletsState? found) ? found : null;
         List<StoredTrait> traits = state.TryModule(TraitsModule.Name, out TraitsState? held) ? held.Traits : [];
         List<CrewMember> crew = state.TryModule(CrewModule.Name, out CrewState? members) ? members.Members : [];
+        (HashSet<string> living, Func<string, string> shown) = Living(crew, names);
         string seed = state.Seed.ToString(CultureInfo.InvariantCulture);
         var waiting = new List<StoryletView>();
         foreach (WaitingStorylet w in storylets?.Waiting ?? [])
@@ -427,7 +429,7 @@ public static class BridgeReader
                 continue;
             }
 
-            Situation situation = Prose.StoryletSituation(pack, names, crew, storylet.Id, w.SubjectId);
+            Situation situation = Prose.StoryletSituation(pack, names, crew, storylet.Id, w.SubjectId, targetId: w.TargetId);
             IReadOnlyList<ProseEntry> script = Prose.Storylet(pack, situation, $"{seed}|{w.OfferId}")?.Entries
                 ?? [Systems($"{storylet.Id}: {string.Join(", ", storylet.Options.Select(o => o.Id))}.")];
             waiting.Add(new StoryletView(
@@ -435,11 +437,11 @@ public static class BridgeReader
                 names.Storylet(storylet.Id),
                 From(traits, storylet, w, names),
                 script,
-                storylet.Options.Select(o => new StoryletOptionView(o.Id, o.Label.Length > 0 ? o.Label : o.Id)).ToList()));
+                storylet.Options.Select(o => new StoryletOptionView(o.Id, o.Label.Length > 0 ? o.Label : o.Id)).ToList(),
+                w.TargetId is null ? null : Pair(pack, storylet.Requires, w.SubjectId!, w.TargetId, shown)));
         }
 
         var settled = new List<SettledStoryletView>();
-        (HashSet<string> living, Func<string, string> Crew) = Living(crew, names);
 
         for (int i = 0; i < cycleEvents.Count; i++)
         {
@@ -449,9 +451,9 @@ public static class BridgeReader
             }
 
             List<IEvent> changes = ChangesBefore(cycleEvents, i);
-            Situation situation = Prose.StoryletSituation(pack, names, crew, answered.StoryletId, answered.SubjectId, answered.OptionId);
+            Situation situation = Prose.StoryletSituation(pack, names, crew, answered.StoryletId, answered.SubjectId, answered.OptionId, answered.TargetId);
             IReadOnlyList<ProseEntry> said = Prose.Storylet(pack, situation, $"{seed}|{answered.OfferId}|{answered.OptionId}")?.Entries ?? [Systems(answered.OptionId)];
-            settled.Add(new SettledStoryletView(names.Storylet(answered.StoryletId), said, StoryletTags(changes, living, Crew)));
+            settled.Add(new SettledStoryletView(names.Storylet(answered.StoryletId), said, StoryletTags(changes, living, shown)));
         }
 
         return (waiting, settled);
@@ -460,6 +462,13 @@ public static class BridgeReader
     private static ProseEntry Systems(string text)
     {
         return new ProseEntry(EntryKind.Narration, null, [new LinePart(false, text)]);
+    }
+
+    // A pair's head (1e part three): "CREW_01 · avoids CREW_03", by the first pair trait it requires.
+    private static string Pair(ContentPack pack, IReadOnlyList<Requirement> requires, string subjectId, string targetId, Func<string, string> shown)
+    {
+        string? trait = requires.OfType<TraitRange>().Select(r => r.Trait).FirstOrDefault(t => pack.Traits.Any(d => d.Id == t && d.OnPair));
+        return trait is null ? $"{shown(subjectId)} · {shown(targetId)}" : $"{shown(subjectId)} · {trait} {shown(targetId)}";
     }
 
     // The encounter that set the trait that brought it, and that trait: the first required trait it last changed, else the first set.
@@ -471,7 +480,7 @@ public static class BridgeReader
         }
 
         List<StoredTrait> set = storylet.Traits
-            .Select(r => traits.FirstOrDefault(t => t.Trait == r.Trait && t.CrewId == waiting.SubjectId && t.TargetId is null))
+            .Select(r => traits.FirstOrDefault(t => t.Trait == r.Trait && t.CrewId == waiting.SubjectId && (t.TargetId is null || t.TargetId == waiting.TargetId)))
             .OfType<StoredTrait>()
             .ToList();
         string trait = (set.FirstOrDefault(t => t.EncounterId == encounter) ?? set.FirstOrDefault())?.Trait ?? storylet.Traits.First().Trait;

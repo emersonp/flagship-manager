@@ -25,7 +25,7 @@
   tags: [field, technical]
   chain: ENCOUNTER_CHAIN
   approaches:
-    - { id: careful, name: APPROACH_A_NAME, skill: SKILL_B, difficulty: 6, gearTag: tools }
+    - { id: careful, name: APPROACH_A_NAME, skill: SKILL_B, difficulty: 6, gearTag: tools, outcomes: { success: [{ progress: 1 }, { strain: -1 }, { trait: trait_i, add: 1, on: actor, toward: lead }] } }
     - { id: fast, name: APPROACH_B_NAME, skill: SKILL_A, difficulty: 7, outcomes: { critical: [{ progress: 1 }, { strain: -1 }, { momentum: 2 }], success: [{ progress: 1 }, { strain: -1 }, { momentum: 1 }] } }
   decision:
     id: DECISION_PROMPT_3
@@ -42,7 +42,7 @@
   tags: [field, technical]
   chain: ENCOUNTER_CHAIN
   approaches:
-    - { id: careful, name: APPROACH_A_NAME, skill: SKILL_A, difficulty: 6, gearTag: scanner }
+    - { id: careful, name: APPROACH_A_NAME, skill: SKILL_A, difficulty: 6, gearTag: scanner, outcomes: { disaster: [{ strain: 3 }, { injuryRoll: severe }, { trait: trait_g, add: 1, on: actor, toward: lead }] } }
     - { id: fast, name: APPROACH_B_NAME, skill: SKILL_B, difficulty: 7, outcomes: { critical: [{ progress: 1 }, { strain: -1 }, { momentum: 2 }], success: [{ progress: 1 }, { strain: -1 }, { momentum: 1 }] } }
   decision:
     id: DECISION_PROMPT_4
@@ -65,7 +65,7 @@
   tags: [field, social]
   chain: ENCOUNTER_CHAIN
   approaches:
-    - { id: careful, name: APPROACH_A_NAME, skill: SKILL_D, difficulty: 6 }
+    - { id: careful, name: APPROACH_A_NAME, skill: SKILL_D, difficulty: 6, outcomes: { critical: [{ progress: 1 }, { strain: -1 }, { momentum: 1 }, { trait: trait_h, add: 1, on: actor, toward: lead }] } }
     - { id: fast, name: APPROACH_B_NAME, skill: SKILL_D, difficulty: 7, outcomes: { critical: [{ progress: 1 }, { strain: -1 }, { momentum: 2 }], success: [{ progress: 1 }, { strain: -1 }, { momentum: 1 }] } }
 - id: ENCOUNTER_08
   tags: [field, technical]

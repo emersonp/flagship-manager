@@ -196,7 +196,7 @@ internal static class ContentReader
             bool set = e.ContainsKey("set");
             effects.Add(new EffectModel(
                 RawInt(Get(e, "progress")), RawInt(Get(e, "momentum")), RawInt(Get(e, "strain")), injury, Str(Get(e, "withdraw")) == "true",
-                Str(Get(e, "trait")), RawInt(Get(e, set ? "set" : "add")), set, Str(Get(e, "on"))));
+                Str(Get(e, "trait")), RawInt(Get(e, set ? "set" : "add")), set, Str(Get(e, "on")), Str(Get(e, "toward"))));
         }
 
         return effects;

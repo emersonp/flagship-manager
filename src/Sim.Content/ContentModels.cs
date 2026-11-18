@@ -65,8 +65,9 @@ public sealed record ApproachModel(
     IReadOnlyDictionary<string, string>? Text = null);
 
 // One entry of a bold or safe list. The loader adds the entries together, so the list's order and split are kept as written.
-// Trait is the entry's one trait change, if any: TraitAmount is what add or set says, TraitSet whether it is set, and TraitOn what on says.
-public sealed record EffectModel(int? Progress, int? Momentum, int? Strain, string? InjuryRoll, bool Withdraw = false, string? Trait = null, int? TraitAmount = null, bool TraitSet = false, string? TraitOn = null);
+// Trait is the entry's one trait change, if any: TraitAmount is what add or set says, TraitSet whether it is set, TraitOn what on says,
+// and TraitToward what toward says (a pair, 1e part three).
+public sealed record EffectModel(int? Progress, int? Momentum, int? Strain, string? InjuryRoll, bool Withdraw = false, string? Trait = null, int? TraitAmount = null, bool TraitSet = false, string? TraitOn = null, string? TraitToward = null);
 
 public sealed record DecisionModel(string Id, string? Name, int Stakes, IReadOnlyList<EffectModel> Bold, IReadOnlyList<EffectModel> Safe, IReadOnlyDictionary<string, string>? Text = null, IReadOnlyDictionary<string, string>? Labels = null);
 

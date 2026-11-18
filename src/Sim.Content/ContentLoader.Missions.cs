@@ -215,7 +215,7 @@ public static partial class ContentLoader
                     case "withdraw" when value == "true":
                         effect = effect with { Withdraw = true };
                         break;
-                    case "trait" or "add" or "set" or "on" when named:
+                    case "trait" or "add" or "set" or "on" or "toward" when named:
                         break;
                     case "flag":
                         error(FlagIsNowTrait);
@@ -283,12 +283,27 @@ public static partial class ContentLoader
         {
             Refuse("on: actor is only for an approach's outcome.");
         }
-        else if (Ids.IsInnerId(trait))
+
+        string? toward = entry.GetValueOrDefault("toward");
+        if (toward is not null)
         {
-            ok &= book.CheckPlace(trait, on == TraitOn.Ship ? TraitPlaces.Ship : TraitPlaces.Crew, error);
+            // A pair (1e part three, design 4.5): the actor toward the lead, or the lead toward the actor.
+            if (on is not (TraitOn.Actor or TraitOn.Lead) || toward is not (TraitOn.Actor or TraitOn.Lead) || toward == on)
+            {
+                Refuse("toward names lead or actor, with on: actor or on: lead, and never the same word as on.");
+            }
+            else if (!outcome)
+            {
+                Refuse("toward is only for an approach's outcome, where there is an actor.");
+            }
         }
 
-        return ok ? new TraitChange(trait, amount, set, on!) : null;
+        if (ok && Ids.IsInnerId(trait))
+        {
+            ok &= book.CheckPlace(trait, toward is not null ? TraitPlaces.Pair : on == TraitOn.Ship ? TraitPlaces.Ship : TraitPlaces.Crew, error);
+        }
+
+        return ok ? new TraitChange(trait, amount, set, on!, toward) : null;
     }
 
     private static List<ObjectiveDef> BuildObjectives(List<(string File, ObjectiveDto Dto)> items, List<EncounterDef> encounters, List<ContentError> errors)

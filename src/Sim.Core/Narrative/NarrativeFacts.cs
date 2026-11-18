@@ -131,10 +131,10 @@ public static class NarrativeFacts
             ["decision"]),
         Beat("collapse", [], []),
         Beat("result", [new("outcome", FactType.Text, FactDomain.Words, Outcomes)], []),
-        // A storylet arrives in the aftermath, apart from any mission: no objective, encounter, or lead. Its subject is the crew
-        // member it arrived for; a storylet for the ship has none.
-        new BeatSpec("storylet", [new("storylet", FactType.Text, FactDomain.Storylet)], ["subject"], ["storylet"]),
-        new BeatSpec("storyletAnswer", [new("storylet", FactType.Text, FactDomain.Storylet), new("option", FactType.Text)], ["subject"], ["storylet"]),
+        // A storylet arrives on the itinerary, apart from any mission: no objective, encounter, or lead. Its subject is the crew
+        // member it arrived for; a storylet for the ship has none, and only one for a pair has a target (1e part three).
+        new BeatSpec("storylet", [new("storylet", FactType.Text, FactDomain.Storylet)], ["subject", "target"], ["storylet"]),
+        new BeatSpec("storyletAnswer", [new("storylet", FactType.Text, FactDomain.Storylet), new("option", FactType.Text)], ["subject", "target"], ["storylet"]),
     }.ToDictionary(b => b.Kind);
 
     public static IReadOnlyList<string> Kinds => Beats.Keys.ToList();

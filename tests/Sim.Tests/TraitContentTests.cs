@@ -37,7 +37,7 @@ public class TraitContentTests
     [Fact]
     public void Both_packs_load_their_traits()
     {
-        Assert.Equal(["trait_b", "trait_e", "trait_f"], TestContent.Pack.Traits.Select(t => t.Id));
+        Assert.Equal(["trait_b", "trait_e", "trait_f", "trait_g", "trait_h", "trait_i", "trait_j"], TestContent.Pack.Traits.Select(t => t.Id));
         ContentLoadResult game = ContentLoader.LoadDirectory(Path.Combine(TestContent.Root, "content"));
         Assert.Empty(game.Errors);
         Assert.Contains(game.Pack!.Traits, t => t.Id == "stood_down");
@@ -174,5 +174,70 @@ public class TraitContentTests
                 """;
             return files;
         });
+    }
+
+    // --- Pairs (1e part three, Task 3) ---
+
+    private static Func<Dictionary<string, string>, Dictionary<string, string>> Encounter(string from, string to)
+    {
+        return files =>
+        {
+            Assert.Contains(from, files["encounters/base.yaml"]);
+            files["encounters/base.yaml"] = files["encounters/base.yaml"].Replace(from, to);
+            return files;
+        };
+    }
+
+    private static Func<Dictionary<string, string>, Dictionary<string, string>> Storylet(string from, string to)
+    {
+        return files =>
+        {
+            Assert.Contains(from, files["storylets/base.yaml"]);
+            files["storylets/base.yaml"] = files["storylets/base.yaml"].Replace(from, to);
+            return files;
+        };
+    }
+
+    private const string Disaster = "{ trait: trait_b, add: 1, on: actor }";
+
+    [Theory]
+    [InlineData("{ trait: trait_g, add: 1, on: team, toward: lead }", "ENCOUNTER_04: toward names lead or actor, with on: actor or on: lead, and never the same word as on.")]
+    [InlineData("{ trait: trait_g, add: 1, on: actor, toward: actor }", "ENCOUNTER_04: toward names lead or actor, with on: actor or on: lead, and never the same word as on.")]
+    [InlineData("{ trait: trait_g, add: 1, on: actor, toward: team }", "ENCOUNTER_04: toward names lead or actor, with on: actor or on: lead, and never the same word as on.")]
+    [InlineData("{ trait: trait_g, add: 1, on: actor }", "ENCOUNTER_04: trait_g sits on a pair, so it is used with toward.")]
+    [InlineData("{ trait: trait_b, add: 1, on: actor, toward: lead }", "ENCOUNTER_04: A trait on a pair needs a definition with on: pair.")]
+    [InlineData("{ trait: trait_z, add: 1, on: actor, toward: lead }", "ENCOUNTER_04: A trait on a pair needs a definition with on: pair.")]
+    public void A_pair_in_an_encounter_outside_the_rules_is_refused(string effect, string message)
+    {
+        AssertRefused("", message, "encounters/base.yaml", Encounter(Disaster, effect));
+    }
+
+    [Fact]
+    public void Toward_in_a_decision_is_refused()
+    {
+        AssertRefused("", "ENCOUNTER_01: toward is only for an approach's outcome, where there is an actor.", "encounters/base.yaml",
+            Encounter("bold: [{ momentum: 1 }, { strain: 1 }]", "bold: [{ momentum: 1 }, { trait: trait_g, add: 1, on: lead, toward: actor }]"));
+    }
+
+    [Fact]
+    public void A_pair_storylet_loads_with_its_target()
+    {
+        StoryletDef pair = TestContent.Pack.Storylets.Single(s => s.Id == "STORYLET_03");
+
+        Assert.Equal(StoryletScopes.Pair, pair.Scope);
+        Assert.Equal(new TraitChange("trait_g", 0, true, "", StoryletScopes.Target), pair.Options[0].Effects[0].Trait);
+        Assert.Equal(StoryletScopes.Pair, TestContent.Pack.Vignettes.Single(v => v.Id == "VIGNETTE_04").Scope);
+    }
+
+    [Theory]
+    [InlineData("{ loyalty: -1, on: crew }", "{ loyalty: -1, on: target }", "STORYLET_01: Only a storylet for a pair has a target, so only it can have on: target.")]
+    [InlineData("{ trait: trait_a, set: 2 }", "{ trait: trait_a, set: 2, toward: target }", "STORYLET_01: toward: target is for a storylet for a pair, on its subject.")]
+    [InlineData("{ trait: trait_c, max: 0 }", "{ stat: morale, max: 20, of: target }", "STORYLET_02: of: target is the only of, and only a storylet for a pair has a target.")]
+    [InlineData("{ trait: trait_g, set: 5, toward: target }", "{ trait: trait_g, set: 5, on: target, toward: target }", "STORYLET_03: toward: target is for a storylet for a pair, on its subject.")]
+    [InlineData("{ trait: trait_g, set: 5, toward: target }", "{ trait: trait_g, set: 5 }", "STORYLET_03: trait_g sits on a pair, so it is used with toward.")]
+    [InlineData("{ trait: trait_g, set: 5, toward: target }", "{ trait: trait_b, set: 1, toward: target }", "STORYLET_03: A trait on a pair needs a definition with on: pair.")]
+    public void A_pair_in_a_storylet_outside_the_rules_is_refused(string from, string to, string message)
+    {
+        AssertRefused("", message, "storylets/base.yaml", Storylet(from, to));
     }
 }

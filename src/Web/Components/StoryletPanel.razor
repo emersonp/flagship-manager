@@ -2,6 +2,10 @@
 <article class="storylet" aria-labelledby="@Head">
     <div class="storylet__head">
         <h3 id="@Head">@Title</h3>
+        @if (Waiting?.About is { } about)
+        {
+            <p class="note">@about</p>
+        }
         @if (Waiting?.From is { } from)
         {
             <p class="note">@from</p>

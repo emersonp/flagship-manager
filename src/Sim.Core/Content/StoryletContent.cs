@@ -12,8 +12,8 @@ public sealed record TraitRange(string Trait, int Min, int? Max) : Requirement
     }
 }
 
-// The subject's stat (one of StoryletStats) lies in Min to Max, as a trait's range does.
-public sealed record StatRange(string Stat, int Min, int? Max) : Requirement
+// The subject's stat (one of StoryletStats) lies in Min to Max, as a trait's range does. OfTarget: the pair's target's (1e part three).
+public sealed record StatRange(string Stat, int Min, int? Max, bool OfTarget = false) : Requirement
 {
     public bool Holds(int value)
     {
@@ -21,16 +21,19 @@ public sealed record StatRange(string Stat, int Min, int? Max) : Requirement
     }
 }
 
-// A fact about the subject in the cycle whose aftermath last ended (one of LastCycleFacts); Not turns it round.
-public sealed record LastCycle(string Fact, bool Not) : Requirement;
+// A fact about the subject in the cycle whose aftermath last ended (one of LastCycleFacts); Not turns it round. OfTarget: about
+// the pair's target (1e part three).
+public sealed record LastCycle(string Fact, bool Not, bool OfTarget = false) : Requirement;
 
-// One effect of an answer: a loyalty change, a morale change, or a trait change. LoyaltyOn and MoraleOn are "subject" or "crew"
-// when their amount is not 0. Trait.On is "ship", "subject", or "" (the scope the storylet arrived for).
+// One effect of an answer: a loyalty change, a morale change, or a trait change. LoyaltyOn and MoraleOn are "subject", "target"
+// (a pair's), or "crew" when their amount is not 0. Trait.On is "ship", "subject", "target", or "" (the scope the storylet arrived
+// for, the subject for a pair); Trait.Toward is "target" for a pair trait the subject holds toward the target.
 public sealed record StoryletEffect(int Loyalty = 0, string? LoyaltyOn = null, TraitChange? Trait = null, int Morale = 0, string? MoraleOn = null);
 
 public sealed record StoryletOption(string Id, string Label, IReadOnlyList<StoryletEffect> Effects);
 
-// Scope is "ship" or "crew": whose traits the requirements read, and whether the storylet arrives for a subject.
+// Scope is "ship", "crew", or "pair": whose traits the requirements read, and whether the storylet arrives for a subject, or for a
+// subject (the holder) and a target (1e part three).
 public sealed record StoryletDef(string Id, int Stakes, string Scope, IReadOnlyList<Requirement> Requires, IReadOnlyList<StoryletOption> Options, string? Name = null)
 {
     // The requirements on traits, the only ones a storylet's own answers can move.
@@ -43,8 +46,14 @@ public static class StoryletScopes
     public const string Ship = "ship";
     public const string Crew = "crew";
 
-    // The crew member a storylet for crew arrived for.
+    // A holder and a target (1e part three): the storylet arrives once for each pair whose requirements hold.
+    public const string Pair = "pair";
+
+    // The crew member a storylet for crew arrived for; for a pair, the holder.
     public const string Subject = "subject";
+
+    // The other crew member a storylet for a pair arrived for.
+    public const string Target = "target";
 }
 
 // The stats a requirement can read on the subject.

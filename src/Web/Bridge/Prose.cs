@@ -179,7 +179,7 @@ public sealed class Prose
 
     // The situation a storylet's lines are read against, apart from any mission: the storylet (and the option, for an answer's
     // line), its subject when it has one, and for each skill a "best" speaker, the fit crew member with the highest level in it.
-    public static Situation StoryletSituation(ContentPack pack, Names names, IReadOnlyList<CrewMember> crew, string storyletId, string? subjectId, string? optionId = null)
+    public static Situation StoryletSituation(ContentPack pack, Names names, IReadOnlyList<CrewMember> crew, string storyletId, string? subjectId, string? optionId = null, string? targetId = null)
     {
         Dictionary<string, CrewDef> defs = pack.Crew.GroupBy(c => c.Id).ToDictionary(g => g.Key, g => g.First());
         Person PersonOf(string id) => new(id, names.Crew(id), pack.PronounsOf(defs.GetValueOrDefault(id)));
@@ -197,6 +197,12 @@ public sealed class Prose
             facts["subject.caution"] = FactValue.Of(subject.Caution);
             facts["subject.discipline"] = FactValue.Of(subject.Discipline);
             facts["subject.seniority"] = FactValue.Of(subject.Seniority);
+        }
+
+        // A pair's target (1e part three): a speaker in the storylet's text, as the subject is.
+        if (targetId is not null && crew.FirstOrDefault(m => m.Id == targetId) is { } target)
+        {
+            people["target"] = PersonOf(target.Id);
         }
 
         // The sort is stable, so a tie goes to the crew member earlier on the roster.

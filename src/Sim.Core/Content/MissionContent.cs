@@ -13,8 +13,9 @@ public sealed record RequirementDef(string? Skill, int Level, string? Gear);
 public sealed record ApproachDef(string Id, string Skill, int Difficulty, string? GearTag,
     IReadOnlyList<RequirementDef> Requires, IReadOnlyDictionary<string, EffectDef> Outcomes, string? Name = null);
 
-// One change to a trait. On is "ship", "actor", "lead", or "team" in a mission's effects. Set false means add.
-public sealed record TraitChange(string Trait, int Amount, bool Set, string On);
+// One change to a trait. On is "ship", "actor", "lead", or "team" in a mission's effects. Set false means add. Toward: the pair's
+// target (1e part three), "lead" or "actor" in a mission's effects, "target" in a pair storylet's; null for a trait on one.
+public sealed record TraitChange(string Trait, int Amount, bool Set, string On, string? Toward = null);
 
 // What a decision option does. Fields are additive, so several effects fold into one record. Traits is null, never empty, when there are
 // none, so that two effects without traits still compare equal (a record compares a list by reference).

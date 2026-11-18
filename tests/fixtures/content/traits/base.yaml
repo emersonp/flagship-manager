@@ -1,5 +1,7 @@
 # Placeholders. The author replaces these. A trait with no entry here (trait_a, trait_c, trait_d) has no rules, as flags had none.
 # trait_b falls each week; trait_e has named levels, launch rules, and expires; trait_f rises to a cap and is hidden.
+# trait_g, trait_h, and trait_i are the three pair shapes of the part-three design's section 6 (avoids, owes, looks up to);
+# trait_j is the grief the last two leave when their target dies.
 - id: trait_b
   max: 5
   every: { weeks: 3, add: -1 }
@@ -15,3 +17,24 @@
   shown: false
   max: 3
   every: { weeks: 2, add: 1 }
+- id: trait_g
+  on: pair
+  max: 5
+  briefing: TRAIT_G_BRIEFING
+  launch:
+    withTarget: [{ morale: -3 }]
+  mission: { checkBonus: -1, withTarget: true }
+  every: { weeks: 4, add: -1 }
+  onTargetDied: [{ set: 0 }]
+- id: trait_h
+  on: pair
+  mission: { checkBonus: 1, withTarget: true }
+  onTargetDied: [{ morale: -10 }, { trait: trait_j, add: 1 }]
+- id: trait_i
+  on: pair
+  mission: { checkBonus: 1, withTarget: true }
+  onTargetDied: [{ morale: -15 }, { trait: trait_j, add: 1 }]
+- id: trait_j
+  on: crew
+  max: 5
+  every: { weeks: 2, add: -1 }

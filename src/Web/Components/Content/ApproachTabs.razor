@@ -4,7 +4,7 @@
 @* One tab for each approach, holding what is said before its check and, for each tier, what the log says and what happens. The tab
    shown is a local signal, so switching posts nothing; every panel stays in the form, so one save sends them all. The shown tab
    is posted with the form, so a row change or a save draws the page on the same one. Left, Right, Home, and End move between
-   tabs (the ARIA tabs pattern). Like every button, a tab waits while a request is in flight: its answer draws the tab that was posted. An outcome left alone shows its default; ticking Change shows its fields: four for its effect and four for one trait change (app.css). *@
+   tabs (the ARIA tabs pattern). Like every button, a tab waits while a request is in flight: its answer draws the tab that was posted. An outcome left alone shows its default; ticking Change shows its fields: four for its effect and five for one trait change, the last whom a pair's points at (app.css). *@
 <div class="tabs" id="approach-tabs" data-signals:_tab="@Shown" data-init="@View.Fresh($"$_tab = {Shown}")" data-on:input__debounce.700ms="@Refresh">
     <input type="hidden" name="@EncounterKind.TabField" value="@Shown" data-attr:value="$_tab">
     <h3 class="sub" id="h-approach-tabs">Words and outcomes, by approach</h3>
@@ -68,6 +68,7 @@
                             <Field Name="@Name("traitMode")" Label="Add or set" AriaLabel="@($"Add or set, {outcome}")" Value="@Value("traitMode")" Options="EncounterKind.TraitModes" Error="@View.Error(Name("traitMode"))" />
                             <Field Name="@Name("traitAmount")" Label="Amount" AriaLabel="@($"Trait amount, {outcome}")" Value="@Value("traitAmount")" Error="@View.Error(Name("traitAmount"))" Numeric="true" />
                             <Field Name="@Name("traitOn")" Label="On" AriaLabel="@($"Trait on, {outcome}")" Value="@Value("traitOn")" Options="EncounterKind.OutcomeTargets" Error="@View.Error(Name("traitOn"))" />
+                            <Field Name="@Name("traitToward")" Label="Toward" AriaLabel="@($"Trait toward, {outcome}")" Value="@Value("traitToward")" Options="EncounterKind.Towards" Placeholder="No one" Error="@View.Error(Name("traitToward"))" />
                         </div>
                     </div>
                 </div>
