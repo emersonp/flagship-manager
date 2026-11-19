@@ -471,14 +471,22 @@ public static class BridgeEndpoints
     internal static BridgeView View(GameServices game, LivePack live, LoadedLegacy legacy, bool dev)
     {
         int cycle = legacy.State.Cycle;
-        List<IEvent> events = game.Store.ReadEvents(legacy.State.LegacyId, cycle).Select(live.Game.Events.FromEnvelope).ToList();
-        events.AddRange(legacy.Envelopes.Where(e => e.Cycle == cycle).Select(live.Game.Events.FromEnvelope));
+        List<IEvent> events = CycleEvents(game, live, legacy);
         // The briefing picks the last cycle's team again; a cycle that sent nobody leaves nothing to pick.
         TeamAssigned? last = legacy.State.Phase == CyclePhase.Briefing && cycle > 0
             ? game.Store.ReadEvents(legacy.State.LegacyId, cycle - 1).Select(live.Game.Events.FromEnvelope).OfType<TeamAssigned>().LastOrDefault()
             : null;
         BridgeView view = BridgeReader.Read(legacy.Record, live.Pack, events, live.Names, last, live.Game.Bus.View<IStoryletView>(legacy.State));
         return dev ? view with { TopBar = view.TopBar with { Dev = true } } : view;
+    }
+
+    // This cycle's stored events plus any not yet committed.
+    internal static List<IEvent> CycleEvents(GameServices game, LivePack live, LoadedLegacy legacy)
+    {
+        int cycle = legacy.State.Cycle;
+        List<IEvent> events = game.Store.ReadEvents(legacy.State.LegacyId, cycle).Select(live.Game.Events.FromEnvelope).ToList();
+        events.AddRange(legacy.Envelopes.Where(e => e.Cycle == cycle).Select(live.Game.Events.FromEnvelope));
+        return events;
     }
 
     // A Datastar request gets the words as a patch of the main screen; a 404 page would change nothing on screen.

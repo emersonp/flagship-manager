@@ -1,0 +1,31 @@
+@* The storylets or vignettes that cast, for "Why these storylets": each in salience order with its parts as weighted (freshness is taken
+   off), its place in the tie draw, the total, its fate, and a link to its file in the editor. *@
+@if (Rows.Count == 0)
+{
+    <p class="empty">No @(Kind.ToLowerInvariant())s cast.</p>
+}
+else
+{
+    <div class="tw dev__tw" tabindex="0" role="region" aria-label="@($"{Label}, highest salience first, scrolls sideways")">
+        <table id="@Id">
+            <thead><tr><th scope="col">@Kind</th><th scope="col">Cast</th><th scope="col" class="n">Stakes</th><th scope="col" class="n">Specificity</th><th scope="col" class="n">Freshness</th><th scope="col" class="n">Tie</th><th scope="col" class="n">Salience</th><th scope="col">Fate</th><th scope="col"><span class="visually-hidden">Edit</span></th></tr></thead>
+            <tbody>
+                @foreach (WhyRow row in Rows)
+                {
+                    <tr data-id="@row.Id"><td class="dev__trait">@row.Shown</td><td class="dev__cast">@row.Cast</td><td class="n">@row.Stakes</td><td class="n">@row.Specificity</td><td class="n">@(row.Freshness == 0 ? "0" : $"−{row.Freshness}")</td><td class="n">@row.Tie</td><td class="n">@row.Salience</td><td>@row.Fate</td><td><a class="dev-edit" href="@row.Edit" target="_blank" rel="noopener" aria-label="@($"Edit {row.Id}")">Edit</a></td></tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+@code {
+    [Parameter, EditorRequired] public string Id { get; set; } = "";
+
+    // Storylet or Vignette: the first column's heading.
+    [Parameter, EditorRequired] public string Kind { get; set; } = "";
+
+    [Parameter, EditorRequired] public string Label { get; set; } = "";
+
+    [Parameter, EditorRequired] public IReadOnlyList<WhyRow> Rows { get; set; } = [];
+}

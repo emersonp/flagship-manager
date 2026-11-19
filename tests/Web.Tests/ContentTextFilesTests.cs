@@ -234,6 +234,30 @@ public sealed class ContentTextFilesTests(RepoContentGuard guard) : IClassFixtur
         Assert.Same(live, app.Live);
     }
 
+    // 1e part four, design 4.12: an expression error in the storylets file is shown where it is in the text, by line and column, and
+    // with that line marked under the character, beside the loader's own words ("at character n" of the expression).
+    [Fact]
+    public async Task An_expression_error_shows_its_position_in_the_editor()
+    {
+        using TestApp app = NewApp();
+        HttpClient client = app.NewClient();
+        string before = Everything(app);
+        string typed = Disk(app, "storylets/base.yaml").Replace("subject.trait.trait_c == 0", "subject.trait.nosuch == 0", StringComparison.Ordinal);
+        int at = typed.IndexOf("nosuch", StringComparison.Ordinal);
+        int line = typed[..at].Count(c => c == '\n') + 1;
+        int column = at - typed.LastIndexOf('\n', at);
+        string text = typed.Split('\n')[line - 1];
+
+        (HttpStatusCode status, string body) = await Post(client, "/dev/content/files/storylets", Body(typed));
+
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, status);
+        string alert = WebUtility.HtmlDecode(Regex.Match(body, "<div id=\"form-alert\".*?</ul>", RegexOptions.Singleline).Value);
+        Assert.Matches("STORYLET_02: cast\\.subject, at character \\d+: No trait named nosuch", alert);
+        Assert.Contains($"Line {line}, column {column}", alert);
+        Assert.Contains($"{text}\n{new string(' ', column - 1)}^", alert);
+        Assert.Equal(before, Everything(app));
+    }
+
     [Fact]
     public async Task An_empty_text_is_refused_and_nothing_is_written()
     {

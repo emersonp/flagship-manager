@@ -104,14 +104,14 @@ public sealed record ItineraryView(int CaptainsTime, IReadOnlyList<StoryletView>
     public bool IsEmpty => Waiting.Count == 0 && Settled.Count == 0 && Vignettes.Count == 0;
 }
 
-// A vignette that arrived this cycle. About names its subject and the fact that brought it ("CREW_03, lost a crewmate").
+// A vignette that arrived this cycle. About names its cast and the fact that brought it ("CREW_03, lost a crewmate"; "CREW_01 · CREW_03").
 // Waiting: Options holds its two answers and DefaultLabel the one taken if it is left. Settled: Said is what the answer (or
 // the default) said, and Tags what it changed; a vignette with no choice is settled as it arrives.
 public sealed record VignetteView(string OfferId, string Title, string? About, IReadOnlyList<ProseEntry> Script, IReadOnlyList<StoryletOptionView> Options,
     string? DefaultLabel, bool Settled, IReadOnlyList<ProseEntry> Said, IReadOnlyList<string> Tags, bool Defaulted = false);
 
 // A storylet waiting for an answer. From says where it came from ("From ENCOUNTER_01 · trait_a"), when an encounter set its trait.
-// About names a pair (1e part three): "CREW_01 · avoids CREW_03"; null for a storylet for the ship or one crew member.
+// About lists its cast by name in slot order (1e part four, Task 7): "Okafor · Vance"; null for a storylet for the ship.
 public sealed record StoryletView(string OfferId, string Title, string? From, IReadOnlyList<ProseEntry> Script, IReadOnlyList<StoryletOptionView> Options, string? About = null);
 
 // Handlers: for an option settled by a check (1e part four, Task 6), who may be sent, in roster order; null for any other. Empty: no

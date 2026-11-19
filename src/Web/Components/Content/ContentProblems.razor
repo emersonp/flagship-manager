@@ -1,12 +1,20 @@
 @using Sim.Core.Content
+@using Web.Forms
 <ul class="problems">
     @foreach (ContentError error in Errors)
     {
-        @* The file and the reason in the loader's own "file: reason" form, so they stay apart when copied or read out. *@
-        <li>@if (error.File.Length > 0){<span class="m">@error.File</span>@(": ")}@error.Message</li>
+        @* The file and the reason in the loader's own "file: reason" form, so they stay apart when copied or read out. An expression's error
+           in a text file also says where it is in the text, and shows that line marked under the character (1e part four, design 4.12). *@
+        <li>@if (error.File.Length > 0){<span class="m">@error.File</span>@(": ")}@error.Message@if (Spots?.GetValueOrDefault(error) is { } spot)
+            {
+                <span class="problems__at">Line @spot.Line, column @spot.Column</span><pre class="problems__spot" aria-hidden="true">@($"{spot.Text}\n{new string(' ', spot.Column - 1)}^")</pre>
+            }</li>
     }
 </ul>
 
 @code {
     [Parameter, EditorRequired] public IReadOnlyList<ContentError> Errors { get; set; } = [];
+
+    // A text file's refused expressions, by error.
+    [Parameter] public IReadOnlyDictionary<ContentError, TextSpot>? Spots { get; set; }
 }

@@ -510,6 +510,70 @@ internal sealed class Rewrite
         return tokens;
     }
 
+    // The text of each clause joined by && at the top of the expression, as the parsed tree joins them (ExpressionBook.Split): an
+    // expression wrapped whole in parentheses is read inside them, and one with || at its top is one clause, since && binds tighter.
+    // The source has been checked, so it tokenizes.
+    internal static List<string> TopLevelClauses(string source)
+    {
+        List<Token> tokens = Tokenize(source);
+        var clauses = new List<string>();
+
+        // The matching ) of the ( at open, or -1.
+        int Close(int open, int end)
+        {
+            int depth = 0;
+            for (int i = open; i < end; i++)
+            {
+                depth += tokens[i].Text switch { "(" => 1, ")" => -1, _ => 0 };
+                if (depth == 0)
+                {
+                    return i;
+                }
+            }
+
+            return -1;
+        }
+
+        void Split(int from, int to)
+        {
+            while (to - from > 1 && tokens[from].Text == "(" && Close(from, to) == to - 1)
+            {
+                from++;
+                to--;
+            }
+
+            var ands = new List<int>();
+            bool or = false;
+            int depth = 0;
+            for (int i = from; i < to; i++)
+            {
+                depth += tokens[i].Text switch { "(" => 1, ")" => -1, _ => 0 };
+                if (depth == 0 && tokens[i].Text == "&&")
+                {
+                    ands.Add(i);
+                }
+
+                or |= depth == 0 && tokens[i].Text == "||";
+            }
+
+            if (or || ands.Count == 0)
+            {
+                clauses.Add(source[tokens[from].Position..(tokens[to - 1].Position + tokens[to - 1].Length)]);
+                return;
+            }
+
+            int start = from;
+            foreach (int and in ands.Append(to))
+            {
+                Split(start, and);
+                start = and + 1;
+            }
+        }
+
+        Split(0, tokens.Count);
+        return clauses;
+    }
+
     private enum TokenKind
     {
         Name,

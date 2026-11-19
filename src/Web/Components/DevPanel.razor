@@ -1,4 +1,4 @@
-@* Dev Play's panel: the legacy's traits, each crew member's morale, and a form to set a trait. It redraws itself whenever another request on the page ends,
+@* Dev Play's panel: the legacy's traits, each crew member's morale, a form to set a trait, and why these storylets (1e part four). It redraws itself whenever another request on the page ends,
    so a trait a mission changed shows once that mission's beats have played. Nothing in normal play renders it. *@
 <section id="dev" class="well dev" aria-labelledby="h-dev" data-on:datastar-fetch__document="@Refresh">
     <div class="well__head">
@@ -82,6 +82,10 @@
             <p class="hint" id="dev-hint">0 to @View.Most, or a level's name, and 0 clears it. A trait on a pair needs Toward: whom it points at. Storylets and vignettes arrive as the itinerary opens, so set a trait before then.</p>
             <p id="dev-result" class="@(Error ? "error" : "dev__ok")" role="status">@Message</p>
         </form>
+        @if (View.Why is { } why)
+        {
+            <WhyStorylets LegacyId="LegacyId" View="why" />
+        }
     </div>
 </section>
 

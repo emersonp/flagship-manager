@@ -330,6 +330,16 @@ input:disabled { opacity: 0.55; cursor: not-allowed; }
 .dev__fields .field { max-width: none; }
 .dev__value input[type="text"] { font-family: var(--font-outlier); font-variant-numeric: tabular-nums slashed-zero; }
 .dev__ok { min-height: 1lh; font-size: var(--text-sm); font-weight: 500; color: var(--color-ink); }
+.dev__why { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-xs); align-content: start; min-width: 0; grid-column: 1 / -1; }
+.dev__why .note, .dev__count { margin: 0; }
+.dev__count { font-variant-numeric: tabular-nums; color: var(--color-ink); }
+.dev__find { display: flex; flex-wrap: wrap; gap: var(--space-xs) var(--space-sm); align-items: end; margin-top: var(--space-sm); }
+.dev__find .field { flex: 1 1 14rem; max-width: 28rem; }
+.dev__find .hint { flex-basis: 100%; margin: 0; }
+#why-found p { margin: 0 0 var(--space-2xs); overflow-wrap: anywhere; }
+.dev__cast { white-space: nowrap; }
+/* The scroller holds the hidden "Edit" heading, which is absolutely placed and would otherwise widen the page. */
+.dev__why .tw { position: relative; }
 @container (min-width: 36rem) { .dev__fields { grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) 5rem auto; } }
 @container (min-width: 72rem) { .dev__body { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
 @media (max-width: 40rem) { .dev__tw { margin-inline: calc(-1 * var(--space-md)); } }
@@ -343,7 +353,7 @@ input:disabled { opacity: 0.55; cursor: not-allowed; }
 #alert p { font-size: var(--text-sm); font-weight: 500; }
 .alert-ok { color: var(--color-ink); }
 .problems { display: grid; gap: var(--space-2xs); margin-top: var(--space-2xs); color: var(--color-ink-2); font-size: var(--text-sm); }
-.problems li { overflow-wrap: anywhere; }
+.problems li { overflow-wrap: anywhere; min-width: 0; }
 .notes { display: grid; gap: var(--space-2xs); margin-top: var(--space-2xs); padding-left: var(--space-sm); border-left: var(--rule-hair) solid var(--color-rule-2); color: var(--color-muted); font-size: var(--text-sm); }
 .notes li { overflow-wrap: anywhere; }
 .problems .m { margin-right: var(--space-xs); }
@@ -413,6 +423,8 @@ a.btn { text-decoration: none; }
 .alert p { font-size: var(--text-sm); font-weight: 500; }
 .alert .error { min-height: 0; }
 .alert .problems { font-weight: 400; }
+.problems__at { display: block; margin-top: var(--space-3xs); color: var(--color-ink); font-weight: 500; }
+.problems__spot { margin: var(--space-2xs) 0 0; padding: var(--space-2xs) var(--space-xs); max-width: 100%; overflow-x: auto; border-radius: var(--radius-control); background: var(--color-paper-3); color: var(--color-ink); font-family: var(--font-outlier); font-size: var(--text-xs); line-height: 1.4; white-space: pre; overflow-wrap: normal; }
 
 /* Aftermath. */
 .verdict h1 { font-size: var(--text-4xl); }

@@ -7,7 +7,7 @@
     @if (View.Reasons.Count > 0)
     {
         <p class="error">The change was refused. Nothing was written.</p>
-        <ContentProblems Errors="View.Reasons" />
+        <ContentProblems Errors="View.Reasons" Spots="View.Spots" />
     }
 </div>
 

@@ -1146,6 +1146,61 @@ public class StoryletsModuleTests
         Assert.Equal(["VIGNETTE_GLANCE Arrived 0+1-6"], contest.Vignettes.Select(Line));
     }
 
+    // Review focus 3 and Task 7 (design 4.10): Dev Play's dry run. Between cycles it foresees the next itinerary; once that is open,
+    // it gives the contest as it ran, even after an answer has cleared the trait it read. It advances no stream and changes nothing,
+    // so a legacy that ran it plays on exactly as one that did not. STORYLET_LOW and STORYLET_FRESH tie, so the tie stream is drawn.
+    [Fact]
+    public void The_dry_run_advances_no_stream()
+    {
+        StoryletDef high = Crew("STORYLET_HIGH", 3, "subject.trait.trait_j >= 1", Option("clear", Set("trait_j", 0)), Option("other", Set("trait_j", 0)));
+        ContentPack pack = Pack(2, high, Held("STORYLET_LOW", 1, "subject.trait.trait_b >= 1"), Held("STORYLET_FRESH", 1, "subject.trait.trait_b >= 1"));
+        var watched = new Harness(pack);
+        var plain = new Harness(pack);
+        foreach (Harness h in new[] { watched, plain })
+        {
+            h.To(CyclePhase.Resolution);
+            h.End([Raise("trait_j", 3, "CREW_03"), Raise("trait_b", 5, "CREW_02")]);
+            h.To(CyclePhase.Aftermath);
+        }
+
+        string Snapshot()
+        {
+            return JsonSerializer.Serialize(new { watched.State.RngStates, watched.Storylets, watched.Traits, watched.Crew });
+        }
+
+        static string Events(IEnumerable<IEvent> events)
+        {
+            return string.Join("\n", events.Select(e => e.GetType().Name + JsonSerializer.Serialize(e, e.GetType())));
+        }
+
+        string before = Snapshot();
+        Contest foreseen = watched.Bus.View<IStoryletDryRun>(watched.State).Contest([]);
+        Assert.Equal(before, Snapshot());
+        Assert.Equal((2, false), (foreseen.Cycle, foreseen.Open));
+
+        List<IEvent> opened = watched.To(CyclePhase.Itinerary);
+        Assert.Equal(Events(plain.To(CyclePhase.Itinerary)), Events(opened));
+        Assert.Equal(Offered(opened), foreseen.Storylets.Where(c => c.Fate == ContestFate.Arrived).Select(c => $"{c.Id}:{string.Join(":", c.Cast!.Values)}"));
+        Assert.Equal(3, foreseen.Storylets.Count(c => c.Score is not null));
+
+        opened.AddRange(watched.Send(new AnswerStorylet("2:STORYLET_HIGH", "clear")));
+        plain.Send(new AnswerStorylet("2:STORYLET_HIGH", "clear"));
+        before = Snapshot();
+        Contest open = watched.Bus.View<IStoryletDryRun>(watched.State).Contest(opened);
+        Assert.Equal(before, Snapshot());
+        Assert.Equal((2, true), (open.Cycle, open.Open));
+        Assert.Equal(JsonSerializer.Serialize(foreseen.Storylets), JsonSerializer.Serialize(open.Storylets));
+
+        foreach (string offer in watched.Waiting.ToList())
+        {
+            watched.Send(new AnswerStorylet(offer, "keep"));
+            plain.Send(new AnswerStorylet(offer, "keep"));
+        }
+
+        Assert.Equal(Events(plain.To(CyclePhase.Itinerary)), Events(watched.To(CyclePhase.Itinerary)));
+        Assert.Equal(JsonSerializer.Serialize(plain.State.RngStates), JsonSerializer.Serialize(watched.State.RngStates));
+    }
+
     [Fact]
     public void A_storylet_on_the_budget_loses_with_its_cast_and_score()
     {

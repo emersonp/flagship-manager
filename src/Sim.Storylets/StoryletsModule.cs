@@ -22,6 +22,7 @@ public static class StoryletsModule
         bus.Module<StoryletsState>(Name);
         bus.Provide<IHistoryView>(state => new HistoryView(state.Module<StoryletsState>(Name), state.Cycle));
         bus.Provide<IStoryletView>(state => new StoryletView(pack, casting, state.Module<StoryletsState>(Name), bus.View<IRosterView>(state), bus.View<ITraitView>(state), state.Cycle));
+        bus.Provide<IStoryletDryRun>(state => new DryRun(pack, casting, state, state.Module<StoryletsState>(Name), bus.View<IRosterView>(state), bus.View<ITraitView>(state)));
         bus.Guard<AnswerStorylet>(Order, Name, (command, context) => CheckAnswer(pack, casting, command, context));
         bus.Guard<AdvancePhase>(Order, Name, (_, context) => context.State.Phase == CyclePhase.Itinerary && Answerable(pack, context).Any() ? AnswerStorylet.WaitingReason : null);
         bus.Handle<AnswerStorylet>((command, context) => OnAnswer(pack, command, context));
@@ -228,23 +229,24 @@ public static class StoryletsModule
         ITraitView traits = context.View<ITraitView>();
         var source = new StateSource(context.View<IRosterView>(), traits, state, cycle);
         Contest contest = Salience.Contend(pack, casting, state, source, roster, cycle, context.Rng);
-        foreach (Contender arrived in contest.Storylets.Where(c => c.Fate == Fate.Arrived))
+        foreach (Contender arrived in contest.Storylets.Where(c => c.Fate == ContestFate.Arrived))
         {
             Dictionary<string, string> cast = Copy(arrived.Cast!);
 
-            // Where it came from: the encounter that last changed the first trait its expressions read that is set.
+            // Where it came from (design 4.9): the first trait its expressions read, on a slot or the ship, that is set and that an
+            // encounter last changed.
             string? encounterId = casting.Reads(arrived.Id)
                 .Select(r => (r.Trait, Crew: r.Slot == StoryletScopes.Ship ? null : cast[r.Slot], Target: r.Toward is null ? null : cast[r.Toward]))
                 .Where(r => traits.Value(r.Trait, r.Crew, r.Target) > 0)
                 .Select(r => traits.EncounterId(r.Trait, r.Crew, r.Target))
-                .FirstOrDefault();
+                .FirstOrDefault(e => e is not null);
             var offer = new WaitingStorylet { OfferId = OfferId(cycle, arrived.Id), StoryletId = arrived.Id, Cast = cast, EncounterId = encounterId };
             state.Waiting.Add(offer);
             Arrived(state, arrived.Id, cast, cycle);
             context.Publish(new StoryletOffered(offer.OfferId, offer.StoryletId, Copy(cast), offer.EncounterId, arrived.Score!.Total));
         }
 
-        foreach (Contender arrived in contest.Vignettes.Where(c => c.Fate == Fate.Arrived))
+        foreach (Contender arrived in contest.Vignettes.Where(c => c.Fate == ContestFate.Arrived))
         {
             VignetteDef vignette = pack.Vignettes.First(v => v.Id == arrived.Id);
             Dictionary<string, string> cast = Copy(arrived.Cast!);
@@ -291,7 +293,7 @@ public static class StoryletsModule
     }
 
     // {cycle}:{id}: one cast a cycle.
-    private static string OfferId(int cycle, string id)
+    internal static string OfferId(int cycle, string id)
     {
         return $"{cycle}:{id}";
     }

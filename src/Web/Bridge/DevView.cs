@@ -10,6 +10,9 @@ public sealed record DevView(IReadOnlyList<DevTraitRow> Traits, IReadOnlyList<De
 {
     // Each living crew member's morale figure, which play shows only as a word (1e part two).
     public IReadOnlyList<DevMoraleRow> Morale { get; init; } = [];
+
+    // "Why these storylets" (1e part four, Task 7); null in a view built without this cycle's events.
+    public WhyView? Why { get; init; }
 }
 
 public sealed record DevMoraleRow(string Shown, int Morale, string Word);
@@ -26,7 +29,8 @@ public static class DevReader
 {
     public const string Ship = "ship";
 
-    public static DevView Read(LegacyState state, Game game, ContentPack pack, Names names)
+    // cycleEvents: this cycle's, for "Why these storylets".
+    public static DevView Read(LegacyState state, Game game, ContentPack pack, Names names, IReadOnlyList<IEvent> cycleEvents)
     {
         IReadOnlyList<string> roster = game.Bus.View<IRosterView>(state).Roster;
         List<StoredTrait> stored = state.TryModule(TraitsModule.Name, out TraitsState? traits) ? traits.Traits : [];
@@ -43,7 +47,7 @@ public static class DevReader
         List<DevTarget> targets = [new(Ship, "Ship"), .. roster.Select(id => new DevTarget(id, names.Crew(id)))];
         IRosterView view = game.Bus.View<IRosterView>(state);
         List<DevMoraleRow> morale = roster.Select(id => new DevMoraleRow(names.Crew(id), view.Morale(id), BridgeReader.MoraleWord(pack.CrewTuning, view.Morale(id)))).ToList();
-        return new DevView(rows, targets, Known(pack), SetTrait.Most) { Morale = morale };
+        return new DevView(rows, targets, Known(pack), SetTrait.Most) { Morale = morale, Why = WhyReader.Read(state, game, pack, names, cycleEvents) };
     }
 
     // Every trait the pack defines, reads, or changes, for the form's suggestions.

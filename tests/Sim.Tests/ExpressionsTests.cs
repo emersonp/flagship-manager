@@ -143,6 +143,24 @@ public class ExpressionsTests
         Assert.Equal(3, Checked("(subject.fit && subject.aboard) && cycle.number > 1", Pair).Clauses);
     }
 
+    // Dev Play's first failing clause (Task 7): the same clauses as the count, each its own checked expression over the same slots,
+    // read inside any parentheses that wrap it whole.
+    [Theory]
+    [InlineData("subject.fit && (subject.morale < 30 || subject.loyalty < 30) && !subject.history.last('sent')", "subject.fit ; subject.morale < 30 || subject.loyalty < 30 ; !subject.history.last('sent')")]
+    [InlineData("((subject.fit && subject.aboard) && target.trait.avoids.toward(subject) >= 1)", "subject.fit ; subject.aboard ; target.trait.avoids.toward(subject) >= 1")]
+    [InlineData("subject.fit && subject.aboard || cycle.number > 1", "subject.fit && subject.aboard || cycle.number > 1")]
+    [InlineData("(subject.fit || subject.aboard) && (cycle.number > 1)", "subject.fit || subject.aboard ; cycle.number > 1")]
+    public void Clauses_split_as_they_are_counted(string source, string expected)
+    {
+        CheckedExpression expression = Checked(source, Pair);
+
+        IReadOnlyList<CheckedExpression> clauses = Book.Split(expression);
+
+        Assert.Equal(expected, string.Join(" ; ", clauses.Select(c => c.Source)));
+        Assert.Equal(expression.Clauses, clauses.Count);
+        Assert.All(clauses, c => Assert.Equal(Pair, c.Slots));
+    }
+
     [Fact]
     public void Traits_read_lists_each_trait_with_its_slot()
     {

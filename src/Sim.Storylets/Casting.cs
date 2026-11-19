@@ -5,16 +5,25 @@ using Sim.Expressions;
 namespace Sim.Storylets;
 
 // Why a storylet or vignette did or did not cast this cycle (design 4.4). NoCast and OutOfTries are told apart for Dev Play and the
-// simulator: the first means no binding held, the second that the search stopped before it knew.
+// simulator: the first means no binding held, the second that the search stopped before it knew. Cooling (Task 7): bindings held,
+// and every one was in its cast cooldown.
 internal enum CastOutcome
 {
     Cast,
     NoCast,
     OutOfTries,
+    Cooling,
 }
 
-// Cast: each slot to a crew member's id, in reading order; empty for the ship. Null unless the outcome is Cast.
-internal sealed record CastResult(CastOutcome Outcome, Dictionary<string, string>? Cast, int Tries);
+// Cast: each slot to a crew member's id, in reading order; empty for the ship. Null unless the outcome is Cast. Held: for Cooling,
+// the first binding that held. FirstHeld: the first slot's expression held for someone (for the ship, requires held), which is
+// half of what Dev Play calls eligible (design 4.10).
+internal sealed record CastResult(CastOutcome Outcome, Dictionary<string, string>? Cast, int Tries)
+{
+    public Dictionary<string, string>? Held { get; init; }
+
+    public bool FirstHeld { get; init; }
+}
 
 // Every storylet's and vignette's expressions, checked and kept for the life of the module, and the search that casts them
 // (1e part four, design 4.4).
@@ -45,6 +54,14 @@ internal sealed class Casting
         }
     }
 
+    // Past this many casts for one slot, Dev Play's search for the failing clause gives up on it (three slots over 22 crew).
+    public const int MaxSearch = 10_000;
+
+    public bool Has(string id)
+    {
+        return byId.ContainsKey(id);
+    }
+
     // Every trait its expressions read, in reading order, each once: for "where it came from".
     public IReadOnlyList<TraitRead> Reads(string id)
     {
@@ -72,6 +89,8 @@ internal sealed class Casting
         Compiled compiled = byId[id];
         int tries = 0;
         bool outOfTries = false;
+        bool firstHeld = false;
+        Dictionary<string, string>? held = null;
         var bound = new Dictionary<string, string>(StringComparer.Ordinal);
 
         bool Read(CheckedExpression expression)
@@ -86,10 +105,34 @@ internal sealed class Casting
             return book.Evaluate(expression, state, bound);
         }
 
+        // A full binding: requires holds and it is not cooling. One that holds and is cooling is kept, the first, to say so.
+        bool Complete()
+        {
+            if (compiled.Requires is not null && !Read(compiled.Requires))
+            {
+                return false;
+            }
+
+            if (!cooling(bound))
+            {
+                return true;
+            }
+
+            held ??= new Dictionary<string, string>(bound, StringComparer.Ordinal);
+            return false;
+        }
+
+        CastResult Missed()
+        {
+            CastOutcome outcome = outOfTries ? CastOutcome.OutOfTries : held is not null ? CastOutcome.Cooling : CastOutcome.NoCast;
+            return new CastResult(outcome, null, tries) { Held = outcome == CastOutcome.Cooling ? held : null, FirstHeld = firstHeld };
+        }
+
         if (compiled.Slots.Count == 0)
         {
-            bool holds = (compiled.Requires is null || Read(compiled.Requires)) && !cooling(bound);
-            return new CastResult(holds ? CastOutcome.Cast : outOfTries ? CastOutcome.OutOfTries : CastOutcome.NoCast, holds ? [] : null, tries);
+            bool holds = Complete();
+            firstHeld = holds || held is not null;
+            return holds ? new CastResult(CastOutcome.Cast, [], tries) { FirstHeld = true } : Missed();
         }
 
         List<string> order = Shuffled(roster, stream());
@@ -98,7 +141,7 @@ internal sealed class Casting
         {
             if (k == compiled.Slots.Count)
             {
-                return (compiled.Requires is null || Read(compiled.Requires)) && !cooling(bound);
+                return Complete();
             }
 
             (string slot, CheckedExpression condition) = compiled.Slots[k];
@@ -111,7 +154,9 @@ internal sealed class Casting
                 }
 
                 bound[slot] = crewId;
-                if (Read(condition) && Fill(k + 1))
+                bool holds = Read(condition);
+                firstHeld |= holds && k == 0;
+                if (holds && Fill(k + 1))
                 {
                     return true;
                 }
@@ -128,10 +173,52 @@ internal sealed class Casting
 
         if (Fill(0))
         {
-            return new CastResult(CastOutcome.Cast, compiled.Slots.ToDictionary(s => s.Slot, s => bound[s.Slot], StringComparer.Ordinal), tries);
+            return new CastResult(CastOutcome.Cast, compiled.Slots.ToDictionary(s => s.Slot, s => bound[s.Slot], StringComparer.Ordinal), tries) { FirstHeld = true };
         }
 
-        return new CastResult(outOfTries ? CastOutcome.OutOfTries : CastOutcome.NoCast, null, tries);
+        return Missed();
+    }
+
+    // Dev Play's search (design 4.10): the first top-level clause that held for no one. Each slot in turn is read over every crew
+    // member in roster order not already bound, beside each cast the slots before it held for; its clauses narrow those casts one at
+    // a time, and the first to leave none is the one. Then requires, over every full cast. No stream is drawn and no try counted:
+    // it says why nothing held, which does not turn on the order. Null when every clause held for someone.
+    public FailedClause? Failed(string id, IStateSource state, IReadOnlyList<string> roster)
+    {
+        Compiled compiled = byId[id];
+        List<Dictionary<string, string>> casts = [new(StringComparer.Ordinal)];
+
+        FailedClause? Narrow(string slot, CheckedExpression expression)
+        {
+            IReadOnlyList<CheckedExpression> clauses = book.Split(expression);
+            for (int i = 0; i < clauses.Count; i++)
+            {
+                int before = casts.Count;
+                casts = casts.Where(c => book.Evaluate(clauses[i], state, c)).ToList();
+                if (casts.Count == 0)
+                {
+                    return new FailedClause(slot, clauses[i].Source, i == 0 ? null : before);
+                }
+            }
+
+            return null;
+        }
+
+        foreach ((string slot, CheckedExpression condition) in compiled.Slots)
+        {
+            casts = casts.SelectMany(c => roster.Where(crewId => !c.ContainsValue(crewId)).Select(crewId => new Dictionary<string, string>(c, StringComparer.Ordinal) { [slot] = crewId })).ToList();
+            if (casts.Count > MaxSearch)
+            {
+                return new FailedClause(slot, null, null);
+            }
+
+            if (Narrow(slot, condition) is { } failed)
+            {
+                return failed;
+            }
+        }
+
+        return compiled.Requires is null ? null : Narrow(FailedClause.Requires, compiled.Requires);
     }
 
     // Fisher-Yates, from the end.

@@ -389,7 +389,7 @@ public static class BridgeReader
                 continue;
             }
 
-            string? who = arrived.Cast.Count == 1 ? shown(arrived.Cast.Values.First()) : Cast(vignette.Reads, arrived.Cast, shown);
+            string? who = Cast(vignette.Cast, arrived.Cast, shown);
             string? about = Join(who, vignette.Fact is null ? null : FactWords.GetValueOrDefault(vignette.Fact));
             Situation situation = Prose.StoryletSituation(pack, names, crew, vignette.Id, arrived.Cast);
             IReadOnlyList<ProseEntry> script = Prose.Storylet(pack, situation, $"{seed}|{arrived.OfferId}")?.Entries ?? [Systems(vignette.Id)];
@@ -491,7 +491,7 @@ public static class BridgeReader
                 From(traits, storylet, w, names),
                 script,
                 answers.Answers(w.OfferId).Select(a => Option(storylet.Options.First(o => o.Id == a.OptionId), a, names, shown)).ToList(),
-                w.Cast.Count < 2 ? null : Cast(storylet.Reads, w.Cast, shown)));
+                Cast(storylet.Cast, w.Cast, shown)));
         }
 
         var settled = new List<SettledStoryletView>();
@@ -536,18 +536,17 @@ public static class BridgeReader
         return new ProseEntry(EntryKind.Narration, null, [new LinePart(false, text)]);
     }
 
-    // The head of a cast of two or more (1e part three's pair head, kept until part four's Task 7 lists every cast): each in slot
-    // order, joined by " · ", with the first pair trait its expressions read before the one it is held toward: "CREW_01 · avoids
-    // CREW_03". Null for no cast.
-    private static string? Cast(IReadOnlyList<TraitRead> reads, IReadOnlyDictionary<string, string> cast, Func<string, string> shown)
+    // The head (1e part four, Task 7, design 4.9): the cast by name in slot order, joined by " · ": "Okafor · Vance". Null for the
+    // ship. A slot the definition no longer has (the author changed it while the offer waited) follows, in the order cast.
+    public static string? Cast(IReadOnlyList<CastSlot> slots, IReadOnlyDictionary<string, string> cast, Func<string, string> shown)
     {
         if (cast.Count == 0)
         {
             return null;
         }
 
-        TraitRead? pair = reads.FirstOrDefault(r => r.Toward is not null && cast.ContainsKey(r.Slot) && cast.ContainsKey(r.Toward));
-        return string.Join(" · ", cast.Select(c => pair is not null && c.Key == pair.Toward ? $"{pair.Trait} {shown(c.Value)}" : shown(c.Value)));
+        IEnumerable<string> order = slots.Select(s => s.Name).Where(cast.ContainsKey).Concat(cast.Keys.Where(k => slots.All(s => s.Name != k)));
+        return string.Join(" · ", order.Select(slot => shown(cast[slot])));
     }
 
     // The encounter that set the trait that brought it, and that trait: the first required trait it last changed, else the first set.

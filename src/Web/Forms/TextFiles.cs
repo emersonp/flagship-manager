@@ -34,6 +34,9 @@ public sealed record TextFileView(TextFile File, string Text, IReadOnlyList<Cont
 {
     public IReadOnlyList<string> Warnings { get; init; } = [];
 
+    // Where each refused expression is in the text as typed (1e part four, design 4.12).
+    public IReadOnlyDictionary<ContentError, TextSpot> Spots { get; init; } = new Dictionary<ContentError, TextSpot>();
+
     // A number that differs for each response, so the alert takes focus again on a second refusal in a row.
     private static long counter;
 
@@ -160,7 +163,7 @@ internal static class TextFileFlow
         }, cancellation);
         if (!result.Saved)
         {
-            return (new TextFileView(file, typed, result.Errors, null, true), false);
+            return (new TextFileView(file, typed, result.Errors, null, true) { Spots = ExpressionSpots.Find(file, typed, result.Errors) }, false);
         }
 
         return (Open(file, editor.Read(), "Saved."), true);

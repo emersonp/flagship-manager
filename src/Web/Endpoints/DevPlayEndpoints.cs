@@ -16,6 +16,7 @@ public static class DevPlayEndpoints
         dev.MapGet("/{id}", Page);
         dev.MapGet("/{id}/panel", Panel);
         dev.MapPost("/{id}/trait", Set);
+        dev.MapPost("/{id}/why", Why);
         // The bridge's own actions, answered for Dev Play.
         BridgeEndpoints.MapActions(dev, dev: true);
     }
@@ -33,12 +34,12 @@ public static class DevPlayEndpoints
         {
             ["LegacyId"] = legacyId,
             ["View"] = BridgeEndpoints.View(game, live, legacy, true),
-            ["Dev"] = DevReader.Read(legacy.State, live.Game, live.Pack, live.Names),
+            ["Dev"] = DevReader.Read(legacy.State, live.Game, live.Pack, live.Names, BridgeEndpoints.CycleEvents(game, live, legacy)),
         });
         return Results.Content(html, "text/html; charset=utf-8");
     }
 
-    private static async Task<IResult> Panel(string id, HttpContext http, LegacySession sessions, Render render, CancellationToken cancellation)
+    private static async Task<IResult> Panel(string id, HttpContext http, GameServices game, LegacySession sessions, Render render, CancellationToken cancellation)
     {
         LivePack live = RequestPack.Of(http);
         LoadedLegacy? legacy = Guid.TryParse(id, out Guid legacyId) ? await sessions.Read(live, legacyId, cancellation) : null;
@@ -47,11 +48,31 @@ public static class DevPlayEndpoints
             return await BridgeEndpoints.NotFound(render, http);
         }
 
-        return await Patch(render, legacyId, DevReader.Read(legacy.State, live.Game, live.Pack, live.Names), []);
+        return await Patch(render, legacyId, DevReader.Read(legacy.State, live.Game, live.Pack, live.Names, BridgeEndpoints.CycleEvents(game, live, legacy)), []);
+    }
+
+    // "Why these storylets" (1e part four, Task 7): a search by id or name, answered with the section alone. It reads only.
+    private static async Task<IResult> Why(string id, HttpContext http, GameServices game, LegacySession sessions, Render render, CancellationToken cancellation)
+    {
+        IFormCollection? form = await BridgeEndpoints.ReadForm(http.Request, cancellation);
+        string query = (form is null ? null : BridgeEndpoints.Single(form, "q")) ?? "";
+        LivePack live = RequestPack.Of(http);
+        LoadedLegacy? legacy = Guid.TryParse(id, out Guid legacyId) ? await sessions.Read(live, legacyId, cancellation) : null;
+        if (legacy is null)
+        {
+            return await BridgeEndpoints.NotFound(render, http);
+        }
+
+        WhyView view = WhyReader.Read(legacy.State, live.Game, live.Pack, live.Names, BridgeEndpoints.CycleEvents(game, live, legacy), query);
+        string section = await render.Html<WhyStorylets>(new Dictionary<string, object?> { ["LegacyId"] = legacyId, ["View"] = view });
+        return new BridgeEndpoints.StreamResult(async response =>
+        {
+            await Sse.PatchElements(response, section);
+        });
     }
 
     // Answers with the panel either way: what was set, or why not, with the form as posted.
-    private static async Task<IResult> Set(string id, HttpContext http, LegacySession sessions, Render render, CancellationToken cancellation)
+    private static async Task<IResult> Set(string id, HttpContext http, GameServices game, LegacySession sessions, Render render, CancellationToken cancellation)
     {
         IFormCollection? form = await BridgeEndpoints.ReadForm(http.Request, cancellation);
         string trait = (form is null ? null : BridgeEndpoints.Single(form, "trait"))?.Trim() ?? "";
@@ -80,7 +101,7 @@ public static class DevPlayEndpoints
         if (!int.TryParse(text, NumberStyles.None, CultureInfo.InvariantCulture, out int value))
         {
             refused = def is { HasLevels: true } ? $"{trait} is set to 0 or one of its levels: {string.Join(", ", def.Levels.OrderBy(l => l.Key).Select(l => l.Value))}." : $"A trait's value is 0 to {SetTrait.Most}.";
-            view = await Current(live, legacyId, sessions, cancellation);
+            view = await Current(game, live, legacyId, sessions, cancellation);
         }
         else
         {
@@ -101,13 +122,13 @@ public static class DevPlayEndpoints
                     legacy.Send(new SetTrait(trait, crewId, targetId, value));
                     string where = crewId is null ? "the ship" : targetId is null ? live.Names.Crew(crewId) : $"{live.Names.Crew(crewId)} toward {live.Names.Crew(targetId)}";
                     done = value == 0 ? $"Cleared {trait} on {where}." : $"{trait} is now {value} on {where}.";
-                    return DevReader.Read(legacy.State, live.Game, live.Pack, live.Names);
+                    return DevReader.Read(legacy.State, live.Game, live.Pack, live.Names, BridgeEndpoints.CycleEvents(game, live, legacy));
                 }, cancellation);
             }
             catch (CommandRejectedException rejected)
             {
                 refused = rejected.Message;
-                view = await Current(live, legacyId, sessions, cancellation);
+                view = await Current(game, live, legacyId, sessions, cancellation);
             }
         }
 
@@ -121,9 +142,9 @@ public static class DevPlayEndpoints
         return await Patch(render, legacyId, view, kept);
     }
 
-    private static async Task<DevView?> Current(LivePack live, Guid legacyId, LegacySession sessions, CancellationToken cancellation)
+    private static async Task<DevView?> Current(GameServices game, LivePack live, Guid legacyId, LegacySession sessions, CancellationToken cancellation)
     {
-        return await sessions.Read(live, legacyId, cancellation) is { } legacy ? DevReader.Read(legacy.State, live.Game, live.Pack, live.Names) : null;
+        return await sessions.Read(live, legacyId, cancellation) is { } legacy ? DevReader.Read(legacy.State, live.Game, live.Pack, live.Names, BridgeEndpoints.CycleEvents(game, live, legacy)) : null;
     }
 
     private static async Task<IResult> Patch(Render render, Guid legacyId, DevView view, Dictionary<string, object?> parameters)

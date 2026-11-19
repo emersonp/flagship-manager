@@ -1,0 +1,32 @@
+@* Dev Play's "Why these storylets" (1e part four, design 4.10): the count line, the storylets and vignettes that cast, in salience order with
+   their parts and fate, and a search that says why any other is not here. Drawn from a dry run that changes nothing. A search patches this
+   section alone; the panel's redraw after another request draws it again without the search. *@
+<section id="why" class="dev__why" aria-labelledby="h-why">
+    <h3 class="sub" id="h-why">Why these storylets</h3>
+    <p class="note">@View.Heading</p>
+    <p class="dev__count">@View.Count</p>
+    <WhyTable Id="why-storylets" Kind="Storylet" Label="Storylets that cast" Rows="View.Storylets" />
+    <WhyTable Id="why-vignettes" Kind="Vignette" Label="Vignettes that cast" Rows="View.Vignettes" />
+    <form class="dev__find" data-on:submit="@Post" data-indicator:whybusy>
+        <div class="field">
+            <label for="why-q">Why not this one?</label>
+            <input id="why-q" name="q" type="search" value="@View.Query" required maxlength="80" autocomplete="off" spellcheck="false" aria-describedby="why-hint">
+        </div>
+        <button class="btn btn--dev" type="submit" data-attr:disabled="$whybusy" data-attr:aria-busy="$whybusy ? 'true' : false">Find</button>
+        <p class="hint" id="why-hint">An id or a name, or part of one, for any storylet or vignette.</p>
+    </form>
+    <div id="why-found" role="status">
+        @foreach (string line in View.Found ?? [])
+        {
+            <p>@line</p>
+        }
+    </div>
+</section>
+
+@code {
+    [Parameter, EditorRequired] public Guid LegacyId { get; set; }
+
+    [Parameter, EditorRequired] public WhyView View { get; set; } = null!;
+
+    private string Post => $"@post('/dev/legacy/{LegacyId}/why', {{contentType: 'form'}})";
+}

@@ -71,3 +71,63 @@ public sealed record VignetteArrived(string OfferId, string VignetteId, IReadOnl
 // as it arrived. Defaulted: the itinerary closed without an answer.
 [EventType("VignetteAnswered", 2)]
 public sealed record VignetteAnswered(string OfferId, string VignetteId, IReadOnlyDictionary<string, string> Cast, string? OptionId, bool Defaulted) : IEvent;
+
+// What became of a storylet or vignette when an itinerary opened (1e part four, design 4.4 to 4.6). Arrived and LostOnBudget are
+// the contenders (design 4.1); the others say why it was not one. Cooling: in its global cooldown. CastCooling: every cast that held
+// is in its cast cooldown (Task 7; until then it read as NoCast).
+public enum ContestFate
+{
+    Arrived,
+    LostOnBudget,
+    Waiting,
+    Cooling,
+    CastCooling,
+    NoCast,
+    OutOfTries,
+}
+
+// Salience in parts (design 4.5), each already weighted by its tuning: stakes, specificity, and freshness, which is taken off. Tie:
+// its place in the draw from salience:<cycle>, 1 first, which orders only equal totals.
+public sealed record SalienceScore(int Stakes, int Specificity, int Freshness, int Tie)
+{
+    public int Total => Stakes + Specificity - Freshness;
+}
+
+// One storylet or vignette in a contest. Cast and Score: for a contender; for one whose every cast that held is cooling, Cast is the
+// first such cast. ReturnsAt: for one cooling, the first cycle it (or that cast) may arrive again. Tries: the expressions its
+// casting read. Eligible (design 4.10): out of its global cooldown and not waiting, with a first slot that held for someone (for
+// the ship, a requires that held).
+public sealed record Contender(string Id, ContestFate Fate, IReadOnlyDictionary<string, string>? Cast, SalienceScore? Score, int? ReturnsAt, int Tries)
+{
+    public bool Eligible { get; init; }
+}
+
+// Each list holds the contenders in salience order, the arrivals first, then the rest in the pack's order. Cycle: the itinerary it
+// is for; Open: that itinerary is open now, rather than the next one, foreseen between cycles (Dev Play's dry run).
+public sealed record Contest(IReadOnlyList<Contender> Storylets, IReadOnlyList<Contender> Vignettes)
+{
+    public int Cycle { get; init; }
+
+    public bool Open { get; init; }
+}
+
+// The first top-level clause that held for no one (design 4.10): on a slot, or on requires. Before: how many crew (or casts, past
+// the first slot) the clauses before it in the same expression held for; null for its first clause. Clause null: the slot had too
+// many casts to search.
+public sealed record FailedClause(string Slot, string? Clause, int? Before)
+{
+    public const string Requires = "requires";
+}
+
+// Dev Play's "Why these storylets" (1e part four, design 4.10), served by the storylets module: a dry run of the same function the
+// module runs when an itinerary opens, on copies of its streams, which advances no stream and changes nothing (review focus 3).
+// In the itinerary, it is the contest as it ran when it opened: cycleEvents (this cycle's) say what has happened since, and it is
+// read as it was before. Between cycles it is the next itinerary's, as things stand now.
+public interface IStoryletDryRun
+{
+    Contest Contest(IReadOnlyList<IEvent> cycleEvents);
+
+    // For one that did not cast, the first clause that held for no one, read over every crew member and cast in roster order;
+    // null when every clause held for someone, or for an id the pack lacks.
+    FailedClause? Failed(string id, IReadOnlyList<IEvent> cycleEvents);
+}
