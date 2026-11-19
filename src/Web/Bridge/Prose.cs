@@ -180,7 +180,10 @@ public sealed class Prose
     // The situation a storylet's lines are read against, apart from any mission: the storylet (and the option, for an answer's
     // line), each slot of its cast as a person (1e part four), and for each skill a "best" speaker, the fit crew member with the
     // highest level in it. The subject's facts are there when it has a slot named subject.
-    public static Situation StoryletSituation(ContentPack pack, Names names, IReadOnlyList<CrewMember> crew, string storyletId, IReadOnlyDictionary<string, string> cast, string? optionId = null)
+    // handlerId and outcome: for an option settled by a check (1e part four, Task 6), who was sent, read as #handler#, and "success"
+    // or "failure", the fact its outcome's line is chosen by.
+    public static Situation StoryletSituation(ContentPack pack, Names names, IReadOnlyList<CrewMember> crew, string storyletId, IReadOnlyDictionary<string, string> cast, string? optionId = null,
+        string? handlerId = null, string? outcome = null)
     {
         string? subjectId = cast.GetValueOrDefault(StoryletScopes.Subject);
         Dictionary<string, CrewDef> defs = pack.Crew.GroupBy(c => c.Id).ToDictionary(g => g.Key, g => g.First());
@@ -189,6 +192,11 @@ public sealed class Prose
         if (optionId is not null)
         {
             facts["option"] = FactValue.Of(optionId);
+        }
+
+        if (outcome is not null)
+        {
+            facts["outcome"] = FactValue.Of(outcome);
         }
 
         var people = new Dictionary<string, Person>();
@@ -208,6 +216,11 @@ public sealed class Prose
             {
                 people[slot] = PersonOf(member.Id);
             }
+        }
+
+        if (handlerId is not null && crew.FirstOrDefault(m => m.Id == handlerId) is { } handler)
+        {
+            people[StoryletScopes.Handler] = PersonOf(handler.Id);
         }
 
         // The sort is stable, so a tie goes to the crew member earlier on the roster.

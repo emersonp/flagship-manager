@@ -31,6 +31,7 @@ public static class NarrativeFacts
     public static readonly IReadOnlyList<string> Answers = ["bold", "safe", "withdraw"];
     public static readonly IReadOnlyList<string> Standings = ["backed", "overruled", "neutral"];
     public static readonly IReadOnlyList<string> Outcomes = ["fullSuccess", "partialSuccess", "withdrawal", "loss", "incomplete"];
+    public static readonly IReadOnlyList<string> CheckOutcomes = ["success", "failure"];
 
     // The text an encounter, an approach, a decision, and an objective may carry for their own beats, by key. An encounter's
     // "arrive" is its stage beat; an approach has a text per tier; a decision's "call" and "initiative" are those beats and its "bold"
@@ -134,7 +135,8 @@ public static class NarrativeFacts
         // A storylet arrives on the itinerary, apart from any mission: no objective, encounter, or lead. Its subject is the crew
         // member it arrived for; a storylet for the ship has none, and only one for a pair has a target (1e part three).
         new BeatSpec("storylet", [new("storylet", FactType.Text, FactDomain.Storylet)], ["subject", "target"], ["storylet"]),
-        new BeatSpec("storyletAnswer", [new("storylet", FactType.Text, FactDomain.Storylet), new("option", FactType.Text)], ["subject", "target"], ["storylet"]),
+        // Outcome: success or failure, for an option settled by a check (1e part four, Task 6), whose own text may name the handler.
+        new BeatSpec("storyletAnswer", [new("storylet", FactType.Text, FactDomain.Storylet), new("option", FactType.Text), new("outcome", FactType.Text, FactDomain.Words, CheckOutcomes)], ["subject", "target"], ["storylet"]),
     }.ToDictionary(b => b.Kind);
 
     public static IReadOnlyList<string> Kinds => Beats.Keys.ToList();

@@ -435,6 +435,17 @@ a.btn { text-decoration: none; }
 /* An authored label may be long: it wraps inside its button rather than push the page sideways. */
 .storylet .btn { max-width: 100%; white-space: normal; overflow-wrap: anywhere; text-align: center; padding-block: var(--space-2xs); }
 .storylet .beat__tags { margin-left: 0; }
+/* A check option (1e part four, Task 6): its button opens who may be sent, in place; open, it takes the whole row. */
+.handlers { justify-items: start; }
+.handlers[open] { flex-basis: 100%; }
+.handlers summary { list-style: none; }
+.handlers summary::-webkit-details-marker { display: none; }
+.handlers summary::after { content: "\25BE"; margin-left: var(--space-xs); color: var(--color-muted); }
+.handlers[open] summary::after { content: "\25B4"; }
+.handlers__list { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--space-xs); }
+.handlers__pick { gap: var(--space-xs); }
+.handlers__chance { font-size: var(--text-sm); font-weight: 400; color: var(--color-muted); }
+.storylet__roll { font-size: var(--text-sm); color: var(--color-ink-2); overflow-wrap: anywhere; }
 #storylet-refusal { padding: 0 var(--space-lg) var(--space-md); font-size: var(--text-sm); font-weight: 500; color: var(--color-harm); }
 #storylet-refusal:empty { display: none; }
 

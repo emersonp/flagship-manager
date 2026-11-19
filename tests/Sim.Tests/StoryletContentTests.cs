@@ -55,7 +55,7 @@ public class StoryletContentTests
     {
         ContentPack pack = TestContent.Pack;
 
-        Assert.Equal(["STORYLET_01", "STORYLET_02", "STORYLET_03"], pack.Storylets.Select(s => s.Id));
+        Assert.Equal(["STORYLET_01", "STORYLET_02", "STORYLET_03", "STORYLET_04"], pack.Storylets.Select(s => s.Id));
         Assert.Equal((2, 100), (pack.StoryletsPerCycle, pack.CastTries));
         StoryletDef ship = pack.Storylets[0];
         Assert.Equal((2, 0, "ship.trait.trait_a == 1", (string?)null), (ship.Stakes, ship.Cast.Count, ship.Requires?.Source, ship.Name));
@@ -80,6 +80,13 @@ public class StoryletContentTests
         Assert.Equal(["subject", "target"], pair.Slots);
         Assert.Equal([new TraitRead("trait_g", "subject", "target")], pair.Reads);
         Assert.Equal(new StoryletEffect(Trait: new TraitChange("trait_g", 0, true, "", "target")), pair.Options[0].Effects[0]);
+
+        // Task 6: a check option first, an option with requires, and one that is always open.
+        StoryletDef check = pack.Storylets[3];
+        Assert.Equal(("SKILL_B", 4), (check.Options[0].Check!.Skill, check.Options[0].Check!.Difficulty));
+        Assert.Equal(new StoryletEffect(Morale: 2, MoraleOn: "handler"), check.Options[0].Check!.Success.Effects[1]);
+        Assert.Equal(("subject.loyalty >= 60", (StoryletCheck?)null), (check.Options[1].Requires?.Source, check.Options[1].Check));
+        Assert.Equal(((Expr?)null, (StoryletCheck?)null), (check.Options[2].Requires, check.Options[2].Check));
     }
 
     [Fact]
@@ -259,7 +266,7 @@ public class StoryletContentTests
         AssertRefused(Storylet.Replace("      label: LABEL_B\n", "      label: LABEL_B\n      requires: \"subject.loyalty >= target\"\n"),
             "STORYLET_X: options.option_b.requires, at character 20: target is not a slot this expression can read; it reads subject, ship, and cycle.");
         AssertRefused(guarded.Replace("      label: LABEL_A\n", "      label: LABEL_A\n      requires: \"subject.fit\"\n"),
-            "STORYLET_X: A storylet needs an option with no requires, so it can always be answered.");
+            "STORYLET_X: A storylet needs an option with neither requires nor check, so it can always be answered.");
     }
 
     [Theory]
@@ -558,5 +565,95 @@ public class StoryletContentTests
         Assert.Empty(result.Errors);
         Assert.Equal(["STORYLET_01", "STORYLET_02", "STORYLET_03", "STORYLET_04"], result.Pack!.Storylets.Select(s => s.Id));
         Assert.Equal(["rested", "hurt", "lost_crewmate", "sent", null, null], result.Pack.Vignettes.Select(v => v.Fact));
+    }
+
+    // 1e part four, Task 6 (design 4.7): an option settled by a check. option_a becomes a check; option_b stays plain.
+    private const string Checked = """
+              check: { skill: SKILL_B, difficulty: 4 }
+              success: { effects: [{ trait: trait_a, set: 0 }, { morale: 2, on: handler }], text: "#handler# CHECK_SUCCESS" }
+              failure: { effects: [{ trait: trait_a, set: 2 }, { loyalty: -1, on: subject }, { trait: trait_g, add: 1, on: subject, toward: handler }], text: CHECK_FAILURE }
+
+        """;
+
+    private static string WithCheck(string check = Checked)
+    {
+        return Storylet.Replace("      label: LABEL_A\n      effects: [{ trait: trait_a, set: 0 }]\n", "      label: LABEL_A\n" + check);
+    }
+
+    [Fact]
+    public void A_check_option_loads_with_its_outcomes_and_their_text()
+    {
+        ContentLoadResult result = LoadWith(WithCheck());
+
+        Assert.Empty(result.Errors);
+        StoryletOption option = result.Pack!.Storylets.Single().Options[0];
+        Assert.Empty(option.Effects);
+        StoryletCheck check = option.Check!;
+        Assert.Equal(("SKILL_B", 4, 11), (check.Skill, check.Difficulty, check.Against));
+        Assert.Equal([new StoryletEffect(Trait: new TraitChange("trait_a", 0, true, "")), new StoryletEffect(Morale: 2, MoraleOn: "handler")], check.Success.Effects);
+        Assert.Equal(new StoryletEffect(Trait: new TraitChange("trait_g", 1, false, "subject", "handler")), check.Failure.Effects[2]);
+        List<LineDef> lines = result.Pack.Lines.Where(l => l.Owner == "STORYLET_X").ToList();
+        Assert.Equal(["STORYLET_X.option_a.success.text", "STORYLET_X.option_a.failure.text"], lines.Select(l => l.Id));
+        Assert.Equal(["storylet=STORYLET_X", "option=option_a", "outcome=success"], lines[0].When.Select(c => $"{c.Fact}={c.Values.Single()}"));
+        Assert.Equal("storyletAnswer", lines[1].Beat);
+    }
+
+    [Theory]
+    [InlineData("      check: { skill: SKILL_B, difficulty: 4 }\n      effects: [{ trait: trait_a, set: 0 }]\n", "STORYLET_X: Option 'option_a': a check's effects and text are in its success and failure, not beside them.")]
+    [InlineData("      check: { skill: SKILL_B, difficulty: 4 }\n      text: X\n      success: { effects: [{ trait: trait_a, set: 0 }] }\n      failure: { effects: [{ trait: trait_a, set: 0 }] }\n", "STORYLET_X: Option 'option_a': a check's effects and text are in its success and failure, not beside them.")]
+    [InlineData("      check: { skill: SKILL_B, difficulty: 4 }\n      success: { effects: [{ trait: trait_a, set: 0 }] }\n", "STORYLET_X: Option 'option_a': a check needs both success and failure.")]
+    [InlineData("      success: { effects: [{ trait: trait_a, set: 0 }] }\n      failure: { effects: [{ trait: trait_a, set: 0 }] }\n", "STORYLET_X: Option 'option_a': success and failure belong to a check; add check: { skill, difficulty }.")]
+    [InlineData("      check: { skill: SKILL_Z, difficulty: 4 }\n      success: { effects: [{ trait: trait_a, set: 0 }] }\n      failure: { effects: [{ trait: trait_a, set: 0 }] }\n", "STORYLET_X: Option 'option_a': the check uses unknown skill 'SKILL_Z'.")]
+    [InlineData("      check: { skill: SKILL_B, difficulty: 0 }\n      success: { effects: [{ trait: trait_a, set: 0 }] }\n      failure: { effects: [{ trait: trait_a, set: 0 }] }\n", "STORYLET_X: Option 'option_a': the check's difficulty must be 1 or more.")]
+    [InlineData("      check: { skill: SKILL_B }\n      success: { effects: [{ trait: trait_a, set: 0 }] }\n      failure: { effects: [{ trait: trait_a, set: 0 }] }\n", "STORYLET_X: Option 'option_a': the check's difficulty must be 1 or more.")]
+    public void Each_malformed_check_is_refused(string check, string message)
+    {
+        AssertRefused(WithCheck(check), message);
+    }
+
+    [Fact]
+    public void Handler_is_a_slot_only_inside_a_checks_outcomes()
+    {
+        AssertRefused(
+            Storylet.Replace("effects: [{ trait: trait_a, set: 2 }]", "effects: [{ trait: trait_a, set: 2 }, { morale: 1, on: handler }]"),
+            "STORYLET_X: handler is a slot only in a check's success and failure.");
+        AssertRefused(
+            Storylet.Replace("label: LABEL_B\n", "label: LABEL_B\n      text: \"#handler# nodded.\"\n"),
+            "STORYLET_X: option_b.text cannot be used: #handler# names no person, thing, or symbol.");
+        AssertRefused(
+            Storylet.Replace("  options:\n", "  text: \"#handler# came.\"\n  options:\n"),
+            "STORYLET_X: text cannot be used: #handler# names no person, thing, or symbol.");
+    }
+
+    // Review focus 4: a check option is not the always-open answer, since no one may be fit to send.
+    [Fact]
+    public void A_storylet_needs_an_option_with_neither_requires_nor_check()
+    {
+        string guarded = WithCheck().Replace("      label: LABEL_B\n", "      label: LABEL_B\n      requires: \"subject.loyalty >= 60\"\n");
+
+        AssertRefused(guarded, "STORYLET_X: A storylet needs an option with neither requires nor check, so it can always be answered.");
+    }
+
+    // Design 4.6: with cooldown.cast 0 every check outcome, as every option, must move a trait its expressions read out of range.
+    [Fact]
+    public void Each_check_outcome_must_end_the_storylet_unless_it_has_a_cast_cooldown()
+    {
+        string idle = WithCheck().Replace("failure: { effects: [{ trait: trait_a, set: 2 }, ", "failure: { effects: [");
+
+        AssertRefused(idle, "STORYLET_X: Option 'option_a' leaves every expression true on failure, so this storylet would come back every cycle.");
+        Assert.Empty(LoadWith(idle.Replace("  options:\n", "  cooldown: { cast: 4 }\n  options:\n")).Errors);
+    }
+
+    [Fact]
+    public void A_vignette_takes_no_check()
+    {
+        Dictionary<string, string> files = TestContent.RepoFiles();
+        files["vignettes/base.yaml"] = files["vignettes/base.yaml"].Replace(
+            "{ id: option_a, label: VIGNETTE_02_OPTION_A_LABEL, effects: [{ morale: 3, on: subject }, { loyalty: 1, on: subject }], text: \"#subject# VIGNETTE_02_OPTION_A_TEXT\" }",
+            "{ id: option_a, label: VIGNETTE_02_OPTION_A_LABEL, check: { skill: SKILL_B, difficulty: 4 }, success: { effects: [{ morale: 3, on: subject }] }, failure: { effects: [] } }");
+
+        ContentLoadResult result = ContentLoader.Load(files);
+
+        Assert.Contains(result.Errors, e => e.File == "vignettes/base.yaml" && e.Message == "VIGNETTE_02: Option 'option_a': a vignette's options are not settled by a check.");
     }
 }

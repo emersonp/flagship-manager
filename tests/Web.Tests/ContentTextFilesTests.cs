@@ -481,6 +481,28 @@ public sealed class ContentTextFilesTests(RepoContentGuard guard) : IClassFixtur
         Assert.DoesNotContain("Nothing sets", body);
     }
 
+    // 1e part four, Task 6: a trait set only in a check's success or failure is set; on the handler, it lands on a crew member.
+    [Fact]
+    public async Task A_trait_a_check_outcome_raises_counts_as_set()
+    {
+        using TestApp app = NewApp();
+        string typed = "- id: STORYLET_09\n  stakes: 1\n  requires: \"ship.trait.trait_a == 1\"\n  options:\n"
+            + "    - { id: option_a, label: LABEL_A, check: { skill: SKILL_B, difficulty: 4 }, success: { effects: [{ trait: trait_a, set: 0 }] }, failure: { effects: [{ trait: trait_a, set: 0 }, { trait: trait_c, set: 1 }, { trait: trait_f, add: 1, on: handler }] } }\n"
+            + "    - { id: option_b, label: LABEL_B, effects: [{ trait: trait_a, set: 0 }] }\n"
+            + "- id: STORYLET_10\n  stakes: 1\n  requires: \"ship.trait.trait_c >= 1\"\n  options:\n"
+            + "    - { id: option_a, label: LABEL_A, effects: [{ trait: trait_c, set: 0 }] }\n"
+            + "    - { id: option_b, label: LABEL_B, effects: [{ trait: trait_c, set: 0 }] }\n"
+            + "- id: STORYLET_11\n  stakes: 1\n  cast:\n    subject: \"subject.trait.trait_f >= 1\"\n  options:\n"
+            + "    - { id: option_a, label: LABEL_A, effects: [{ trait: trait_f, set: 0 }] }\n"
+            + "    - { id: option_b, label: LABEL_B, effects: [{ trait: trait_f, set: 0 }] }\n";
+
+        (HttpStatusCode status, string body) = await Post(app.NewClient(), "/dev/content/files/storylets", Body(typed));
+
+        Assert.Equal(HttpStatusCode.OK, status);
+        Assert.Contains("Saved.", body);
+        Assert.DoesNotContain("Nothing sets", body);
+    }
+
     // A save that only warns is a save: it reads "Saved." and lists the warnings under their own heading, not in the list a refusal uses.
     [Fact]
     public async Task A_save_with_only_warnings_says_saved_and_lists_them_apart_from_problems()

@@ -1,5 +1,6 @@
 # Placeholders. The author replaces these. STORYLET_01 is for the ship (no cast), STORYLET_02 casts one crew member, and STORYLET_03
-# two: a holder of trait_g and its target (1e part four).
+# two: a holder of trait_g and its target (1e part four). STORYLET_04 casts a holder of trait_h and its target, and its first
+# option is settled by a check with a handler the captain names; its second has requires (1e part four, Task 6).
 - id: STORYLET_01
   stakes: 2
   requires: "ship.trait.trait_a == 1"
@@ -33,3 +34,17 @@
   options:
     - { id: option_a, label: STORYLET_03_OPTION_A_LABEL, effects: [{ trait: trait_g, set: 0, toward: target }, { loyalty: -1, on: subject }], text: STORYLET_03_OPTION_A_TEXT }
     - { id: option_b, label: STORYLET_03_OPTION_B_LABEL, effects: [{ trait: trait_g, set: 5, toward: target }], text: STORYLET_03_OPTION_B_TEXT }
+- id: STORYLET_04
+  stakes: 3
+  cast:
+    subject: "subject.aboard"
+    target: "subject.trait.trait_h.toward(target) >= 1"
+  text: |-
+    subject: STORYLET_04_LINE_1
+    = #subject# STORYLET_04_REPORT #target#
+  options:
+    - { id: option_a, label: STORYLET_04_OPTION_A_LABEL, check: { skill: SKILL_B, difficulty: 4 },
+        success: { effects: [{ trait: trait_h, set: 0, toward: target }, { morale: 2, on: handler }], text: "#handler# STORYLET_04_SUCCESS" },
+        failure: { effects: [{ trait: trait_h, set: 0, toward: target }, { morale: -2, on: subject }], text: "#handler# STORYLET_04_FAILURE" } }
+    - { id: option_b, label: STORYLET_04_OPTION_B_LABEL, requires: "subject.loyalty >= 60", effects: [{ trait: trait_h, set: 0, toward: target }, { loyalty: -1, on: subject }], text: STORYLET_04_OPTION_B_TEXT }
+    - { id: option_c, label: STORYLET_04_OPTION_C_LABEL, effects: [{ trait: trait_h, set: 0, toward: target }], text: STORYLET_04_OPTION_C_TEXT }

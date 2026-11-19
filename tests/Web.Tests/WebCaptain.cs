@@ -26,7 +26,7 @@ internal sealed class WebCaptain(TestApp app, HttpClient client, Guid id, Func<L
             case AnswerCall answer:
                 return ("answer", await Post("answer", [new("mission", answer.MissionId), new("call", answer.CallId), new("answer", answer.Answer.ToString())]));
             case AnswerStorylet storylet:
-                return ("storylet", await Post("storylet", [new("offer", storylet.OfferId), new("option", storylet.OptionId)]));
+                return ("storylet", await Post("storylet", [new("offer", storylet.OfferId), new("option", storylet.OptionId), .. storylet.HandlerId is { } handler ? [new KeyValuePair<string, string>("handler", handler)] : Array.Empty<KeyValuePair<string, string>>()]));
             case AdvancePhase:
                 return ("advance", await Post("advance", []));
             default:

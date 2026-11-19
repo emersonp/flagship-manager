@@ -21,7 +21,7 @@ public static partial class ContentLoader
 
     private const string RequiresIsNowExpression = "requires is one expression since part four, not a list; write it as \"subject.trait.shaken >= 1 && subject.morale <= 25\".";
 
-    private static List<StoryletDef> BuildStorylets(List<(string File, StoryletDto Dto)> items, TraitBook book, ExpressionBook expressions, List<ContentError> errors)
+    private static List<StoryletDef> BuildStorylets(List<(string File, StoryletDto Dto)> items, TraitBook book, ExpressionBook expressions, IReadOnlySet<string> skills, List<ContentError> errors)
     {
         var defs = new List<StoryletDef>();
         foreach ((string file, StoryletDto dto) in items)
@@ -39,16 +39,16 @@ public static partial class ContentLoader
 
             Casting casting = CastOf(dto, expressions, Error);
             Cooldown cooldown = CooldownOf(dto.Cooldown, Error) ?? Cooldown.None;
-            List<StoryletOption> options = Options(dto.Options, casting, book, expressions, Error);
+            List<StoryletOption> options = Options(dto.Options, casting, book, expressions, skills, Error);
             if (dto.Effects is not null || dto.Default is not null)
             {
                 Error("A storylet's effects and default belong to a vignette; a storylet's effects are in its options.");
             }
 
-            // Review focus 4: whatever else is shown, one answer always is.
-            if (options.Count > 0 && options.All(o => o.Requires is not null))
+            // Review focus 4: whatever else is shown, one answer always is, and it needs no one fit to send.
+            if (options.Count > 0 && options.All(o => o.Requires is not null || o.Check is not null))
             {
-                Error("A storylet needs an option with no requires, so it can always be answered.");
+                Error("A storylet needs an option with neither requires nor check, so it can always be answered.");
             }
 
             // A cast cooldown meets the rule instead (design 4.2): it, not the answers, stops the storylet returning at once.
@@ -78,7 +78,7 @@ public static partial class ContentLoader
 
     // Vignettes (1e part two, design 4.3): a storylet's shape with no stakes, and either effects that apply when it arrives or one
     // small choice of two options with a default. Its expressions need no trait: a cooldown, not its answers, stops it returning.
-    private static List<VignetteDef> BuildVignettes(List<(string File, StoryletDto Dto)> items, TraitBook book, ExpressionBook expressions, List<ContentError> errors)
+    private static List<VignetteDef> BuildVignettes(List<(string File, StoryletDto Dto)> items, TraitBook book, ExpressionBook expressions, IReadOnlySet<string> skills, List<ContentError> errors)
     {
         var defs = new List<VignetteDef>();
         foreach ((string file, StoryletDto dto) in items)
@@ -106,7 +106,7 @@ public static partial class ContentLoader
             }
             else if (optionsWritten)
             {
-                options = Options(dto.Options, casting, book, expressions, Error, vignette: true);
+                options = Options(dto.Options, casting, book, expressions, skills, Error, vignette: true);
                 if (dto.Default is null || options.All(o => o.Id != dto.Default))
                 {
                     Error("A vignette with options needs a default, and it must be one of them.");
@@ -268,7 +268,7 @@ public static partial class ContentLoader
         return null;
     }
 
-    private static List<StoryletOption> Options(List<StoryletOptionDto?>? written, Casting casting, TraitBook book, ExpressionBook expressions, Action<string> error, bool vignette = false)
+    private static List<StoryletOption> Options(List<StoryletOptionDto?>? written, Casting casting, TraitBook book, ExpressionBook expressions, IReadOnlySet<string> skills, Action<string> error, bool vignette = false)
     {
         var options = new List<StoryletOption>();
         if (vignette ? written is not { Count: 2 } : written is not { Count: >= MinOptions and <= MaxOptions })
@@ -300,7 +300,7 @@ public static partial class ContentLoader
                 error($"Option '{dto.Id}': label must be 1 to 40 characters on one line, with no spaces at either end.");
             }
 
-            // An option's requires reads every slot (Task 6 of part four reads it in play). A vignette's choice is small and free.
+            // An option's requires reads every slot, and is read again when it is answered. A vignette's choice is small and free.
             Expr? requires = null;
             if (dto.Requires is { } source)
             {
@@ -316,17 +316,81 @@ public static partial class ContentLoader
             }
 
             List<StoryletEffect> effects = (dto.Effects ?? []).Select(e => StoryletEffectOf(e ?? [], casting.Slots, book, error)).OfType<StoryletEffect>().ToList();
-            options.Add(new StoryletOption(dto.Id ?? "", label ?? "", effects, requires));
+            StoryletCheck? check = CheckOf(dto, casting, book, skills, m => error($"Option '{dto.Id}': {m}"), vignette);
+            options.Add(new StoryletOption(dto.Id ?? "", label ?? "", effects, requires, check));
         }
 
         return options;
     }
 
+    // An option settled by a check (design 4.7), or null when it has none or it is refused. Its effects and text are in success and
+    // failure, where handler is a slot beside the storylet's own.
+    private static StoryletCheck? CheckOf(StoryletOptionDto dto, Casting casting, TraitBook book, IReadOnlySet<string> skills, Action<string> error, bool vignette)
+    {
+        if (dto.Check is null)
+        {
+            if (dto.Success is not null || dto.Failure is not null)
+            {
+                error("success and failure belong to a check; add check: { skill, difficulty }.");
+            }
+
+            return null;
+        }
+
+        if (vignette)
+        {
+            error("a vignette's options are not settled by a check.");
+            return null;
+        }
+
+        bool ok = true;
+        if (dto.Effects is not null || dto.Text is not null)
+        {
+            error("a check's effects and text are in its success and failure, not beside them.");
+            ok = false;
+        }
+
+        if (dto.Success is null || dto.Failure is null)
+        {
+            error("a check needs both success and failure.");
+            ok = false;
+        }
+
+        if (dto.Check.Skill is not { } skill || !skills.Contains(skill))
+        {
+            error($"the check uses unknown skill '{dto.Check.Skill}'.");
+            ok = false;
+        }
+
+        if (dto.Check.Difficulty is not >= 1)
+        {
+            error("the check's difficulty must be 1 or more.");
+            ok = false;
+        }
+
+        List<string> slots = [.. casting.Slots, StoryletScopes.Handler];
+        StoryletOutcome Outcome(OutcomeDto? written)
+        {
+            return new StoryletOutcome((written?.Effects ?? []).Select(e => StoryletEffectOf(e ?? [], slots, book, error, handler: true)).OfType<StoryletEffect>().ToList());
+        }
+
+        StoryletOutcome success = Outcome(dto.Success);
+        StoryletOutcome failure = Outcome(dto.Failure);
+        return ok ? new StoryletCheck(dto.Check.Skill!, dto.Check.Difficulty!.Value, success, failure) : null;
+    }
+
     // One loyalty, morale, or trait change, or null when it is refused (each problem reported). On and toward name the storylet's
     // slots; loyalty and morale may also be on crew, a trait on the ship. A trait with no on is on the first slot, or on the ship
     // when there is no cast.
-    private static StoryletEffect? StoryletEffectOf(Dictionary<string, string> entry, IReadOnlyList<string> slots, TraitBook book, Action<string> error)
+    private static StoryletEffect? StoryletEffectOf(Dictionary<string, string> entry, IReadOnlyList<string> slots, TraitBook book, Action<string> error, bool handler = false)
     {
+        // Design 4.7: the handler is named only once the captain sends someone on a check.
+        if (!handler && (entry.GetValueOrDefault("on") == StoryletScopes.Handler || entry.GetValueOrDefault("toward") == StoryletScopes.Handler))
+        {
+            error("handler is a slot only in a check's success and failure.");
+            return null;
+        }
+
         string[] kinds = ["loyalty", "morale", "trait"];
         string[] present = kinds.Where(entry.ContainsKey).ToArray();
         if (present.Length > 1)
@@ -355,7 +419,8 @@ public static partial class ContentLoader
             return null;
         }
 
-        string casts = slots.Count == 0 ? "casts no one" : $"casts {Either(slots)}";
+        List<string> own = slots.Where(s => s != StoryletScopes.Handler).ToList();
+        string casts = own.Count == 0 ? "casts no one" : $"casts {Either(own)}";
         string? on = entry.GetValueOrDefault("on");
         bool slot = on is not null && slots.Contains(on);
         if (kind is "loyalty" or "morale")
@@ -427,7 +492,7 @@ public static partial class ContentLoader
         }
 
         string? toward = entry.GetValueOrDefault("toward");
-        string holder = on ?? slots.FirstOrDefault() ?? StoryletScopes.Ship;
+        string holder = on ?? slots.FirstOrDefault(s => s != StoryletScopes.Handler) ?? StoryletScopes.Ship;
         if (on is not null && on != StoryletScopes.Ship && !slot)
         {
             error(on == StoryletScopes.Crew ? $"A storylet's trait change takes on: ship or a slot, or no on; this storylet {casts}." : $"on: {on} names no slot; this storylet {casts}.");
@@ -500,19 +565,28 @@ public static partial class ContentLoader
         string own = casting.Slots.FirstOrDefault() ?? StoryletScopes.Ship;
         foreach (StoryletOption option in options)
         {
-            var values = new Dictionary<TraitRead, int>(witness);
-            foreach (TraitChange change in option.Effects.Select(e => e.Trait).OfType<TraitChange>())
+            // A check's success and failure are each an outcome, judged as an option is (Task 6). A change on or toward the handler
+            // touches no trait the expressions read, since the handler is never in the cast.
+            IEnumerable<(string? Name, IReadOnlyList<StoryletEffect> Effects)> outcomes = option.Check is { } check
+                ? [("success", check.Success.Effects), ("failure", check.Failure.Effects)]
+                : [(null, option.Effects)];
+            foreach ((string? name, IReadOnlyList<StoryletEffect> effects) in outcomes)
             {
-                var read = new TraitRead(change.Trait, change.On.Length == 0 ? own : change.On, change.Toward);
-                if (values.TryGetValue(read, out int current))
+                var values = new Dictionary<TraitRead, int>(witness);
+                foreach (TraitChange change in effects.Select(e => e.Trait).OfType<TraitChange>())
                 {
-                    values[read] = (book.Def(change.Trait) ?? TraitDef.Plain(change.Trait)).Clamp(change.Set ? change.Amount : current + change.Amount);
+                    var read = new TraitRead(change.Trait, change.On.Length == 0 ? own : change.On, change.Toward);
+                    if (values.TryGetValue(read, out int current))
+                    {
+                        values[read] = (book.Def(change.Trait) ?? TraitDef.Plain(change.Trait)).Clamp(change.Set ? change.Amount : current + change.Amount);
+                    }
                 }
-            }
 
-            if (MayHold(casting, expressions, values))
-            {
-                error($"Option '{option.Id}' leaves every expression true, so this storylet would come back every cycle.");
+                if (MayHold(casting, expressions, values))
+                {
+                    string on = name is null ? "" : $" on {name}";
+                    error($"Option '{option.Id}' leaves every expression true{on}, so this storylet would come back every cycle.");
+                }
             }
         }
     }
@@ -561,7 +635,7 @@ public static partial class ContentLoader
         {
             string id = dto.Id!;
             List<string> slots = (dto.Cast ?? []).Keys.Where(k => Ids.IsInnerId(k) && !StoryletScopes.Reserved.Contains(k)).Take(StoryletScopes.MaxSlots).ToList();
-            void Add(string where, string? text, string kind, CriterionDef[] when)
+            void Add(string where, string? text, string kind, CriterionDef[] when, bool handler = false)
             {
                 if (text is null)
                 {
@@ -580,7 +654,7 @@ public static partial class ContentLoader
                     return;
                 }
 
-                BeatSpec scoped = NarrativeFacts.Beats[kind] with { People = slots };
+                BeatSpec scoped = NarrativeFacts.Beats[kind] with { People = handler ? [.. slots, StoryletScopes.Handler] : slots };
                 CheckScript(text, scoped, symbolsById, skillIds, m => Error($"cannot be read: {m}"), m => Error($"cannot be used: {m}"));
                 if (errors.Count == before)
                 {
@@ -593,6 +667,15 @@ public static partial class ContentLoader
             foreach (StoryletOptionDto option in (dto.Options ?? []).OfType<StoryletOptionDto>().Where(o => o.Id is not null))
             {
                 Add($"{option.Id}.text", option.Text, "storyletAnswer", [here, new CriterionDef("option", [option.Id!])]);
+
+                // A check's outcomes (Task 6): the fact outcome tells them apart, and the handler may be named.
+                if (option.Check is not null)
+                {
+                    foreach ((string outcome, OutcomeDto? written) in new[] { ("success", option.Success), ("failure", option.Failure) })
+                    {
+                        Add($"{option.Id}.{outcome}.text", written?.Text, "storyletAnswer", [here, new CriterionDef("option", [option.Id!]), new CriterionDef("outcome", [outcome])], handler: true);
+                    }
+                }
             }
         }
 
@@ -644,6 +727,27 @@ public static partial class ContentLoader
 
         public string? Requires { get; set; }
 
+        public List<Dictionary<string, string>?>? Effects { get; set; }
+
+        public string? Text { get; set; }
+
+        // 1e part four, Task 6: an option settled by a check.
+        public CheckDto? Check { get; set; }
+
+        public OutcomeDto? Success { get; set; }
+
+        public OutcomeDto? Failure { get; set; }
+    }
+
+    private sealed class CheckDto
+    {
+        public string? Skill { get; set; }
+
+        public int? Difficulty { get; set; }
+    }
+
+    private sealed class OutcomeDto
+    {
         public List<Dictionary<string, string>?>? Effects { get; set; }
 
         public string? Text { get; set; }

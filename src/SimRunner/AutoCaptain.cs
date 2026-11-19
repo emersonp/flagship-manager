@@ -61,7 +61,7 @@ public static class AutoCaptain
             return new AnswerCall(mission.Id, call.CallId, Bench.Answer(CallPolicy.BackLead, call));
         }
 
-        if (state.Phase == CyclePhase.Itinerary && Answer(state, pack, answers) is { } answer)
+        if (state.Phase == CyclePhase.Itinerary && Answer(game, state, pack, answers) is { } answer)
         {
             return answer;
         }
@@ -69,10 +69,11 @@ public static class AutoCaptain
         return new AdvancePhase();
     }
 
-    // The first waiting storylet, answered by the policy. One the pack no longer has cannot be answered and does not hold the
-    // itinerary, so it is passed over. Under random, each waiting vignette with a choice is answered too; under first, they are left
-    // to their defaults.
-    private static ICommand? Answer(LegacyState state, ContentPack pack, AnswerPolicy answers)
+    // The first waiting storylet, answered by the policy from the answers open to it (1e part four, Task 6): an option whose requires
+    // fails is passed over, as is a check option with no one fit to send. A check option sends the first who may go, in roster order,
+    // until Task 8's policies. One the pack no longer has cannot be answered and does not hold the itinerary, so it is passed over.
+    // Under random, each waiting vignette with a choice is answered too; under first, they are left to their defaults.
+    private static ICommand? Answer(Game game, LegacyState state, ContentPack pack, AnswerPolicy answers)
     {
         if (!state.TryModule(StoryletsModule.Name, out StoryletsState? storylets))
         {
@@ -81,9 +82,11 @@ public static class AutoCaptain
 
         foreach (WaitingStorylet waiting in storylets.Waiting)
         {
-            if (pack.Storylets.FirstOrDefault(s => s.Id == waiting.StoryletId) is { } storylet)
+            if (pack.Storylets.Any(s => s.Id == waiting.StoryletId))
             {
-                return new AnswerStorylet(waiting.OfferId, storylet.Options[Pick(state, waiting.OfferId, storylet.Options.Count, answers)].Id);
+                List<OpenAnswer> open = game.Bus.View<IStoryletView>(state).Answers(waiting.OfferId).Where(a => a.Handlers is not { Count: 0 }).ToList();
+                OpenAnswer picked = open[Pick(state, waiting.OfferId, open.Count, answers)];
+                return new AnswerStorylet(waiting.OfferId, picked.OptionId, picked.Handlers?[0].CrewId);
             }
         }
 

@@ -1,10 +1,41 @@
+using System.Text.Json.Serialization;
+using Sim.Core.Content;
+
 namespace Sim.Core;
 
 // Contracts of the storylets module, here so the bridge and the simulator need not reference the module's internals.
-public sealed record AnswerStorylet(string OfferId, string OptionId) : ICommand
+// HandlerId: who the captain sends, for an option settled by a check (1e part four, design 4.7); required for one, refused on any
+// other. The answer is one command, so a handler cannot die between being named and the roll.
+public sealed record AnswerStorylet(string OfferId, string OptionId, string? HandlerId = null) : ICommand
 {
     // Why the aftermath cannot end: said by the guard and by the screen that shows the same block.
     public const string WaitingReason = "A storylet is waiting for an answer.";
+
+    // Why a check option cannot be picked: the panel says it beside the disabled button (review focus 4).
+    public const string NoOneFit = "No one fit to send.";
+}
+
+// The answers of a waiting storylet the captain may pick now, served by the storylets module so the bridge and the simulator read
+// what its guard reads (1e part four, design 4.7 and 4.9).
+public interface IStoryletView
+{
+    // The storylet's options whose requires holds, in the pack's order; empty for an offer not waiting or a storylet the pack lost.
+    IReadOnlyList<OpenAnswer> Answers(string offerId);
+}
+
+// Handlers: null for an option with no check; else everyone who may be sent, in roster order, which may be none.
+public sealed record OpenAnswer(string OptionId, IReadOnlyList<HandlerOdds>? Handlers);
+
+// A crew member who may handle a check: their skill level, the whole of what is added to the dice (skill, morale, traits), what the
+// total must reach, and the chance that it does.
+public sealed record HandlerOdds(string CrewId, int Skill, int Score, int Against, Chance Chance);
+
+// How a check went (design 4.7): the skill and its level, the morale and trait check bonuses, the dice, and what the total had to
+// reach. Score is the level and bonuses; the margin is Score + Dice - Against, and 0 or more is Success.
+public sealed record StoryletRoll(string Skill, int Level, int Morale, IReadOnlyList<TraitBonus> Traits, int Dice, int Against, bool Success)
+{
+    [JsonIgnore]
+    public int Score => Level + Morale + Traits.Sum(t => t.Amount);
 }
 
 // Handled by the crew module, which clamps the result to its tuning, so the storylets and traits modules never touch crew state.
@@ -20,8 +51,10 @@ public sealed record LoyaltyChanged(string CrewId, int From, int To) : IEvent;
 [EventType("StoryletOffered", 2)]
 public sealed record StoryletOffered(string OfferId, string StoryletId, IReadOnlyDictionary<string, string> Cast, string? EncounterId, int Salience) : IEvent;
 
+// HandlerId and Roll: who was sent and how the check went, for an option settled by one (Task 6, inside version 2); the handler is
+// not part of the cast.
 [EventType("StoryletAnswered", 2)]
-public sealed record StoryletAnswered(string OfferId, string StoryletId, IReadOnlyDictionary<string, string> Cast, string OptionId) : IEvent;
+public sealed record StoryletAnswered(string OfferId, string StoryletId, IReadOnlyDictionary<string, string> Cast, string OptionId, string? HandlerId = null, StoryletRoll? Roll = null) : IEvent;
 
 // A cast member died, or the pack lost the storylet, while it waited.
 [EventType("StoryletWithdrawn", 2)]

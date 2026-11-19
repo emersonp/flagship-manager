@@ -23,12 +23,20 @@ internal sealed class Casting
     private readonly ExpressionBook book;
     private readonly Dictionary<string, Compiled> byId = new(StringComparer.Ordinal);
 
+    // Each storylet option's requires, by storylet id and option id (Task 6).
+    private readonly Dictionary<(string, string), CheckedExpression> optionRequires = [];
+
     public Casting(ContentPack pack)
     {
         book = new ExpressionBook(pack.Traits, pack.Skills.Select(s => s.Id), HistoryKinds.All, pack.HistoryCycles);
         foreach (StoryletDef storylet in pack.Storylets)
         {
             byId[storylet.Id] = Compile(storylet.Id, storylet.Cast, storylet.Requires);
+            List<string> slots = storylet.Slots.ToList();
+            foreach (StoryletOption option in storylet.Options.Where(o => o.Requires is not null))
+            {
+                optionRequires[(storylet.Id, option.Id)] = Checked(storylet.Id, option.Requires!.Source, slots, $"options.{option.Id}.requires");
+            }
         }
 
         foreach (VignetteDef vignette in pack.Vignettes)
@@ -41,6 +49,12 @@ internal sealed class Casting
     public IReadOnlyList<TraitRead> Reads(string id)
     {
         return byId[id].Reads;
+    }
+
+    // Whether a waiting storylet's option may be picked now (Task 6): it has no requires, or its requires holds on the cast.
+    public bool Open(string storyletId, StoryletOption option, IStateSource state, IReadOnlyDictionary<string, string> cast)
+    {
+        return !optionRequires.TryGetValue((storyletId, option.Id), out CheckedExpression? requires) || book.Evaluate(requires, state, cast);
     }
 
     // The top-level && clauses across every slot's expression and requires (design 4.5), counted once, when the pack is loaded into
@@ -134,13 +148,18 @@ internal sealed class Casting
     }
 
     // The loader has checked every expression already; one that fails here is a pack built by hand, and says so.
+    private CheckedExpression Checked(string id, string source, IReadOnlyList<string> readable, string key)
+    {
+        return book.Check(source, readable, out ExpressionError? error)
+            ?? throw new InvalidOperationException($"{id}: {key}, at character {error!.Position + 1}: {error.Message}");
+    }
+
     private Compiled Compile(string id, IReadOnlyList<CastSlot> cast, Expr? requires)
     {
         List<string> slots = cast.Select(c => c.Name).ToList();
         CheckedExpression Check(string source, IReadOnlyList<string> readable, string key)
         {
-            return book.Check(source, readable, out ExpressionError? error)
-                ?? throw new InvalidOperationException($"{id}: {key}, at character {error!.Position + 1}: {error.Message}");
+            return Checked(id, source, readable, key);
         }
 
         var compiled = cast.Select((c, k) => (c.Name, Check(c.Condition.Source, slots[..(k + 1)], $"cast.{c.Name}"))).ToList();

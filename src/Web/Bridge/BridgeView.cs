@@ -114,10 +114,16 @@ public sealed record VignetteView(string OfferId, string Title, string? About, I
 // About names a pair (1e part three): "CREW_01 · avoids CREW_03"; null for a storylet for the ship or one crew member.
 public sealed record StoryletView(string OfferId, string Title, string? From, IReadOnlyList<ProseEntry> Script, IReadOnlyList<StoryletOptionView> Options, string? About = null);
 
-public sealed record StoryletOptionView(string Id, string Label);
+// Handlers: for an option settled by a check (1e part four, Task 6), who may be sent, in roster order; null for any other. Empty: no
+// one is fit to send, and the option is shown disabled with its reason (AnswerStorylet.NoOneFit).
+public sealed record StoryletOptionView(string Id, string Label, IReadOnlyList<HandlerView>? Handlers = null);
 
-// A storylet answered this cycle: what the answer said, and tags for what it changed.
-public sealed record SettledStoryletView(string Title, IReadOnlyList<ProseEntry> Said, IReadOnlyList<string> Tags);
+// One crew member who may be sent: "CREW_01, SKILL_B 6", and the word for their chance ("likely").
+public sealed record HandlerView(string CrewId, string Text, string Chance);
+
+// A storylet answered this cycle: what the answer said, and tags for what it changed. Roll: for a check, how it went, as a check's
+// line: "CREW_01 (SKILL_B 6, morale +1) rolled 7 against 11: success".
+public sealed record SettledStoryletView(string Title, IReadOnlyList<ProseEntry> Said, IReadOnlyList<string> Tags, string? Roll = null);
 
 // Kind is skill, injury, death, recovery, or loyalty.
 public sealed record CrewChange(string CrewId, string Kind, string Text, IReadOnlyList<LinePart>? Parts = null)

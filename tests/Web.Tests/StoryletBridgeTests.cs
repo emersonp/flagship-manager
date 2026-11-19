@@ -1,6 +1,8 @@
 using System.Net;
 using System.Text.RegularExpressions;
 using Sim.Core;
+using Sim.Core.Content;
+using Sim.Crew;
 using Sim.Storylets;
 using Sim.Traits;
 
@@ -33,7 +35,7 @@ public sealed class StoryletBridgeTests : IDisposable
 
     // Plays the first cycle to the end of resolution (sending a team unless told not to), sets trait_a as ENCOUNTER_01 would, then
     // advances through the aftermath into the next itinerary by the page's own route.
-    private static async Task<(Guid Id, WebCaptain Captain)> ToItinerary(TestApp app, HttpClient client, bool sendTeam = true, string? flag = "trait_a")
+    private static async Task<(Guid Id, WebCaptain Captain)> ToItinerary(TestApp app, HttpClient client, bool sendTeam = true, string? flag = "trait_a", Action<LegacyState>? edit = null)
     {
         Guid id = await app.CreateAtOrders("LEGACY", 1);
         Func<LegacyState, ICommand?>? nobody = sendTeam ? null : s => s.Phase == CyclePhase.Briefing ? new AdvancePhase() : null;
@@ -50,13 +52,18 @@ public sealed class StoryletBridgeTests : IDisposable
             await captain.Step();
         }
 
-        if (flag is not null)
+        if (flag is not null || edit is not null)
         {
             await app.Sessions.Run(app.Live, id, legacy =>
             {
-                TraitsState traits = legacy.State.Module<TraitsState>(TraitsModule.Name);
-                traits.Traits.RemoveAll(t => t.Trait == flag && t.CrewId is null);
-                traits.Traits.Add(new StoredTrait { Trait = flag, CrewId = null, TargetId = null, Value = 1, ChangedAtWeek = legacy.State.Week, EncounterId = "ENCOUNTER_01" });
+                if (flag is not null)
+                {
+                    TraitsState traits = legacy.State.Module<TraitsState>(TraitsModule.Name);
+                    traits.Traits.RemoveAll(t => t.Trait == flag && t.CrewId is null);
+                    traits.Traits.Add(new StoredTrait { Trait = flag, CrewId = null, TargetId = null, Value = 1, ChangedAtWeek = legacy.State.Week, EncounterId = "ENCOUNTER_01" });
+                }
+
+                edit?.Invoke(legacy.State);
                 return legacy;
             });
         }
@@ -67,9 +74,9 @@ public sealed class StoryletBridgeTests : IDisposable
         return (id, captain);
     }
 
-    private Task<(Guid Id, WebCaptain Captain)> ToItinerary(bool sendTeam = true, string? flag = "trait_a")
+    private Task<(Guid Id, WebCaptain Captain)> ToItinerary(bool sendTeam = true, string? flag = "trait_a", Action<LegacyState>? edit = null)
     {
-        return ToItinerary(app, client, sendTeam, flag);
+        return ToItinerary(app, client, sendTeam, flag, edit);
     }
 
     private async Task<string> Offer(Guid id)
@@ -320,5 +327,126 @@ public sealed class StoryletBridgeTests : IDisposable
         string settled = Matters(Entity(await bareClient.GetStringAsync($"/legacy/{id}")));
         Assert.Contains("option_a", Regex.Match(settled, "<div class=\"script\">.*?</div>", RegexOptions.Singleline).Value);
         Assert.Contains("trait_a 1 to 0", settled);
+    }
+
+    // --- 1e part four, Task 6: STORYLET_04 is cast on CREW_05, who holds trait_h toward CREW_01 (as ENCOUNTER_07's critical leaves
+    // it). Its first option is settled by a check; its second needs the subject's loyalty at 60 or more.
+
+    private const string Talk = "STORYLET_04_OPTION_A_LABEL";
+
+    // Every crew member's loyalty at 50, so option_b's requires fails until a test raises it.
+    private async Task<(Guid Id, string Offer)> ToCheck(Action<CrewState>? crew = null)
+    {
+        (Guid id, _) = await ToItinerary(flag: null, edit: state => state.Module<TraitsState>(TraitsModule.Name).Traits.Add(
+            new StoredTrait { Trait = "trait_h", CrewId = "CREW_05", TargetId = "CREW_01", Value = 1, ChangedAtWeek = state.Week, EncounterId = "ENCOUNTER_07" }));
+        await app.Sessions.Run(app.Live, id, legacy =>
+        {
+            CrewState members = legacy.State.Module<CrewState>(CrewModule.Name);
+            members.Members.ForEach(m => m.Loyalty = 50);
+            crew?.Invoke(members);
+            return legacy;
+        });
+        WaitingStorylet waiting = (await app.Sessions.Read(app.Live, id))!.State.Module<StoryletsState>(StoryletsModule.Name).Waiting.Single();
+        Assert.Equal(("STORYLET_04", "CREW_05", "CREW_01"), (waiting.StoryletId, waiting.Cast["subject"], waiting.Cast["target"]));
+        return (id, waiting.OfferId);
+    }
+
+    private async Task<IReadOnlyList<HandlerOdds>> Odds(Guid id, string offer)
+    {
+        LoadedLegacy legacy = (await app.Sessions.Read(app.Live, id))!;
+        return app.Live.Game.Bus.View<IStoryletView>(legacy.State).Answers(offer).Single(a => a.OptionId == "option_a").Handlers!;
+    }
+
+    [Fact]
+    public async Task A_check_option_opens_who_may_go_in_place_with_their_skill_and_chance()
+    {
+        (Guid id, string offer) = await ToCheck();
+        IReadOnlyList<HandlerOdds> odds = await Odds(id, offer);
+
+        string matters = Matters(await Page(id));
+
+        Assert.Contains($"<details class=\"answer handlers\"><summary class=\"btn\">{Talk}</summary>", matters);
+        Assert.DoesNotContain("dialog", matters);
+        Assert.DoesNotContain("STORYLET_04_OPTION_B_LABEL", matters);
+        Assert.Matches("<button[^>]*>STORYLET_04_OPTION_C_LABEL</button>", matters);
+        Assert.NotEmpty(odds);
+        Assert.DoesNotContain(odds, o => o.CrewId is "CREW_05" or "CREW_01");
+        Assert.Equal(odds.Count, Regex.Matches(matters, "name=\"handler\"").Count);
+        foreach (HandlerOdds o in odds)
+        {
+            int skill = app.Live.Pack.Crew.Single(c => c.Id == o.CrewId).Skills["SKILL_B"];
+            Assert.Equal(skill, o.Skill);
+            Assert.Contains($"name=\"handler\" value=\"{o.CrewId}\"", matters);
+            Assert.Contains($"<span class=\"handlers__who\">{o.CrewId}, SKILL_B {skill}</span>\n                                            <span class=\"handlers__chance\">{Chances.Word(o.Chance)}</span>", matters.ReplaceLineEndings("\n"));
+        }
+    }
+
+    // Review focus 4: with no one fit to send, the check option is disabled with its reason, and the free option still answers.
+    [Fact]
+    public async Task A_check_option_with_no_one_fit_to_send_is_disabled_with_its_reason()
+    {
+        (Guid id, _) = await ToCheck(crew => crew.Members.Where(m => m.Id is not "CREW_05" and not "CREW_01").ToList().ForEach(m => m.Status = CrewStatus.Recovering));
+
+        string matters = Matters(await Page(id));
+
+        Assert.Matches($"<button class=\"btn\" type=\"button\" disabled aria-describedby=\"(storylet-0-reason-0)\">{Talk}</button>\\s*<p class=\"answer__note\" id=\"\\1\">No one fit to send.</p>", matters);
+        Assert.DoesNotContain("name=\"handler\"", matters);
+        Assert.Matches("<button[^>]*>STORYLET_04_OPTION_C_LABEL</button>", matters);
+    }
+
+    [Fact]
+    public async Task An_option_whose_requires_holds_is_shown()
+    {
+        (Guid id, _) = await ToCheck(crew => crew.Members.Single(m => m.Id == "CREW_05").Loyalty = 60);
+
+        Assert.Matches("<button[^>]*>STORYLET_04_OPTION_B_LABEL</button>", Matters(await Page(id)));
+    }
+
+    // The settled panel shows the roll line, then the outcome's text, which names the handler, then its tags.
+    [Fact]
+    public async Task Sending_someone_settles_the_panel_with_the_roll_line_and_the_outcomes_text()
+    {
+        (Guid id, string offer) = await ToCheck();
+        string handler = (await Odds(id, offer))[0].CrewId;
+
+        (HttpStatusCode status, string stream) = await Post(id, "storylet", [new("offer", offer), new("option", "option_a"), new("handler", handler)]);
+
+        Assert.Equal(HttpStatusCode.OK, status);
+        LoadedLegacy legacy = (await app.Sessions.Read(app.Live, id))!;
+        StoryletAnswered answered = app.Game.Store.ReadEvents(id).Select(app.Live.Game.Events.FromEnvelope).OfType<StoryletAnswered>().Single();
+        StoryletRoll roll = answered.Roll!;
+        Assert.Equal(handler, answered.HandlerId);
+        string morale = roll.Morale == 0 ? "" : $", morale {(roll.Morale > 0 ? "+" : Minus)}{Math.Abs(roll.Morale)}";
+        string outcome = roll.Success ? "success" : "failure";
+        string matters = Matters(stream);
+        string line = $"<p class=\"storylet__roll\">{handler} (SKILL_B {roll.Level}{morale}) rolled {roll.Dice} against 11: {outcome}</p>";
+        Assert.Contains(line, matters);
+        string text = roll.Success ? "STORYLET_04_SUCCESS" : "STORYLET_04_FAILURE";
+        Assert.Matches($"{handler}</span>\\s*{text}|{handler} {text}", matters);
+        Assert.True(matters.IndexOf(line, StringComparison.Ordinal) < matters.IndexOf(text, StringComparison.Ordinal));
+        Assert.Contains("trait_h", matters);
+        Assert.DoesNotContain("<form", matters);
+        Assert.Empty(legacy.State.Module<StoryletsState>(StoryletsModule.Name).Waiting);
+    }
+
+    [Fact]
+    public async Task A_check_answer_without_a_handler_or_with_one_in_the_cast_is_refused_beside_the_panel()
+    {
+        (Guid id, string offer) = await ToCheck();
+        int stored = app.Game.Store.ReadEvents(id).Count;
+
+        (HttpStatusCode none, string noneBody) = await Post(id, "storylet", [new("offer", offer), new("option", "option_a")]);
+        (HttpStatusCode cast, string castBody) = await Post(id, "storylet", [new("offer", offer), new("option", "option_a"), new("handler", "CREW_01")]);
+        (HttpStatusCode plain, string plainBody) = await Post(id, "storylet", [new("offer", offer), new("option", "option_c"), new("handler", "CREW_02")]);
+        (HttpStatusCode hidden, string hiddenBody) = await Post(id, "storylet", [new("offer", offer), new("option", "option_b")]);
+
+        Assert.Equal(
+            [HttpStatusCode.UnprocessableEntity, HttpStatusCode.UnprocessableEntity, HttpStatusCode.UnprocessableEntity, HttpStatusCode.UnprocessableEntity],
+            [none, cast, plain, hidden]);
+        Assert.Contains("That answer is settled by a check: name who goes.", noneBody);
+        Assert.Contains("Crew member 'CREW_01' is in this storylet's cast, so cannot be sent.", castBody);
+        Assert.Contains("Only an answer settled by a check sends someone.", plainBody);
+        Assert.Contains("That answer is not open to this storylet now.", hiddenBody);
+        Assert.Equal(stored, app.Game.Store.ReadEvents(id).Count);
     }
 }

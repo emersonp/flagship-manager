@@ -80,7 +80,7 @@ internal static class TextFileFlow
         }
 
         // Storylets and vignettes alike (1e part two): each reads traits through its expressions (1e part four) and may raise them.
-        var readers = pack.Storylets.Select(s => (s.Id, Cast: s.Cast.Count, s.Reads, s.Needs, Effects: s.Options.SelectMany(o => o.Effects).ToList()))
+        var readers = pack.Storylets.Select(s => (s.Id, Cast: s.Cast.Count, s.Reads, s.Needs, Effects: s.Options.SelectMany(o => o.Outcomes.SelectMany(e => e)).ToList()))
             .Concat(pack.Vignettes.Select(v => (v.Id, Cast: v.Cast.Count, v.Reads, v.Needs, Effects: v.Effects.Concat(v.Options.SelectMany(o => o.Effects)).ToList())))
             .ToList();
         foreach ((string _, int cast, IReadOnlyList<TraitRead> _, IReadOnlyList<TraitRead> _, List<StoryletEffect> effects) in readers)
@@ -122,7 +122,7 @@ internal static class TextFileFlow
     private static HashSet<string> Used(ContentPack pack)
     {
         IEnumerable<EffectDef> outcomes = pack.Encounters.SelectMany(e => e.Approaches.SelectMany(a => a.Outcomes.Values).Concat(e.Decision is { } d ? [d.Bold, d.Safe] : []));
-        IEnumerable<StoryletEffect> answers = pack.Storylets.SelectMany(s => s.Options.SelectMany(o => o.Effects))
+        IEnumerable<StoryletEffect> answers = pack.Storylets.SelectMany(s => s.Options.SelectMany(o => o.Outcomes.SelectMany(e => e)))
             .Concat(pack.Vignettes.SelectMany(v => v.Effects.Concat(v.Options.SelectMany(o => o.Effects))));
         IEnumerable<string> rules = pack.Traits.SelectMany(t => (t.Launch is { } launch ? launch.Sent.Concat(launch.NotSent).Concat(launch.WithTarget) : []).Concat(t.OnTargetDied)
             .Where(r => r.ChangesTrait && r.Trait is not null && r.Trait != t.Id).Select(r => r.Trait!));

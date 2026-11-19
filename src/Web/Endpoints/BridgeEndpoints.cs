@@ -33,9 +33,9 @@ public static class BridgeEndpoints
         group.MapPost("/{id}/answer", (string id, HttpContext http, GameServices game, LegacySession sessions, Render render, IOptions<WebSettings> settings, CancellationToken cancellation)
             => Answer(id, http, game, sessions, render, settings, dev, cancellation));
         group.MapPost("/{id}/storylet", (string id, HttpContext http, GameServices game, LegacySession sessions, Render render, CancellationToken cancellation)
-            => AnswerItinerary(id, http, game, sessions, render, (offer, option) => new AnswerStorylet(offer, option), dev, cancellation));
+            => AnswerItinerary(id, http, game, sessions, render, (offer, option, handler) => new AnswerStorylet(offer, option, handler), dev, cancellation));
         group.MapPost("/{id}/vignette", (string id, HttpContext http, GameServices game, LegacySession sessions, Render render, CancellationToken cancellation)
-            => AnswerItinerary(id, http, game, sessions, render, (offer, option) => new AnswerVignette(offer, option), dev, cancellation));
+            => AnswerItinerary(id, http, game, sessions, render, (offer, option, _) => new AnswerVignette(offer, option), dev, cancellation));
     }
 
     private static async Task<IResult> Page(string id, HttpContext http, GameServices game, LegacySession sessions, Render render, CancellationToken cancellation)
@@ -113,13 +113,15 @@ public static class BridgeEndpoints
     }
 
     // A storylet's or a vignette's answer. Any refusal redraws the page from the stored state, with the reason beside the
-    // itinerary's panels when they are on screen, else in the bar.
-    private static async Task<IResult> AnswerItinerary(string id, HttpContext http, GameServices game, LegacySession sessions, Render render, Func<string, string, ICommand> command, bool dev, CancellationToken cancellation)
+    // itinerary's panels when they are on screen, else in the bar. Handler: who is sent on a storylet's check (1e part four, Task 6);
+    // empty or absent is none, and the module refuses it where it does not belong. A vignette takes none.
+    private static async Task<IResult> AnswerItinerary(string id, HttpContext http, GameServices game, LegacySession sessions, Render render, Func<string, string, string?, ICommand> command, bool dev, CancellationToken cancellation)
     {
         IFormCollection? form = await ReadForm(http.Request, cancellation);
         Stamp? stamp = StampOf(form);
         string? offer = form is null ? null : Single(form, "offer");
         string? option = form is null ? null : Single(form, "option");
+        string? handler = form is null ? null : Single(form, "handler") is { Length: > 0 } named ? named : null;
         LivePack live = RequestPack.Of(http);
         if (!Guid.TryParse(id, out Guid legacyId))
         {
@@ -137,7 +139,7 @@ public static class BridgeEndpoints
                     throw new CommandRejectedException(Incomplete);
                 }
 
-                legacy.Send(command(offer, option));
+                legacy.Send(command(offer, option, handler));
                 return View(game, live, legacy, dev);
             }, cancellation);
         }
@@ -475,7 +477,7 @@ public static class BridgeEndpoints
         TeamAssigned? last = legacy.State.Phase == CyclePhase.Briefing && cycle > 0
             ? game.Store.ReadEvents(legacy.State.LegacyId, cycle - 1).Select(live.Game.Events.FromEnvelope).OfType<TeamAssigned>().LastOrDefault()
             : null;
-        BridgeView view = BridgeReader.Read(legacy.Record, live.Pack, events, live.Names, last);
+        BridgeView view = BridgeReader.Read(legacy.Record, live.Pack, events, live.Names, last, live.Game.Bus.View<IStoryletView>(legacy.State));
         return dev ? view with { TopBar = view.TopBar with { Dev = true } } : view;
     }
 

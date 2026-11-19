@@ -67,7 +67,9 @@ public sealed class ParityTests : IDisposable
             routes.Add((await captain.Step()).Route);
         }
 
-        Assert.Equal(new[] { "advance", "answer", "launch" }, routes.Order());
+        // Seed 3 casts the fixture's STORYLET_04, and the captain sends someone on its check (1e part four, Task 6), so the requests
+        // and the simulator agree on a handler and a roll.
+        Assert.Equal(seed == 3 ? ["advance", "answer", "launch", "storylet"] : new[] { "advance", "answer", "launch" }, routes.Order());
 
         IReadOnlyList<EventEnvelope> expected = Straight(seed);
         IReadOnlyList<EventEnvelope> actual = app.Game.Store.ReadEvents(id);

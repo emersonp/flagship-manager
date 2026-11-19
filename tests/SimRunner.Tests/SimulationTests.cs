@@ -231,12 +231,19 @@ public class SimulationTests
     // arrives together comes in salience order, its ties drawn from salience:<cycle>. In SimRunner's 200 x 200, both packs and both
     // answer policies, every legacy plays the same: no count of missions, deaths, fires, answers, or traits moves. Both packs'
     // storylets and vignettes seldom hold together, so salience reorders little; the new field moves every hash.
+    // Re-pinned: options settled by a check (1e part four, Task 6). The fixture gains STORYLET_04, cast from trait_h, whose first
+    // option is a check (stream storylet-check:<offer>) and whose answers clear trait_h. In SimRunner's 200 x 200 the game's pack
+    // does not move under either policy. In the fixture STORYLET_04 fires 24.6 per 100 cycles, trait_h is set from 0 24.6 times
+    // instead of 0.5 (the encounter raises it again once it is cleared), and missions move from 39077 full, 811 partial, 80
+    // incomplete, 27 withdrawn to 38834, 1028, 101, 32, since trait_h's +1 withTarget bonus is lost while it is clear: with answers
+    // that keep trait_h, the missions are exactly as before. Under random answers option_b (requires loyalty 60) never fires and
+    // option_a and option_c split evenly.
     [Fact]
     public void Golden_seed_1_matches_the_accepted_log()
     {
         SimSummary summary = Simulation.Run(new SimOptions(Legacies: 1, Cycles: 10, Seed: 1), Pack);
 
-        Assert.Equal("2F4D3BB76304DA24D70BB924C8DB9FB08177C2E4F0229ADCD98211564AA82E7E", summary.Legacies[0].LogHash);
+        Assert.Equal("6A00882F4B1D44AF75DB4429E34C3DB645C11FBA12932997D6708FA6AD47F2B6", summary.Legacies[0].LogHash);
     }
 
     // --- The captain's policies and promises (1e part three, Task 6) ---

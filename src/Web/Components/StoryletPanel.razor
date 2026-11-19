@@ -1,4 +1,6 @@
-@* One storylet in "Matters aboard": waiting, with a button for each answer, or settled, with what the answer said and changed. *@
+@* One storylet in "Matters aboard": waiting, with a button for each answer open now, or settled, with what the answer said and changed.
+   An answer settled by a check (1e part four, Task 6) opens the list of who may be sent in place, as a disclosure inside the panel,
+   with no modal; with no one fit to send it is disabled, with its reason beside it. *@
 <article class="storylet" aria-labelledby="@Head">
     <div class="storylet__head">
         <h3 id="@Head">@Title</h3>
@@ -22,17 +24,55 @@
             @for (int i = 0; i < Waiting.Options.Count; i++)
             {
                 StoryletOptionView option = Waiting.Options[i];
-                <form data-on:submit="@Post" class="answer" @attributes="Indicator(i)">
-                    <input type="hidden" name="offer" value="@Waiting.OfferId">
-                    <input type="hidden" name="option" value="@option.Id">
-                    <StampFields Bar="Bar" />
-                    <button class="btn" type="submit" data-attr:disabled="@AnyInFlight" data-attr:aria-busy="@Busy(i)">@option.Label</button>
-                </form>
+                @if (option.Handlers is null)
+                {
+                    <form data-on:submit="@Post" class="answer" @attributes="Indicator(Signal(i))">
+                        <input type="hidden" name="offer" value="@Waiting.OfferId">
+                        <input type="hidden" name="option" value="@option.Id">
+                        <StampFields Bar="Bar" />
+                        <button class="btn" type="submit" data-attr:disabled="@AnyInFlight" data-attr:aria-busy="@Busy(Signal(i))">@option.Label</button>
+                    </form>
+                }
+                else if (option.Handlers.Count == 0)
+                {
+                    <div class="answer">
+                        <button class="btn" type="button" disabled aria-describedby="@Reason(i)">@option.Label</button>
+                        <p class="answer__note" id="@Reason(i)">@AnswerStorylet.NoOneFit</p>
+                    </div>
+                }
+                else
+                {
+                    <details class="answer handlers">
+                        <summary class="btn">@option.Label</summary>
+                        <ul class="handlers__list" aria-label="@($"Who goes: {option.Label}")">
+                            @for (int k = 0; k < option.Handlers.Count; k++)
+                            {
+                                HandlerView handler = option.Handlers[k];
+                                <li>
+                                    <form data-on:submit="@Post" @attributes="Indicator(Signal(i, k))">
+                                        <input type="hidden" name="offer" value="@Waiting.OfferId">
+                                        <input type="hidden" name="option" value="@option.Id">
+                                        <input type="hidden" name="handler" value="@handler.CrewId">
+                                        <StampFields Bar="Bar" />
+                                        <button class="btn handlers__pick" type="submit" data-attr:disabled="@AnyInFlight" data-attr:aria-busy="@Busy(Signal(i, k))">
+                                            <span class="handlers__who">@handler.Text</span>
+                                            <span class="handlers__chance">@handler.Chance</span>
+                                        </button>
+                                    </form>
+                                </li>
+                            }
+                        </ul>
+                    </details>
+                }
             }
         </div>
     }
     else if (Settled is not null)
     {
+        @if (Settled.Roll is { } roll)
+        {
+            <p class="storylet__roll">@roll</p>
+        }
         <ScriptLines Entries="Settled.Said" />
         @if (Settled.Tags.Count > 0)
         {
@@ -61,15 +101,23 @@
 
     private string Title => Waiting?.Title ?? Settled?.Title ?? "";
 
+    private string Reason(int option) => $"storylet-{Index}-reason-{option}";
+
     private string Signal(int option) => $"_storylet{Index}x{option}";
 
-    private Dictionary<string, object> Indicator(int option) => new() { [$"data-indicator:{Signal(option)}"] = true };
+    // One for each crew member who may be sent on a check option.
+    private string Signal(int option, int handler) => $"_storylet{Index}x{option}h{handler}";
+
+    private static Dictionary<string, object> Indicator(string signal) => new() { [$"data-indicator:{signal}"] = true };
+
+    // Every form of this storylet: a plain answer's, or each handler's on a check.
+    private IEnumerable<string> Signals => (Waiting?.Options ?? []).SelectMany((o, i) => o.Handlers is null ? [Signal(i)] : o.Handlers.Select((_, k) => Signal(i, k)));
 
     // Every answer of this storylet waits while any one is in flight.
-    private string AnyInFlight => string.Join(" || ", Enumerable.Range(0, Waiting?.Options.Count ?? 0).Select(i => "$" + Signal(i)));
+    private string AnyInFlight => Signals.Any() ? string.Join(" || ", Signals.Select(s => "$" + s)) : "false";
 
     // Datastar writes a true value as an empty attribute, so the in-flight style gets the string "true".
-    private string Busy(int option) => $"${Signal(option)} ? 'true' : false";
+    private static string Busy(string signal) => $"${signal} ? 'true' : false";
 
     private string Post => $"@post('{BridgeRoutes.Action(Bar, LegacyId, "storylet")}', {{contentType: 'form'}})";
 }

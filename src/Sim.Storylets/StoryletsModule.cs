@@ -21,7 +21,8 @@ public static class StoryletsModule
         var casting = new Casting(pack);
         bus.Module<StoryletsState>(Name);
         bus.Provide<IHistoryView>(state => new HistoryView(state.Module<StoryletsState>(Name), state.Cycle));
-        bus.Guard<AnswerStorylet>(Order, Name, (command, context) => CheckAnswer(pack, command, context));
+        bus.Provide<IStoryletView>(state => new StoryletView(pack, casting, state.Module<StoryletsState>(Name), bus.View<IRosterView>(state), bus.View<ITraitView>(state), state.Cycle));
+        bus.Guard<AnswerStorylet>(Order, Name, (command, context) => CheckAnswer(pack, casting, command, context));
         bus.Guard<AdvancePhase>(Order, Name, (_, context) => context.State.Phase == CyclePhase.Itinerary && Answerable(pack, context).Any() ? AnswerStorylet.WaitingReason : null);
         bus.Handle<AnswerStorylet>((command, context) => OnAnswer(pack, command, context));
         bus.Guard<AnswerVignette>(Order, Name, (command, context) => CheckVignette(pack, command, context));
@@ -55,7 +56,9 @@ public static class StoryletsModule
         return context.Module<StoryletsState>().Waiting.Where(w => pack.Storylets.Any(s => s.Id == w.StoryletId));
     }
 
-    private static string? CheckAnswer(ContentPack pack, AnswerStorylet command, IBusContext context)
+    // An answer must be one of the storylet's options whose requires holds now; a check option needs a handler who may be sent, and
+    // any other refuses one (1e part four, design 4.7).
+    private static string? CheckAnswer(ContentPack pack, Casting casting, AnswerStorylet command, IBusContext context)
     {
         if (Answerable(pack, context).FirstOrDefault(w => w.OfferId == command.OfferId) is not { } waiting)
         {
@@ -63,18 +66,50 @@ public static class StoryletsModule
         }
 
         StoryletDef storylet = pack.Storylets.First(s => s.Id == waiting.StoryletId);
-        return storylet.Options.Any(o => o.Id == command.OptionId) ? null : "That is not one of its answers.";
+        if (storylet.Options.FirstOrDefault(o => o.Id == command.OptionId) is not { } option)
+        {
+            return "That is not one of its answers.";
+        }
+
+        IRosterView roster = context.View<IRosterView>();
+        var source = new StateSource(roster, context.View<ITraitView>(), context.Module<StoryletsState>(), context.State.Cycle);
+        if (!casting.Open(storylet.Id, option, source, waiting.Cast))
+        {
+            return "That answer is not open to this storylet now.";
+        }
+
+        return (option.Check, command.HandlerId) switch
+        {
+            (null, null) => null,
+            (null, _) => "Only an answer settled by a check sends someone.",
+            (_, null) => "That answer is settled by a check: name who goes.",
+            (_, { } handler) => Check.Refusal(roster, waiting.Cast, handler),
+        };
     }
 
+    // A check option rolls, and applies its outcome's effects with the handler bound as the slot handler for those effects alone: the
+    // stored cast never holds them.
     private static void OnAnswer(ContentPack pack, AnswerStorylet command, IBusContext context)
     {
         StoryletsState state = context.Module<StoryletsState>();
         WaitingStorylet waiting = state.Waiting.First(w => w.OfferId == command.OfferId);
         StoryletDef storylet = pack.Storylets.First(s => s.Id == waiting.StoryletId);
         StoryletOption option = storylet.Options.First(o => o.Id == command.OptionId);
-        Apply(option.Effects, storylet.Cast, waiting.Cast, TraitCauses.Answer, context);
+        StoryletRoll? roll = null;
+        if (option.Check is { } check && command.HandlerId is { } handler)
+        {
+            roll = Check.Roll(check, handler, waiting.Cast, context.View<IRosterView>(), context.View<ITraitView>(), pack.Tuning.CheckDice, context.Rng(Check.Stream(waiting.OfferId)));
+            Dictionary<string, string> sent = Copy(waiting.Cast);
+            sent[StoryletScopes.Handler] = handler;
+            Apply((roll.Success ? check.Success : check.Failure).Effects, storylet.Cast, sent, TraitCauses.Answer, context);
+        }
+        else
+        {
+            Apply(option.Effects, storylet.Cast, waiting.Cast, TraitCauses.Answer, context);
+        }
+
         state.Waiting.Remove(waiting);
-        context.Publish(new StoryletAnswered(waiting.OfferId, waiting.StoryletId, Copy(waiting.Cast), option.Id));
+        context.Publish(new StoryletAnswered(waiting.OfferId, waiting.StoryletId, Copy(waiting.Cast), option.Id, command.HandlerId, roll));
     }
 
     // An answer's or a vignette's effects, in order: loyalty and morale through the crew module's commands, on a slot or every

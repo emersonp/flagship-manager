@@ -32,8 +32,26 @@ public sealed record SalienceTuning(int Stakes, int Specificity, int Repeat, int
 // no cast); Trait.Toward is a slot, for a pair trait held toward them (1e part four).
 public sealed record StoryletEffect(int Loyalty = 0, string? LoyaltyOn = null, TraitChange? Trait = null, int Morale = 0, string? MoraleOn = null);
 
-// Requires: shown only while it holds, with every slot bound (read from Task 6 of part four; parsed and checked at load now).
-public sealed record StoryletOption(string Id, string Label, IReadOnlyList<StoryletEffect> Effects, Expr? Requires = null);
+// Requires: shown, and accepted, only while it holds, with every slot bound. Check: settled by a check with a handler the captain
+// names (1e part four, design 4.7); its effects are then in the check's outcomes, and its own Effects are empty.
+public sealed record StoryletOption(string Id, string Label, IReadOnlyList<StoryletEffect> Effects, Expr? Requires = null, StoryletCheck? Check = null)
+{
+    // Each set of effects an answer with it may apply: its own, or its check's success and then failure.
+    public IEnumerable<IReadOnlyList<StoryletEffect>> Outcomes => Check is null ? [Effects] : [Check.Success.Effects, Check.Failure.Effects];
+}
+
+// An option settled by a check (design 4.7): the handler's Skill, plus their morale and trait check bonuses, plus the check dice,
+// against Difficulty + 7. A margin of 0 or more is Success. In each outcome's effects and text the handler is the slot "handler".
+// Its text is a line of the storyletAnswer beat, with the fact outcome, as an option's is.
+public sealed record StoryletCheck(string Skill, int Difficulty, StoryletOutcome Success, StoryletOutcome Failure)
+{
+    // What the dice are added to, as an encounter's check: difficulty + 7.
+    public const int Base = 7;
+
+    public int Against => Difficulty + Base;
+}
+
+public sealed record StoryletOutcome(IReadOnlyList<StoryletEffect> Effects);
 
 // A storylet (1e part four, design 4.2). Cast: up to three slots, read in order; none: a storylet for the ship. Requires: read once
 // every slot is bound. Reads: every trait its expressions read, in reading order (the cast, then requires), as the loader found
@@ -66,6 +84,9 @@ public static class StoryletScopes
 
     // A slot may not be called any of these (design 4.2): each already means something in an expression, an effect, or a script.
     public static readonly IReadOnlyList<string> Reserved = ["ship", "crew", "captain", "cycle", "best", "handler"];
+
+    // The crew member the captain sends on a check: a slot only in a check's success and failure (design 4.7).
+    public const string Handler = "handler";
 
     public const int MaxSlots = 3;
 }

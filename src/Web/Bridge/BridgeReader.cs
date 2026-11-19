@@ -20,7 +20,9 @@ public static class BridgeReader
 
     // The names are the snapshot's own, so a page never mixes one pack's tables with another's names.
     // lastTeam: the team the last cycle sent, which the briefing picks again; null when it sent nobody.
-    public static BridgeView Read(LegacyRecord record, ContentPack pack, IReadOnlyList<IEvent> cycleEvents, Names names, TeamAssigned? lastTeam = null)
+    // answers: the storylets module's view of what may be answered now (1e part four, Task 6), from the game that holds the legacy;
+    // null builds one from the pack, as a reader with no game (a test) must.
+    public static BridgeView Read(LegacyRecord record, ContentPack pack, IReadOnlyList<IEvent> cycleEvents, Names names, TeamAssigned? lastTeam = null, IStoryletView? answers = null)
     {
         LegacyState state = record.State;
         IReadOnlyList<CrewRow> roster = Roster(state, pack, names);
@@ -32,7 +34,7 @@ public static class BridgeReader
         bool showMission = site?.Mission is not null && phase is CyclePhase.Resolution or CyclePhase.Aftermath;
         bool afterwards = phase is CyclePhase.Aftermath or CyclePhase.Advance;
         bool showAftermath = afterwards && site is not null;
-        ItineraryView? itinerary = phase == CyclePhase.Itinerary ? Itinerary(state, pack, cycleEvents, names) : null;
+        ItineraryView? itinerary = phase == CyclePhase.Itinerary ? Itinerary(state, pack, cycleEvents, names, answers ?? GameHost.Game.Build(pack).Bus.View<IStoryletView>(state)) : null;
 
         List<ObjectiveView> objectives = site is null ? [] : site.Objectives.Select(o => Objective(pack, names, site, o)).ToList();
         MissionInFlight? inFlight = site?.Mission;
@@ -352,9 +354,9 @@ public static class BridgeReader
 
     // The captain's itinerary (1e part two): the storylets, the vignettes that arrived this cycle in arrival order, and the
     // captain's time.
-    private static ItineraryView Itinerary(LegacyState state, ContentPack pack, IReadOnlyList<IEvent> cycleEvents, Names names)
+    private static ItineraryView Itinerary(LegacyState state, ContentPack pack, IReadOnlyList<IEvent> cycleEvents, Names names, IStoryletView answers)
     {
-        (List<StoryletView> waiting, List<SettledStoryletView> settled) = Storylets(state, pack, cycleEvents, names);
+        (List<StoryletView> waiting, List<SettledStoryletView> settled) = Storylets(state, pack, cycleEvents, names, answers);
         return new ItineraryView(pack.CaptainsTimePerCycle, waiting, settled, Vignettes(state, pack, cycleEvents, names));
     }
 
@@ -462,8 +464,9 @@ public static class BridgeReader
         return bonus < 0 ? "Low" : bonus > 0 ? "High" : "Steady";
     }
 
-    // The storylets waiting (those the pack still has, in arrival order) and those answered this cycle (in the order answered).
-    private static (List<StoryletView> Waiting, List<SettledStoryletView> Settled) Storylets(LegacyState state, ContentPack pack, IReadOnlyList<IEvent> cycleEvents, Names names)
+    // The storylets waiting (those the pack still has, in arrival order) and those answered this cycle (in the order answered). A
+    // waiting storylet shows only the options open now; a check option lists who may be sent (1e part four, Task 6).
+    private static (List<StoryletView> Waiting, List<SettledStoryletView> Settled) Storylets(LegacyState state, ContentPack pack, IReadOnlyList<IEvent> cycleEvents, Names names, IStoryletView answers)
     {
         StoryletsState? storylets = state.TryModule(StoryletsModule.Name, out StoryletsState? found) ? found : null;
         List<StoredTrait> traits = state.TryModule(TraitsModule.Name, out TraitsState? held) ? held.Traits : [];
@@ -487,7 +490,7 @@ public static class BridgeReader
                 names.Storylet(storylet.Id),
                 From(traits, storylet, w, names),
                 script,
-                storylet.Options.Select(o => new StoryletOptionView(o.Id, o.Label.Length > 0 ? o.Label : o.Id)).ToList(),
+                answers.Answers(w.OfferId).Select(a => Option(storylet.Options.First(o => o.Id == a.OptionId), a, names, shown)).ToList(),
                 w.Cast.Count < 2 ? null : Cast(storylet.Reads, w.Cast, shown)));
         }
 
@@ -501,12 +504,31 @@ public static class BridgeReader
             }
 
             List<IEvent> changes = ChangesBefore(cycleEvents, i);
-            Situation situation = Prose.StoryletSituation(pack, names, crew, answered.StoryletId, answered.Cast, answered.OptionId);
-            IReadOnlyList<ProseEntry> said = Prose.Storylet(pack, situation, $"{seed}|{answered.OfferId}|{answered.OptionId}")?.Entries ?? [Systems(answered.OptionId)];
-            settled.Add(new SettledStoryletView(names.Storylet(answered.StoryletId), said, StoryletTags(pack, changes, living, shown)));
+            string? outcome = answered.Roll is null ? null : answered.Roll.Success ? "success" : "failure";
+            Situation situation = Prose.StoryletSituation(pack, names, crew, answered.StoryletId, answered.Cast, answered.OptionId, answered.HandlerId, outcome);
+            IReadOnlyList<ProseEntry> said = Prose.Storylet(pack, situation, $"{seed}|{answered.OfferId}|{answered.OptionId}")?.Entries ?? [Systems(outcome is null ? answered.OptionId : $"{answered.OptionId}: {outcome}")];
+            string? roll = answered is { Roll: { } r, HandlerId: { } handler } ? RollLine(r, shown(handler), names) : null;
+            settled.Add(new SettledStoryletView(names.Storylet(answered.StoryletId), said, StoryletTags(pack, changes, living, shown), roll));
         }
 
         return (waiting, settled);
+    }
+
+    private static StoryletOptionView Option(StoryletOption option, OpenAnswer open, Names names, Func<string, string> shown)
+    {
+        string label = option.Label.Length > 0 ? option.Label : option.Id;
+        List<HandlerView>? handlers = open.Handlers?.Select(h => new HandlerView(h.CrewId, $"{shown(h.CrewId)}, {names.Skill(option.Check!.Skill)} {h.Skill}", Chances.Word(h.Chance))).ToList();
+        return new StoryletOptionView(option.Id, label, handlers);
+    }
+
+    // A storylet's check as a mission check reads (design 4.7): "CREW_01 (SKILL_B 6, morale +1, trait_h +1) rolled 7 against 11:
+    // success". Morale and each trait show only when they add something.
+    public static string RollLine(StoryletRoll roll, string handler, Names names)
+    {
+        IEnumerable<string> parts = new[] { $"{names.Skill(roll.Skill)} {roll.Level}" }
+            .Concat(roll.Morale == 0 ? [] : [$"morale {BeatLines.Signed(roll.Morale)}"])
+            .Concat(roll.Traits.Select(t => $"{t.Trait} {BeatLines.Signed(t.Amount)}"));
+        return $"{handler} ({string.Join(", ", parts)}) rolled {roll.Dice} against {roll.Against}: {(roll.Success ? "success" : "failure")}";
     }
 
     private static ProseEntry Systems(string text)
