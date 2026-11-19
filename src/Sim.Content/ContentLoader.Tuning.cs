@@ -7,9 +7,9 @@ namespace Sim.Content;
 public static partial class ContentLoader
 {
     // The tuning file's numbers for the itinerary (1e parts one and two).
-    private sealed record CycleNumbers(int StoryletsPerCycle, int VignettesPerCycle, int VignetteCooldown, int CaptainsTime, int HistoryCycles, int CastTries)
+    private sealed record CycleNumbers(int StoryletsPerCycle, int VignettesPerCycle, int VignetteCooldown, int CaptainsTime, int HistoryCycles, int CastTries, SalienceTuning Salience)
     {
-        public static readonly CycleNumbers None = new(0, 0, 0, 0, 0, 0);
+        public static readonly CycleNumbers None = new(0, 0, 0, 0, 0, 0, SalienceTuning.Default);
     }
 
     // One tuning file on its own, for comparing against the pack's.
@@ -97,7 +97,8 @@ public static partial class ContentLoader
             read.Int("vignettes.cooldown", min: 0),
             read.Int("captainsTime.perCycle", min: 0),
             read.Int("history.cycles", min: 1),
-            read.Int("storylets.castTries", min: 1));
+            read.Int("storylets.castTries", min: 1),
+            new SalienceTuning(read.Int("salience.stakes", min: 0), read.Int("salience.specificity", min: 0), read.Int("salience.repeat", min: 0), read.Int("salience.window", min: 0)));
         var bench = new BenchTuning(BenchTeam(read, "rookie"), BenchTeam(read, "mixed"), BenchTeam(read, "veteran"));
 
         bool ordered = tuning.TierCritical > tuning.TierSuccess && tuning.TierSuccess > tuning.TierPartial && tuning.TierPartial > tuning.TierFailure;

@@ -59,6 +59,11 @@ result:
 storylets:
   perCycle: 2                # at most this many storylets wait in one itinerary; the rest arrive in later cycles
   castTries: 100             # 1e part four: casting reads at most this many expressions, then gives up "out of tries"; a pair over 10 crew needs 100
+salience:                    # 1e part four: see docs/plans/2026-11-18-phase-1e-part-four-design.md section 4.5
+  stakes: 10                 # per point of stakes; vignettes have none
+  specificity: 1             # per top-level && clause across the cast and requires
+  repeat: 3                  # taken off for each arrival in the last window cycles, over every cast
+  window: 20                 # in cycles
 vignettes:                   # 1e part two: see docs/plans/2026-11-17-phase-1e-part-two-design.md section 4.3
   perCycle: 3                # at most this many arrive in one itinerary; the rest are dropped
   cooldown: 6                # a vignette does not arrive again with the same cast within this many cycles

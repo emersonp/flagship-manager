@@ -54,6 +54,18 @@ public class VignetteContentTests
         Assert.Equal([new StoryletEffect(Morale: -1, MoraleOn: "crew")], pack.Vignettes[2].Effects);
     }
 
+    // 1e part four, Task 5 (design 4.6): a vignette with no cooldown takes { cast: vignettes.cooldown }; one written is its own.
+    [Fact]
+    public void A_vignette_with_no_cooldown_takes_the_packs()
+    {
+        ContentPack plain = LoadWith(Plain).Pack!;
+        ContentPack own = LoadWith(Plain.Replace("  effects:", "  cooldown: { global: 2 }\n  effects:")).Pack!;
+
+        Assert.Null(plain.Vignettes.Single().Cooldown);
+        Assert.Equal(new Cooldown(6, 0), plain.CooldownOf(plain.Vignettes.Single()));
+        Assert.Equal(new Cooldown(0, 2), own.CooldownOf(own.Vignettes.Single()));
+    }
+
     [Fact]
     public void A_vignettes_words_are_lines_of_the_storylet_beats()
     {

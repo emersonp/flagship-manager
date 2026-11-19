@@ -6,7 +6,8 @@ namespace Sim.Storylets;
 // Offers storylets and sends vignettes when the captain's itinerary opens, and applies answers' effects. It reaches crew only
 // through the roster view and the AdjustLoyalty and AdjustMorale commands, traits only through the trait view and the
 // ChangeTrait command (slice 1e, part three), and hears of missions only through their results. From part four each storylet and
-// vignette is cast with named slots, read in the expression language (design 4.4), and arrives at most once a cycle.
+// vignette is cast with named slots, read in the expression language (design 4.4), and arrives at most once a cycle, ranked by
+// salience and held back by its cooldowns (design 4.5 and 4.6; Salience.cs).
 public static class StoryletsModule
 {
     public const string Name = "storylets";
@@ -39,7 +40,6 @@ public static class StoryletsModule
                 case CyclePhase.Itinerary:
                     History.ItineraryOpened(state, e.Cycle, context.View<IRosterView>(), pack.HistoryCycles);
                     OnItinerary(pack, casting, e.Cycle, context);
-                    SendVignettes(pack, casting, e.Cycle, context);
                     break;
                 case CyclePhase.Orders:
                     CloseItinerary(pack, context);
@@ -154,54 +154,6 @@ public static class StoryletsModule
         }
     }
 
-    // After the storylets: each vignette is cast, passing over any binding that arrived within vignettes.cooldown cycles. Those that
-    // have waited longest since they last arrived with any cast come first (never first of all), then by id, until Task 5's
-    // salience. The rest are dropped: a vignette is not a debt.
-    private static void SendVignettes(ContentPack pack, Casting casting, int cycle, IBusContext context)
-    {
-        StoryletsState state = context.Module<StoryletsState>();
-        IReadOnlyList<string> roster = context.View<IRosterView>().Roster;
-        var source = new StateSource(context.View<IRosterView>(), context.View<ITraitView>(), state, cycle);
-        int Last(string id)
-        {
-            return state.Arrivals.Where(a => a.Id == id).Select(a => a.Cycle).DefaultIfEmpty(int.MinValue).Max();
-        }
-
-        var due = new List<(VignetteDef Vignette, Dictionary<string, string> Cast)>();
-        foreach (VignetteDef vignette in pack.Vignettes)
-        {
-            bool Cooling(IReadOnlyDictionary<string, string> cast)
-            {
-                return state.Arrivals.Any(a => a.Id == vignette.Id && Same(a.Cast, cast) && cycle - a.Cycle < pack.VignetteCooldown);
-            }
-
-            CastResult result = casting.Cast(vignette.Id, source, roster, () => context.Rng(CastStream(vignette.Id, cycle)), pack.CastTries, Cooling);
-            if (result.Cast is { } cast)
-            {
-                due.Add((vignette, cast));
-            }
-        }
-
-        IEnumerable<(VignetteDef Vignette, Dictionary<string, string> Cast)> ordered = due
-            .OrderBy(d => Last(d.Vignette.Id))
-            .ThenBy(d => d.Vignette.Id, StringComparer.Ordinal);
-        foreach ((VignetteDef vignette, Dictionary<string, string> cast) in ordered.Take(pack.VignettesPerCycle).ToList())
-        {
-            var offer = new WaitingVignette { OfferId = OfferId(cycle, vignette.Id), VignetteId = vignette.Id, Cast = cast };
-            Arrived(state, vignette.Id, cast, cycle);
-            context.Publish(new VignetteArrived(offer.OfferId, vignette.Id, Copy(cast)));
-            if (vignette.Options.Count == 0)
-            {
-                Apply(vignette.Effects, vignette.Cast, cast, TraitCauses.Vignette, context);
-                context.Publish(new VignetteAnswered(offer.OfferId, vignette.Id, Copy(cast), null, Defaulted: false));
-            }
-            else
-            {
-                state.Vignettes.Add(offer);
-            }
-        }
-    }
-
     private static void OnMissionEnded(MissionEnded ended, IBusContext context)
     {
         History.MissionEnded(context.Module<StoryletsState>(), context.State.Cycle, ended.Result, context.View<IRosterView>().Roster);
@@ -221,6 +173,9 @@ public static class StoryletsModule
         }
     }
 
+    // The itinerary opens (design 4.4 to 4.6): the stale are withdrawn, the contest is run, and what it says arrived arrives, the
+    // storylets and then the vignettes, each in salience order. A storylet that lost on the budget is cast again next cycle; a
+    // vignette that lost is dropped, since a vignette is not a debt.
     private static void OnItinerary(ContentPack pack, Casting casting, int cycle, IBusContext context)
     {
         StoryletsState state = context.Module<StoryletsState>();
@@ -230,42 +185,46 @@ public static class StoryletsModule
             Withdraw(state, stale, context);
         }
 
-        // Each storylet not already waiting is cast once. Those that cast arrive highest stakes first, then in the pack's order, until
-        // Task 5's salience; the rest are cast again next cycle.
-        ITraitView traits = context.View<ITraitView>();
-        var source = new StateSource(context.View<IRosterView>(), traits, state, cycle);
-        var due = new List<(StoryletDef Storylet, Dictionary<string, string> Cast)>();
-        foreach (StoryletDef storylet in pack.Storylets)
+        foreach (Fired fired in state.Fired)
         {
-            if (state.Waiting.Any(w => w.StoryletId == storylet.Id))
-            {
-                continue;
-            }
-
-            CastResult result = casting.Cast(storylet.Id, source, roster, () => context.Rng(CastStream(storylet.Id, cycle)), pack.CastTries, _ => false);
-            if (result.Cast is { } cast)
-            {
-                due.Add((storylet, cast));
-            }
+            fired.Cycles.RemoveAll(c => cycle - c > pack.Salience.Window);
         }
 
-        foreach ((StoryletDef storylet, Dictionary<string, string> cast) in due.OrderByDescending(d => d.Storylet.Stakes))
+        ITraitView traits = context.View<ITraitView>();
+        var source = new StateSource(context.View<IRosterView>(), traits, state, cycle);
+        Contest contest = Salience.Contend(pack, casting, state, source, roster, cycle, context.Rng);
+        foreach (Contender arrived in contest.Storylets.Where(c => c.Fate == Fate.Arrived))
         {
-            if (state.Waiting.Count >= pack.StoryletsPerCycle)
-            {
-                break;
-            }
+            Dictionary<string, string> cast = Copy(arrived.Cast!);
 
             // Where it came from: the encounter that last changed the first trait its expressions read that is set.
-            string? encounterId = casting.Reads(storylet.Id)
+            string? encounterId = casting.Reads(arrived.Id)
                 .Select(r => (r.Trait, Crew: r.Slot == StoryletScopes.Ship ? null : cast[r.Slot], Target: r.Toward is null ? null : cast[r.Toward]))
                 .Where(r => traits.Value(r.Trait, r.Crew, r.Target) > 0)
                 .Select(r => traits.EncounterId(r.Trait, r.Crew, r.Target))
                 .FirstOrDefault();
-            var offer = new WaitingStorylet { OfferId = OfferId(cycle, storylet.Id), StoryletId = storylet.Id, Cast = cast, EncounterId = encounterId };
+            var offer = new WaitingStorylet { OfferId = OfferId(cycle, arrived.Id), StoryletId = arrived.Id, Cast = cast, EncounterId = encounterId };
             state.Waiting.Add(offer);
-            Arrived(state, storylet.Id, cast, cycle);
-            context.Publish(new StoryletOffered(offer.OfferId, offer.StoryletId, Copy(cast), offer.EncounterId));
+            Arrived(state, arrived.Id, cast, cycle);
+            context.Publish(new StoryletOffered(offer.OfferId, offer.StoryletId, Copy(cast), offer.EncounterId, arrived.Score!.Total));
+        }
+
+        foreach (Contender arrived in contest.Vignettes.Where(c => c.Fate == Fate.Arrived))
+        {
+            VignetteDef vignette = pack.Vignettes.First(v => v.Id == arrived.Id);
+            Dictionary<string, string> cast = Copy(arrived.Cast!);
+            var offer = new WaitingVignette { OfferId = OfferId(cycle, vignette.Id), VignetteId = vignette.Id, Cast = cast };
+            Arrived(state, vignette.Id, cast, cycle);
+            context.Publish(new VignetteArrived(offer.OfferId, vignette.Id, Copy(cast), arrived.Score!.Total));
+            if (vignette.Options.Count == 0)
+            {
+                Apply(vignette.Effects, vignette.Cast, cast, TraitCauses.Vignette, context);
+                context.Publish(new VignetteAnswered(offer.OfferId, vignette.Id, Copy(cast), null, Defaulted: false));
+            }
+            else
+            {
+                state.Vignettes.Add(offer);
+            }
         }
     }
 
@@ -275,26 +234,25 @@ public static class StoryletsModule
         context.Publish(new StoryletWithdrawn(waiting.OfferId, waiting.StoryletId, Copy(waiting.Cast)));
     }
 
+    // Its cast's latest arrival, for the cast cooldown, and its arrivals over every cast, for the global cooldown and freshness.
     private static void Arrived(StoryletsState state, string id, Dictionary<string, string> cast, int cycle)
     {
-        state.Arrivals.RemoveAll(a => a.Id == id && Same(a.Cast, cast));
+        state.Arrivals.RemoveAll(a => a.Id == id && Salience.Same(a.Cast, cast));
         state.Arrivals.Add(new Arrival { Id = id, Cast = Copy(cast), Cycle = cycle });
-    }
-
-    private static bool Same(IReadOnlyDictionary<string, string> a, IReadOnlyDictionary<string, string> b)
-    {
-        return a.Count == b.Count && a.All(p => b.TryGetValue(p.Key, out string? id) && id == p.Value);
+        if (state.Fired.FirstOrDefault(f => f.Id == id) is { } fired)
+        {
+            fired.Last = cycle;
+            fired.Cycles.Add(cycle);
+        }
+        else
+        {
+            state.Fired.Add(new Fired { Id = id, Last = cycle, Cycles = [cycle] });
+        }
     }
 
     private static Dictionary<string, string> Copy(IReadOnlyDictionary<string, string> cast)
     {
         return new Dictionary<string, string>(cast, StringComparer.Ordinal);
-    }
-
-    // Design 5.4: casting draws from its own stream, by storylet or vignette and cycle.
-    private static string CastStream(string id, int cycle)
-    {
-        return $"cast:{id}:{cycle}";
     }
 
     // {cycle}:{id}: one cast a cycle.

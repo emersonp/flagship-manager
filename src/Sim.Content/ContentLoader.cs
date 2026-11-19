@@ -153,6 +153,7 @@ public static partial class ContentLoader
                 CaptainsTimePerCycle = cycle.CaptainsTime,
                 HistoryCycles = cycle.HistoryCycles,
                 CastTries = cycle.CastTries,
+                Salience = cycle.Salience,
             }
             : null;
         return new ContentLoadResult(pack, errors);

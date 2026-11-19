@@ -34,7 +34,7 @@ public sealed class WaitingVignette
     public required Dictionary<string, string> Cast { get; set; }
 }
 
-// The last cycle a storylet or vignette arrived with one cast (1e part four, design 5.3): a vignette's cooldown is for one cast.
+// The last cycle a storylet or vignette arrived with one cast (1e part four, design 5.3), for its cast cooldown.
 public sealed class Arrival
 {
     public required string Id { get; set; }
@@ -42,6 +42,18 @@ public sealed class Arrival
     public required Dictionary<string, string> Cast { get; set; }
 
     public required int Cycle { get; set; }
+}
+
+// A storylet's or vignette's arrivals over every cast (1e part four, Task 5): the last, for its global cooldown, and each within
+// salience.window cycles, for freshness. Kept when a cast member dies, since the storylet did arrive.
+public sealed class Fired
+{
+    public required string Id { get; set; }
+
+    public required int Last { get; set; }
+
+    // Oldest first; those older than salience.window fall out when the itinerary opens.
+    public required List<int> Cycles { get; set; }
 }
 
 public sealed class StoryletsState
@@ -60,4 +72,8 @@ public sealed class StoryletsState
     // One entry for each storylet or vignette and cast, the latest. A cast with a member now dead is dropped.
     [JsonRequired]
     public List<Arrival> Arrivals { get; set; } = new();
+
+    // One entry for each storylet or vignette that has arrived, in the order each first arrived.
+    [JsonRequired]
+    public List<Fired> Fired { get; set; } = new();
 }

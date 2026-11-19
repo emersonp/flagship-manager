@@ -12,6 +12,21 @@ public sealed record CastSlot(string Name, Expr Condition);
 // from" takes the first that is set.
 public sealed record TraitRead(string Trait, string Slot, string? Toward);
 
+// How long a storylet or vignette is held back after it arrives (1e part four, design 4.6), in cycles. Cast: the same binding (the
+// same crew in the same slots) arrives again no sooner than this many cycles after its last arrival. Global: the storylet, with any
+// cast, likewise. 0 holds nothing back.
+public sealed record Cooldown(int Cast, int Global)
+{
+    public static readonly Cooldown None = new(0, 0);
+}
+
+// The weights of salience (tuning salience.*; design 4.5): stakes x Stakes + specificity x Specificity - Repeat x the arrivals in the
+// last Window cycles, over every cast.
+public sealed record SalienceTuning(int Stakes, int Specificity, int Repeat, int Window)
+{
+    public static readonly SalienceTuning Default = new(10, 1, 3, 20);
+}
+
 // One effect of an answer: a loyalty change, a morale change, or a trait change. LoyaltyOn and MoraleOn are a slot or "crew" (every
 // living crew member) when their amount is not 0. Trait.On is "ship", a slot, or "" (the first slot; the ship for a storylet with
 // no cast); Trait.Toward is a slot, for a pair trait held toward them (1e part four).
@@ -29,6 +44,9 @@ public sealed record StoryletDef(string Id, int Stakes, IReadOnlyList<CastSlot> 
     public IReadOnlyList<TraitRead> Reads { get; init; } = [];
 
     public IReadOnlyList<TraitRead> Needs { get; init; } = [];
+
+    // 1e part four, Task 5: none unless written.
+    public Cooldown Cooldown { get; init; } = Cooldown.None;
 
     public IEnumerable<string> Slots => Cast.Select(c => c.Name);
 
@@ -64,6 +82,9 @@ public sealed record VignetteDef(string Id, IReadOnlyList<CastSlot> Cast, Expr? 
     public IReadOnlyList<TraitRead> Needs { get; init; } = [];
 
     public string? Fact { get; init; }
+
+    // As written; null takes { cast: vignettes.cooldown } (ContentPack.CooldownOf).
+    public Cooldown? Cooldown { get; init; }
 
     public IEnumerable<string> Slots => Cast.Select(c => c.Name);
 

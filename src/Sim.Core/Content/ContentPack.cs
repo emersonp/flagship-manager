@@ -44,6 +44,15 @@ public sealed record ContentPack(
     // A vignette does not arrive again with the same cast within this many cycles (tuning vignettes.cooldown).
     public int VignetteCooldown { get; init; } = 6;
 
+    // Salience's weights (tuning salience.*; 1e part four, design 4.5).
+    public SalienceTuning Salience { get; init; } = SalienceTuning.Default;
+
+    // A vignette's cooldown: its own, or else { cast: vignettes.cooldown } (design 4.6).
+    public Cooldown CooldownOf(VignetteDef vignette)
+    {
+        return vignette.Cooldown ?? new Cooldown(VignetteCooldown, 0);
+    }
+
     // The history keeps each crew member's last this many cycles (tuning history.cycles; 1e part four, design 4.8).
     public int HistoryCycles { get; init; } = 20;
 

@@ -38,6 +38,7 @@ public static partial class ContentLoader
             }
 
             Casting casting = CastOf(dto, expressions, Error);
+            Cooldown cooldown = CooldownOf(dto.Cooldown, Error) ?? Cooldown.None;
             List<StoryletOption> options = Options(dto.Options, casting, book, expressions, Error);
             if (dto.Effects is not null || dto.Default is not null)
             {
@@ -50,7 +51,8 @@ public static partial class ContentLoader
                 Error("A storylet needs an option with no requires, so it can always be answered.");
             }
 
-            if (casting.Sound && casting.Reads.Count == 0)
+            // A cast cooldown meets the rule instead (design 4.2): it, not the answers, stops the storylet returning at once.
+            if (casting.Sound && casting.Reads.Count == 0 && cooldown.Cast == 0)
             {
                 Error("A storylet's cast and requires must read at least one trait, so its answers can stop it returning.");
             }
@@ -59,14 +61,15 @@ public static partial class ContentLoader
 
             // Only a storylet that is otherwise sound can be judged on whether it can arrive and whether its answers end it.
             Dictionary<TraitRead, int>? lowest = errors.Count == before ? Lowest(casting, book, expressions, Error) : null;
-            if (lowest is not null)
+            // With cooldown.cast above 0 a storylet may recur by design (design 4.6).
+            if (lowest is not null && cooldown.Cast == 0)
             {
                 NoHiddenMemory(casting, lowest, options, book, expressions, Error);
             }
 
             if (errors.Count == before)
             {
-                defs.Add(new StoryletDef(dto.Id!, dto.Stakes, casting.Cast, casting.Requires, options, name) { Reads = casting.Reads, Needs = Needs(lowest) });
+                defs.Add(new StoryletDef(dto.Id!, dto.Stakes, casting.Cast, casting.Requires, options, name) { Reads = casting.Reads, Needs = Needs(lowest), Cooldown = cooldown });
             }
         }
 
@@ -92,6 +95,7 @@ public static partial class ContentLoader
             }
 
             Casting casting = CastOf(dto, expressions, Error);
+            Cooldown? cooldown = CooldownOf(dto.Cooldown, Error);
             bool effectsWritten = dto.Effects is { Count: > 0 };
             bool optionsWritten = dto.Options is { Count: > 0 };
             var effects = new List<StoryletEffect>();
@@ -134,7 +138,7 @@ public static partial class ContentLoader
             {
                 string? first = casting.Slots.FirstOrDefault();
                 string? fact = casting.Checked.SelectMany(c => c.Lasts).FirstOrDefault(l => l.Slot == first)?.Kind;
-                defs.Add(new VignetteDef(dto.Id!, casting.Cast, casting.Requires, effects, options, dto.Default, name) { Reads = casting.Reads, Needs = Needs(lowest), Fact = fact });
+                defs.Add(new VignetteDef(dto.Id!, casting.Cast, casting.Requires, effects, options, dto.Default, name) { Reads = casting.Reads, Needs = Needs(lowest), Fact = fact, Cooldown = cooldown });
             }
         }
 
@@ -234,6 +238,22 @@ public static partial class ContentLoader
         }
 
         return new Casting(cast, requires, checkedExpressions, sound);
+    }
+
+    // A cooldown as written, each part 0 unless given (design 4.6); null when none is written.
+    private static Cooldown? CooldownOf(CooldownDto? written, Action<string> error)
+    {
+        if (written is null)
+        {
+            return null;
+        }
+
+        if (written.Cast is < 0 || written.Global is < 0)
+        {
+            error("A cooldown's cast and global are whole numbers of cycles, 0 or more.");
+        }
+
+        return new Cooldown(written.Cast ?? 0, written.Global ?? 0);
     }
 
     // One expression, or null with its error: the storylet's key and the character the error is at, counted from 1.
@@ -604,6 +624,16 @@ public static partial class ContentLoader
         public List<Dictionary<string, string>?>? Effects { get; set; }
 
         public string? Default { get; set; }
+
+        // In cycles (1e part four, design 4.6).
+        public CooldownDto? Cooldown { get; set; }
+    }
+
+    private sealed class CooldownDto
+    {
+        public int? Cast { get; set; }
+
+        public int? Global { get; set; }
     }
 
     private sealed class StoryletOptionDto

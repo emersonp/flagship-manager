@@ -428,6 +428,72 @@ public class StoryletContentTests
         Assert.Contains(result.Errors, e => e.File == "tuning/missions.yaml" && e.Message == message);
     }
 
+    // 1e part four, Task 5 (design 4.5): the salience weights.
+    [Theory]
+    [InlineData("  stakes: 10", "  stakes: x", "salience.stakes must be a whole number of 0 or more, not 'x'.")]
+    [InlineData("  specificity: 1", "", "salience.specificity is missing.")]
+    [InlineData("  repeat: 3", "  repeat: -1", "salience.repeat must be a whole number of 0 or more, not '-1'.")]
+    [InlineData("  window: 20", "  window: -2", "salience.window must be a whole number of 0 or more, not '-2'.")]
+    public void The_salience_weights_are_required_tuning_values(string from, string to, string message)
+    {
+        string tuning = TestContent.TuningText.Replace(from, to);
+
+        ContentLoadResult result = LoadWith(Storylet, tuning);
+
+        Assert.Contains(result.Errors, e => e.File == "tuning/missions.yaml" && e.Message == message);
+    }
+
+    [Fact]
+    public void The_fixtures_salience_weights_load()
+    {
+        Assert.Equal(new SalienceTuning(10, 1, 3, 20), TestContent.Pack.Salience);
+    }
+
+    // Design 4.6: cooldowns, in cycles. Either part may be left out, and both default to 0.
+    [Fact]
+    public void A_cooldown_loads_and_both_parts_default_to_0()
+    {
+        static Cooldown Of(string cooldown)
+        {
+            return LoadWith(Storylet.Replace("  options:", $"  cooldown: {cooldown}\n  options:")).Pack!.Storylets.Single().Cooldown;
+        }
+
+        Assert.Equal(new Cooldown(8, 2), Of("{ cast: 8, global: 2 }"));
+        Assert.Equal(new Cooldown(0, 3), Of("{ global: 3 }"));
+        Assert.Equal(Cooldown.None, LoadWith(Storylet).Pack!.Storylets.Single().Cooldown);
+    }
+
+    [Theory]
+    [InlineData("{ cast: -1 }")]
+    [InlineData("{ cast: 2, global: -3 }")]
+    public void A_negative_cooldown_is_refused(string cooldown)
+    {
+        AssertRefused(Storylet.Replace("  options:", $"  cooldown: {cooldown}\n  options:"), "STORYLET_X: A cooldown's cast and global are whole numbers of cycles, 0 or more.");
+    }
+
+    // Design 4.6: with cooldown.cast above 0 a storylet may recur by design, so an answer that leaves it holding is allowed; a
+    // global cooldown alone does not lift the rule.
+    [Fact]
+    public void A_recurring_storylet_with_cast_cooldown_passes_the_hidden_memory_rule()
+    {
+        string recurring = Storylet.Replace("effects: [{ trait: trait_a, set: 2 }]", "effects: [{ loyalty: -1, on: crew }]");
+
+        AssertRefused(
+            recurring.Replace("  options:", "  cooldown: { global: 4 }\n  options:"),
+            "STORYLET_X: Option 'option_b' leaves every expression true, so this storylet would come back every cycle.");
+        Assert.Empty(LoadWith(recurring.Replace("  options:", "  cooldown: { cast: 4 }\n  options:")).Errors);
+    }
+
+    // Design 4.2: "must read a trait" may be met by the cooldown rule instead.
+    [Fact]
+    public void A_storylet_with_a_cast_cooldown_need_not_read_a_trait()
+    {
+        string cast = "  cast:\n    subject: \"subject.morale <= 25\"\n";
+
+        AssertRefused(WithCast(cast), "STORYLET_X: A storylet's cast and requires must read at least one trait, so its answers can stop it returning.");
+        Assert.Empty(LoadWith(WithCast(cast + "  cooldown: { cast: 6 }\n")).Errors);
+    }
+
     // 1e part two's stats and last cycle, read in expressions (design 4.3).
     [Fact]
     public void Stats_and_the_history_load_beside_a_trait()

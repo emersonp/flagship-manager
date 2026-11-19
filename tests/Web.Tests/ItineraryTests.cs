@@ -9,12 +9,12 @@ namespace Web.Tests;
 // The captain's itinerary (1e part two), through the real app on a scratch copy of the fixture with its vignettes replaced. The second
 // cycle's itinerary follows a cycle in which nobody was sent, so every fit crew member rested: VIGNETTE_B and VIGNETTE_C (each a choice)
 // are each cast with one of them (1e part four: once a cycle), after VIGNETTE_A (the ship's, with effects), which arrives because
-// trait_a is set; so does STORYLET_01.
+// trait_a is set, and first, since its two clauses give it the higher salience (Task 5); so does STORYLET_01.
 public sealed class ItineraryTests : IDisposable
 {
     private const string Vignettes = """
         - id: VIGNETTE_A
-          requires: "ship.trait.trait_a >= 1"
+          requires: "ship.trait.trait_a >= 1 && ship.trait.trait_a <= 5"
           text: "best SKILL_A: VIGNETTE_A_LINE"
           effects: [{ morale: 2, on: crew }]
         - id: VIGNETTE_B

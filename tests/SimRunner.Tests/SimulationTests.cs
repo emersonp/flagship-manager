@@ -227,12 +227,16 @@ public class SimulationTests
     // and arrive once a cycle, and the offer events are version 2 with the cast. In SimRunner's 200 x 200 only "A week aboard" moves
     // (101.7 to 99.6 per 100 cycles, once a cycle), with one or two missions of 40,000 after it and, under random answers, picks
     // hashed with the new offer ids.
+    // Re-pinned: salience and cooldowns (1e part four, Task 5). StoryletOffered and VignetteArrived carry their Salience, and what
+    // arrives together comes in salience order, its ties drawn from salience:<cycle>. In SimRunner's 200 x 200, both packs and both
+    // answer policies, every legacy plays the same: no count of missions, deaths, fires, answers, or traits moves. Both packs'
+    // storylets and vignettes seldom hold together, so salience reorders little; the new field moves every hash.
     [Fact]
     public void Golden_seed_1_matches_the_accepted_log()
     {
         SimSummary summary = Simulation.Run(new SimOptions(Legacies: 1, Cycles: 10, Seed: 1), Pack);
 
-        Assert.Equal("D1C7327F1819522250EE1C589F037645F4EC3641570B0EB81F042F96CDBF82EF", summary.Legacies[0].LogHash);
+        Assert.Equal("2F4D3BB76304DA24D70BB924C8DB9FB08177C2E4F0229ADCD98211564AA82E7E", summary.Legacies[0].LogHash);
     }
 
     // --- The captain's policies and promises (1e part three, Task 6) ---

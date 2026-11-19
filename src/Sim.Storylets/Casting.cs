@@ -43,6 +43,13 @@ internal sealed class Casting
         return byId[id].Reads;
     }
 
+    // The top-level && clauses across every slot's expression and requires (design 4.5), counted once, when the pack is loaded into
+    // the module.
+    public int Specificity(string id)
+    {
+        return byId[id].Specificity;
+    }
+
     // A seeded order of the living crew from the stream, then depth first: each slot from those in that order, not already bound,
     // whose expression holds; then requires. Every expression read is a try. The first full binding that holds and is not cooling
     // is the cast. With no slots, requires is read once on the ship.
@@ -138,11 +145,11 @@ internal sealed class Casting
 
         var compiled = cast.Select((c, k) => (c.Name, Check(c.Condition.Source, slots[..(k + 1)], $"cast.{c.Name}"))).ToList();
         CheckedExpression? all = requires is null ? null : Check(requires.Source, slots, "requires");
-        List<TraitRead> reads = compiled.Select(c => c.Item2).Concat(all is null ? [] : [all]).SelectMany(c => c.Traits).Distinct().ToList();
-        return new Compiled(compiled, all, reads);
+        List<CheckedExpression> every = [.. compiled.Select(c => c.Item2), .. all is null ? Array.Empty<CheckedExpression>() : [all]];
+        return new Compiled(compiled, all, every.SelectMany(c => c.Traits).Distinct().ToList(), every.Sum(c => c.Clauses));
     }
 
-    private sealed record Compiled(List<(string Slot, CheckedExpression Condition)> Slots, CheckedExpression? Requires, List<TraitRead> Reads);
+    private sealed record Compiled(List<(string Slot, CheckedExpression Condition)> Slots, CheckedExpression? Requires, List<TraitRead> Reads, int Specificity);
 }
 
 // What an expression reads, over the views the module may use (design 4.3). Aboard: alive and not away; in Phase 1 nobody is away

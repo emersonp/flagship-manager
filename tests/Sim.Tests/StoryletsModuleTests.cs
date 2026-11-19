@@ -730,21 +730,39 @@ public class StoryletsModuleTests
         }
     }
 
+    // Design 4.5: part two's order (the one away longest first) is replaced by salience. With no stakes and one clause each, the
+    // two tie at 1 and the draw picks; the one that came then has 1 - 3, so the other comes next.
     [Fact]
-    public void Each_vignette_arrives_once_a_cycle_and_the_one_away_longest_comes_first()
+    public void Vignettes_arrive_by_salience_and_the_one_that_just_came_falls_back()
     {
         var h = new Harness(Vignettes(1, 0, Rested("VIGNETTE_A"), Rested("VIGNETTE_B")));
 
-        List<string> second = Arrived(h.To(CyclePhase.Itinerary));
-        List<string> third = Arrived(h.To(CyclePhase.Itinerary));
-        List<string> fourth = Arrived(h.To(CyclePhase.Itinerary));
+        VignetteArrived second = Assert.Single(h.To(CyclePhase.Itinerary).OfType<VignetteArrived>());
+        VignetteArrived third = Assert.Single(h.To(CyclePhase.Itinerary).OfType<VignetteArrived>());
 
-        Assert.Equal(["VIGNETTE_A"], second.Select(a => a.Split(':')[0]));
-        Assert.Equal(["VIGNETTE_B"], third.Select(a => a.Split(':')[0]));
-        Assert.Equal(["VIGNETTE_A"], fourth.Select(a => a.Split(':')[0]));
+        Assert.NotEqual(second.VignetteId, third.VignetteId);
+        Assert.Equal((1, 1), (second.Salience, third.Salience));
 
         var both = new Harness(Vignettes(3, 0, Rested("VIGNETTE_A"), Rested("VIGNETTE_B")));
-        Assert.Equal(["VIGNETTE_A", "VIGNETTE_B"], Arrived(both.To(CyclePhase.Itinerary)).Select(a => a.Split(':')[0]));
+        Assert.Equal(["VIGNETTE_A", "VIGNETTE_B"], Arrived(both.To(CyclePhase.Itinerary)).Select(a => a.Split(':')[0]).Order(StringComparer.Ordinal));
+    }
+
+    // A vignette's own cooldown replaces vignettes.cooldown: global 2 brings it every other cycle.
+    [Fact]
+    public void A_vignettes_own_cooldown_replaces_the_packs()
+    {
+        var h = new Harness(Vignettes(3, 0, Rested("VIGNETTE_A") with { Cooldown = new Cooldown(0, 2) }));
+        var cycles = new List<int>();
+
+        for (int cycle = 2; cycle <= 7; cycle++)
+        {
+            if (h.To(CyclePhase.Itinerary).OfType<VignetteArrived>().Any())
+            {
+                cycles.Add(h.State.Cycle);
+            }
+        }
+
+        Assert.Equal([2, 4, 6], cycles);
     }
 
     // Review focus 4 of part two.
@@ -755,7 +773,7 @@ public class StoryletsModuleTests
         VignetteDef other = Rested("VIGNETTE_OTHER", Option("speak"), Option("quiet", Loyalty(-1, "subject")));
         var h = new Harness(Vignettes(2, 6, word, other));
         h.To(CyclePhase.Itinerary);
-        Assert.Equal(["2:VIGNETTE_OTHER", "2:VIGNETTE_WORD"], h.Storylets.Vignettes.Select(v => v.OfferId));
+        Assert.Equal(["2:VIGNETTE_OTHER", "2:VIGNETTE_WORD"], h.Storylets.Vignettes.Select(v => v.OfferId).Order(StringComparer.Ordinal));
         string speaker = h.Storylets.Vignettes.Single(v => v.VignetteId == "VIGNETTE_WORD").Cast["subject"];
         string quiet = h.Storylets.Vignettes.Single(v => v.VignetteId == "VIGNETTE_OTHER").Cast["subject"];
 
@@ -903,6 +921,247 @@ public class StoryletsModuleTests
         h.Mission(Toward("trait_g", 3, "CREW_05", "CREW_01"));
 
         Assert.Equal("subject=CREW_05, target=CREW_01", h.CastOf("STORYLET_03"));
+    }
+
+    // 1e part four, Task 5 (design 4.5 and 4.6): salience and cooldowns. Keep leaves everything as it was, so a storylet answered
+    // with it still holds; only a cooldown or salience keeps it from arriving again at once.
+    private static readonly StoryletOption Keep = Option("keep");
+
+    private static StoryletDef Held(string id, int stakes, string subject, Cooldown? cooldown = null)
+    {
+        return Crew(id, stakes, subject, Keep, Option("clear", Set("trait_b", 0))) with { Cooldown = cooldown ?? Cooldown.None };
+    }
+
+    // Each storylet offered, as "ID" or "ID:CREW".
+    private static List<string> Offered(IEnumerable<IEvent> events)
+    {
+        return events.OfType<StoryletOffered>().Select(o => o.Cast.Count == 0 ? o.StoryletId : $"{o.StoryletId}:{string.Join(":", o.Cast.Values)}").ToList();
+    }
+
+    // Each cycle's offers, the cycles split by " | ".
+    private static string Cycles(params List<string>[] cycles)
+    {
+        return string.Join(" | ", cycles.Select(c => string.Join(", ", c)));
+    }
+
+    // Answers every waiting storylet with keep, then opens the next itinerary: what it offers.
+    private static List<string> NextCycle(Harness h)
+    {
+        foreach (string offer in h.Waiting.ToList())
+        {
+            h.Send(new AnswerStorylet(offer, "keep"));
+        }
+
+        return Offered(h.To(CyclePhase.Itinerary));
+    }
+
+    // Stakes 3 against 1, one clause each: 31 against 11, with one storylet a cycle.
+    [Fact]
+    public void Higher_stakes_wins()
+    {
+        var h = new Harness(Pack(1, Held("STORYLET_LOW", 1, "subject.trait.trait_b >= 1"), Held("STORYLET_HIGH", 3, "subject.trait.trait_b >= 1")));
+
+        List<IEvent> events = h.Mission(Raise("trait_b", 1, "CREW_02"));
+
+        StoryletOffered offered = Assert.Single(events.OfType<StoryletOffered>());
+        Assert.Equal(("STORYLET_HIGH", 31), (offered.StoryletId, offered.Salience));
+    }
+
+    // Specificity is the top-level && clauses across the cast and requires: 2 against 1 at stakes 2 is 22 against 21, though the
+    // vaguer one is first in the pack.
+    [Fact]
+    public void More_clauses_wins_at_equal_stakes()
+    {
+        StoryletDef vague = Held("STORYLET_VAGUE", 2, "subject.trait.trait_b >= 1");
+        StoryletDef exact = Crew("STORYLET_EXACT", 2, "subject.trait.trait_b >= 1 && subject.fit", Keep, Option("clear", Set("trait_b", 0)))
+            with { Requires = new Expr("subject.morale > 0 && subject.loyalty > 0") };
+        var h = new Harness(Pack(1, vague, exact));
+
+        List<IEvent> events = h.Mission(Raise("trait_b", 1, "CREW_02"));
+
+        StoryletOffered offered = Assert.Single(events.OfType<StoryletOffered>());
+        Assert.Equal(("STORYLET_EXACT", 24), (offered.StoryletId, offered.Salience));
+    }
+
+    // Freshness: salience.repeat (3) for each arrival in the last salience.window cycles. The more specific one (22) arrives, then
+    // loses to the other (21) at 19, then wins again at 19 against 18.
+    [Fact]
+    public void A_storylet_that_just_fired_loses_ground()
+    {
+        StoryletDef first = Held("STORYLET_FIRST", 2, "subject.trait.trait_b >= 1 && subject.fit");
+        StoryletDef second = Held("STORYLET_SECOND", 2, "subject.trait.trait_b >= 1");
+        var h = new Harness(Pack(1, second, first));
+
+        List<string> two = Offered(h.Mission(Raise("trait_b", 5, "CREW_02")));
+        List<string> three = NextCycle(h);
+        List<string> four = NextCycle(h);
+
+        Assert.Equal("STORYLET_FIRST:CREW_02 | STORYLET_SECOND:CREW_02 | STORYLET_FIRST:CREW_02", Cycles(two, three, four));
+        Assert.Equal([2, 4], h.Storylets.Fired.Single(f => f.Id == "STORYLET_FIRST").Cycles);
+    }
+
+    // Fires older than salience.window no longer count.
+    [Fact]
+    public void Freshness_reads_only_the_window()
+    {
+        StoryletDef first = Held("STORYLET_FIRST", 2, "subject.trait.trait_b >= 1 && subject.fit");
+        StoryletDef second = Held("STORYLET_SECOND", 2, "subject.trait.trait_b >= 1");
+        var h = new Harness(Pack(1, second, first) with { Salience = new SalienceTuning(10, 1, 3, 1) });
+
+        List<string> two = Offered(h.Mission(Raise("trait_b", 5, "CREW_02")));
+        List<string> three = NextCycle(h);
+        List<string> four = NextCycle(h);
+
+        // In cycle 4, first's arrival in cycle 2 is out of a window of 1: 22 against second's 21 - 3.
+        Assert.Equal("STORYLET_FIRST:CREW_02 | STORYLET_SECOND:CREW_02 | STORYLET_FIRST:CREW_02", Cycles(two, three, four));
+        Assert.Equal([4], h.Storylets.Fired.Single(f => f.Id == "STORYLET_FIRST").Cycles);
+    }
+
+    // Review focus 3: two storylets of equal salience are ordered by a draw from salience:<cycle>, so the same seed picks the same
+    // one and some other seed the other. Ship storylets draw from no cast stream, so the salience stream is the only one.
+    [Fact]
+    public void Ties_are_drawn_from_the_salience_stream()
+    {
+        StoryletDef x = Ship("STORYLET_X", 2, "ship.trait.trait_a == 1", Keep, Option("clear", Set("trait_a", 0)));
+        StoryletDef y = Ship("STORYLET_Y", 2, "ship.trait.trait_a >= 1", Keep, Option("clear", Set("trait_a", 0)));
+        string Winner(ulong seed)
+        {
+            var h = new Harness(Pack(1, x, y), seed);
+            List<IEvent> events = h.Mission(Raise("trait_a", 1));
+            Assert.Contains("2:salience:2", h.State.RngStates.Keys);
+            return Assert.Single(events.OfType<StoryletOffered>()).StoryletId;
+        }
+
+        Assert.Equal(Winner(1), Winner(1));
+        Assert.Equal(["STORYLET_X", "STORYLET_Y"], Enumerable.Range(1, 20).Select(s => Winner((ulong)s)).Distinct().Order(StringComparer.Ordinal));
+    }
+
+    // Design 4.6: cooldown.cast holds back one binding only, inside the search, so the other holder has it next cycle. Arrived in
+    // cycle c, a binding is held through cycle c + 3 with a cooldown of 4.
+    [Fact]
+    public void Cast_cooldown_holds_the_same_binding_only()
+    {
+        var h = new Harness(Pack(2, Held("STORYLET_HELD", 1, "subject.trait.trait_b >= 1", new Cooldown(4, 0))));
+
+        List<string> two = Offered(h.Mission(Raise("trait_b", 5, "CREW_01"), Raise("trait_b", 5, "CREW_02")));
+        List<string> three = NextCycle(h);
+        List<string> four = NextCycle(h);
+        List<string> five = NextCycle(h);
+        List<string> six = NextCycle(h);
+
+        string first = Assert.Single(two);
+        string other = first.EndsWith("CREW_01", StringComparison.Ordinal) ? "STORYLET_HELD:CREW_02" : "STORYLET_HELD:CREW_01";
+        Assert.Equal($"{other} |  |  | {first}", Cycles(three, four, five, six));
+    }
+
+    // cooldown.global holds every cast, and is read before casting: no cast stream is drawn while it holds.
+    [Fact]
+    public void Global_cooldown_holds_every_cast()
+    {
+        var h = new Harness(Pack(2, Held("STORYLET_HELD", 1, "subject.trait.trait_b >= 1", new Cooldown(0, 3))));
+
+        List<string> two = Offered(h.Mission(Raise("trait_b", 5, "CREW_01"), Raise("trait_b", 5, "CREW_02")));
+        List<string> three = NextCycle(h);
+        Assert.DoesNotContain(h.State.RngStates.Keys, k => k.StartsWith("3:cast:", StringComparison.Ordinal));
+        List<string> four = NextCycle(h);
+        List<string> five = NextCycle(h);
+
+        Assert.Single(two);
+        Assert.Equal(" | ", Cycles(three, four));
+        Assert.Single(five);
+    }
+
+    // The global cooldown is the storylet's, so a cast member's death does not lift it, as it drops that cast's own arrival.
+    [Fact]
+    public void A_death_does_not_lift_the_global_cooldown()
+    {
+        var h = new Harness(Pack(2, Held("STORYLET_HELD", 1, "subject.trait.trait_b >= 1", new Cooldown(0, 3))));
+        h.Mission(Raise("trait_b", 5, "CREW_01"), Raise("trait_b", 5, "CREW_02"));
+        string cast = h.Storylets.Waiting.Single().Cast["subject"];
+        h.Send(new AnswerStorylet(h.Waiting.Single(), "keep"));
+
+        h.To(CyclePhase.Resolution);
+        h.End([], Died(cast));
+        List<string> three = Offered(h.To(CyclePhase.Itinerary));
+
+        Assert.Empty(three);
+        Assert.DoesNotContain(h.Storylets.Arrivals, a => a.Id == "STORYLET_HELD");
+    }
+
+    // Storylets that cast and lose on the budget are not lost: they are cast again next cycle and arrive if they still hold.
+    [Fact]
+    public void Losers_on_the_budget_arrive_later()
+    {
+        StoryletDef high = Crew("STORYLET_HIGH", 3, "subject.trait.trait_j >= 1", Option("clear", Set("trait_j", 0)), Option("other", Set("trait_j", 0)));
+        StoryletDef low = Held("STORYLET_LOW", 1, "subject.trait.trait_b >= 1");
+        var h = new Harness(Pack(1, low, high));
+
+        List<string> two = Offered(h.Mission(Raise("trait_j", 1, "CREW_03"), Raise("trait_b", 1, "CREW_02")));
+        h.Send(new AnswerStorylet(h.Waiting.Single(), "clear"));
+        List<string> three = Offered(h.To(CyclePhase.Itinerary));
+
+        Assert.Equal("STORYLET_HIGH:CREW_03 | STORYLET_LOW:CREW_02", Cycles(two, three));
+    }
+
+    // Review focus 3 and Task 7: the one function the module runs lists every storylet and vignette with its fate, and for those
+    // that cast, the score in parts. It changes nothing, so it can be read as a dry run. In cycle 2, high, again, and low arrive
+    // (31, 21, 12) and fresh loses (11); in cycle 3 high waits, low is in its global cooldown, and again has fired once.
+    [Fact]
+    public void The_contest_gives_each_its_score_in_parts_and_its_fate()
+    {
+        StoryletDef high = Crew("STORYLET_HIGH", 3, "subject.trait.trait_j >= 1", Option("clear", Set("trait_j", 0)), Option("other", Set("trait_j", 0)));
+        StoryletDef again = Held("STORYLET_AGAIN", 2, "subject.trait.trait_b >= 1");
+        StoryletDef low = Held("STORYLET_LOW", 1, "subject.trait.trait_b >= 1 && subject.fit", new Cooldown(0, 5));
+        StoryletDef fresh = Held("STORYLET_FRESH", 1, "subject.trait.trait_b >= 1");
+        StoryletDef never = Held("STORYLET_NEVER", 1, "subject.trait.trait_c >= 1");
+        var glance = new VignetteDef("VIGNETTE_GLANCE", [], new Expr("ship.trait.trait_a >= 0"), [new StoryletEffect(Morale: 1, MoraleOn: "crew")], [], null) { Cooldown = Cooldown.None };
+        ContentPack pack = Pack(3, high, again, low, fresh, never) with { Vignettes = [glance] };
+        var h = new Harness(pack);
+        h.Mission(Raise("trait_j", 1, "CREW_03"), Raise("trait_b", 1, "CREW_02"));
+        Assert.Equal(["2:STORYLET_HIGH", "2:STORYLET_AGAIN", "2:STORYLET_LOW"], h.Waiting);
+        h.Send(new AnswerStorylet("2:STORYLET_AGAIN", "keep"));
+        h.Send(new AnswerStorylet("2:STORYLET_LOW", "keep"));
+        string before = JsonSerializer.Serialize(h.Storylets);
+
+        Contest Run()
+        {
+            var source = new StateSource(h.Bus.View<IRosterView>(h.State), h.Bus.View<ITraitView>(h.State), h.Storylets, 3);
+            return Salience.Contend(pack, new Casting(pack), h.Storylets, source, h.Bus.View<IRosterView>(h.State).Roster, 3, name => RngStream.For(1, 3, name));
+        }
+
+        Contest contest = Run();
+
+        Assert.Equal(before, JsonSerializer.Serialize(h.Storylets));
+        Assert.Equal(JsonSerializer.Serialize(contest), JsonSerializer.Serialize(Run()));
+        static string Line(Contender c)
+        {
+            return $"{c.Id} {c.Fate}{(c.Score is { } s ? $" {s.Stakes}+{s.Specificity}-{s.Freshness}" : "")}{(c.ReturnsAt is { } at ? $" until {at}" : "")}";
+        }
+
+        Assert.Equal(
+            ["STORYLET_AGAIN Arrived 20+1-3", "STORYLET_FRESH Arrived 10+1-0", "STORYLET_HIGH Waiting", "STORYLET_LOW Cooling until 7", "STORYLET_NEVER NoCast"],
+            contest.Storylets.Select(Line));
+        Assert.Equal(["subject=CREW_02", "subject=CREW_02"], contest.Storylets.Take(2).Select(c => Show(c.Cast!)));
+        Assert.Equal(18, contest.Storylets[0].Score!.Total);
+        Assert.Equal(["VIGNETTE_GLANCE Arrived 0+1-6"], contest.Vignettes.Select(Line));
+    }
+
+    [Fact]
+    public void A_storylet_on_the_budget_loses_with_its_cast_and_score()
+    {
+        StoryletDef high = Crew("STORYLET_HIGH", 3, "subject.trait.trait_j >= 1", Option("clear", Set("trait_j", 0)), Option("other", Set("trait_j", 0)));
+        StoryletDef low = Held("STORYLET_LOW", 1, "subject.trait.trait_b >= 1");
+        ContentPack pack = Pack(1, low, high);
+        var h = new Harness(pack);
+        h.To(CyclePhase.Resolution);
+        h.End([Raise("trait_j", 1, "CREW_03"), Raise("trait_b", 1, "CREW_02")]);
+        h.To(CyclePhase.Aftermath);
+
+        var source = new StateSource(h.Bus.View<IRosterView>(h.State), h.Bus.View<ITraitView>(h.State), h.Storylets, 2);
+        Contest contest = Salience.Contend(pack, new Casting(pack), h.Storylets, source, h.Bus.View<IRosterView>(h.State).Roster, 2, name => RngStream.For(1, 2, name));
+
+        Assert.Equal(["STORYLET_HIGH Arrived 31", "STORYLET_LOW LostOnBudget 11"], contest.Storylets.Select(c => $"{c.Id} {c.Fate} {c.Score!.Total}"));
+        Assert.Equal("subject=CREW_02", Show(contest.Storylets[1].Cast!));
     }
 
     // What the casting search reads in Out_of_tries_is_told_apart_from_no_cast: trait_b by crew member, and every one fit.
