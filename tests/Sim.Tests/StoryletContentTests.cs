@@ -55,7 +55,7 @@ public class StoryletContentTests
     {
         ContentPack pack = TestContent.Pack;
 
-        Assert.Equal(["STORYLET_01", "STORYLET_02", "STORYLET_03", "STORYLET_04"], pack.Storylets.Select(s => s.Id));
+        Assert.Equal(["STORYLET_01", "STORYLET_02", "STORYLET_03", "STORYLET_04", "STORYLET_05"], pack.Storylets.Select(s => s.Id));
         Assert.Equal((2, 100), (pack.StoryletsPerCycle, pack.CastTries));
         StoryletDef ship = pack.Storylets[0];
         Assert.Equal((2, 0, "ship.trait.trait_a == 1", (string?)null), (ship.Stakes, ship.Cast.Count, ship.Requires?.Source, ship.Name));

@@ -116,11 +116,11 @@ public sealed class WhyStoryletsTests : IDisposable
         await Run(id, legacy => To(legacy, CyclePhase.Itinerary));
         string open = await Why(id);
 
-        // Eligible: STORYLET_01, 03, and 04, and VIGNETTE_01 and 04; STORYLET_02's, VIGNETTE_02's, and VIGNETTE_03's first slot (or
-        // the ship) held for no one. STORYLET_03 is eligible and does not cast; STORYLET_01 casts and loses on the budget.
-        Assert.Contains("4 storylets, 4 vignettes: 5 eligible, 4 cast, 3 arrived", next);
+        // Eligible: STORYLET_01, 03, and 04, and VIGNETTE_01 and 04; STORYLET_02's, STORYLET_05's, VIGNETTE_02's, and VIGNETTE_03's
+        // first slot (or the ship) held for no one. STORYLET_03 is eligible and does not cast; STORYLET_01 casts and loses on the budget.
+        Assert.Contains("5 storylets, 4 vignettes: 5 eligible, 4 cast, 3 arrived", next);
         Assert.Contains("The next itinerary, cycle 2, as things stand now", next);
-        Assert.Contains("4 storylets, 4 vignettes: 5 eligible, 4 cast, 3 arrived", open);
+        Assert.Contains("5 storylets, 4 vignettes: 5 eligible, 4 cast, 3 arrived", open);
         Assert.Contains("The itinerary now open, cycle 2, as it opened", open);
     }
 

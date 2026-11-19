@@ -21,6 +21,11 @@ public interface IStoryletView
 {
     // The storylet's options whose requires holds, in the pack's order; empty for an offer not waiting or a storylet the pack lost.
     IReadOnlyList<OpenAnswer> Answers(string offerId);
+
+    // The contest the last itinerary opened with, as the module ran it (Salience.Contend), for the simulator's reports (1e part four,
+    // Task 8). It is kept in memory only, never saved: null before an itinerary has opened in this process, and after a load. The
+    // game never reads it; Dev Play's dry run explains a contest from the saved state instead.
+    Contest? Opened { get; }
 }
 
 // Handlers: null for an option with no check; else everyone who may be sent, in roster order, which may be none.

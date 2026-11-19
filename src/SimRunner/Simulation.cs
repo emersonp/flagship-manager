@@ -33,6 +33,21 @@ public sealed record LegacySummary(
 
     // How many times each trait went from 0 to more, anywhere.
     public IReadOnlyDictionary<string, int> TraitsSet { get; init; } = new Dictionary<string, int>();
+
+    // From the contest each itinerary opened with (1e part four, Task 8), by storylet or vignette id: the cycles it was eligible
+    // (design 4.10), cast (arrived or lost on the budget), lost on the budget, and out of tries.
+    public IReadOnlyDictionary<string, int> Eligible { get; init; } = new Dictionary<string, int>();
+
+    public IReadOnlyDictionary<string, int> Cast { get; init; } = new Dictionary<string, int>();
+
+    public IReadOnlyDictionary<string, int> Lost { get; init; } = new Dictionary<string, int>();
+
+    public IReadOnlyDictionary<string, int> OutOfTries { get; init; } = new Dictionary<string, int>();
+
+    // Each option settled by a check, by "{id} {option}": the times it was taken, and of those the times the roll succeeded.
+    public IReadOnlyDictionary<string, int> ChecksTaken { get; init; } = new Dictionary<string, int>();
+
+    public IReadOnlyDictionary<string, int> ChecksSucceeded { get; init; } = new Dictionary<string, int>();
 }
 
 public sealed record SimSummary(IReadOnlyList<LegacySummary> Legacies);
@@ -48,18 +63,25 @@ public static class Simulation
             ulong seed = options.Seed + (ulong)i;
             var state = new LegacyState { LegacyId = new Guid((int)(seed >> 32), 0, 0, BitConverter.GetBytes(seed)), Seed = seed };
             var events = new List<PublishedEvent>();
+            var contests = new List<Contest>();
             while (state.Cycle <= options.Cycles)
             {
-                events.AddRange(AutoCaptain.PlayCycle(game, state, pack, options.Answers));
+                // The commands PlayCycle would send, one at a time, so the contest each itinerary opened with is read as it opens.
+                IReadOnlyList<PublishedEvent> step = AutoCaptain.Step(game, state, pack, options.Answers);
+                events.AddRange(step);
+                if (step.Any(e => e.Event is PhaseEntered { Phase: CyclePhase.Itinerary }) && game.Bus.View<IStoryletView>(state).Opened is { } opened)
+                {
+                    contests.Add(opened);
+                }
             }
 
-            legacies.Add(Summarise(game, state, pack, seed, options.Cycles, events));
+            legacies.Add(Summarise(game, state, pack, seed, options.Cycles, events, contests));
         }
 
         return new SimSummary(legacies);
     }
 
-    private static LegacySummary Summarise(Game game, LegacyState state, ContentPack pack, ulong seed, int cycles, List<PublishedEvent> events)
+    private static LegacySummary Summarise(Game game, LegacyState state, ContentPack pack, ulong seed, int cycles, List<PublishedEvent> events, List<Contest> contests)
     {
         Dictionary<MissionOutcome, int> missions = Enum.GetValues<MissionOutcome>().ToDictionary(o => o, _ => 0);
         foreach (MissionEnded ended in events.Select(e => e.Event).OfType<MissionEnded>())
@@ -84,6 +106,8 @@ public static class Simulation
         }
 
         var set = new Dictionary<string, int>();
+        var taken = new Dictionary<string, int>();
+        var succeeded = new Dictionary<string, int>();
         foreach (IEvent e in events.Select(p => p.Event))
         {
             switch (e)
@@ -93,6 +117,12 @@ public static class Simulation
                     break;
                 case StoryletAnswered a:
                     Count($"{a.StoryletId} {a.OptionId}");
+                    if (a.Roll is { } roll)
+                    {
+                        taken[$"{a.StoryletId} {a.OptionId}"] = taken.GetValueOrDefault($"{a.StoryletId} {a.OptionId}") + 1;
+                        succeeded[$"{a.StoryletId} {a.OptionId}"] = succeeded.GetValueOrDefault($"{a.StoryletId} {a.OptionId}") + (roll.Success ? 1 : 0);
+                    }
+
                     break;
                 case VignetteArrived v:
                     Count(v.VignetteId);
@@ -106,12 +136,25 @@ public static class Simulation
             }
         }
 
+        // What each itinerary's contest said of every storylet and vignette, whether or not it arrived.
+        List<Contender> contenders = contests.SelectMany(c => c.Storylets.Concat(c.Vignettes)).ToList();
+        Dictionary<string, int> Cycles(Func<Contender, bool> which)
+        {
+            return contenders.Where(which).GroupBy(c => c.Id).ToDictionary(g => g.Key, g => g.Count());
+        }
+
         return new LegacySummary(
             seed, cycles, events.Count, Hash(events.Select(game.Events.ToEnvelope)), missions, deaths, alive, highest, offered, answered,
             arrived, defaulted, morale.Count(b => b < 0), morale.Count(b => b == 0), morale.Count(b => b > 0))
         {
             Fired = fired,
             TraitsSet = set,
+            Eligible = Cycles(c => c.Eligible),
+            Cast = Cycles(c => c.Fate is ContestFate.Arrived or ContestFate.LostOnBudget),
+            Lost = Cycles(c => c.Fate == ContestFate.LostOnBudget),
+            OutOfTries = Cycles(c => c.Fate == ContestFate.OutOfTries),
+            ChecksTaken = taken,
+            ChecksSucceeded = succeeded,
         };
     }
 

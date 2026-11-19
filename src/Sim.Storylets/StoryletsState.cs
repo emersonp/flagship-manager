@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using Sim.Core;
 
 namespace Sim.Storylets;
 
@@ -76,4 +77,8 @@ public sealed class StoryletsState
     // One entry for each storylet or vignette that has arrived, in the order each first arrived.
     [JsonRequired]
     public List<Fired> Fired { get; set; } = new();
+
+    // The contest the last itinerary opened with (IStoryletView.Opened). Not saved, so not part of the state the game plays from.
+    [JsonIgnore]
+    public Contest? Opened { get; set; }
 }

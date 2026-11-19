@@ -10,7 +10,8 @@ namespace SimRunner;
 
 // How the captain answers storylets and vignettes (1e part three, design 4.10). First: each storylet's first option, and each
 // vignette left to its default. Random: an option of each, picked by a hash of the legacy's seed and the offer, so it draws from no
-// game stream and needs no stored state.
+// game stream and needs no stored state. A check option's handler (1e part four, design 4.11): under first, the most skilled in the
+// check's skill, ties to roster order; under random, drawn from the same stream as the option.
 public enum AnswerPolicy
 {
     First,
@@ -70,9 +71,10 @@ public static class AutoCaptain
     }
 
     // The first waiting storylet, answered by the policy from the answers open to it (1e part four, Task 6): an option whose requires
-    // fails is passed over, as is a check option with no one fit to send. A check option sends the first who may go, in roster order,
-    // until Task 8's policies. One the pack no longer has cannot be answered and does not hold the itinerary, so it is passed over.
-    // Under random, each waiting vignette with a choice is answered too; under first, they are left to their defaults.
+    // fails is passed over, as is a check option with no one fit to send. A check option sends a handler from those the view lists, in
+    // roster order (Task 8): under first the one with the highest skill, the first of them on a tie; under random, the next draw of
+    // the stream that picked the option. One the pack no longer has cannot be answered and does not hold the itinerary, so it is
+    // passed over. Under random, each waiting vignette with a choice is answered too; under first, they are left to their defaults.
     private static ICommand? Answer(Game game, LegacyState state, ContentPack pack, AnswerPolicy answers)
     {
         if (!state.TryModule(StoryletsModule.Name, out StoryletsState? storylets))
@@ -85,8 +87,9 @@ public static class AutoCaptain
             if (pack.Storylets.Any(s => s.Id == waiting.StoryletId))
             {
                 List<OpenAnswer> open = game.Bus.View<IStoryletView>(state).Answers(waiting.OfferId).Where(a => a.Handlers is not { Count: 0 }).ToList();
-                OpenAnswer picked = open[Pick(state, waiting.OfferId, open.Count, answers)];
-                return new AnswerStorylet(waiting.OfferId, picked.OptionId, picked.Handlers?[0].CrewId);
+                RngStream? stream = Draws(state, waiting.OfferId, answers);
+                OpenAnswer picked = open[stream?.Next(open.Count) ?? 0];
+                return new AnswerStorylet(waiting.OfferId, picked.OptionId, picked.Handlers is { } handlers ? Handler(handlers, stream) : null);
             }
         }
 
@@ -96,7 +99,7 @@ public static class AutoCaptain
             {
                 if (pack.Vignettes.FirstOrDefault(v => v.Id == waiting.VignetteId) is { Options.Count: > 0 } vignette)
                 {
-                    return new AnswerVignette(waiting.OfferId, vignette.Options[Pick(state, waiting.OfferId, vignette.Options.Count, answers)].Id);
+                    return new AnswerVignette(waiting.OfferId, vignette.Options[Draws(state, waiting.OfferId, answers)!.Next(vignette.Options.Count)].Id);
                 }
             }
         }
@@ -104,10 +107,17 @@ public static class AutoCaptain
         return null;
     }
 
-    // An index from the legacy's seed and the offer: the same legacy and offer always pick the same option.
-    internal static int Pick(LegacyState state, string offerId, int count, AnswerPolicy answers)
+    // Under random, the captain's stream for one offer, made new from the legacy's seed: the same legacy and offer always pick the same
+    // option, and the same handler. Under first, none: nothing is drawn.
+    private static RngStream? Draws(LegacyState state, string offerId, AnswerPolicy answers)
     {
-        return answers == AnswerPolicy.First ? 0 : RngStream.For(state.Seed, 0, $"{Stream}:{offerId}").Next(count);
+        return answers == AnswerPolicy.First ? null : RngStream.For(state.Seed, 0, $"{Stream}:{offerId}");
+    }
+
+    // The view lists who may go in roster order, and the sort is stable, so a tie goes to roster order.
+    private static string Handler(IReadOnlyList<HandlerOdds> handlers, RngStream? stream)
+    {
+        return stream is null ? handlers.OrderByDescending(h => h.Skill).First().CrewId : handlers[stream.Next(handlers.Count)].CrewId;
     }
 
     // The fittest by total skill, as many as the objective's smallest team. The captain keeps promises (design 4.10): a crew member

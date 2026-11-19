@@ -114,8 +114,38 @@ public static class Cli
         }
 
         output.WriteLine($"Fired per 100 cycles ({Kebab(options.Answers)} answers): {(items.Count == 0 ? "nothing to fire" : string.Join("; ", items))}.");
+
+        // 1e part four, Task 8 (design 4.11), from the contest each itinerary opened with: each storylet that cast, how often it lost
+        // on the budget against how often it cast; and each option settled by a check, its successes over the times it was taken.
+        List<string> lost = pack.Storylets.Select(s => s.Id).Where(id => Total(l => l.Cast, id) > 0)
+            .Select(id => $"{id} {Rate(Total(l => l.Lost, id))} of {Rate(Total(l => l.Cast, id))} cast").ToList();
+        output.WriteLine($"Lost on the budget per 100 cycles: {(lost.Count == 0 ? "nothing cast" : string.Join("; ", lost))}.");
+        List<string> checks = pack.Storylets.SelectMany(s => s.Options.Where(o => o.Check is not null).Select(o => $"{s.Id} {o.Id}"))
+            .Where(key => Total(l => l.ChecksTaken, key) > 0)
+            .Select(key => $"{key} {(Total(l => l.ChecksSucceeded, key) * 100.0 / Total(l => l.ChecksTaken, key)).ToString("0.0", CultureInfo.InvariantCulture)}% of {Total(l => l.ChecksTaken, key)} taken")
+            .ToList();
+        output.WriteLine($"Check success: {(checks.Count == 0 ? "no check taken" : string.Join("; ", checks))}.");
+
         List<string> traits = summary.Legacies.SelectMany(l => l.TraitsSet.Keys).Distinct().Order(StringComparer.Ordinal).ToList();
         output.WriteLine($"Traits set from 0 per 100 cycles: {(traits.Count == 0 ? "none" : string.Join("; ", traits.Select(t => $"{t} {Rate(Total(l => l.TraitsSet, t))}")))}.");
+
+        // Never eligible: its first slot never held for anyone (design 4.10). Never cast: eligible at least once, and never cast,
+        // out of tries included. Out of tries is always said, since it tells the author when casting needs section 8's search.
+        List<string> ids = [.. pack.Storylets.Select(s => s.Id), .. pack.Vignettes.Select(v => v.Id)];
+        List<string> neverEligible = ids.Where(id => Total(l => l.Eligible, id) == 0).ToList();
+        List<string> neverCast = ids.Where(id => Total(l => l.Eligible, id) > 0 && Total(l => l.Cast, id) == 0).ToList();
+        List<string> outOfTries = ids.Where(id => Total(l => l.OutOfTries, id) > 0).Select(id => $"{id} in {Total(l => l.OutOfTries, id)} cycles").ToList();
+        if (neverEligible.Count > 0)
+        {
+            output.WriteLine($"Never eligible: {string.Join(", ", neverEligible)}.");
+        }
+
+        if (neverCast.Count > 0)
+        {
+            output.WriteLine($"Never cast, though eligible: {string.Join(", ", neverCast)}.");
+        }
+
+        output.WriteLine($"Out of tries: {(outOfTries.Count == 0 ? "none" : string.Join(", ", outOfTries))}.");
         if (never.Count > 0)
         {
             output.WriteLine($"Never fired: {string.Join(", ", never)}.");

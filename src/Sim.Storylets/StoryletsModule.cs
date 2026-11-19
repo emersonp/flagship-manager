@@ -229,6 +229,7 @@ public static class StoryletsModule
         ITraitView traits = context.View<ITraitView>();
         var source = new StateSource(context.View<IRosterView>(), traits, state, cycle);
         Contest contest = Salience.Contend(pack, casting, state, source, roster, cycle, context.Rng);
+        state.Opened = contest with { Cycle = cycle, Open = true };
         foreach (Contender arrived in contest.Storylets.Where(c => c.Fate == ContestFate.Arrived))
         {
             Dictionary<string, string> cast = Copy(arrived.Cast!);

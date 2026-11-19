@@ -154,11 +154,11 @@ public interface IStateSource { /* reads roster, traits, history, cycle: what th
 - Handlers: under `first` the highest skill, ties in roster order; under `random` from `sim-captain`.
 - Reports beside the fire counts: "Never cast" apart from "Never eligible"; each check option's success rate; each storylet's losses on the budget.
 
-- [ ] **Step 1:** Tests: `First_picks_the_most_skilled_handler`, `Random_handlers_are_reproducible`, `Never_cast_is_told_apart_from_never_eligible` (the fixture's storylet that can't cast), `Check_success_rates_are_reported`, `Losses_on_the_budget_are_reported`. The walkthrough's hash is still the same under either policy.
-- [ ] **Step 2:** Run them. Expected: FAIL.
-- [ ] **Step 3:** Implement.
-- [ ] **Step 4:** `dotnet test`. The simulation's hash moves (handler choice): re-pin with "the simulator names handlers (1e part four, Task 8)".
-- [ ] **Step 5:** `./check.sh`, then commit: "Let the simulator name handlers, and report what never cast, check success, and losses on the budget".
+- [x] **Step 1:** Tests: `First_picks_the_most_skilled_handler`, `Random_handlers_are_reproducible`, `Never_cast_is_told_apart_from_never_eligible` (the fixture's storylet that can't cast), `Check_success_rates_are_reported`, `Losses_on_the_budget_are_reported`. The walkthrough's hash is still the same under either policy.
+- [x] **Step 2:** Run them. Expected: FAIL.
+- [x] **Step 3:** Implement.
+- [x] **Step 4:** `dotnet test`. The simulation's hash moves (handler choice): re-pin with "the simulator names handlers (1e part four, Task 8)". (It did not move, so it was not re-pinned: design section 9, Task 8.)
+- [x] **Step 5:** `./check.sh`, then commit: "Let the simulator name handlers, and report what never cast, check success, and losses on the budget".
 
 ### Task 9: the game's pack, and the record
 

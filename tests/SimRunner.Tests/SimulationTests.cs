@@ -13,14 +13,18 @@ internal static class TestPack
 {
     public static ContentPack Load()
     {
+        return ContentLoader.LoadDirectory(Path.Combine(Root(), "tests", "fixtures", "content")).Pack ?? throw new InvalidOperationException("The content pack did not load.");
+    }
+
+    public static string Root()
+    {
         DirectoryInfo? directory = new(AppContext.BaseDirectory);
         while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "Directory.Build.props")))
         {
             directory = directory.Parent;
         }
 
-        string root = directory?.FullName ?? throw new InvalidOperationException("Repository root not found.");
-        return ContentLoader.LoadDirectory(Path.Combine(root, "tests", "fixtures", "content")).Pack ?? throw new InvalidOperationException("The content pack did not load.");
+        return directory?.FullName ?? throw new InvalidOperationException("Repository root not found.");
     }
 
     public static LegacyState NewLegacy(ulong seed)
@@ -238,6 +242,8 @@ public class SimulationTests
     // incomplete, 27 withdrawn to 38834, 1028, 101, 32, since trait_h's +1 withTarget bonus is lost while it is clear: with answers
     // that keep trait_h, the missions are exactly as before. Under random answers option_b (requires loyalty 60) never fires and
     // option_a and option_c split evenly.
+    // Not moved by the simulator naming handlers (1e part four, Task 8): this run's one check is cast on CREW_03 and CREW_01, so
+    // CREW_02 is both first in roster order and the most skilled, and the fixture's STORYLET_05, which never casts, publishes nothing.
     [Fact]
     public void Golden_seed_1_matches_the_accepted_log()
     {
@@ -306,5 +312,154 @@ public class SimulationTests
         ObjectiveDef template = Pack.Objectives.Single(o => o.Id == state.Module<MissionsState>("missions").Site!.Objectives[0].TemplateId);
 
         Assert.Equal(template.TeamSizeMin, team.CrewIds.Count);
+    }
+
+    // --- Handlers and the reports beside the fire counts (1e part four, Task 8) ---
+
+    // STORYLET_04 cast on CREW_03 toward CREW_04 and waiting in the second itinerary, so everyone else fit may be sent.
+    private static (Game Game, LegacyState State) WaitingCheck(ContentPack pack, ulong seed)
+    {
+        Game game = Game.Build(pack);
+        LegacyState state = TestPack.NewLegacy(seed);
+        AutoCaptain.Step(game, state, pack);
+        game.Bus.Send(state, new SetTrait("trait_h", "CREW_03", "CREW_04", 1));
+        while (state.Phase != CyclePhase.Itinerary || state.Cycle != 2)
+        {
+            AutoCaptain.Step(game, state, pack);
+        }
+
+        Assert.Contains(state.Module<StoryletsState>(StoryletsModule.Name).Waiting, w => w.OfferId == "2:STORYLET_04" && w.Cast["subject"] == "CREW_03");
+        return (game, state);
+    }
+
+    private static IReadOnlyList<HandlerOdds> Handlers(Game game, LegacyState state)
+    {
+        return game.Bus.View<IStoryletView>(state).Answers("2:STORYLET_04").Single(a => a.OptionId == "option_a").Handlers!;
+    }
+
+    private static string Streams(LegacyState state)
+    {
+        return string.Join(",", state.RngStates.Select(r => $"{r.Key}={r.Value}"));
+    }
+
+    private static int Sum(SimSummary summary, Func<LegacySummary, IReadOnlyDictionary<string, int>> of, string key)
+    {
+        return summary.Legacies.Sum(l => of(l).GetValueOrDefault(key));
+    }
+
+    private static string Report(int legacies, int cycles, string answers = "first")
+    {
+        var output = new StringWriter();
+        string content = Path.Combine(TestPack.Root(), "tests", "fixtures", "content");
+        Assert.Equal(0, Cli.Run(["cycles", "--legacies", $"{legacies}", "--cycles", $"{cycles}", "--answers", answers, "--content", content], output, new StringWriter()));
+        return output.ToString();
+    }
+
+    private static string? Line(string report, string start)
+    {
+        return report.Split('\n').Select(l => l.Trim()).FirstOrDefault(l => l.StartsWith(start, StringComparison.Ordinal));
+    }
+
+    // Under first, the most skilled in the check's skill goes, ties to roster order. On SKILL_B CREW_01 has 5 and CREW_02 6, and the
+    // cast is CREW_03 and CREW_04, so CREW_01 is first in roster order and CREW_02 the most skilled.
+    [Fact]
+    public void First_picks_the_most_skilled_handler()
+    {
+        (Game game, LegacyState state) = WaitingCheck(Pack, 1);
+        var answer = (AnswerStorylet)AutoCaptain.NextCommand(game, state, Pack);
+
+        Assert.Equal("CREW_01", Handlers(game, state)[0].CrewId);
+        Assert.Equal(("option_a", "CREW_02"), (answer.OptionId, answer.HandlerId));
+
+        // With CREW_01 raised to 6, the two tie and roster order gives it to CREW_01.
+        ContentPack tied = Pack with
+        {
+            Crew = Pack.Crew.Select(c => c.Id == "CREW_01" ? c with { Skills = new Dictionary<string, int>(c.Skills) { ["SKILL_B"] = 6 } } : c).ToList(),
+        };
+        (game, state) = WaitingCheck(tied, 1);
+        Assert.Equal(6, Handlers(game, state).Single(h => h.CrewId == "CREW_02").Skill);
+        Assert.Equal("CREW_01", ((AnswerStorylet)AutoCaptain.NextCommand(game, state, tied)).HandlerId);
+    }
+
+    // Under random, the handler comes from sim-captain alone: the same offer always sends the same one, no game stream moves, and
+    // over several legacies more than one is sent.
+    [Fact]
+    public void Random_handlers_are_reproducible()
+    {
+        var sent = new HashSet<string>();
+        for (ulong seed = 1; seed <= 12; seed++)
+        {
+            (Game game, LegacyState state) = WaitingCheck(Pack, seed);
+            string streams = Streams(state);
+            var answer = (AnswerStorylet)AutoCaptain.NextCommand(game, state, Pack, AnswerPolicy.Random);
+
+            Assert.Equal(answer, AutoCaptain.NextCommand(game, state, Pack, AnswerPolicy.Random));
+            Assert.Equal(streams, Streams(state));
+            if (answer.HandlerId is { } handler)
+            {
+                Assert.Contains(handler, Handlers(game, state).Select(h => h.CrewId));
+                sent.Add(handler);
+            }
+        }
+
+        Assert.True(sent.Count > 1, $"Only {string.Join(", ", sent)} was sent.");
+        var options = new SimOptions(Legacies: 3, Cycles: 30, Seed: 60, Answers: AnswerPolicy.Random);
+        Assert.Equal(Simulation.Run(options, Pack).Legacies.Select(l => l.LogHash), Simulation.Run(options, Pack).Legacies.Select(l => l.LogHash));
+    }
+
+    // STORYLET_05's first slot holds for whoever was hurt last cycle, and its second for no one, so it is eligible and never cast.
+    [Fact]
+    public void Never_cast_is_told_apart_from_never_eligible()
+    {
+        SimSummary summary = Simulation.Run(new SimOptions(Legacies: 10, Cycles: 30, Seed: 1), Pack);
+
+        Assert.True(Sum(summary, l => l.Eligible, "STORYLET_05") > 0);
+        Assert.Equal(0, Sum(summary, l => l.Cast, "STORYLET_05"));
+        Assert.True(Sum(summary, l => l.Cast, "STORYLET_04") > 0);
+        Assert.All(summary.Legacies, l => Assert.All(l.Cast, c => Assert.True(c.Value <= l.Eligible.GetValueOrDefault(c.Key), c.Key)));
+
+        string report = Report(10, 30);
+        Assert.Matches(@"^Never cast, though eligible: (.*, )?STORYLET_05(, .*)?\.$", Line(report, "Never cast")!);
+        Assert.DoesNotContain("STORYLET_05", Line(report, "Never eligible") ?? "", StringComparison.Ordinal);
+        Assert.Equal("Out of tries: none.", Line(report, "Out of tries"));
+    }
+
+    // Each check option's successes over the times it was taken, read from the rolls.
+    [Fact]
+    public void Check_success_rates_are_reported()
+    {
+        SimSummary summary = Simulation.Run(new SimOptions(Legacies: 4, Cycles: 40, Seed: 1), Pack);
+        List<StoryletAnswered> rolled = summary.Legacies
+            .SelectMany(l => Play(Pack, l.Seed, 40).Events.Select(e => e.Event).OfType<StoryletAnswered>())
+            .Where(a => a.Roll is not null)
+            .ToList();
+        int succeeded = rolled.Count(a => a.Roll!.Success);
+
+        Assert.True(succeeded > 0 && succeeded < rolled.Count, $"{succeeded} of {rolled.Count}");
+        Assert.Equal(rolled.Count, Sum(summary, l => l.ChecksTaken, "STORYLET_04 option_a"));
+        Assert.Equal(succeeded, Sum(summary, l => l.ChecksSucceeded, "STORYLET_04 option_a"));
+
+        string percent = (succeeded * 100.0 / rolled.Count).ToString("0.0", System.Globalization.CultureInfo.InvariantCulture);
+        Assert.Equal($"Check success: STORYLET_04 option_a {percent}% of {rolled.Count} taken.", Line(Report(4, 40), "Check success"));
+    }
+
+    // A storylet that casts but finds the budget full is lost on it. With no room at all, every cast is lost and none arrives.
+    [Fact]
+    public void Losses_on_the_budget_are_reported()
+    {
+        SimSummary none = Simulation.Run(new SimOptions(Legacies: 4, Cycles: 40, Seed: 1), Pack with { StoryletsPerCycle = 0 });
+
+        Assert.True(Sum(none, l => l.Lost, "STORYLET_04") > 0);
+        Assert.Equal(Sum(none, l => l.Cast, "STORYLET_04"), Sum(none, l => l.Lost, "STORYLET_04"));
+        Assert.Equal(0, Sum(none, l => l.Fired, "STORYLET_04"));
+
+        // With room, what was cast either arrived or was lost.
+        SimSummary room = Simulation.Run(new SimOptions(Legacies: 4, Cycles: 40, Seed: 1), Pack);
+        foreach (StoryletDef storylet in Pack.Storylets)
+        {
+            Assert.Equal(Sum(room, l => l.Cast, storylet.Id), Sum(room, l => l.Fired, storylet.Id) + Sum(room, l => l.Lost, storylet.Id));
+        }
+
+        Assert.Matches(@"^Lost on the budget per 100 cycles: STORYLET_04 \d+\.\d of \d+\.\d cast", Line(Report(4, 40), "Lost on the budget")!);
     }
 }

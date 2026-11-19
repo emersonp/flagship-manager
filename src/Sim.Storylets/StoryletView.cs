@@ -7,6 +7,8 @@ namespace Sim.Storylets;
 // and for a check option, who may be sent and their chance.
 internal sealed class StoryletView(ContentPack pack, Casting casting, StoryletsState state, IRosterView roster, ITraitView traits, int cycle) : IStoryletView
 {
+    public Contest? Opened => state.Opened;
+
     public IReadOnlyList<OpenAnswer> Answers(string offerId)
     {
         if (state.Waiting.FirstOrDefault(w => w.OfferId == offerId) is not { } waiting
