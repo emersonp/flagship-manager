@@ -15,7 +15,7 @@ public class MissionsModuleTests
     private static EventBus NewBus(ContentPack? pack = null)
     {
         var bus = new EventBus();
-        CycleModule.Register(bus);
+        CycleModule.Register(bus, pack ?? TestContent.Pack);
         CrewModule.Register(bus, pack ?? TestContent.Pack);
         MissionsModule.Register(bus, pack ?? TestContent.Pack);
         TraitsModule.Register(bus, pack ?? TestContent.Pack);
@@ -73,7 +73,7 @@ public class MissionsModuleTests
 
         public string Snapshot()
         {
-            return JsonSerializer.Serialize(new { State.Cycle, State.Phase, State.Week, State.NextSequence, State.RngStates, State.Modules }, SimJson.Options);
+            return JsonSerializer.Serialize(new { State.Cycle, State.Phase, State.Day, State.StartDay, State.NextSequence, State.RngStates, State.Modules }, SimJson.Options);
         }
 
         public CommandRejectedException Refused(ICommand command)
@@ -133,7 +133,8 @@ public class MissionsModuleTests
             Seed = original.State.Seed,
             Cycle = original.State.Cycle,
             Phase = original.State.Phase,
-            Week = original.State.Week,
+            Day = original.State.Day,
+            StartDay = original.State.StartDay,
             NextSequence = original.State.NextSequence,
         };
         foreach ((string key, ulong value) in original.State.RngStates)
@@ -517,7 +518,7 @@ public class MissionsModuleTests
     {
         ContentPack empty = TestContent.Pack with { Objectives = [] };
         var bus = new EventBus();
-        CycleModule.Register(bus);
+        CycleModule.Register(bus, empty);
         CrewModule.Register(bus, empty);
         MissionsModule.Register(bus, empty);
         var state = new LegacyState { LegacyId = Guid.Empty, Seed = 1 };
@@ -533,7 +534,7 @@ public class MissionsModuleTests
     public void A_team_is_refused_when_no_site_has_arrived()
     {
         var bus = new EventBus();
-        CycleModule.Register(bus);
+        CycleModule.Register(bus, TestContent.Pack);
         CrewModule.Register(bus, TestContent.Pack);
         MissionsModule.Register(bus, TestContent.Pack);
         var state = new LegacyState { LegacyId = Guid.Empty, Seed = 1, Phase = CyclePhase.Briefing };

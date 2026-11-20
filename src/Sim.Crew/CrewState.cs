@@ -30,10 +30,11 @@ public sealed class CrewMember
 
     public required CrewStatus Status { get; set; }
 
-    // One entry per unhealed light injury: the week it heals.
-    public required List<int> LightInjuriesHealAtWeek { get; set; }
+    // One entry per unhealed light injury: the day it heals.
+    public required List<int> LightInjuriesHealAtDay { get; set; }
 
-    public required int? ReturnsAtWeek { get; set; }
+    // The day a recovering member returns to duty.
+    public required int? ReturnsAtDay { get; set; }
 
     public required int Loyalty { get; set; }
 

@@ -37,9 +37,9 @@ public sealed class WhyStoryletsTests : IDisposable
         File.WriteAllText(path, text.Replace(from, to, StringComparison.Ordinal));
     }
 
-    private static StoredTrait Trait(string trait, string? crewId, string? targetId, int value, int week)
+    private static StoredTrait Trait(string trait, string? crewId, string? targetId, int value, int day)
     {
-        return new StoredTrait { Trait = trait, CrewId = crewId, TargetId = targetId, Value = value, ChangedAtWeek = week, EncounterId = "ENCOUNTER_01" };
+        return new StoredTrait { Trait = trait, CrewId = crewId, TargetId = targetId, Value = value, ChangedAtDay = day, ChangedAtCycle = 1, EncounterId = "ENCOUNTER_01" };
     }
 
     // The first cycle, sending no one, to its aftermath; then the traits above.
@@ -50,9 +50,9 @@ public sealed class WhyStoryletsTests : IDisposable
         {
             To(legacy, CyclePhase.Aftermath);
             List<StoredTrait> traits = legacy.State.Module<TraitsState>(TraitsModule.Name).Traits;
-            traits.Add(Trait("trait_h", "CREW_02", "CREW_04", 1, legacy.State.Week));
-            traits.Add(Trait("trait_a", null, null, 1, legacy.State.Week));
-            traits.Add(Trait("trait_g", "CREW_01", "CREW_03", 5, legacy.State.Week));
+            traits.Add(Trait("trait_h", "CREW_02", "CREW_04", 1, legacy.State.Day));
+            traits.Add(Trait("trait_a", null, null, 1, legacy.State.Day));
+            traits.Add(Trait("trait_g", "CREW_01", "CREW_03", 5, legacy.State.Day));
         });
         return id;
     }
@@ -178,7 +178,7 @@ public sealed class WhyStoryletsTests : IDisposable
             To(legacy, CyclePhase.Itinerary);
             legacy.Send(new AnswerStorylet("3:STORYLET_01", "option_a"));
             To(legacy, CyclePhase.Aftermath);
-            legacy.State.Module<TraitsState>(TraitsModule.Name).Traits.Add(Trait("trait_a", null, null, 1, legacy.State.Week));
+            legacy.State.Module<TraitsState>(TraitsModule.Name).Traits.Add(Trait("trait_a", null, null, 1, legacy.State.Day));
         });
 
         string one = await Search(id, "STORYLET_01");

@@ -26,7 +26,7 @@ public sealed class Game
     public static Game Build(ContentPack pack)
     {
         var bus = new EventBus();
-        CycleModule.Register(bus);
+        CycleModule.Register(bus, pack);
         CrewModule.Register(bus, pack);
         MissionsModule.Register(bus, pack);
         TraitsModule.Register(bus, pack);

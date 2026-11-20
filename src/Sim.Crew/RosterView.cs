@@ -20,7 +20,7 @@ internal sealed class RosterView(CrewState state, CrewTuning tuning) : IRosterVi
             return null;
         }
 
-        int injuries = member.LightInjuriesHealAtWeek.Count;
+        int injuries = member.LightInjuriesHealAtDay.Count;
         Dictionary<string, int> skills = member.Skills.ToDictionary(s => s.Key, s => Math.Max(0, s.Value.Level - injuries));
         return new TeamMember(member.Id, member.Seniority, skills, member.Caution, member.Discipline, tuning.MoraleBonus(member.Morale));
     }

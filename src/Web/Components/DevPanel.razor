@@ -16,11 +16,11 @@
             {
                 <div class="tw dev__tw" tabindex="0" role="region" aria-label="Traits, scrolls sideways">
                     <table>
-                        <thead><tr><th scope="col">Trait</th><th scope="col">On</th><th scope="col">Toward</th><th scope="col" class="n">Value</th><th scope="col" class="n">Week</th><th scope="col">Last changed in play by</th></tr></thead>
+                        <thead><tr><th scope="col">Trait</th><th scope="col">On</th><th scope="col">Toward</th><th scope="col" class="n">Value</th><th scope="col" class="n">Day</th><th scope="col">Last changed in play by</th></tr></thead>
                         <tbody>
                             @foreach (DevTraitRow row in View.Traits)
                             {
-                                <tr><td class="dev__trait">@row.Trait@(row.Hidden ? " (hidden)" : "")</td><td>@row.On</td><td>@(row.Toward ?? "")</td><td class="n">@row.Value@(row.Level is null ? "" : $" ({row.Level})")</td><td class="n">@row.Week</td><td>@(row.From ?? "None")</td></tr>
+                                <tr><td class="dev__trait">@row.Trait@(row.Hidden ? " (hidden)" : "")</td><td>@row.On</td><td>@(row.Toward ?? "")</td><td class="n">@row.Value@(row.Level is null ? "" : $" ({row.Level})")</td><td class="n">@row.Day</td><td>@(row.From ?? "None")</td></tr>
                             }
                         </tbody>
                     </table>

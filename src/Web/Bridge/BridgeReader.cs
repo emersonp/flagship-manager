@@ -87,7 +87,7 @@ public static class BridgeReader
         string? warning = record.ContentPackId == pack.Id && record.ContentPackVersion == pack.Version
             ? null
             : Inv($"Legacy uses pack {record.ContentPackId} version {record.ContentPackVersion}, and pack {pack.Id} version {pack.Version} is loaded.");
-        return new TopBarView(record.Name, record.State.Week, record.State.Cycle, record.State.Phase, warning);
+        return new TopBarView(record.Name, record.State.Day, record.State.Cycle, record.State.Phase, warning);
     }
 
     private static IReadOnlyList<CrewRow> Roster(LegacyState state, ContentPack pack, Names names)
@@ -106,7 +106,7 @@ public static class BridgeReader
 
     private static CrewRow Row(CrewMember member, CrewTuning tuning, Names names)
     {
-        int injuries = member.LightInjuriesHealAtWeek.Count;
+        int injuries = member.LightInjuriesHealAtDay.Count;
         List<SkillCell> skills = member.Skills
             .OrderBy(s => s.Key, StringComparer.Ordinal)
             .Select(s => new SkillCell(s.Key, s.Value.Level, Math.Max(0, s.Value.Level - injuries), names.Skill(s.Key)))
@@ -117,8 +117,8 @@ public static class BridgeReader
             member.Status.ToString(),
             member.Status == CrewStatus.Active,
             skills,
-            member.LightInjuriesHealAtWeek.ToList(),
-            member.ReturnsAtWeek,
+            member.LightInjuriesHealAtDay.ToList(),
+            member.ReturnsAtDay,
             member.Loyalty,
             member.AwayMissions,
             Name: names.Crew(member.Id),
@@ -309,16 +309,17 @@ public static class BridgeReader
                     changes.Add(Change(raised.CrewId, "skill", names, c => BeatLines.Compose($"{c} raises {new BeatLines.Nm(names.Skill(raised.SkillId))} to level {raised.Level}.")));
                     break;
                 case CrewInjured injured:
-                    // One line per light injury with its heal week: this mission's are the last ones the crew state added.
-                    IEnumerable<int> heals = crew?.Members.FirstOrDefault(m => m.Id == injured.CrewId)?.LightInjuriesHealAtWeek.TakeLast(injured.LightInjuries) ?? [];
-                    foreach (int week in heals)
+                    // One line per light injury with its heal day: this mission's are the last ones the crew state added. The raw day
+                    // until slice 1e-calendar's Task 5 shows the time left in weeks.
+                    IEnumerable<int> heals = crew?.Members.FirstOrDefault(m => m.Id == injured.CrewId)?.LightInjuriesHealAtDay.TakeLast(injured.LightInjuries) ?? [];
+                    foreach (int day in heals)
                     {
-                        changes.Add(Change(injured.CrewId, "injury", names, c => BeatLines.Compose($"{c} lightly injured, heals week {week}.")));
+                        changes.Add(Change(injured.CrewId, "injury", names, c => BeatLines.Compose($"{c} lightly injured, heals day {day}.")));
                     }
 
                     if (injured.Outcome == MemberStatus.Incapacitated)
                     {
-                        changes.Add(Change(injured.CrewId, "injury", names, c => BeatLines.Compose($"{c} incapacitated, returns week {injured.ReturnsAtWeek}.")));
+                        changes.Add(Change(injured.CrewId, "injury", names, c => BeatLines.Compose($"{c} incapacitated, returns day {injured.ReturnsAtDay}.")));
                     }
 
                     break;

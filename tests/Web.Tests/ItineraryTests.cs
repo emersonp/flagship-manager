@@ -92,7 +92,7 @@ public sealed class ItineraryTests : IDisposable
             }
 
             TraitsState traits = legacy.State.Module<TraitsState>(TraitsModule.Name);
-            traits.Traits.Add(new StoredTrait { Trait = "trait_a", CrewId = null, TargetId = null, Value = 1, ChangedAtWeek = legacy.State.Week, EncounterId = "ENCOUNTER_01" });
+            traits.Traits.Add(new StoredTrait { Trait = "trait_a", CrewId = null, TargetId = null, Value = 1, ChangedAtDay = legacy.State.Day, ChangedAtCycle = legacy.State.Cycle, EncounterId = "ENCOUNTER_01" });
             return legacy;
         });
         (HttpStatusCode status, _) = await Post(id, "advance", []);

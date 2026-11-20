@@ -4,14 +4,14 @@
 }
 else if (Row.Status != nameof(Sim.Crew.CrewStatus.Active))
 {
-    <span class="quiet">@Row.Status@if (Row.ReturnsAtWeek is { } week)
+    <span class="quiet">@Row.Status@if (Row.ReturnsAtDay is { } day)
         {
-            <text> (returns week </text><span class="m">@week</span><text>)</text>
+            <text> (returns day </text><span class="m">@day</span><text>)</text>
         }</span>
 }
-else if (Row.LightInjuryHealWeeks.Count > 0)
+else if (Row.LightInjuryHealDays.Count > 0)
 {
-    @Row.Status<text>, </text><span class="harm">@Injuries</span><text> (heals </text>@HealWeeks<text>)</text>
+    @Row.Status<text>, </text><span class="harm">@Injuries</span><text> (heals </text>@HealDays<text>)</text>
 }
 else
 {
@@ -22,14 +22,15 @@ else
     // Dead and light injuries are harm, beside their words; recovering is muted.
     [Parameter, EditorRequired] public CrewRow Row { get; set; } = null!;
 
-    private string Injuries => Row.LightInjuryHealWeeks.Count == 1 ? "1 light injury" : $"{Row.LightInjuryHealWeeks.Count} light injuries";
+    private string Injuries => Row.LightInjuryHealDays.Count == 1 ? "1 light injury" : $"{Row.LightInjuryHealDays.Count} light injuries";
 
-    private MarkupString HealWeeks
+    // The raw day until slice 1e-calendar's Task 5 shows the time left in weeks.
+    private MarkupString HealDays
     {
         get
         {
-            List<string> weeks = Row.LightInjuryHealWeeks.Distinct().Order().Select(w => w.ToString(System.Globalization.CultureInfo.InvariantCulture)).ToList();
-            return Figures.Mono((weeks.Count == 1 ? "week " : "weeks ") + Figures.List(weeks));
+            List<string> days = Row.LightInjuryHealDays.Distinct().Order().Select(d => d.ToString(System.Globalization.CultureInfo.InvariantCulture)).ToList();
+            return Figures.Mono((days.Count == 1 ? "day " : "days ") + Figures.List(days));
         }
     }
 }

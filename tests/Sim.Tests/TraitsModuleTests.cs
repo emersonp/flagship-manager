@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Sim.Core;
 using Sim.Core.Content;
+using Sim.Crew;
 using Sim.Cycle;
 using Sim.Traits;
 using static Sim.Tests.StoryletsModuleTests;
@@ -12,7 +13,7 @@ namespace Sim.Tests;
 public class TraitsModuleTests
 {
     [Fact]
-    public void A_missions_trait_is_stored_with_the_week_and_the_encounter()
+    public void A_missions_trait_is_stored_with_the_day_the_cycle_and_the_encounter()
     {
         var h = new Harness(Pack(2));
         h.To(CyclePhase.Advance);
@@ -20,13 +21,14 @@ public class TraitsModuleTests
 
         List<IEvent> events = h.End([Raise("trait_a", 2), Fix("trait_b", 3, "CREW_02", "ENCOUNTER_04")]);
 
-        Assert.Equal(2, h.State.Week);
+        int day = h.State.Day;
+        Assert.Equal(2, h.State.Cycle);
         Assert.Equal(
             [new TraitChanged("trait_a", null, null, 0, 2, TraitCauses.Mission, Encounter), new TraitChanged("trait_b", "CREW_02", null, 0, 3, TraitCauses.Mission, "ENCOUNTER_04")],
             events.OfType<TraitChanged>());
         Assert.Equal(
-            [("trait_a", null, 2, 2, Encounter), ("trait_b", "CREW_02", 3, 2, "ENCOUNTER_04")],
-            h.Traits.Traits.Select(t => (t.Trait, t.CrewId, t.Value, t.ChangedAtWeek, t.EncounterId)));
+            [("trait_a", null, 2, day, 2, Encounter), ("trait_b", "CREW_02", 3, day, 2, "ENCOUNTER_04")],
+            h.Traits.Traits.Select(t => (t.Trait, t.CrewId, t.Value, t.ChangedAtDay, t.ChangedAtCycle, t.EncounterId)));
 
         // The state is stored as JSON with the legacy, so it must read back whole.
         string json = JsonSerializer.Serialize(h.Traits, SimJson.Options);
@@ -131,10 +133,10 @@ public class TraitsModuleTests
         return new Harness(Pack(2) with { Traits = defs });
     }
 
-    // One week: on to the next cycle's itinerary. The events of the move.
+    // One week of days, with no turn of the cycle: the events of the days.
     private static List<IEvent> Week(Harness h)
     {
-        return h.To(CyclePhase.Itinerary);
+        return h.PassDays(Calendar.Days(TestContent.Pack.Calendar, 1));
     }
 
     private static List<TraitChanged> Changes(List<IEvent> events)
@@ -172,11 +174,11 @@ public class TraitsModuleTests
         Harness h = With(Def("trait_x", every: new TraitStep(2, -1)));
         h.To(CyclePhase.Resolution);
         h.End([Fix("trait_x", 3)]);
-        int set = h.State.Week;
+        int set = h.State.Day;
 
         Assert.Empty(Changes(Week(h)));
         Assert.Equal([new TraitChanged("trait_x", null, null, 3, 2, TraitCauses.Weekly, null)], Changes(Week(h)));
-        Assert.Equal(set + 2, h.Traits.Traits.Single().ChangedAtWeek);
+        Assert.Equal(set + Calendar.Days(TestContent.Pack.Calendar, 2), h.Traits.Traits.Single().ChangedAtDay);
         Assert.Empty(Changes(Week(h)));
         Assert.Equal([new TraitChanged("trait_x", null, null, 2, 1, TraitCauses.Weekly, null)], Changes(Week(h)));
         Week(h);
@@ -223,19 +225,57 @@ public class TraitsModuleTests
         Assert.Equal([new TraitChanged("trait_x", null, null, 3, 2, TraitCauses.Weekly, null)], Changes(Week(h)));
     }
 
+    // Date order across modules (design 5.4, review focus 1): on one day the crew module runs before the traits module, and on a
+    // span of days nothing due on a later day happens before something due on an earlier one.
+    [Fact]
+    public void On_one_day_an_injury_heals_before_a_trait_expires()
+    {
+        int weeks = TestContent.Pack.CrewTuning.LightInjuryWeeks;
+        var h = new Harness(Pack(2) with { Traits = [Def("trait_x", expires: weeks)] });
+        h.To(CyclePhase.Resolution);
+        h.End([Fix("trait_x", 1)], new CrewResult("CREW_01", MemberStatus.Active, 1, new Dictionary<string, double>(), 0));
+        int due = h.State.Day + Calendar.Days(TestContent.Pack.Calendar, weeks);
+        Assert.Equal(due, h.Crew.Members.Single(m => m.Id == "CREW_01").LightInjuriesHealAtDay.Single());
+        h.To(CyclePhase.Advance);
+
+        List<IEvent> events = h.Send(new Travel(weeks + 1));
+
+        int day = events.FindIndex(e => e is DayReached { Day: var d } && d == due);
+        int healed = events.FindIndex(e => e is CrewRecovered);
+        int expired = events.FindIndex(e => e is TraitChanged { Cause: TraitCauses.Expired });
+        int next = events.FindIndex(e => e is DayReached { Day: var d } && d == due + 1);
+        Assert.True(day < healed && healed < expired && expired < next, $"{day}, {healed}, {expired}, {next}");
+    }
+
+    [Fact]
+    public void A_trait_that_expires_early_in_a_journey_never_takes_the_step_due_later_in_it()
+    {
+        var h = new Harness(Pack(2) with { Traits = [Def("trait_x", every: new TraitStep(2, 1), expires: 1)] });
+        h.Send(new ChangeTrait("trait_x", null, null, 1, true, TraitCauses.Answer));
+        h.To(CyclePhase.Advance);
+        // Changed 3 days short of a week ago: it expires on the journey's 3rd day; its step would fall on the 9th.
+        h.Traits.Traits.Single().ChangedAtDay = h.State.Day - 3;
+
+        List<IEvent> events = h.Send(new Travel(5));
+
+        Assert.Equal([new TraitChanged("trait_x", null, null, 1, 0, TraitCauses.Expired, null)], Changes(events));
+        int expired = events.FindIndex(e => e is TraitChanged);
+        Assert.Equal(h.State.Day - events.OfType<CycleLengthRolled>().Single().Days + 3, events.Take(expired).OfType<DayReached>().Last().Day);
+    }
+
     [Fact]
     public void Nothing_is_published_when_nothing_changes()
     {
         Harness h = With(Def("trait_x", max: 2));
         h.Send(new ChangeTrait("trait_x", null, null, 2, true, TraitCauses.Answer));
-        int week = h.Traits.Traits.Single().ChangedAtWeek;
+        int day = h.Traits.Traits.Single().ChangedAtDay;
         Week(h);
 
         Assert.Empty(h.Send(new ChangeTrait("trait_x", null, null, 2, true, TraitCauses.Answer)));
         Assert.Empty(h.Send(new ChangeTrait("trait_x", null, null, 1, false, TraitCauses.Answer)));
         Assert.Empty(h.Send(new ChangeTrait("trait_y", null, null, 0, true, TraitCauses.Answer)));
         Assert.Empty(h.Send(new ChangeTrait("trait_y", null, null, -1, false, TraitCauses.Answer)));
-        Assert.Equal(week, h.Traits.Traits.Single().ChangedAtWeek);
+        Assert.Equal(day, h.Traits.Traits.Single().ChangedAtDay);
     }
 
     // --- Pairs (1e part three, Task 3): the fixture's trait_g avoids, trait_h owes, and trait_j is the grief trait_h leaves ---
@@ -341,7 +381,7 @@ public class TraitsModuleTests
         SetUp(h, "trait_e", "CREW_04", 1);
         ITraitView view = h.Bus.View<ITraitView>(h.State);
 
-        List<IEvent> week = Week(h);
+        List<IEvent> week = h.To(CyclePhase.Itinerary);
 
         Assert.Empty(Changes(week));
         Assert.Equal(1, h.Trait("trait_e", "CREW_04"));

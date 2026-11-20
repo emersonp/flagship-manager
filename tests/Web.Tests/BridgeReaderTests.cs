@@ -372,19 +372,19 @@ public class BridgeReaderTests
         Assert.Equal(BridgeReader.MoraleWord(Pack.CrewTuning, to), Read(played).Roster.Single(r => r.Id == first.CrewId).Morale);
     }
 
-    // Injury and death lines in the design's voice, built from the events and the stored heal weeks.
+    // Injury and death lines in the design's voice, built from the events and the stored heal days.
     [Fact]
     public void Injury_death_and_recovery_lines_read_in_the_designs_voice()
     {
         Played light = Until(Wide, p => p.State.Phase == CyclePhase.Aftermath && p.CycleEvents().OfType<CrewInjured>().Any(i => i.Outcome == MemberStatus.Active), 200);
         CrewInjured hurt = light.CycleEvents().OfType<CrewInjured>().First(i => i.Outcome == MemberStatus.Active);
-        List<int> heals = light.State.Module<CrewState>(CrewModule.Name).Members.Single(m => m.Id == hurt.CrewId).LightInjuriesHealAtWeek.TakeLast(hurt.LightInjuries).ToList();
+        List<int> heals = light.State.Module<CrewState>(CrewModule.Name).Members.Single(m => m.Id == hurt.CrewId).LightInjuriesHealAtDay.TakeLast(hurt.LightInjuries).ToList();
         List<CrewChange> lines = Read(light).Aftermath!.Changes.Where(c => c.CrewId == hurt.CrewId && c.Kind == "injury").ToList();
-        Assert.Equal(heals.Select(w => $"{hurt.CrewId} lightly injured, heals week {w}."), lines.Select(c => c.Text));
+        Assert.Equal(heals.Select(w => $"{hurt.CrewId} lightly injured, heals day {w}."), lines.Select(c => c.Text));
 
         Played incapacitated = Until(Wide, p => p.State.Phase == CyclePhase.Aftermath && p.CycleEvents().OfType<CrewInjured>().Any(i => i.Outcome == MemberStatus.Incapacitated), 400);
         CrewInjured down = incapacitated.CycleEvents().OfType<CrewInjured>().First(i => i.Outcome == MemberStatus.Incapacitated);
-        Assert.Contains(Read(incapacitated).Aftermath!.Changes, c => c.Kind == "injury" && c.Text == $"{down.CrewId} incapacitated, returns week {down.ReturnsAtWeek}.");
+        Assert.Contains(Read(incapacitated).Aftermath!.Changes, c => c.Kind == "injury" && c.Text == $"{down.CrewId} incapacitated, returns day {down.ReturnsAtDay}.");
 
         Played died = Until(Wide, p => p.State.Phase == CyclePhase.Aftermath && p.CycleEvents().OfType<CrewDied>().Any(), 200);
         string gone = died.CycleEvents().OfType<CrewDied>().First().CrewId;
@@ -451,7 +451,7 @@ public class BridgeReaderTests
 
         CrewRow recovering = roster.First(r => r.Status == "Recovering");
         Assert.False(recovering.Fit);
-        Assert.NotNull(recovering.ReturnsAtWeek);
+        Assert.NotNull(recovering.ReturnsAtDay);
         Assert.Contains(roster, r => r.Status == "Dead" && !r.Fit);
         int firstDead = roster.ToList().FindIndex(r => r.Status == "Dead");
         Assert.All(roster.Skip(firstDead), r => Assert.Equal("Dead", r.Status));
@@ -463,12 +463,12 @@ public class BridgeReaderTests
     {
         Played played = Until(Pack, p => p.State.Phase == CyclePhase.Orders && Founded(p));
         CrewMember member = played.State.Module<CrewState>(CrewModule.Name).Members[0];
-        member.LightInjuriesHealAtWeek.AddRange([5, 6]);
+        member.LightInjuriesHealAtDay.AddRange([5, 6]);
         member.Skills.Values.First().Level = 1;
 
         CrewRow row = Read(played).Roster.Single(r => r.Id == member.Id);
 
-        Assert.Equal([5, 6], row.LightInjuryHealWeeks);
+        Assert.Equal([5, 6], row.LightInjuryHealDays);
         Assert.All(row.Skills, s => Assert.Equal(Math.Max(0, s.Level - 2), s.EffectiveLevel));
         Assert.Contains(row.Skills, s => s.Level == 1 && s.EffectiveLevel == 0);
         Assert.Equal(member.Seniority, row.Seniority);

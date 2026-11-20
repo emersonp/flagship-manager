@@ -90,10 +90,10 @@ public sealed class BriefingTests : IDisposable
         return (id, Valid(Values(page, "objective")[0], crew.Take(2), crew[0]), crew, gear);
     }
 
-    private (int Events, CyclePhase Phase, int Cycle, int Week, long Next) Snapshot(Guid id)
+    private (int Events, CyclePhase Phase, int Cycle, int Day, long Next) Snapshot(Guid id)
     {
         LegacyRecord record = app.Game.Store.Load(id, app.Live.Game.ModuleTypes)!;
-        return (app.Game.Store.ReadEvents(id).Count, record.State.Phase, record.State.Cycle, record.State.Week, record.State.NextSequence);
+        return (app.Game.Store.ReadEvents(id).Count, record.State.Phase, record.State.Cycle, record.State.Day, record.State.NextSequence);
     }
 
     private static void AssertRefusal(string stream, string reason)
@@ -359,7 +359,7 @@ public sealed class BriefingTests : IDisposable
     }
 
     [Fact]
-    public async Task Advancing_from_aftermath_lands_on_the_next_cycles_itinerary_at_week_2()
+    public async Task Advancing_from_aftermath_lands_on_the_next_cycles_itinerary_5_to_7_days_on()
     {
         Guid id = await NewBriefing();
         await Post(id, "advance");
@@ -376,8 +376,9 @@ public sealed class BriefingTests : IDisposable
         string stream = await Post(id, "advance");
 
         var after = Snapshot(id);
-        Assert.Equal((CyclePhase.Itinerary, 2, 2), (after.Phase, after.Cycle, after.Week));
-        Assert.Contains("<dt>Week</dt><dd>2</dd>", stream);
+        Assert.Equal((CyclePhase.Itinerary, 2), (after.Phase, after.Cycle));
+        Assert.InRange(after.Day, 37482 + 5, 37482 + 7);
+        Assert.Contains($"<dt>Day</dt><dd>{after.Day}</dd>", stream);
         Assert.Contains("<dt>Cycle</dt><dd>2</dd>", stream);
         Assert.Matches("aria-current=\"step\"[^>]*><span class=\"phase__no\">1</span><span class=\"phase__name\">Itinerary</span>", stream);
         Assert.Contains("To orders", stream);

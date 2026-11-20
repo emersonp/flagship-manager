@@ -24,7 +24,7 @@ public sealed class TraitScreensTests : IDisposable
 
     private static StoredTrait Held(string trait, string crewId, int value, string? targetId = null)
     {
-        return new StoredTrait { Trait = trait, CrewId = crewId, TargetId = targetId, Value = value, ChangedAtWeek = 1, EncounterId = null };
+        return new StoredTrait { Trait = trait, CrewId = crewId, TargetId = targetId, Value = value, ChangedAtDay = 0, ChangedAtCycle = 1, EncounterId = null };
     }
 
     // A legacy at its first briefing, holding these traits.

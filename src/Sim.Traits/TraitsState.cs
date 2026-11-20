@@ -13,8 +13,11 @@ public sealed class StoredTrait
 
     public required int Value { get; set; }
 
-    // The week it last changed, by anything: both a definition's weekly step and its expiry count from here.
-    public required int ChangedAtWeek { get; set; }
+    // The day it last changed, by anything: both a definition's step and its expiry count from here.
+    public required int ChangedAtDay { get; set; }
+
+    // The cycle it last changed in, for reading how many cycles ago that was.
+    public required int ChangedAtCycle { get; set; }
 
     // The last encounter that changed it, or null when nothing on a mission has.
     public required string? EncounterId { get; set; }

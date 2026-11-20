@@ -60,7 +60,7 @@ public sealed class StoryletBridgeTests : IDisposable
                 {
                     TraitsState traits = legacy.State.Module<TraitsState>(TraitsModule.Name);
                     traits.Traits.RemoveAll(t => t.Trait == flag && t.CrewId is null);
-                    traits.Traits.Add(new StoredTrait { Trait = flag, CrewId = null, TargetId = null, Value = 1, ChangedAtWeek = legacy.State.Week, EncounterId = "ENCOUNTER_01" });
+                    traits.Traits.Add(new StoredTrait { Trait = flag, CrewId = null, TargetId = null, Value = 1, ChangedAtDay = legacy.State.Day, ChangedAtCycle = legacy.State.Cycle, EncounterId = "ENCOUNTER_01" });
                 }
 
                 edit?.Invoke(legacy.State);
@@ -338,7 +338,7 @@ public sealed class StoryletBridgeTests : IDisposable
     private async Task<(Guid Id, string Offer)> ToCheck(Action<CrewState>? crew = null)
     {
         (Guid id, _) = await ToItinerary(flag: null, edit: state => state.Module<TraitsState>(TraitsModule.Name).Traits.Add(
-            new StoredTrait { Trait = "trait_h", CrewId = "CREW_05", TargetId = "CREW_01", Value = 1, ChangedAtWeek = state.Week, EncounterId = "ENCOUNTER_07" }));
+            new StoredTrait { Trait = "trait_h", CrewId = "CREW_05", TargetId = "CREW_01", Value = 1, ChangedAtDay = state.Day, ChangedAtCycle = state.Cycle, EncounterId = "ENCOUNTER_07" }));
         await app.Sessions.Run(app.Live, id, legacy =>
         {
             CrewState members = legacy.State.Module<CrewState>(CrewModule.Name);

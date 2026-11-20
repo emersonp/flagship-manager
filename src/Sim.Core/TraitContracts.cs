@@ -74,4 +74,4 @@ public static class LaunchWhen
 
 // One trait as it stands. TargetId: the crew member a pair trait points at. EncounterId: the last encounter that changed it,
 // or null when nothing on a mission has.
-public sealed record TraitHeld(string Trait, string? TargetId, int Value, int ChangedAtWeek, string? EncounterId);
+public sealed record TraitHeld(string Trait, string? TargetId, int Value, int ChangedAtDay, string? EncounterId);

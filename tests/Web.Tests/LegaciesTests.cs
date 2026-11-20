@@ -107,7 +107,7 @@ public sealed class LegaciesTests : IDisposable
     }
 
     [Fact]
-    public async Task The_bridge_shows_week_1_cycle_1_and_the_orders_phase()
+    public async Task The_bridge_shows_the_start_day_cycle_1_and_the_orders_phase()
     {
         HttpClient client = app.NewClient();
         HttpResponseMessage created = await client.PostAsync("/legacies", Form("LEGACY_ONE"));
@@ -117,7 +117,7 @@ public sealed class LegaciesTests : IDisposable
         Assert.Contains("<header id=\"topbar\">", html);
         Assert.Contains("<aside id=\"roster\">", html);
         Assert.Contains("LEGACY_ONE", html);
-        Assert.Contains("<dt>Week</dt><dd>1</dd>", html);
+        Assert.Contains("<dt>Day</dt><dd>37482</dd>", html);
         Assert.Contains("<dt>Cycle</dt><dd>1</dd>", html);
         Assert.Contains("Orders", html);
     }

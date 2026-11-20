@@ -5,7 +5,7 @@ namespace Sim.Traits;
 
 // Owns the traits (slice 1e, part three): on the ship, on a crew member, or on a pair, and every rule their definitions give
 // them. It applies a mission's trait changes when the mission ends, the changes other modules send (ChangeTrait), and Dev
-// Play's (SetTrait); it steps and expires traits each week, and lets go of the dead. Other modules read traits through ITraitView.
+// Play's (SetTrait); it steps and expires traits on the day they fall due, and lets go of the dead. Other modules read traits through ITraitView.
 // No rule here names a trait: every rule is read from the pack's definitions.
 public static class TraitsModule
 {
@@ -28,7 +28,7 @@ public static class TraitsModule
         bus.Handle<SetTrait>((command, context) => OnSet(defs, command, context));
         bus.Subscribe<MissionStarted>(Order, Name, (e, context) => OnMissionStarted(defs, e, context));
         bus.Subscribe<MissionEnded>(Order, Name, (e, context) => OnMissionEnded(defs, e, context));
-        bus.Subscribe<WeekAdvanced>(Order, Name, (e, context) => OnWeek(defs, e, context));
+        bus.Subscribe<DayReached>(Order, Name, (e, context) => OnDay(pack.Calendar, defs, e, context));
         bus.Subscribe<CrewDied>(Order, Name, (e, context) => OnCrewDied(defs, e, context));
     }
 
@@ -152,20 +152,21 @@ public static class TraitsModule
         }
     }
 
-    // Each stored trait in the order first set: one whose definition expires it, unchanged that many weeks, goes to 0; else one
-    // whose definition steps it, unchanged that many weeks, changes by the step, which restarts its clock.
-    private static void OnWeek(Definitions defs, WeekAdvanced advanced, IBusContext context)
+    // Each stored trait in the order first set: one whose definition expires it, unchanged that many weeks' days, goes to 0; else
+    // one whose definition steps it, unchanged that many weeks' days, changes by the step, which restarts its clock. After the crew
+    // module on the same day (design 5.4).
+    private static void OnDay(CalendarDef calendar, Definitions defs, DayReached reached, IBusContext context)
     {
         TraitsState state = context.Module<TraitsState>();
         foreach (StoredTrait stored in state.Traits.ToList())
         {
             TraitDef def = defs[stored.Trait];
-            int since = advanced.Week - stored.ChangedAtWeek;
-            if (def.ExpiresWeeks is { } weeks && since >= weeks)
+            int since = reached.Day - stored.ChangedAtDay;
+            if (def.ExpiresWeeks is { } weeks && since >= Calendar.Days(calendar, weeks))
             {
                 Change(defs, context, stored.Trait, stored.CrewId, stored.TargetId, 0, true, TraitCauses.Expired, null);
             }
-            else if (def.Every is { } step && since >= step.Weeks)
+            else if (def.Every is { } step && since >= Calendar.Days(calendar, step.Weeks))
             {
                 Change(defs, context, stored.Trait, stored.CrewId, stored.TargetId, step.Add, false, TraitCauses.Weekly, null);
             }
@@ -244,12 +245,13 @@ public static class TraitsModule
         }
         else if (stored is null)
         {
-            state.Traits.Add(new StoredTrait { Trait = trait, CrewId = crewId, TargetId = targetId, Value = to, ChangedAtWeek = context.State.Week, EncounterId = encounterId });
+            state.Traits.Add(new StoredTrait { Trait = trait, CrewId = crewId, TargetId = targetId, Value = to, ChangedAtDay = context.State.Day, ChangedAtCycle = context.State.Cycle, EncounterId = encounterId });
         }
         else
         {
             stored.Value = to;
-            stored.ChangedAtWeek = context.State.Week;
+            stored.ChangedAtDay = context.State.Day;
+            stored.ChangedAtCycle = context.State.Cycle;
             stored.EncounterId = encounterId ?? stored.EncounterId;
         }
 

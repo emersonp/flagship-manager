@@ -6,10 +6,10 @@ namespace Web.Bridge;
 public sealed record BridgeView(TopBarView TopBar, IReadOnlyList<CrewRow> Roster, SiteView? Site, BriefingView? Briefing, MissionView? Mission, AftermathView? Aftermath, ItineraryView? Itinerary = null);
 
 // Dev: drawn for Dev Play, so ids and links to the content editor show; never set outside developer mode.
-public sealed record TopBarView(string LegacyName, int Week, int Cycle, CyclePhase Phase, string? PackWarning, bool Dev = false);
+public sealed record TopBarView(string LegacyName, int Day, int Cycle, CyclePhase Phase, string? PackWarning, bool Dev = false);
 
 // Traits (1e part three): a chip for each shown trait, for the roster's interim cell; the crew file (1e part five) replaces it.
-public sealed record CrewRow(string Id, int Seniority, string Status, bool Fit, IReadOnlyList<SkillCell> Skills, IReadOnlyList<int> LightInjuryHealWeeks, int? ReturnsAtWeek, int Loyalty, int AwayMissions, bool IsAway = false, bool IsLead = false, string? Name = null, bool Disambiguate = false, string Morale = "Steady", IReadOnlyList<string>? Traits = null)
+public sealed record CrewRow(string Id, int Seniority, string Status, bool Fit, IReadOnlyList<SkillCell> Skills, IReadOnlyList<int> LightInjuryHealDays, int? ReturnsAtDay, int Loyalty, int AwayMissions, bool IsAway = false, bool IsLead = false, string? Name = null, bool Disambiguate = false, string Morale = "Steady", IReadOnlyList<string>? Traits = null)
 {
     // Disambiguate: another row in view shows the same name, so this one also shows its id.
     // The crew member's display name; the id stays the key.

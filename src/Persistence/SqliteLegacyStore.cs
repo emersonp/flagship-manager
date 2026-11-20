@@ -9,7 +9,7 @@ public sealed class SqliteLegacyStore : ILegacyStore
 {
     private const int MaxNameLength = 60;
 
-    private const int SchemaVersion = 12;
+    private const int SchemaVersion = 13;
 
     private const string Schema = """
         CREATE TABLE IF NOT EXISTS legacy (
@@ -17,7 +17,8 @@ public sealed class SqliteLegacyStore : ILegacyStore
             seed TEXT NOT NULL,
             cycle INTEGER NOT NULL,
             phase TEXT NOT NULL,
-            week INTEGER NOT NULL,
+            day INTEGER NOT NULL,
+            start_day INTEGER NOT NULL,
             next_sequence INTEGER NOT NULL,
             rng_states TEXT NOT NULL,
             content_pack_id TEXT NOT NULL,
@@ -88,7 +89,7 @@ public sealed class SqliteLegacyStore : ILegacyStore
         Execute(
             connection,
             transaction,
-            "INSERT INTO legacy (legacy_id, seed, cycle, phase, week, next_sequence, rng_states, content_pack_id, content_pack_version, name, created_at) VALUES ($id, $seed, $cycle, $phase, $week, $next, $rng, $packId, $packVersion, $name, $createdAt)",
+            "INSERT INTO legacy (legacy_id, seed, cycle, phase, day, start_day, next_sequence, rng_states, content_pack_id, content_pack_version, name, created_at) VALUES ($id, $seed, $cycle, $phase, $day, $startDay, $next, $rng, $packId, $packVersion, $name, $createdAt)",
             StateParameters(record.State)
                 .Append(("$packId", record.ContentPackId))
                 .Append(("$packVersion", record.ContentPackVersion))
@@ -104,7 +105,7 @@ public sealed class SqliteLegacyStore : ILegacyStore
     {
         using SqliteConnection connection = Open();
         using SqliteCommand command = connection.CreateCommand();
-        command.CommandText = "SELECT seed, cycle, phase, week, next_sequence, rng_states, content_pack_id, content_pack_version, name, created_at FROM legacy WHERE legacy_id = $id";
+        command.CommandText = "SELECT seed, cycle, phase, day, start_day, next_sequence, rng_states, content_pack_id, content_pack_version, name, created_at FROM legacy WHERE legacy_id = $id";
         command.Parameters.AddWithValue("$id", legacyId.ToString());
         using SqliteDataReader reader = command.ExecuteReader();
         if (!reader.Read())
@@ -118,12 +119,13 @@ public sealed class SqliteLegacyStore : ILegacyStore
             Seed = ulong.Parse(reader.GetString(0), CultureInfo.InvariantCulture),
             Cycle = reader.GetInt32(1),
             Phase = JsonSerializer.Deserialize<CyclePhase>(JsonSerializer.Serialize(reader.GetString(2)), SimJson.Options),
-            Week = reader.GetInt32(3),
-            NextSequence = reader.GetInt64(4),
-            RngStates = JsonSerializer.Deserialize<Dictionary<string, ulong>>(reader.GetString(5), SimJson.Options)
+            Day = reader.GetInt32(3),
+            StartDay = reader.GetInt32(4),
+            NextSequence = reader.GetInt64(5),
+            RngStates = JsonSerializer.Deserialize<Dictionary<string, ulong>>(reader.GetString(6), SimJson.Options)
                 ?? throw new InvalidOperationException($"Legacy {legacyId} has no stored RNG states."),
         };
-        var record = new LegacyRecord(state, reader.GetString(6), reader.GetInt32(7), reader.GetString(8), ParseTime(reader.GetString(9)));
+        var record = new LegacyRecord(state, reader.GetString(7), reader.GetInt32(8), reader.GetString(9), ParseTime(reader.GetString(10)));
         reader.Close();
         ReadModules(connection, state, moduleTypes);
         return record;
@@ -136,7 +138,7 @@ public sealed class SqliteLegacyStore : ILegacyStore
         int updated = Execute(
             connection,
             transaction,
-            "UPDATE legacy SET cycle = $cycle, phase = $phase, week = $week, next_sequence = $next, rng_states = $rng WHERE legacy_id = $id AND seed = $seed AND next_sequence = $expected",
+            "UPDATE legacy SET cycle = $cycle, phase = $phase, day = $day, start_day = $startDay, next_sequence = $next, rng_states = $rng WHERE legacy_id = $id AND seed = $seed AND next_sequence = $expected",
             StateParameters(state).Append(("$expected", expectedSequence)).ToArray());
         if (updated != 1)
         {
@@ -169,7 +171,7 @@ public sealed class SqliteLegacyStore : ILegacyStore
     {
         using SqliteConnection connection = Open();
         using SqliteCommand command = connection.CreateCommand();
-        command.CommandText = "SELECT legacy_id, name, created_at, week, cycle FROM legacy ORDER BY created_at DESC, legacy_id";
+        command.CommandText = "SELECT legacy_id, name, created_at, day, cycle FROM legacy ORDER BY created_at DESC, legacy_id";
         using SqliteDataReader reader = command.ExecuteReader();
         var listings = new List<LegacyListing>();
         while (reader.Read())
@@ -299,7 +301,8 @@ public sealed class SqliteLegacyStore : ILegacyStore
             ("$seed", state.Seed.ToString(CultureInfo.InvariantCulture)),
             ("$cycle", state.Cycle),
             ("$phase", state.Phase.ToString()),
-            ("$week", state.Week),
+            ("$day", state.Day),
+            ("$startDay", state.StartDay),
             ("$next", state.NextSequence),
             ("$rng", JsonSerializer.Serialize(state.RngStates, SimJson.Options)),
         ];

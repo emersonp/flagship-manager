@@ -10,14 +10,27 @@ public class CrewModuleTests
 {
     private sealed record EndMission(MissionResult Result) : ICommand;
 
+    // The parts of a turn the crew module hears, one at a time: the cycle turning (rest), and days passing (everything timed).
+    private sealed record TurnCycle : ICommand;
+
+    private sealed record PassDays(int Days) : ICommand;
+
     private sealed class Harness
     {
         public Harness()
         {
             Bus = new EventBus();
-            CycleModule.Register(Bus);
+            CycleModule.Register(Bus, TestContent.Pack);
             CrewModule.Register(Bus, TestContent.Pack);
             Bus.Handle<EndMission>((command, context) => context.Publish(new MissionEnded("MISSION_1", "OBJECTIVE_1", command.Result)));
+            Bus.Handle<TurnCycle>((_, context) => context.Publish(new CycleAdvanced(++context.State.Cycle)));
+            Bus.Handle<PassDays>((command, context) =>
+            {
+                for (int day = context.State.Day + 1; day <= context.State.Day + command.Days; day++)
+                {
+                    context.Publish(new DayReached(day));
+                }
+            });
             State = new LegacyState { LegacyId = Guid.Empty, Seed = 1 };
             Bus.Send(State, new FoundLegacy());
         }
@@ -52,16 +65,24 @@ public class CrewModuleTests
             return Bus.Send(State, command);
         }
 
-        public IReadOnlyList<IEvent> Weeks(int weeks)
-        {
-            var events = new List<IEvent>();
-            int target = State.Week + weeks;
-            while (State.Week < target)
-            {
-                events.AddRange(Send(new AdvancePhase()).Select(p => p.Event));
-            }
+        // A week's days, in the fixture's calendar.
+        public static int Days(int weeks) => Calendar.Days(TestContent.Pack.Calendar, weeks);
 
-            return events;
+        // The cycle turns, with no day passing: rest, alone.
+        public IReadOnlyList<IEvent> Turn()
+        {
+            return Send(new TurnCycle()).Select(p => p.Event).ToList();
+        }
+
+        public IReadOnlyList<IEvent> PassDays(int days)
+        {
+            return Send(new PassDays(days)).Select(p => p.Event).ToList();
+        }
+
+        // A cycle's rest and then a week of days: drift once, on the week's last day.
+        public IReadOnlyList<IEvent> Week()
+        {
+            return Turn().Concat(PassDays(Days(1))).ToList();
         }
     }
 
@@ -170,25 +191,25 @@ public class CrewModuleTests
     }
 
     [Fact]
-    public void Light_injuries_lower_the_view_skills_and_heal_on_the_due_week_not_before()
+    public void Light_injuries_lower_the_view_skills_and_heal_on_the_due_day_not_before()
     {
         var h = new Harness();
         int level = h.Member("CREW_01").Skills["SKILL_A"].Level;
-        int due = h.State.Week + h.Tuning.LightInjuryWeeks;
+        int due = h.State.Day + Harness.Days(h.Tuning.LightInjuryWeeks);
 
         IReadOnlyList<IEvent> events = h.End(Hurt("CREW_01", 2));
 
-        Assert.Equal(new[] { due, due }, h.Member("CREW_01").LightInjuriesHealAtWeek);
+        Assert.Equal(new[] { due, due }, h.Member("CREW_01").LightInjuriesHealAtDay);
         Assert.Equal(level - 2, h.View.Member("CREW_01")!.Skills["SKILL_A"]);
         Assert.True(h.View.IsFit("CREW_01"));
         Assert.Contains(new CrewInjured("CREW_01", MemberStatus.Active, 2, null), events);
 
-        h.Weeks(h.Tuning.LightInjuryWeeks - 1);
+        h.PassDays(Harness.Days(h.Tuning.LightInjuryWeeks) - 1);
         Assert.Equal(level - 2, h.View.Member("CREW_01")!.Skills["SKILL_A"]);
 
-        IReadOnlyList<IEvent> healed = h.Weeks(1);
+        IReadOnlyList<IEvent> healed = h.PassDays(1);
         Assert.Equal(level, h.View.Member("CREW_01")!.Skills["SKILL_A"]);
-        Assert.Empty(h.Member("CREW_01").LightInjuriesHealAtWeek);
+        Assert.Empty(h.Member("CREW_01").LightInjuriesHealAtDay);
         Assert.Single(healed.OfType<CrewRecovered>());
     }
 
@@ -203,36 +224,36 @@ public class CrewModuleTests
     }
 
     [Fact]
-    public void Incapacitation_makes_a_member_unfit_until_the_due_week()
+    public void Incapacitation_makes_a_member_unfit_until_the_due_day()
     {
         var h = new Harness();
-        int due = h.State.Week + h.Tuning.IncapacitatedWeeks;
+        int due = h.State.Day + Harness.Days(h.Tuning.IncapacitatedWeeks);
 
         IReadOnlyList<IEvent> events = h.End(Status("CREW_02", MemberStatus.Incapacitated));
 
         Assert.Equal(CrewStatus.Recovering, h.Member("CREW_02").Status);
-        Assert.Equal(due, h.Member("CREW_02").ReturnsAtWeek);
+        Assert.Equal(due, h.Member("CREW_02").ReturnsAtDay);
         Assert.False(h.View.IsFit("CREW_02"));
         Assert.Contains("CREW_02", h.View.Roster);
         Assert.Contains(new CrewInjured("CREW_02", MemberStatus.Incapacitated, 0, due), events);
 
-        h.Weeks(h.Tuning.IncapacitatedWeeks - 1);
+        h.PassDays(Harness.Days(h.Tuning.IncapacitatedWeeks) - 1);
         Assert.False(h.View.IsFit("CREW_02"));
 
-        IReadOnlyList<IEvent> back = h.Weeks(1);
+        IReadOnlyList<IEvent> back = h.PassDays(1);
         Assert.True(h.View.IsFit("CREW_02"));
-        Assert.Null(h.Member("CREW_02").ReturnsAtWeek);
+        Assert.Null(h.Member("CREW_02").ReturnsAtDay);
         Assert.Equal(new[] { new CrewRecovered("CREW_02") }, back.OfType<CrewRecovered>());
     }
 
     [Fact]
-    public void A_member_who_heals_two_things_in_one_week_is_recovered_once()
+    public void A_member_who_heals_two_things_on_one_day_is_recovered_once()
     {
         var h = new Harness();
         h.End(new CrewResult("CREW_01", MemberStatus.Incapacitated, 1, new Dictionary<string, double>(), 0));
-        h.Member("CREW_01").ReturnsAtWeek = h.Member("CREW_01").LightInjuriesHealAtWeek[0];
+        h.Member("CREW_01").ReturnsAtDay = h.Member("CREW_01").LightInjuriesHealAtDay[0];
 
-        IReadOnlyList<IEvent> events = h.Weeks(h.Tuning.LightInjuryWeeks);
+        IReadOnlyList<IEvent> events = h.PassDays(Harness.Days(h.Tuning.LightInjuryWeeks));
 
         Assert.Single(events.OfType<CrewRecovered>());
         Assert.Equal(CrewStatus.Active, h.Member("CREW_01").Status);
@@ -253,7 +274,7 @@ public class CrewModuleTests
         Assert.Contains(new CrewDied("CREW_03", "MISSION_1"), events);
         Assert.DoesNotContain(events, e => e is CrewInjured);
 
-        IReadOnlyList<IEvent> later = h.Weeks(20);
+        IReadOnlyList<IEvent> later = h.PassDays(Harness.Days(20));
         Assert.Equal(CrewStatus.Dead, h.Member("CREW_03").Status);
         Assert.DoesNotContain(later, e => e is CrewRecovered);
     }
@@ -365,14 +386,14 @@ public class CrewModuleTests
 
         h.End(new CrewResult("CREW_01", MemberStatus.Dead, 2, new Dictionary<string, double>(), 0));
 
-        Assert.Empty(h.Member("CREW_01").LightInjuriesHealAtWeek);
+        Assert.Empty(h.Member("CREW_01").LightInjuriesHealAtDay);
     }
 
     [Fact]
     public void The_view_before_founding_is_empty_and_stores_nothing()
     {
         var bus = new EventBus();
-        CycleModule.Register(bus);
+        CycleModule.Register(bus, TestContent.Pack);
         CrewModule.Register(bus, TestContent.Pack);
         var state = new LegacyState { LegacyId = Guid.Empty, Seed = 1 };
 
@@ -384,19 +405,19 @@ public class CrewModuleTests
     }
 
     [Fact]
-    public void Light_injuries_from_missions_in_different_weeks_heal_on_their_own_weeks()
+    public void Light_injuries_from_missions_in_different_weeks_heal_on_their_own_days()
     {
         var h = new Harness();
         int level = h.Member("CREW_01").Skills["SKILL_A"].Level;
         h.End(Hurt("CREW_01", 1));
-        h.Weeks(1);
+        h.PassDays(Harness.Days(1));
         h.End(Hurt("CREW_01", 1));
         Assert.Equal(level - 2, h.View.Member("CREW_01")!.Skills["SKILL_A"]);
 
-        h.Weeks(h.Tuning.LightInjuryWeeks - 1);
+        h.PassDays(Harness.Days(h.Tuning.LightInjuryWeeks - 1));
         Assert.Equal(level - 1, h.View.Member("CREW_01")!.Skills["SKILL_A"]);
 
-        h.Weeks(1);
+        h.PassDays(Harness.Days(1));
         Assert.Equal(level, h.View.Member("CREW_01")!.Skills["SKILL_A"]);
     }
 
@@ -404,7 +425,7 @@ public class CrewModuleTests
     public void An_incapacitated_and_lightly_injured_member_is_reported_as_incapacitated_with_both_counts()
     {
         var h = new Harness();
-        int due = h.State.Week + h.Tuning.IncapacitatedWeeks;
+        int due = h.State.Day + Harness.Days(h.Tuning.IncapacitatedWeeks);
 
         IReadOnlyList<IEvent> events = h.End(new CrewResult("CREW_01", MemberStatus.Incapacitated, 2, new Dictionary<string, double>(), 0));
 
@@ -474,7 +495,7 @@ public class CrewModuleTests
         h.Member("CREW_02").Morale = 40;
         h.End(MissionOutcome.Withdrawal, Gained("CREW_01", 0));
 
-        IReadOnlyList<IEvent> events = h.Weeks(1);
+        IReadOnlyList<IEvent> events = h.Week();
 
         Assert.Equal(38 + 1, h.Member("CREW_01").Morale);
         Assert.Equal(40 + 2 + 1, h.Member("CREW_02").Morale);
@@ -487,10 +508,10 @@ public class CrewModuleTests
     {
         var h = new Harness();
         h.End(MissionOutcome.Withdrawal, Status("CREW_01", MemberStatus.Incapacitated));
-        h.Weeks(1);
+        h.Week();
         int before = h.Member("CREW_01").Morale;
 
-        IReadOnlyList<IEvent> events = h.Weeks(1);
+        IReadOnlyList<IEvent> events = h.Week();
 
         Assert.Equal(before + 1, h.Member("CREW_01").Morale);
         Assert.DoesNotContain(events.OfType<MoraleChanged>(), e => e.CrewId == "CREW_01" && e.Cause == MoraleCauses.Rest);
@@ -508,9 +529,41 @@ public class CrewModuleTests
         var h = new Harness();
         h.Member("CREW_01").Morale = from;
 
-        h.Weeks(1);
+        h.Week();
 
         Assert.Equal(to, h.Member("CREW_01").Morale);
+    }
+
+    // Every week from the legacy's start day (design 4.5), and on no day between.
+    [Fact]
+    public void Morale_drifts_on_every_week_from_the_start_day_and_not_between()
+    {
+        var h = new Harness();
+        h.Member("CREW_01").Morale = 40;
+
+        h.PassDays(Harness.Days(1) - 1);
+        Assert.Equal(40, h.Member("CREW_01").Morale);
+
+        IReadOnlyList<IEvent> first = h.PassDays(1);
+        Assert.Equal(new[] { new MoraleChanged("CREW_01", 40, 41, MoraleCauses.Drift) }, first.OfType<MoraleChanged>().Where(e => e.CrewId == "CREW_01"));
+
+        h.PassDays(Harness.Days(3));
+        Assert.Equal(44, h.Member("CREW_01").Morale);
+    }
+
+    // Rest is per cycle, not per day: on a real turn it comes before the first day, and a turn of several days rests once.
+    [Fact]
+    public void A_turn_rests_once_before_its_first_day()
+    {
+        var h = new Harness();
+        h.Member("CREW_02").Morale = 40;
+        h.State.Phase = CyclePhase.Advance;
+
+        List<IEvent> events = h.Send(new Travel(3)).Select(p => p.Event).ToList();
+
+        int rest = events.FindIndex(e => e is MoraleChanged { Cause: MoraleCauses.Rest, CrewId: "CREW_02" });
+        Assert.True(rest >= 0 && rest < events.FindIndex(e => e is DayReached));
+        Assert.Single(events.OfType<MoraleChanged>(), e => e.Cause == MoraleCauses.Rest && e.CrewId == "CREW_02");
     }
 
     [Fact]

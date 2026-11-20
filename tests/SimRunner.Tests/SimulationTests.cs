@@ -244,12 +244,17 @@ public class SimulationTests
     // option_a and option_c split evenly.
     // Not moved by the simulator naming handlers (1e part four, Task 8): this run's one check is cast on CREW_03 and CREW_01, so
     // CREW_02 is both first in roster order and the most skilled, and the fixture's STORYLET_05, which never casts, publishes nothing.
+    // Re-pinned: time kept in days (slice 1e-calendar, Task 2). Each turn rolls 5 to 7 days on the calendar stream and publishes
+    // CycleLengthRolled and one DayReached per day where WeekAdvanced was, so heals, returns, the drift, and trait steps fall on
+    // days. With the roll pinned at 6, SimRunner's 200 x 200 is exactly as before under both policies but for 6 more events a
+    // turn; with the roll, the fixture moves from 38834 full, 1028 partial, 101 incomplete, 32 withdrawn, 5 lost to 38826, 1033,
+    // 103, 32, 6, as injuries heal and the incapacitated return between cycles.
     [Fact]
     public void Golden_seed_1_matches_the_accepted_log()
     {
         SimSummary summary = Simulation.Run(new SimOptions(Legacies: 1, Cycles: 10, Seed: 1), Pack);
 
-        Assert.Equal("6A00882F4B1D44AF75DB4429E34C3DB645C11FBA12932997D6708FA6AD47F2B6", summary.Legacies[0].LogHash);
+        Assert.Equal("15E7E2C9712A840B81CD02FFD22C7EE40CA4BD4089AE1A6B5CEA43E71D72C910", summary.Legacies[0].LogHash);
     }
 
     // --- The captain's policies and promises (1e part three, Task 6) ---

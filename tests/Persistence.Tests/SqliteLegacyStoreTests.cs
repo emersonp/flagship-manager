@@ -60,8 +60,8 @@ public sealed class SqliteLegacyStoreTests : IDisposable
             Caution = 1,
             Discipline = -1,
             Status = CrewStatus.Recovering,
-            LightInjuriesHealAtWeek = new List<int> { 4 },
-            ReturnsAtWeek = 9,
+            LightInjuriesHealAtDay = new List<int> { 37494 },
+            ReturnsAtDay = 37518,
             Loyalty = 55,
             AwayMissions = 2,
             Morale = 31,
@@ -73,8 +73,8 @@ public sealed class SqliteLegacyStoreTests : IDisposable
         CrewMember loaded = NewStore().Load(id, types)!.State.Module<CrewState>("crew").Members.Single();
 
         Assert.Equal(CrewStatus.Recovering, loaded.Status);
-        Assert.Equal(9, loaded.ReturnsAtWeek);
-        Assert.Equal([4], loaded.LightInjuriesHealAtWeek);
+        Assert.Equal(37518, loaded.ReturnsAtDay);
+        Assert.Equal([37494], loaded.LightInjuriesHealAtDay);
         Assert.Equal(1.5, loaded.Skills["SKILL_A"].Xp);
         Assert.Equal((31, 3), (loaded.Morale, loaded.LastSentCycle));
     }
@@ -126,7 +126,8 @@ public sealed class SqliteLegacyStoreTests : IDisposable
         record.State.Cycle = 4;
         record.State.Phase = CyclePhase.Aftermath;
         record.State.NextSequence = 3;
-        record.State.Week = 7;
+        record.State.Day = 37500;
+        record.State.StartDay = 37482;
         record.State.RngStates["4:missions"] = ulong.MaxValue;
         record.State.Module<FuelState>("fuel").Units = 12;
         record.State.Module<LogState>("log").Lines.Add("CREW_01");
@@ -140,7 +141,7 @@ public sealed class SqliteLegacyStoreTests : IDisposable
         Assert.Equal(4, loaded.State.Cycle);
         Assert.Equal(CyclePhase.Aftermath, loaded.State.Phase);
         Assert.Equal(3, loaded.State.NextSequence);
-        Assert.Equal(7, loaded.State.Week);
+        Assert.Equal((37500, 37482), (loaded.State.Day, loaded.State.StartDay));
         Assert.Equal(12, loaded.State.Module<FuelState>("fuel").Units);
         Assert.Equal(["CREW_01"], loaded.State.Module<LogState>("log").Lines);
         Assert.Equal(ulong.MaxValue, loaded.State.RngStates["4:missions"]);
@@ -199,7 +200,8 @@ public sealed class SqliteLegacyStoreTests : IDisposable
         store.Create(record, []);
         record.State.Cycle = 2;
         record.State.Phase = CyclePhase.Briefing;
-        record.State.Week = 9;
+        record.State.Day = 37491;
+        record.State.StartDay = 37482;
         record.State.NextSequence = 2;
         record.State.RngStates["2:missions"] = 77;
         record.State.Module<FuelState>("fuel").Units = 5;
@@ -216,7 +218,7 @@ public sealed class SqliteLegacyStoreTests : IDisposable
         Assert.Equal(ulong.MaxValue - 5, state.Seed);
         Assert.Equal(2, state.Cycle);
         Assert.Equal(CyclePhase.Briefing, state.Phase);
-        Assert.Equal(9, state.Week);
+        Assert.Equal((37491, 37482), (state.Day, state.StartDay));
         Assert.Equal(2, state.NextSequence);
         Assert.Equal(77UL, state.RngStates["2:missions"]);
         Assert.Equal(5, state.Module<FuelState>("fuel").Units);
@@ -231,9 +233,9 @@ public sealed class SqliteLegacyStoreTests : IDisposable
         store.Create(NewRecord(id), []);
         string json = LegacyExport.Export(store, id, ModuleTypes);
 
-        Assert.Contains("\"FormatVersion\": 10", json);
-        Assert.Throws<InvalidOperationException>(() => LegacyExport.Import(store, json.Replace("\"FormatVersion\": 10", "\"FormatVersion\": 1"), ModuleTypes));
-        Assert.Throws<InvalidOperationException>(() => LegacyExport.Import(store, json.Replace("\"FormatVersion\": 10,", ""), ModuleTypes));
+        Assert.Contains("\"FormatVersion\": 11", json);
+        Assert.Throws<InvalidOperationException>(() => LegacyExport.Import(store, json.Replace("\"FormatVersion\": 11", "\"FormatVersion\": 1"), ModuleTypes));
+        Assert.Throws<InvalidOperationException>(() => LegacyExport.Import(store, json.Replace("\"FormatVersion\": 11,", ""), ModuleTypes));
     }
 
     // Name and creation time are record facts, stored as given (time as a UTC instant).
@@ -279,13 +281,13 @@ public sealed class SqliteLegacyStoreTests : IDisposable
         store.Create(NewRecord(newer) with { Name = "NEWER", CreatedAt = Created.AddHours(1) }, []);
         LegacyState state = store.Load(older, ModuleTypes)!.State;
         state.Cycle = 3;
-        state.Week = 8;
+        state.Day = 37490;
         store.Commit(state, [], 1);
 
         IReadOnlyList<LegacyListing> listing = store.ListLegacies();
 
         Assert.Equal(
-            [new LegacyListing(newer, "NEWER", Created.AddHours(1), 1, 1), new LegacyListing(older, "OLDER", Created, 8, 3)],
+            [new LegacyListing(newer, "NEWER", Created.AddHours(1), 0, 1), new LegacyListing(older, "OLDER", Created, 37490, 3)],
             listing);
     }
 
@@ -344,7 +346,7 @@ public sealed class SqliteLegacyStoreTests : IDisposable
         Assert.Empty(store.ReadEvents(id, 7));
     }
 
-    // Format 3 held the stored events from before authored approaches, format 4 a mission result with no flags, format 5 no storylets, format 6 no morale, format 7 no itinerary, format 8 flags in the storylets module (traits since 1e part three), and format 9 storylets by scope (cast since 1e part four).
+    // Format 3 held the stored events from before authored approaches, format 4 a mission result with no flags, format 5 no storylets, format 6 no morale, format 7 no itinerary, format 8 flags in the storylets module (traits since 1e part three), format 9 storylets by scope (cast since 1e part four), and format 10 a week where the date is now a day (slice 1e-calendar).
     [Theory]
     [InlineData(2)]
     [InlineData(3)]
@@ -354,6 +356,7 @@ public sealed class SqliteLegacyStoreTests : IDisposable
     [InlineData(7)]
     [InlineData(8)]
     [InlineData(9)]
+    [InlineData(10)]
     public void An_export_at_an_earlier_format_is_refused(int format)
     {
         Guid id = Guid.NewGuid();
@@ -361,7 +364,7 @@ public sealed class SqliteLegacyStoreTests : IDisposable
         store.Create(NewRecord(id), []);
         string json = LegacyExport.Export(store, id, ModuleTypes);
 
-        Assert.Throws<InvalidOperationException>(() => LegacyExport.Import(store, json.Replace("\"FormatVersion\": 10", $"\"FormatVersion\": {format}"), ModuleTypes));
+        Assert.Throws<InvalidOperationException>(() => LegacyExport.Import(store, json.Replace("\"FormatVersion\": 11", $"\"FormatVersion\": {format}"), ModuleTypes));
     }
 
     [Fact]
@@ -432,6 +435,7 @@ public sealed class SqliteLegacyStoreTests : IDisposable
     [InlineData(9)]
     [InlineData(10)]
     [InlineData(11)]
+    [InlineData(12)]
     public void A_database_from_another_schema_is_refused(int version)
     {
         using (var connection = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={path}"))
@@ -444,7 +448,7 @@ public sealed class SqliteLegacyStoreTests : IDisposable
 
         var ex = Assert.Throws<InvalidOperationException>(() => NewStore());
 
-        Assert.Equal($"This database is from a different build (schema {version}, this build reads 12). Delete it or export its legacies with the build that wrote it.", ex.Message);
+        Assert.Equal($"This database is from a different build (schema {version}, this build reads 13). Delete it or export its legacies with the build that wrote it.", ex.Message);
     }
 
     // A phase stored as a number would parse as a member by accident; the store refuses it.
@@ -467,7 +471,7 @@ public sealed class SqliteLegacyStoreTests : IDisposable
 
     // A fresh database must carry the version later builds check.
     [Fact]
-    public void A_new_database_is_created_at_schema_version_12()
+    public void A_new_database_is_created_at_schema_version_13()
     {
         NewStore();
 
@@ -475,7 +479,7 @@ public sealed class SqliteLegacyStoreTests : IDisposable
         connection.Open();
         using Microsoft.Data.Sqlite.SqliteCommand command = connection.CreateCommand();
         command.CommandText = "PRAGMA user_version";
-        Assert.Equal(12L, command.ExecuteScalar());
+        Assert.Equal(13L, command.ExecuteScalar());
     }
 
     // Every module the state no longer holds is dropped from storage with the commit.
@@ -536,7 +540,8 @@ public sealed class SqliteLegacyStoreTests : IDisposable
 
     // The envelope reads as strictly as every stored form: nothing is defaulted, dropped, or tolerated.
     [Theory]
-    [InlineData("Legacy.Week")]
+    [InlineData("Legacy.Day")]
+    [InlineData("Legacy.StartDay")]
     [InlineData("Legacy.NextSequence")]
     [InlineData("Legacy.Seed")]
     [InlineData("Events.0.Sequence")]

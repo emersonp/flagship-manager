@@ -18,6 +18,8 @@ public class StoryletsModuleTests
     // Stands in for the missions module's start of a mission (1e part three): the team as launched.
     internal sealed record StartMission(IReadOnlyList<string> CrewIds) : ICommand;
 
+    internal sealed record PassDays(int Days) : ICommand;
+
     // Cycle, crew, traits, and storylets on one bus; a test command stands in for the missions module's end of a mission.
     internal sealed class Harness
     {
@@ -67,6 +69,12 @@ public class StoryletsModuleTests
             return events;
         }
 
+        // Days pass with no turn of the cycle: what falls due on them, alone.
+        public List<IEvent> PassDays(int days)
+        {
+            return Send(new PassDays(days));
+        }
+
         public List<IEvent> Launch(params string[] crew)
         {
             return Send(new StartMission(crew));
@@ -109,11 +117,18 @@ public class StoryletsModuleTests
         private static EventBus Build(ContentPack pack)
         {
             var bus = new EventBus();
-            CycleModule.Register(bus);
+            CycleModule.Register(bus, pack);
             CrewModule.Register(bus, pack);
             TraitsModule.Register(bus, pack);
             StoryletsModule.Register(bus, pack);
             bus.Handle<EndMission>((command, context) => context.Publish(new MissionEnded("MISSION_1", "OBJECTIVE_1", command.Result)));
+            bus.Handle<PassDays>((command, context) =>
+            {
+                for (int day = context.State.Day + 1; day <= context.State.Day + command.Days; day++)
+                {
+                    context.Publish(new DayReached(day));
+                }
+            });
             bus.Handle<StartMission>((command, context) => context.Publish(new MissionStarted("MISSION_1", "OBJECTIVE_1", "OBJECTIVE_TEMPLATE_1", command.CrewIds, command.CrewIds[0])));
             return bus;
         }
@@ -356,7 +371,7 @@ public class StoryletsModuleTests
         Assert.Empty(h.Waiting);
         Assert.Equal((0, 1), (h.Trait("trait_a"), h.Trait("trait_b")));
         StoredTrait stored = h.Traits.Traits.Single();
-        Assert.Equal((2, (string?)null), (stored.ChangedAtWeek, stored.EncounterId));
+        Assert.Equal((h.State.Day, 2, (string?)null), (stored.ChangedAtDay, stored.ChangedAtCycle, stored.EncounterId));
 
         List<IEvent> later = h.To(CyclePhase.Itinerary);
         later.AddRange(h.To(CyclePhase.Itinerary));

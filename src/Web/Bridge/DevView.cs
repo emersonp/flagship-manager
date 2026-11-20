@@ -20,7 +20,7 @@ public sealed record DevMoraleRow(string Shown, int Morale, string Word);
 // On: the crew member's shown name, or "Ship"; Toward: a pair's target, shown (1e part three). Level: the value's level name, if it has
 // one. Hidden: a trait never shown in play. From: the encounter that last changed it in play, shown; null when only answers or the
 // developer have.
-public sealed record DevTraitRow(string Trait, string On, int Value, int Week, string? From, string? Toward = null, string? Level = null, bool Hidden = false);
+public sealed record DevTraitRow(string Trait, string On, int Value, int Day, string? From, string? Toward = null, string? Level = null, bool Hidden = false);
 
 // Id: "ship" or a crew id, as the form posts it.
 public sealed record DevTarget(string Id, string Shown);
@@ -39,7 +39,7 @@ public static class DevReader
             .ThenBy(t => t.Trait, StringComparer.Ordinal)
             .ThenBy(t => t.TargetId is null ? -1 : IndexOf(roster, t.TargetId))
             .Select(t => new DevTraitRow(
-                t.Trait, t.CrewId is null ? "Ship" : names.Crew(t.CrewId), t.Value, t.ChangedAtWeek, t.EncounterId is null ? null : names.Encounter(t.EncounterId),
+                t.Trait, t.CrewId is null ? "Ship" : names.Crew(t.CrewId), t.Value, t.ChangedAtDay, t.EncounterId is null ? null : names.Encounter(t.EncounterId),
                 t.TargetId is null ? null : names.Crew(t.TargetId),
                 pack.Traits.FirstOrDefault(d => d.Id == t.Trait)?.LevelName(t.Value),
                 pack.Traits.FirstOrDefault(d => d.Id == t.Trait) is { Shown: false }))

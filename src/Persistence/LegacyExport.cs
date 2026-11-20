@@ -6,7 +6,7 @@ namespace Persistence;
 // Developer mode only: the way to keep a legacy safe from bugs while the game is under construction.
 public static class LegacyExport
 {
-    private const int CurrentFormatVersion = 10;
+    private const int CurrentFormatVersion = 11;
 
     private static readonly JsonSerializerOptions Options = new(SimJson.Options) { WriteIndented = true };
 
@@ -25,7 +25,8 @@ public static class LegacyExport
             state.Seed,
             state.Cycle,
             state.Phase,
-            state.Week,
+            state.Day,
+            state.StartDay,
             state.NextSequence,
             state.RngStates,
             modules,
@@ -61,7 +62,8 @@ public static class LegacyExport
             Seed = legacy.Seed,
             Cycle = legacy.Cycle,
             Phase = legacy.Phase,
-            Week = legacy.Week,
+            Day = legacy.Day,
+            StartDay = legacy.StartDay,
             NextSequence = legacy.NextSequence,
             RngStates = new Dictionary<string, ulong>(legacy.RngStates),
         };
@@ -102,7 +104,8 @@ internal sealed record SnapshotLegacy(
     ulong Seed,
     int Cycle,
     CyclePhase Phase,
-    int Week,
+    int Day,
+    int StartDay,
     long NextSequence,
     Dictionary<string, ulong> RngStates,
     SortedDictionary<string, JsonElement> Modules,

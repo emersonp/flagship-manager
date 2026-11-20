@@ -603,7 +603,7 @@ public sealed class ResolutionTests : IDisposable
 
         string page = await Page(id);
 
-        Assert.Contains("<dt>Week</dt><dd>2</dd>", page);
+        Assert.Contains($"<dt>Day</dt><dd>{(await captain.Read()).State.Day}</dd>", page);
         Assert.Contains("<dt>Cycle</dt><dd>2</dd>", page);
         Assert.Matches("aria-current=\"step\"[^>]*><span class=\"phase__no\">1</span><span class=\"phase__name\">Itinerary</span>", page);
         Assert.Contains("To orders", Entity(page));

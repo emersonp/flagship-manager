@@ -175,9 +175,9 @@ No crew member has an age in code or content yet; ageing is Phase 6. This slice 
 
 ### 5.1 Modules
 
-- **`Sim.Cycle`** owns the date: it rolls the length, turns the cycle, and publishes `CycleLengthRolled` and `DayReached`. It takes the pack at registration, for the calendar and the tuning. It handles a new command, `Travel(weeks)`, offered only by Dev Play and accepted only in the advance phase, where it turns the cycle as `AdvancePhase` would, with N weeks planned in place of one (changed while planning, 2026-11-20: turning a cycle from the orders would need a cycle with no mission, which Phase 1 does not have).
+- **`Sim.Cycle`** owns the date: it rolls the length, turns the cycle, and publishes `CycleLengthRolled` and `DayReached`. It takes the pack at registration, for the calendar and the tuning. It publishes the days one at a time (changed while building, 2026-11-20): the first after everything that heard `CycleAdvanced` has run, each later one after the day before and everything it set off, and the itinerary's `PhaseEntered` after the last. A subscriber of its own, ahead of every module, moves `Day` to the day reached. It handles a new command, `Travel(weeks)`, offered only by Dev Play and accepted only in the advance phase, where it turns the cycle as `AdvancePhase` would, with N weeks planned in place of one (changed while planning, 2026-11-20: turning a cycle from the orders would need a cycle with no mission, which Phase 1 does not have).
 - **The calendar's arithmetic lives in `Sim.Core`** (changed while planning, 2026-11-20, from a library of its own: it is a content type and a few pure functions, with no dependencies, which is what `Sim.Core/Content` already holds): converting a day number to a date and back, the weekday, and weeks to days. `Sim.Content` loads it; `Web` formats with it.
-- **`Sim.Crew`** and **`Sim.Traits`** move from `WeekAdvanced` to `DayReached`, with the stored fields in days.
+- **`Sim.Crew`** and **`Sim.Traits`** move from `WeekAdvanced` to `DayReached`, with the stored fields in days. Rest moves to `CycleAdvanced`. Content keeps its durations in weeks (`LightInjuryWeeks`, `ExpiresWeeks`, `TraitStep.Weeks`); each module turns them into days with `Calendar.Days` when it sets a due day or compares one.
 - **`Sim.Storylets`** records the day as well as the cycle each storylet last arrived, and serves the new readings.
 - **`Web`**: the top bar, the date and duration formatters, Dev Play's travel button, the report line.
 
@@ -233,3 +233,25 @@ Small calls made while building:
 - **A refused calendar is reported once**, in its own file: `pack.yaml` reports only a calendar that is missing or defined nowhere.
 - **The editor** lists `tuning/calendar.yaml` ("Calendar tuning") and `calendars/base.yaml` ("Calendars") among its text files (`Web/Forms/TextFiles.cs` and the index), checked with the whole pack on save. The plan named `ContentKinds.cs` and `ContentModels.cs` for this; neither needed to change, since a calendar is not an item kind with a form.
 - The fixture's placeholder calendar is `calendar_a` (`WEEKDAY_A` to `WEEKDAY_F`, short `WD_A` and so on; `MONTH_A` to `MONTH_L`), starting on 13 `month_b` 105, so it matches the game's day number.
+
+### Task 2: days replace weeks (2026-11-20)
+
+As designed: `LegacyState.Day` and `StartDay`, both set to the calendar's start day at founding; `WeekAdvanced` gone, and `CycleLengthRolled`, `DayReached`, and the command `Travel(weeks)` added; `CrewInjured.ReturnsAtDay`; the crew's `LightInjuriesHealAtDay` and `ReturnsAtDay`, and a trait's `ChangedAtDay` and `ChangedAtCycle`. The store's `legacy` table has `day` and `start_day`, and the export carries both; the schema is 13 and the export format 11, and an older one is refused with the message used before.
+
+Changed or settled while building:
+
+- **The days are chained, not published all at once.** The bus queues events, so a turn that published every `DayReached` at once would put a day's own events (a recovery, an expiry) after every later day in the log, though the modules would still have run in date order. The cycle module publishes the first day from its own `CycleAdvanced` subscriber, after rest, and each next day from its own `DayReached` subscriber, after the crew and traits modules; the log reads in date order. Section 5.1 says so.
+- **Where content's weeks become days.** Design 4.2 has the loader turn every `weeks:` into days. The modules do it instead, with `Calendar.Days`, as the plan's steps say: the content types keep weeks, so the editor and the loader's messages still speak in weeks.
+- **On one day, rest is not in it.** Rest runs on `CycleAdvanced`, before the first day; on a day the crew module heals light injuries, then returns the recovering, then drifts (on every 6th day from `StartDay`), for everyone at once rather than member by member. Neither order changes a figure: drift does not read injuries.
+- **`Travel`** is guarded by the cycle module alone: founded, in the advance phase, and 1 to 10 weeks (`Travel.Most`). It has no Dev Play button yet; Task 5 adds it.
+- **The readers show the raw day** (Step 8): the top bar's "Day 37482", the legacies list's "Day", the roster's "returns day N" and "heals day N", the aftermath's lines, and Dev Play's "Day" column. Task 5 replaces them.
+- **The golden seeds.** `Golden_seed_1` and the CLI's 2 × 3 summary are re-pinned (235 events to 263). With the roll pinned at 6 days in a scratch copy of the fixture, SimRunner's 200 × 200 matches the build before this one exactly under both answer policies, but for 6 more events a turn (one `CycleLengthRolled` and six `DayReached` where one `WeekAdvanced` was): the calendar stream moves no other. With the roll, 1d3+4:
+
+| Run (seed 1) | Before | After |
+|---|---|---|
+| Fixture, 20 × 50 (check.sh) | 40169 events; 906 full, 84 partial, 6 incomplete, 4 withdrawn, 0 lost; 1 death; storylets 10.4 offered, 9.9 answered | 46064 events; 905, 85, 6, 4, 0; 1 death; 10.3, 9.8 |
+| Fixture, 200 × 200, first answers | 38834 full, 1028 partial, 101 incomplete, 32 withdrawn, 5 lost; 5 deaths | 38826, 1033, 103, 32, 6; 5 deaths |
+| Game, 200 × 200, first answers | 38816, 1033, 103, 34, 10; 8 deaths | 38805, 1039, 105, 36, 11; 8 deaths |
+| Game, 200 × 200, random answers | 38700, 1076, 118, 70, 36; 24 deaths | 38672, 1095, 123, 74, 36; 22 deaths |
+
+  The small moves are injuries healing and the incapacitated returning between cycles rather than on them, which changes who is fit to send.

@@ -23,7 +23,11 @@ public sealed class LegacyState
 
     public CyclePhase Phase { get; set; } = CyclePhase.Itinerary;
 
-    public int Week { get; set; } = 1;
+    // Today's day number in the pack's calendar (slice 1e-calendar, design 4.3): day 0 is the 1st of the first month of year 1.
+    public int Day { get; set; }
+
+    // The day the legacy was founded on: the morale drift falls on every week from it.
+    public int StartDay { get; set; }
 
     public long NextSequence { get; set; } = 1;
 

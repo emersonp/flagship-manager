@@ -37,8 +37,8 @@ public sealed class PairBridgeTests : IDisposable
             }
 
             List<StoredTrait> traits = legacy.State.Module<TraitsState>(TraitsModule.Name).Traits;
-            traits.Add(new StoredTrait { Trait = "trait_g", CrewId = "CREW_01", TargetId = "CREW_03", Value = 3, ChangedAtWeek = legacy.State.Week, EncounterId = "ENCOUNTER_05" });
-            traits.Add(new StoredTrait { Trait = "trait_a", CrewId = null, TargetId = null, Value = 1, ChangedAtWeek = legacy.State.Week, EncounterId = "ENCOUNTER_01" });
+            traits.Add(new StoredTrait { Trait = "trait_g", CrewId = "CREW_01", TargetId = "CREW_03", Value = 3, ChangedAtDay = legacy.State.Day, ChangedAtCycle = legacy.State.Cycle, EncounterId = "ENCOUNTER_05" });
+            traits.Add(new StoredTrait { Trait = "trait_a", CrewId = null, TargetId = null, Value = 1, ChangedAtDay = legacy.State.Day, ChangedAtCycle = legacy.State.Cycle, EncounterId = "ENCOUNTER_01" });
             return legacy;
         });
         HttpResponseMessage advanced = await client.PostAsync($"/legacy/{id}/advance", new FormUrlEncodedContent(app.Stamped(id, [])));

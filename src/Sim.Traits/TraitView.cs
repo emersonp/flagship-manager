@@ -12,7 +12,7 @@ internal sealed class TraitView(TraitsState state, TraitsModule.Definitions defs
 
     public IReadOnlyList<TraitHeld> Held(string? crewId)
     {
-        return state.Traits.Where(t => t.CrewId == crewId).Select(t => new TraitHeld(t.Trait, t.TargetId, t.Value, t.ChangedAtWeek, t.EncounterId)).ToList();
+        return state.Traits.Where(t => t.CrewId == crewId).Select(t => new TraitHeld(t.Trait, t.TargetId, t.Value, t.ChangedAtDay, t.EncounterId)).ToList();
     }
 
     public string? EncounterId(string trait, string? crewId, string? targetId = null)

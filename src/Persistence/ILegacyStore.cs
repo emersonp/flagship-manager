@@ -4,7 +4,7 @@ namespace Persistence;
 
 public sealed record LegacyRecord(LegacyState State, string ContentPackId, int ContentPackVersion, string Name, DateTimeOffset CreatedAt);
 
-public sealed record LegacyListing(Guid LegacyId, string Name, DateTimeOffset CreatedAt, int Week, int Cycle);
+public sealed record LegacyListing(Guid LegacyId, string Name, DateTimeOffset CreatedAt, int Day, int Cycle);
 
 public sealed class StaleLegacyException(Guid legacyId, long expected, long found)
     : Exception($"Legacy {legacyId} moved on: expected sequence {expected}, found {found}.");
