@@ -110,3 +110,21 @@ Decided by the author on 2026-11-18, in a design interview before slice 1e's fou
     - **The simulator** picks handlers by its policy, and reports "never cast", check success rates, and losses on the budget.
     - **Old saves are refused,** and the history starts empty.
     - **Casting at 500 crew** is planned (candidates for a slot from the traits it needs, read from the traits module) and built when the simulator's "out of tries" report shows the need.
+
+Decided by the author on 2026-11-20, in a review of the roadmap after slice 1e's fourth part:
+
+42. **The crew file waits for the skills overhaul.** Slice 1e's part five is split. The chronicle list stays part five and is next. The crew file becomes part seven and is built after slice 1h, because 1h settles what a character is (the skill list, attributes, and how grades are shown), and the crew file's main section shows exactly that. Building it first would mean building it twice. Morale, loyalty, and traits are unchanged by 1h, so nothing is lost by waiting. The roster's trait cell stays interim until part seven.
+
+Decided by the author on 2026-11-20, in a design interview for the calendar (design in `docs/plans/2026-11-20-phase-1e-calendar-design.md`):
+
+43. **The calendar: days kept, weeks shown.**
+    - **Mechanics are in weeks of 6 days; the engine keeps days.** Every timed effect, one-off or repeating, is due on a day and happens when the calendar passes it, whatever the cycles' lengths.
+    - **A cycle moves the calendar 1d3+4 days,** rolled when it advances and reported afterwards (ahead of schedule, on schedule, delayed). **Travel of N weeks** is one cycle and one roll times N, so a trip is early or late as a whole.
+    - **Cooldowns, "the last cycle", and history stay in cycles.** Expressions gain `cyclesSince` and `daysSince` for storylets and traits, so a storylet can wait for both cycles and days.
+    - **Content writes durations only in weeks;** expressions read days.
+    - **Shown in weeks, rounded to the nearest,** with "under a week" below 4 days. The player's choices about time are in whole weeks.
+    - **No week number.** Play mode shows the date, short (`13 Vortun 105`), with the full date and weekday on hover. Dev mode also shows the cycle number.
+    - **The Bastion Calendar** from `docs/lore/calendars.md`, as content: 12 months of 30 days, 6 named weekdays, and a start on 13 Vortun 105. One calendar now; others later.
+    - **Ages** count on the 360-day year, with a birth date rolled from the legacy's seed. Not built until ageing (Phase 6).
+    - **No fixed-length setting:** seeded dice keep tests predictable. **Old saves are refused.**
+    - **The lore is the author's:** agents read `docs/lore/` and never edit it, and commit its changes on their own (`AGENTS.md`).
