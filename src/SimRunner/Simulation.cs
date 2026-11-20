@@ -1,9 +1,11 @@
+using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 using GameHost;
 using Sim.Core;
 using Sim.Core.Content;
 using Sim.Crew;
+using Calendar = Sim.Core.Calendar;
 
 namespace SimRunner;
 
@@ -48,6 +50,13 @@ public sealed record LegacySummary(
     public IReadOnlyDictionary<string, int> ChecksTaken { get; init; } = new Dictionary<string, int>();
 
     public IReadOnlyDictionary<string, int> ChecksSucceeded { get; init; } = new Dictionary<string, int>();
+
+    // The calendar (slice 1e-calendar, Task 6): how many turns rolled each length, by days, and the day and date the legacy ended on.
+    public IReadOnlyDictionary<int, int> CycleLengths { get; init; } = new Dictionary<int, int>();
+
+    public int LastDay { get; init; }
+
+    public string LastDate { get; init; } = "";
 }
 
 public sealed record SimSummary(IReadOnlyList<LegacySummary> Legacies);
@@ -108,6 +117,7 @@ public static class Simulation
         var set = new Dictionary<string, int>();
         var taken = new Dictionary<string, int>();
         var succeeded = new Dictionary<string, int>();
+        var lengths = new Dictionary<int, int>();
         foreach (IEvent e in events.Select(p => p.Event))
         {
             switch (e)
@@ -133,6 +143,9 @@ public static class Simulation
                 case TraitChanged { From: 0, To: > 0 } t:
                     set[t.Trait] = set.GetValueOrDefault(t.Trait) + 1;
                     break;
+                case CycleLengthRolled r:
+                    lengths[r.Days] = lengths.GetValueOrDefault(r.Days) + 1;
+                    break;
             }
         }
 
@@ -155,7 +168,17 @@ public static class Simulation
             OutOfTries = Cycles(c => c.Fate == ContestFate.OutOfTries),
             ChecksTaken = taken,
             ChecksSucceeded = succeeded,
+            CycleLengths = lengths,
+            LastDay = state.Day,
+            LastDate = ShortDate(pack.Calendar, state.Day),
         };
+    }
+
+    // As the web's short date ("13 Vortun 105"; Web.Bridge.Dates.Short), which the simulator does not reference.
+    public static string ShortDate(CalendarDef calendar, int day)
+    {
+        CalendarDate date = Calendar.Date(calendar, day);
+        return string.Create(CultureInfo.InvariantCulture, $"{date.Day} {calendar.Months[date.Month].Name} {date.Year}");
     }
 
     // The golden-seed fingerprint: any change to what happens, or in what order, changes it.

@@ -297,3 +297,13 @@ Settled while building:
 - **Travel from the aftermath.** The web goes from the aftermath to the next itinerary in one request, so it never rests in the advance phase where `Travel` is accepted. Dev Play's form sits beside "Next cycle", and its route sends `AdvancePhase` then `Travel(N)`, all or nothing; the cycle module still guards the phase and N, and a weeks field that is not a number gets the module's own words ("A journey is 1 to 10 weeks."). Play has no such route.
 - **Trait chips** show no time left today (a trait's expiry is not on any play screen), so there was nothing of theirs to change; one that does later uses `Dates.Weeks`.
 - **The browser test** (`tests/browser/play.sh`, not part of `check.sh`) checks the date after "Next cycle" (5 to 7 days on, so one turn, not two) and that the bar shows nothing else. With `playwright-cli` installed (2026-11-20), both browser scripts were brought up to date and pass: they had drifted since 1e part two (a cycle opens on the itinerary, where storylets now wait) and part four (the fixture's storylet reads an expression), and a failed browser step now stops the script with playwright-cli's own words rather than a silent exit.
+
+### Task 6: the simulator (2026-11-20)
+
+As designed: `SimRunner cycles` prints a second line, "Calendar, by turn: …", with the turns rolled, the share of them at each length the tuning allows (5, 6, and 7 days), the mean, and the span of the legacies' last dates. Each legacy's lengths, last day number, and last date are in `--out` (`CycleLengths`, `LastDay`, `LastDate`).
+
+Settled while building:
+
+- **Nothing was per week.** Every rate the simulator reported was already per 100 cycles and said so, so no figure changed its basis. The new line's figures are per turn and its heading says so.
+- **The date's words.** The simulator does not reference `Web`, so `Simulation.ShortDate` writes the date as `Web.Bridge.Dates.Short` does ("27 Orphelten 105").
+- **The figures.** On the game's pack, 20 legacies × 50 cycles from seed 1: 1000 turns, 34.0% of 5 days, 34.3% of 6, 31.7% of 7, a mean of 5.98 days; the legacies end between 27 Orphelten 105 and 22 Othra 105. Nothing else moved: no golden hash changed.

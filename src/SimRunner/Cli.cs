@@ -76,8 +76,34 @@ public static class Cli
             + $"Storylets per 100 cycles: {PerHundred(l => l.StoryletsOffered)} offered, {PerHundred(l => l.StoryletsAnswered)} answered. "
             + $"Vignettes per 100 cycles: {PerHundred(l => l.VignettesArrived)} arrived, {PerHundred(l => l.VignettesDefaulted)} left to their default. "
             + $"Morale at the end: {summary.Legacies.Sum(l => l.MoraleLow)} low, {summary.Legacies.Sum(l => l.MoraleSteady)} steady, {summary.Legacies.Sum(l => l.MoraleHigh)} high. OK.");
+        output.WriteLine(CalendarLine(pack, summary));
         Report(pack, summary, options, output);
         return 0;
+    }
+
+    // The calendar (slice 1e-calendar, Task 6): the share of turns that rolled each length the tuning allows, and the mean; then the
+    // span of the legacies' last dates (each legacy's is in --out). Figures are per turn, not per week: nothing here counts weeks.
+    private static string CalendarLine(ContentPack pack, SimSummary summary)
+    {
+        int turns = summary.Legacies.Sum(l => l.CycleLengths.Values.Sum());
+        if (turns == 0)
+        {
+            return "Calendar: no cycle turned.";
+        }
+
+        int Turns(int days)
+        {
+            return summary.Legacies.Sum(l => l.CycleLengths.GetValueOrDefault(days));
+        }
+
+        IEnumerable<int> lengths = Enumerable.Range(pack.CalendarTuning.CycleMinDays, pack.CalendarTuning.CycleMaxDays - pack.CalendarTuning.CycleMinDays + 1)
+            .Union(summary.Legacies.SelectMany(l => l.CycleLengths.Keys)).Order();
+        string spread = string.Join(", ", lengths.Select(d => string.Create(CultureInfo.InvariantCulture, $"{d} days {Turns(d) * 100.0 / turns:0.0}%")));
+        double mean = summary.Legacies.Sum(l => l.CycleLengths.Sum(c => c.Key * (double)c.Value)) / turns;
+        LegacySummary first = summary.Legacies.MinBy(l => l.LastDay)!;
+        LegacySummary last = summary.Legacies.MaxBy(l => l.LastDay)!;
+        string dates = first.LastDay == last.LastDay ? $"Last date: {first.LastDate}." : $"Last dates: {first.LastDate} to {last.LastDate}.";
+        return string.Create(CultureInfo.InvariantCulture, $"Calendar, by turn: {turns} turns, of {spread}; mean {mean:0.00} days. {dates}");
     }
 
     // What fired, per 100 cycles of one legacy (1e part three, design 4.10): each storylet and vignette and each of its options, and

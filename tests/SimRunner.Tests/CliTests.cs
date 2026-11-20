@@ -234,4 +234,14 @@ public class CliTests
         Assert.Contains("Never fired: STORYLET_01, STORYLET_01 option_a,", output, StringComparison.Ordinal);
         Assert.Equal(2, Run("cycles", "--answers", "ignore", "--content", Content).Exit);
     }
+
+    // Slice 1e-calendar, Task 6: the spread of cycle lengths, by turn, and the span of the legacies' last dates.
+    [Fact]
+    public void Cycles_reports_the_calendar()
+    {
+        (int exit, string output, _) = Run("cycles", "--legacies", "2", "--cycles", "3", "--content", Content);
+
+        Assert.Equal(0, exit);
+        Assert.Matches(@"(?m)^Calendar, by turn: 6 turns, of 5 days \d+\.\d%, 6 days \d+\.\d%, 7 days \d+\.\d%; mean \d\.\d\d days\. Last dates?: \d+ MONTH_\w+ \d+( to \d+ MONTH_\w+ \d+)?\.\r?$", output);
+    }
 }

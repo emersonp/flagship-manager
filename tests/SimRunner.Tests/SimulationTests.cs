@@ -101,6 +101,25 @@ public class SimulationTests
         Assert.True(levelsGained > 0, "No legacy gained a level.");
     }
 
+    // Slice 1e-calendar, Task 6: each turn rolls 1d3+4 days on the calendar stream, so over many turns each length is about a third.
+    [Fact]
+    public void Cycle_lengths_are_5_6_or_7_days_about_a_third_each()
+    {
+        SimSummary summary = Simulation.Run(new SimOptions(Legacies: 20, Cycles: 50, Seed: 1), Pack);
+
+        var lengths = summary.Legacies.SelectMany(l => l.CycleLengths).GroupBy(c => c.Key).ToDictionary(g => g.Key, g => g.Sum(c => c.Value));
+        int turns = lengths.Values.Sum();
+        Assert.Equal(20 * 50, turns);
+        Assert.Equal([5, 6, 7], lengths.Keys.Order());
+        Assert.All(lengths.Values, n => Assert.InRange(n * 100.0 / turns, 30.0, 37.0));
+        Assert.InRange(lengths.Sum(c => c.Key * (double)c.Value) / turns, 5.9, 6.1);
+        Assert.All(summary.Legacies, l =>
+        {
+            Assert.Equal(Calendar.DayNumber(Pack.Calendar, Pack.Calendar.Start) + l.CycleLengths.Sum(c => c.Key * c.Value), l.LastDay);
+            Assert.Equal(Simulation.ShortDate(Pack.Calendar, l.LastDay), l.LastDate);
+        });
+    }
+
     private static (Game Game, LegacyState State, List<PublishedEvent> Events) Play(ContentPack pack, ulong seed, int cycles)
     {
         Game game = Game.Build(pack);

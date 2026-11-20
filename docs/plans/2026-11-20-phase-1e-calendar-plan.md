@@ -128,9 +128,9 @@ public static class Dates
 
 **Files:** `src/SimRunner/Simulation.cs`, `src/SimRunner/Cli.cs`, `src/SimRunner/AutoCaptain.cs` if it reads weeks, `tests/SimRunner.Tests/SimulationTests.cs`.
 
-- [ ] **Step 1:** The summary reports the spread of cycle lengths (counts of 5, 6, and 7 days, and the mean) and each legacy's last date. Anything per week becomes per 100 cycles or per 360 days, whichever the figure already compares by; say which in the output's heading.
-- [ ] **Step 2:** A test: over 20 legacies × 50 cycles each length is 30% to 37% of turns, and the mean is within 0.1 of 6.
-- [ ] **Step 3:** `./check.sh`; commit "Report the calendar in the simulator".
+- [x] **Step 1:** The summary reports the spread of cycle lengths (counts of 5, 6, and 7 days, and the mean) and each legacy's last date. Anything per week becomes per 100 cycles or per 360 days, whichever the figure already compares by; say which in the output's heading.
+- [x] **Step 2:** A test: over 20 legacies × 50 cycles each length is 30% to 37% of turns, and the mean is within 0.1 of 6.
+- [x] **Step 3:** `./check.sh`; commit "Report the calendar in the simulator".
 
 ### Task 7: the worked example, and the record
 
