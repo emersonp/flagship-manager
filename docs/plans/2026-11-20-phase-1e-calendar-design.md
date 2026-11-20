@@ -107,7 +107,7 @@ When the aftermath ends and the cycle turns:
 3. **The cycle turns** (`Cycle` + 1), and whatever happens once per cycle runs, as now: the morale lift for a fit member who was not sent ("rest") stays per cycle, because it is about not being sent, not about time.
 4. **For each day passed, in order, `DayReached(day)`** is published, and `Day` moves to it before the event runs.
 
-The report line, in the aftermath and on the itinerary that follows (my call on where; the builder may move it): ahead of schedule (fewer days than planned), on schedule (the same), or delayed (more). Its words are lines in the game's pack, so the author writes them. For travel, the line says how many days early or late.
+The report line, at the top of the itinerary that follows (my call on where; settled while building, section 8): ahead of schedule (fewer days than planned), on schedule (the same), or delayed (more). Its words are lines in the game's pack, so the author writes them. For travel, the line says how many days early or late.
 
 **Travel in Dev Play.** A Dev Play button, "Travel N weeks" (N from 1 to 10), shown in the advance phase, turns the cycle as a trip would: one cycle, one roll times N, and every day passed. Real transit, a cycle with no mission, is Phase 7.
 
@@ -179,7 +179,7 @@ No crew member has an age in code or content yet; ageing is Phase 6. This slice 
 - **The calendar's arithmetic lives in `Sim.Core`** (changed while planning, 2026-11-20, from a library of its own: it is a content type and a few pure functions, with no dependencies, which is what `Sim.Core/Content` already holds): converting a day number to a date and back, the weekday, and weeks to days. `Sim.Content` loads it; `Web` formats with it.
 - **`Sim.Crew`** and **`Sim.Traits`** move from `WeekAdvanced` to `DayReached`, with the stored fields in days. Rest moves to `CycleAdvanced`. Content keeps its durations in weeks (`LightInjuryWeeks`, `ExpiresWeeks`, `TraitStep.Weeks`); each module turns them into days with `Calendar.Days` when it sets a due day or compares one.
 - **`Sim.Storylets`** records the day as well as the cycle each storylet last arrived, and serves the new readings.
-- **`Web`**: the top bar, the date and duration formatters, Dev Play's travel button, the report line.
+- **`Web`**: the top bar, the date and duration formatters, Dev Play's travel button, the report line. The report line's words are lines for a `schedule` beat in the pack (`Sim.Core.Narrative.NarrativeFacts`), chosen and expanded by the lines engine as a storylet's are, apart from any mission; `Web.Bridge.Schedule` builds the situation from `CycleLengthRolled` and falls back to fixed words when no line holds (changed while building, 2026-11-20). The line sits at the top of the itinerary that follows the turn. `CycleLengthRolled` is stamped with the cycle that ended, so the bridge reads it from that cycle's events.
 
 ### 5.2 Contracts in `Sim.Core`
 
@@ -255,3 +255,15 @@ Changed or settled while building:
 | Game, 200 × 200, random answers | 38700, 1076, 118, 70, 36; 24 deaths | 38672, 1095, 123, 74, 36; 22 deaths |
 
   The small moves are injuries healing and the incapacitated returning between cycles rather than on them, which changes who is fit to send.
+
+### Task 3: the report line for the cycle's length (2026-11-20)
+
+As designed: the line says ahead of schedule, on schedule, or delayed, and for a journey how many days early or late, and the author writes its words in the pack.
+
+Settled while building:
+
+- **The words are lines.** The lines engine already serves storylets apart from a mission, so a new beat, `schedule`, cost little. Its facts are `schedule` (`ahead`, `on`, or `delayed`), `days` (how many days early or late; 0 on schedule), `weeks` (the weeks planned), and `travel` (true for a journey of more than one week); `#days#` says the days early or late ("4 days") and `#planned#` the weeks planned ("5 weeks"). No fact or token gives the cycle's length, so a line cannot show it. The editor's Lines page lists the beat as "The cycle's length". With no line that holds, `Web.Bridge.Schedule` says it in fixed words ("The ship arrived delayed."; "The journey, planned at 5 weeks, arrived 4 days late.").
+- **Where it sits.** At the top of the itinerary that follows the turn, under its heading, and nowhere else: the aftermath comes before the roll. The first itinerary of a legacy, which no turn began, has none.
+- **Which cycle holds the roll.** `CycleLengthRolled` is published before the cycle turns, so it is stamped with the cycle that ended, as its roll's stream is. Rather than move the stamp (and the golden seeds a second time), the bridge reads it from that cycle's events, stored or not yet committed, as the briefing already reads the last cycle's team. `BridgeReader.Read` takes it as `turned`.
+- **The same line on a reload.** A tie between lines is broken by the legacy's seed and the cycle, so the page drawn again from the store says what the page drawn in the turn said.
+- **The game's pack** has six lines, one per case for a cycle and for a journey, generated for the author to rewrite (`LINE_SCHEDULE_*` in `content/lines/base.yaml`). The fixture has placeholders.

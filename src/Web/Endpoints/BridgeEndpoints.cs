@@ -476,14 +476,21 @@ public static class BridgeEndpoints
         TeamAssigned? last = legacy.State.Phase == CyclePhase.Briefing && cycle > 0
             ? game.Store.ReadEvents(legacy.State.LegacyId, cycle - 1).Select(live.Game.Events.FromEnvelope).OfType<TeamAssigned>().LastOrDefault()
             : null;
-        BridgeView view = BridgeReader.Read(legacy.Record, live.Pack, events, live.Names, last, live.Game.Bus.View<IStoryletView>(legacy.State));
+        // The itinerary says how the turn went; the turn's roll is stamped with the cycle that ended.
+        CycleLengthRolled? turned = legacy.State.Phase == CyclePhase.Itinerary && cycle > 0 ? CycleEvents(game, live, legacy, cycle - 1).OfType<CycleLengthRolled>().LastOrDefault() : null;
+        BridgeView view = BridgeReader.Read(legacy.Record, live.Pack, events, live.Names, last, live.Game.Bus.View<IStoryletView>(legacy.State), turned);
         return dev ? view with { TopBar = view.TopBar with { Dev = true } } : view;
     }
 
     // This cycle's stored events plus any not yet committed.
     internal static List<IEvent> CycleEvents(GameServices game, LivePack live, LoadedLegacy legacy)
     {
-        int cycle = legacy.State.Cycle;
+        return CycleEvents(game, live, legacy, legacy.State.Cycle);
+    }
+
+    // A cycle's stored events plus any of its own not yet committed.
+    private static List<IEvent> CycleEvents(GameServices game, LivePack live, LoadedLegacy legacy, int cycle)
+    {
         List<IEvent> events = game.Store.ReadEvents(legacy.State.LegacyId, cycle).Select(live.Game.Events.FromEnvelope).ToList();
         events.AddRange(legacy.Envelopes.Where(e => e.Cycle == cycle).Select(live.Game.Events.FromEnvelope));
         return events;

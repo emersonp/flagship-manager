@@ -64,3 +64,18 @@
 - id: LINE_RESULT
   when: { beat: result }
   text: The mission ended.
+- id: LINE_SCHEDULE_AHEAD
+  when: { beat: schedule, schedule: ahead }
+  text: SCHEDULE_AHEAD.
+- id: LINE_SCHEDULE_ON
+  when: { beat: schedule, schedule: "on" }
+  text: SCHEDULE_ON.
+- id: LINE_SCHEDULE_DELAYED
+  when: { beat: schedule, schedule: delayed }
+  text: SCHEDULE_DELAYED.
+- id: LINE_SCHEDULE_TRAVEL_EARLY
+  when: { beat: schedule, schedule: ahead, travel: true }
+  text: "SCHEDULE_TRAVEL_EARLY #planned#, #days#."
+- id: LINE_SCHEDULE_TRAVEL_LATE
+  when: { beat: schedule, schedule: delayed, travel: true }
+  text: "SCHEDULE_TRAVEL_LATE #planned#, #days#."

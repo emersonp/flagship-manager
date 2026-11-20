@@ -238,7 +238,7 @@ public sealed class Prose
     }
 
     // A storylet's prose: the winning line, or, when its text cannot be expanded here (a shared line naming #subject# that met a storylet
-    // for the ship), the next line that holds. Null when none does.
+    // for the ship), the next line that holds. Null when none does. The schedule line (slice 1e-calendar) is chosen the same way.
     public static BeatProse? Storylet(ContentPack pack, Situation situation, string key)
     {
         Dictionary<string, SymbolDef> symbols = pack.Symbols.GroupBy(s => s.Id).ToDictionary(g => g.Key, g => g.First());

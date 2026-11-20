@@ -77,16 +77,16 @@ The core move, in one commit, because `WeekAdvanced` goes and everything that he
 - [x] **Step 7: persistence.** `legacy.week` becomes `day`; add `start_day`; the export carries both. Raise `SchemaVersion` to 13 and `CurrentFormatVersion` to 11. An old store or export is refused with the existing message.
 - [x] **Step 8: compile the readers.** `BridgeReader`, `DevView`, and the Razor components that read weeks are changed only enough to compile and pass, showing the raw day where they showed a week; Task 5 replaces them. Say so in the commit.
 - [x] **Step 9: the golden seeds.** Run the simulator's and the web tests' fixed seeds. Every changed figure must be explained by the calendar (rolled lengths moving heal, return, drift, and trait dates). Note the before and after of the simulator's summary in the commit.
-- [ ] **Step 10:** `./check.sh`; commit "Keep time in days: a cycle's length is rolled, and every timed effect is due on a day".
+- [x] **Step 10:** `./check.sh`; commit "Keep time in days: a cycle's length is rolled, and every timed effect is due on a day".
 
 ### Task 3: the report line for the cycle's length
 
 **Files:** `src/Sim.Narrative/` (if the lines engine takes the situation; see Step 1), `content/lines/base.yaml`, the fixture's lines, `src/Web/Bridge/BridgeReader.cs`, `src/Web/Bridge/BridgeView.cs`, `src/Web/Components/ItineraryScreen.razor`, tests in `tests/Web.Tests/`.
 
-- [ ] **Step 1:** Decide where the words live. If the lines engine can take a situation outside a mission (`schedule` with `ahead`, `on`, `delayed`, and the days early or late as a figure) for less than about a day's work, use it, so the author writes the words in the pack. Otherwise fixed words in `Web`, and say so in "As built". Either way the line reads `CycleLengthRolled` from the cycle's events.
-- [ ] **Step 2:** Show the line at the top of the itinerary that follows the turn (design 7, left to the builder: the itinerary is where the new cycle is read; the aftermath comes before the roll). Travel's line names the days early or late against N weeks.
-- [ ] **Step 3:** Tests: each of the three cases, and travel early and late; a reload shows the same line.
-- [ ] **Step 4:** `./check.sh`; commit "Say whether the cycle ran ahead of schedule, on schedule, or delayed".
+- [x] **Step 1:** Decide where the words live. If the lines engine can take a situation outside a mission (`schedule` with `ahead`, `on`, `delayed`, and the days early or late as a figure) for less than about a day's work, use it, so the author writes the words in the pack. Otherwise fixed words in `Web`, and say so in "As built". Either way the line reads `CycleLengthRolled` from the cycle's events.
+- [x] **Step 2:** Show the line at the top of the itinerary that follows the turn (design 7, left to the builder: the itinerary is where the new cycle is read; the aftermath comes before the roll). Travel's line names the days early or late against N weeks.
+- [x] **Step 3:** Tests: each of the three cases, and travel early and late; a reload shows the same line.
+- [x] **Step 4:** `./check.sh`; commit "Say whether the cycle ran ahead of schedule, on schedule, or delayed".
 
 ### Task 4: timing in expressions
 

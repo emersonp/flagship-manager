@@ -25,6 +25,7 @@ internal static class BeatGlossary
         ["result"] = "The mission ends, with its outcome.",
         ["storylet"] = "A storylet arrives in the aftermath, apart from any mission, for a crew member (its subject) or for the ship.",
         ["storyletAnswer"] = "The captain picks one of a storylet's options.",
+        ["schedule"] = "The cycle has turned and the ship has arrived: ahead of schedule, on schedule, or delayed. Shown at the top of the itinerary.",
     };
 
     // Names for the beats the "What plays here" panel never shows.
@@ -32,6 +33,7 @@ internal static class BeatGlossary
     {
         ["storylet"] = "A storylet",
         ["storyletAnswer"] = "A storylet answered",
+        ["schedule"] = "The cycle's length",
     };
     private static readonly HashSet<string> CommonFacts = NarrativeFacts.Common.Select(f => f.Name).ToHashSet();
 

@@ -33,6 +33,9 @@ public static class NarrativeFacts
     public static readonly IReadOnlyList<string> Outcomes = ["fullSuccess", "partialSuccess", "withdrawal", "loss", "incomplete"];
     public static readonly IReadOnlyList<string> CheckOutcomes = ["success", "failure"];
 
+    // How a cycle's rolled length compares with the days planned (slice 1e-calendar, design 4.4).
+    public static readonly IReadOnlyList<string> Schedules = ["ahead", "on", "delayed"];
+
     // The text an encounter, an approach, a decision, and an objective may carry for their own beats, by key. An encounter's
     // "arrive" is its stage beat; an approach has a text per tier; a decision's "call" and "initiative" are those beats and its "bold"
     // and "safe" the effects beat that follows the choice; an objective has a text per outcome.
@@ -137,6 +140,14 @@ public static class NarrativeFacts
         new BeatSpec("storylet", [new("storylet", FactType.Text, FactDomain.Storylet)], ["subject", "target"], ["storylet"]),
         // Outcome: success or failure, for an option settled by a check (1e part four, Task 6), whose own text may name the handler.
         new BeatSpec("storyletAnswer", [new("storylet", FactType.Text, FactDomain.Storylet), new("option", FactType.Text), new("outcome", FactType.Text, FactDomain.Words, CheckOutcomes)], ["subject", "target"], ["storylet"]),
+        // The cycle has turned and the calendar moved (slice 1e-calendar), said at the top of the itinerary, apart from any mission.
+        // Days: how many days early or late, 0 on schedule; weeks: the weeks planned; travel: a journey of more than one week.
+        // #days# says the days early or late ("4 days") and #planned# the weeks planned ("5 weeks"). The length itself is never said.
+        new BeatSpec(
+            "schedule",
+            [new("schedule", FactType.Text, FactDomain.Words, Schedules), new("days", FactType.Number), new("weeks", FactType.Number), new("travel", FactType.Flag)],
+            [],
+            ["days", "planned"]),
     }.ToDictionary(b => b.Kind);
 
     public static IReadOnlyList<string> Kinds => Beats.Keys.ToList();

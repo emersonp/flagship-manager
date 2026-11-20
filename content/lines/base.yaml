@@ -111,3 +111,29 @@
 - id: LINE_RESULT
   when: { beat: result }
   text: The mission ended.
+# How the cycle's turn went (slice 1e-calendar), said at the top of the itinerary. Generated 2026-11-20, for the author to rewrite.
+# #days# is the days early or late ("4 days"), #planned# the weeks planned ("5 weeks"); the cycle's length is never said.
+- id: LINE_SCHEDULE_AHEAD
+  name: The ship arrives ahead of schedule
+  when: { beat: schedule, schedule: ahead }
+  text: The crossing ran clean, and the ship made orbit ahead of schedule.
+- id: LINE_SCHEDULE_ON
+  name: The ship arrives on schedule
+  when: { beat: schedule, schedule: "on" }
+  text: The ship made orbit on schedule.
+- id: LINE_SCHEDULE_DELAYED
+  name: The ship arrives delayed
+  when: { beat: schedule, schedule: delayed }
+  text: The crossing dragged, and the ship made orbit behind schedule.
+- id: LINE_SCHEDULE_TRAVEL_AHEAD
+  name: A journey arrives early
+  when: { beat: schedule, schedule: ahead, travel: true }
+  text: "Planned at #planned#, the journey came in #days# early."
+- id: LINE_SCHEDULE_TRAVEL_ON
+  name: A journey arrives on time
+  when: { beat: schedule, schedule: "on", travel: true }
+  text: "Planned at #planned#, the journey came in on schedule, to the day."
+- id: LINE_SCHEDULE_TRAVEL_DELAYED
+  name: A journey arrives late
+  when: { beat: schedule, schedule: delayed, travel: true }
+  text: "Planned at #planned#, the journey ran #days# late."

@@ -98,8 +98,9 @@ public sealed record CallView(string CallId, string DecisionId, int Stakes, IRea
 public sealed record AftermathView(string? Outcome, IReadOnlyList<CrewChange> Changes, IReadOnlyList<UnattendedView> Unattended, ReportView? Report = null);
 
 // The captain's itinerary (1e part two): the storylets waiting and answered this cycle, the vignettes that arrived, and the
-// captain's time, shown and not yet spent.
-public sealed record ItineraryView(int CaptainsTime, IReadOnlyList<StoryletView> Waiting, IReadOnlyList<SettledStoryletView> Settled, IReadOnlyList<VignetteView> Vignettes)
+// captain's time, shown and not yet spent. Schedule: how the turn that began the cycle went (slice 1e-calendar); null for the first.
+public sealed record ItineraryView(int CaptainsTime, IReadOnlyList<StoryletView> Waiting, IReadOnlyList<SettledStoryletView> Settled, IReadOnlyList<VignetteView> Vignettes,
+    IReadOnlyList<ProseEntry>? Schedule = null)
 {
     public bool IsEmpty => Waiting.Count == 0 && Settled.Count == 0 && Vignettes.Count == 0;
 }

@@ -22,7 +22,10 @@ public static class BridgeReader
     // lastTeam: the team the last cycle sent, which the briefing picks again; null when it sent nobody.
     // answers: the storylets module's view of what may be answered now (1e part four, Task 6), from the game that holds the legacy;
     // null builds one from the pack, as a reader with no game (a test) must.
-    public static BridgeView Read(LegacyRecord record, ContentPack pack, IReadOnlyList<IEvent> cycleEvents, Names names, TeamAssigned? lastTeam = null, IStoryletView? answers = null)
+    // turned: the length rolled by the turn that began this cycle (slice 1e-calendar), which the itinerary reports. It is stamped
+    // with the cycle that ended, as its roll is, so it is not among cycleEvents; null for the first cycle, which no turn began.
+    public static BridgeView Read(LegacyRecord record, ContentPack pack, IReadOnlyList<IEvent> cycleEvents, Names names, TeamAssigned? lastTeam = null, IStoryletView? answers = null,
+        CycleLengthRolled? turned = null)
     {
         LegacyState state = record.State;
         IReadOnlyList<CrewRow> roster = Roster(state, pack, names);
@@ -34,7 +37,7 @@ public static class BridgeReader
         bool showMission = site?.Mission is not null && phase is CyclePhase.Resolution or CyclePhase.Aftermath;
         bool afterwards = phase is CyclePhase.Aftermath or CyclePhase.Advance;
         bool showAftermath = afterwards && site is not null;
-        ItineraryView? itinerary = phase == CyclePhase.Itinerary ? Itinerary(state, pack, cycleEvents, names, answers ?? GameHost.Game.Build(pack).Bus.View<IStoryletView>(state)) : null;
+        ItineraryView? itinerary = phase == CyclePhase.Itinerary ? Itinerary(state, pack, cycleEvents, names, answers ?? GameHost.Game.Build(pack).Bus.View<IStoryletView>(state), turned) : null;
 
         List<ObjectiveView> objectives = site is null ? [] : site.Objectives.Select(o => Objective(pack, names, site, o)).ToList();
         MissionInFlight? inFlight = site?.Mission;
@@ -353,12 +356,13 @@ public static class BridgeReader
         return new AftermathView(outcome ?? site?.Mission?.State.Result?.Outcome.ToString(), changes, unattended);
     }
 
-    // The captain's itinerary (1e part two): the storylets, the vignettes that arrived this cycle in arrival order, and the
-    // captain's time.
-    private static ItineraryView Itinerary(LegacyState state, ContentPack pack, IReadOnlyList<IEvent> cycleEvents, Names names, IStoryletView answers)
+    // The captain's itinerary (1e part two): how the turn went (slice 1e-calendar), the storylets, the vignettes that arrived this
+    // cycle in arrival order, and the captain's time.
+    private static ItineraryView Itinerary(LegacyState state, ContentPack pack, IReadOnlyList<IEvent> cycleEvents, Names names, IStoryletView answers, CycleLengthRolled? turned)
     {
         (List<StoryletView> waiting, List<SettledStoryletView> settled) = Storylets(state, pack, cycleEvents, names, answers);
-        return new ItineraryView(pack.CaptainsTimePerCycle, waiting, settled, Vignettes(state, pack, cycleEvents, names));
+        IReadOnlyList<ProseEntry>? schedule = turned is null ? null : Schedule.Line(pack, turned, state.Seed, state.Cycle);
+        return new ItineraryView(pack.CaptainsTimePerCycle, waiting, settled, Vignettes(state, pack, cycleEvents, names), schedule);
     }
 
     // Words for the history kind that brought a vignette, in its head.

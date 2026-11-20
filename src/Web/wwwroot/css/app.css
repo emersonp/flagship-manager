@@ -656,6 +656,8 @@ td.approaches__acts .btn + .btn { margin-top: var(--space-2xs); }
 
 /* The captain's itinerary (1e part two): the captain's time is a plain figure under the heading, and a vignette's default is a
    quiet note after its answers. */
+.itinerary__schedule { max-width: 72ch; color: var(--color-ink); }
+.itinerary__schedule .script { margin: 0; }
 .itinerary__time { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-2xs) var(--space-sm); color: var(--color-ink-2); }
 .itinerary__time .m { font-family: var(--font-outlier); font-variant-numeric: tabular-nums slashed-zero; color: var(--color-ink); }
 .vignette__default { font-size: var(--text-sm); color: var(--color-muted); align-self: center; }

@@ -3,6 +3,10 @@
 <main id="main">
     <div class="view-head">
         <h1>Captain's itinerary</h1>
+        @if (Itinerary?.Schedule is { } schedule)
+        {
+            <div id="schedule" class="itinerary__schedule"><ScriptLines Entries="schedule" /></div>
+        }
         <p>@Lead</p>
         <p class="itinerary__time" id="captains-time"><span>Captain's time</span><span class="m">@(Itinerary?.CaptainsTime ?? 0)</span><span class="note">Not spent yet</span></p>
     </div>
