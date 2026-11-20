@@ -2,6 +2,8 @@
 # two: a holder of trait_g and its target (1e part four). STORYLET_04 casts a holder of trait_h and its target, and its first
 # option is settled by a check with a handler the captain names; its second has requires (1e part four, Task 6). STORYLET_05 can't
 # cast: its first slot holds for whoever was hurt last cycle, but no one's loyalty passes 100, so its second never holds (Task 8).
+# STORYLET_06 is the short version of "The names on the wall" (1e part five, design 4.8): two deaths within 120 days, and a voice
+# who lost a crewmate; its first option writes a weight-4 entry in its own words, and its last sets trait_k.
 - id: STORYLET_01
   stakes: 2
   requires: "ship.trait.trait_a == 1"
@@ -61,3 +63,16 @@
   options:
     - { id: option_a, label: STORYLET_05_OPTION_A_LABEL, effects: [{ morale: 1, on: target }], text: STORYLET_05_OPTION_A_TEXT }
     - { id: option_b, label: STORYLET_05_OPTION_B_LABEL, effects: [{ loyalty: -1, on: subject }], text: STORYLET_05_OPTION_B_TEXT }
+- id: STORYLET_06
+  stakes: 3
+  requires: "chronicle.count('death', 120) >= 2"
+  cast:
+    voice: "voice.aboard && voice.history.count('lost_crewmate', 20) >= 1"
+  cooldown: { cast: 20, global: 20 }
+  text: |-
+    voice: STORYLET_06_LINE_1
+    = #voice# STORYLET_06_REPORT
+  options:
+    - { id: option_a, label: STORYLET_06_OPTION_A_LABEL, effects: [{ morale: 2, on: crew }], chronicle: { weight: 4, text: "#voice# STORYLET_06_CHRONICLE" }, text: "#voice# STORYLET_06_OPTION_A_TEXT" }
+    - { id: option_b, label: STORYLET_06_OPTION_B_LABEL, effects: [{ morale: 2, on: voice }], text: "#voice# STORYLET_06_OPTION_B_TEXT" }
+    - { id: option_c, label: STORYLET_06_OPTION_C_LABEL, effects: [{ trait: trait_k, set: 1, on: voice }], text: "#voice# STORYLET_06_OPTION_C_TEXT" }

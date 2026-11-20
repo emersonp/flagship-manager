@@ -37,7 +37,7 @@ public class TraitContentTests
     [Fact]
     public void Both_packs_load_their_traits()
     {
-        Assert.Equal(["trait_a", "trait_c", "trait_b", "trait_e", "trait_f", "trait_g", "trait_h", "trait_i", "trait_j"], TestContent.Pack.Traits.Select(t => t.Id));
+        Assert.Equal(["trait_a", "trait_c", "trait_b", "trait_e", "trait_f", "trait_g", "trait_h", "trait_i", "trait_j", "trait_k"], TestContent.Pack.Traits.Select(t => t.Id));
         ContentLoadResult game = ContentLoader.LoadDirectory(Path.Combine(TestContent.Root, "content"));
         Assert.Empty(game.Errors);
         Assert.Contains(game.Pack!.Traits, t => t.Id == "stood_down");

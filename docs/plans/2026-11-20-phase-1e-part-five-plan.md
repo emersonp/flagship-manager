@@ -145,9 +145,9 @@ public sealed record CrewDied(string CrewId, string MissionId, string? Encounter
 
 **Files:** `content/storylets/base.yaml`, `content/traits/` (the trait `grieving`), the test pack's short version, the GDD chapters in design section 6, `GLOSSARY.md`, `docs/gdd/11-roadmap.md`, `docs/plans/phase-1-outline.md`, `docs/gdd.md`, and the design's "As built".
 
-- [ ] **Step 1: the example** (design 4.8). "The names on the wall", with words written in place for the author to rewrite. If a cast slot can't prefer the member with the most losses, require `voice.history.count('lost_crewmate', 20) >= 1` and say so in "As built". A web test plays it: two deaths within 120 days, the storylet arrives, the service is held, and the chronicle shows the weight-4 entry with the option's text.
-- [ ] **Step 2: the GDD.** Sections 3.8, 3.9, 6, 7.1, and 7.5 as design section 6 says. Bump the status line and name the slice. Rebuild and republish the GDD page (`tools/gdd-page/README.md`).
-- [ ] **Step 3: the glossary.** Add **Entry** and **Notable**. **Chronicle** gains "read by storylets with `chronicle.count`".
-- [ ] **Step 4: progress.** The roadmap's row and the outline's paragraph say "Done", with the date and a pointer to "As built". Part six becomes "Next".
-- [ ] **Step 5: As built.** The design's section 8, task by task: what changed and why, the golden hash before and after, and what's left for the author to judge in play (the default lines, the weights, and the founding entry with no ship name).
-- [ ] **Step 6:** `./check.sh`; commit "Give the game a storylet that remembers the dead, and record the chronicle".
+- [x] **Step 1: the example** (design 4.8). "The names on the wall", with words written in place for the author to rewrite. If a cast slot can't prefer the member with the most losses, require `voice.history.count('lost_crewmate', 20) >= 1` and say so in "As built". A web test plays it: two deaths within 120 days, the storylet arrives, the service is held, and the chronicle shows the weight-4 entry with the option's text.
+- [x] **Step 2: the GDD.** Sections 3.8, 3.9, 6, 7.1, and 7.5 as design section 6 says. Bump the status line and name the slice. Rebuild and republish the GDD page (`tools/gdd-page/README.md`).
+- [x] **Step 3: the glossary.** Add **Entry** and **Notable**. **Chronicle** gains "read by storylets with `chronicle.count`".
+- [x] **Step 4: progress.** The roadmap's row and the outline's paragraph say "Done", with the date and a pointer to "As built". Part six becomes "Next".
+- [x] **Step 5: As built.** The design's section 8, task by task: what changed and why, the golden hash before and after, and what's left for the author to judge in play (the default lines, the weights, and the founding entry with no ship name).
+- [x] **Step 6:** `./check.sh`; commit "Give the game a storylet that remembers the dead, and record the chronicle".

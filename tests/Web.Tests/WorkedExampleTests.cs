@@ -1,3 +1,5 @@
+using System.Net;
+using System.Text.RegularExpressions;
 using GameHost;
 using Sim.Content;
 using Sim.Core;
@@ -147,5 +149,46 @@ public sealed class WorkedExampleTests
 
         legacy.Send(new AnswerStorylet(legacy.Waiting("STORYLET_07").OfferId, "strip_down"));
         Assert.Equal(0, legacy.Trait("sensors_quirk", null));
+    }
+
+    // 1e part five's worked example (design 4.8), in the fixture's short version, through the web. With 1d20 dice and deadly injuries
+    // the captain plays until two crew have died within 120 days and STORYLET_06 ("The names on the wall") waits; the service, its
+    // first option, is held through the bridge, and the Chronicle page shows the weight-4 entry in the option's own words, set apart.
+    [Fact]
+    public async Task Two_deaths_within_120_days_bring_the_names_on_the_wall_and_the_service_is_remembered()
+    {
+        using var app = new TestApp(wideDice: true);
+        HttpClient client = app.NewClient();
+        Guid id = await app.CreateAtOrders("LEGACY_WALL", 3);
+        var captain = new WebCaptain(app, client, id);
+        AnswerStorylet? wall = null;
+        for (int steps = 0; steps < 2000 && wall is null; steps++)
+        {
+            if (await captain.Peek() is AnswerStorylet { OfferId: var offer } answer && offer.EndsWith(":STORYLET_06", StringComparison.Ordinal))
+            {
+                wall = answer;
+            }
+            else
+            {
+                await captain.Step();
+            }
+        }
+
+        Assert.True(wall is not null, "The names on the wall never arrived; choose another seed.");
+        LoadedLegacy before = await captain.Read();
+        IChronicleView chronicle = app.Live.Game.Bus.View<IChronicleView>(before.State);
+        Assert.True(chronicle.Count(ChronicleKinds.Death, 120) >= 2);
+        Assert.Equal("option_a", wall.OptionId);
+        string voice = before.State.Module<StoryletsState>(StoryletsModule.Name).Waiting.Single(w => w.OfferId == wall.OfferId).Cast["voice"];
+
+        await captain.Step();
+
+        LoadedLegacy after = await captain.Read();
+        ChronicleEntry entry = app.Live.Game.Bus.View<IChronicleView>(after.State).Entries[^1];
+        ChronicleSubject subject = Assert.Single(entry.Subjects);
+        Assert.Equal(voice, subject.Id);
+        Assert.Equal((ChronicleKinds.Storylet, 4, $"{subject.Name} STORYLET_06_CHRONICLE"), (entry.Kind, entry.Weight, entry.Text));
+        string page = await client.GetStringAsync($"/legacy/{id}/chronicle?show=notable");
+        Assert.Matches(new Regex($@"<li class=""entry entry--apart"">(?:(?!</li>).)*<p class=""entry__text"">{Regex.Escape(WebUtility.HtmlEncode(entry.Text))}</p>", RegexOptions.Singleline), page);
     }
 }

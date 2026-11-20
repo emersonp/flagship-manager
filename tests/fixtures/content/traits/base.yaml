@@ -2,7 +2,7 @@
 # decision 8.4); trait_d has none, and an effect may still change it as a flag.
 # trait_b falls each week; trait_e has named levels, launch rules, and expires; trait_f rises to a cap and is hidden.
 # trait_g, trait_h, and trait_i are the three pair shapes of the part-three design's section 6 (avoids, owes, looks up to);
-# trait_j is the grief the last two leave when their target dies.
+# trait_j is the grief the last two leave when their target dies. trait_k expires, and STORYLET_06's last option sets it (grieving).
 - id: trait_a
 - id: trait_c
 - id: trait_b
@@ -41,3 +41,6 @@
   on: crew
   max: 5
   every: { weeks: 2, add: -1 }
+- id: trait_k
+  on: crew
+  expires: { weeks: 4 }

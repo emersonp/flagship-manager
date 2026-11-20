@@ -84,7 +84,7 @@ Traits never contain bespoke code. They are a list of conditional modifiers over
   onTargetDied: [{ set: 0 }]            # pairs only
 ```
 
-The conditional modifiers above wait for the expression language (part four); part three's definitions have one modifier, the check bonus. Every key is optional but `id`. A level's name may be written wherever its number would be (`{ trait: stood_down, set: broken }`, a requirement's `is: broken`); a trait with levels is never added to, by content, a rule, or Dev Play. Every change is clamped to 0 and `max` (or the highest level). A rule's effect is `{ set }` or `{ add }` on its own trait, `{ trait, set | add }` on another, or `{ loyalty }` or `{ morale }`, with `on: holder` (the default), `target` (a pair's), or `crew` (loyalty and morale only). The loader checks every use of a trait in an encounter, storylet, or vignette against its definition: where it may sit, its levels, and no `add` to a trait with levels. The game's pack defines `sensors_quirk`, `shaken`, `shaken_heard`, `stood_down`, and `avoids`.
+The conditional modifiers above wait for the expression language (part four); part three's definitions have one modifier, the check bonus. Every key is optional but `id`. A level's name may be written wherever its number would be (`{ trait: stood_down, set: broken }`, a requirement's `is: broken`); a trait with levels is never added to, by content, a rule, or Dev Play. Every change is clamped to 0 and `max` (or the highest level). A rule's effect is `{ set }` or `{ add }` on its own trait, `{ trait, set | add }` on another, or `{ loyalty }` or `{ morale }`, with `on: holder` (the default), `target` (a pair's), or `crew` (loyalty and morale only). The loader checks every use of a trait in an encounter, storylet, or vignette against its definition: where it may sit, its levels, and no `add` to a trait with levels. The game's pack defines `sensors_quirk`, `shaken`, `shaken_heard`, `stood_down`, `avoids`, `came_back` (slice 1e, part four), and `grieving` (part five).
 
 Since slice 1e-calendar (2026-11-20) a trait's expiry and step count in days from its last change (`changedAtDay`, section 3.8), and happen on the day they fall due, which may be in the middle of a cycle; an expiry due before a step cancels it. The trait also keeps the cycle of its last change (`changedAtCycle`), for `x.trait.t.cyclesSince`. Definitions still write `weeks:`.
 
@@ -305,7 +305,7 @@ The game is a hybrid: part stats model, part quality-based narrative (section 5)
 - **Traits** (story flags until slice 1e, part three; section 15, item 40) are open-ended: named by content, numeric, and stored generically. They are the Fallen London half, and content invents new ones with no code change. **Every trait is a number** (section 15, item 38). A trait nobody has set is 0, a trait never goes below 0 or above its cap, and a trait at 0 is not stored. A trait whose definition names its levels can only be set; one without can be added to and set (item 40, replacing item 38's counter-or-stage rule). Related traits share a prefix (`shaken` and `shaken_heard`). A trait's id is lower case (`docs/conventions.md`), and wherever it is read beside other properties it is read through `trait`: `subject.trait.shaken`, `ship.trait.sensors_quirk`.
 - **Tags** stay typed content. A crew member's founding personality traits (3.2) are traits like any other once the crew files name them (slice 1h or crew generation).
 
-A **quality** is a stat or a trait: anything the expression language can read through the read-only **state view** (the "quality view" until 2026-11-17), stat or trait alike: `a.skills.SKILL_A`, `a.grade.ATTRIBUTE_A`, `rel(a, b).strength`, `ship.renown`, `chronicle.count('death', dept: a.departmentId, within: 20)`, or `a.trait.x`. Only traits are stored generically. As built in slice 1e, part three, a trait is on the ship, on one crew member, or on a **pair**, held in the traits module's state:
+A **quality** is a stat or a trait: anything the expression language can read through the read-only **state view** (the "quality view" until 2026-11-17), stat or trait alike: `a.skills.SKILL_A`, `a.grade.ATTRIBUTE_A`, `rel(a, b).strength`, `ship.renown`, `chronicle.count('death', 120)`, or `a.trait.x`. Only traits are stored generically. As built in slice 1e, part three, a trait is on the ship, on one crew member, or on a **pair**, held in the traits module's state:
 
 ```yaml
 trait: avoids
@@ -339,10 +339,14 @@ A pair is held by one crew member (the **holder**) and points at another (the **
 | `cycle.number` | number | The cycle now starting |
 | `storylet.s.cyclesSince` | number, or unset | Cycles since storylet `s` last arrived, anywhere on the ship; unset if it never has. `s` must be a storylet, not a vignette |
 | `storylet.s.daysSince` | number, or unset | Days since it last arrived |
+| `chronicle.count('kind', n)` | number | How many chronicle entries (3.9) of `kind` were written in the last `n` days, today included (slice 1e, part five) |
+| `x.chronicle.count('kind', n)` | number | The same, counting only the entries with `x` among their subjects |
 
-The history is each living crew member's last `history.cycles` (tuning, 20) cycles, kept by the storylets module and served to other modules as `IHistoryView`. Its kinds are `sent`, `hurt`, `rested`, `lost_crewmate` (someone died on the cycle's mission and they are alive, sent or not), `lost_teammate` (someone died on their mission and they came home), and `lost_mission` (they were on a mission whose objective failed or was abandoned). `n` is 1 to `history.cycles`. Anything not in the table is refused by name, for example "rel() waits for relationships (Phase 4)", "grade waits for 1h", and `chronicle`, which waits for part five. An expression can reach nothing but the view: no reflection, type names, or static methods, no division, and no side effects.
+The history is each living crew member's last `history.cycles` (tuning, 20) cycles, kept by the storylets module and served to other modules as `IHistoryView`. Its kinds are `sent`, `hurt`, `rested`, `lost_crewmate` (someone died on the cycle's mission and they are alive, sent or not), `lost_teammate` (someone died on their mission and they came home), and `lost_mission` (they were on a mission whose objective failed or was abandoned). `n` is 1 to `history.cycles`. Anything not in the table is refused by name, for example "rel() waits for relationships (Phase 4)", "grade waits for 1h", and "dept waits for departments (Phase 5)". An expression can reach nothing but the view: no reflection, type names, or static methods, no division, and no side effects.
 
 The four readings of time (slice 1e-calendar) count whole cycles and whole days back from the itinerary now open, to the cycle and day the storylet arrived on (arriving and being answered fall on the same cycle and day) or the trait last changed. **Unset** means it never happened, or the trait is at 0: any `<`, `<=`, `>`, `>=`, or `==` with an unset reading is false, through `+`, `-`, and `*` too, so `storylet.a.daysSince >= 40` and `storylet.a.daysSince < 40` are both false before A has arrived, and "A has arrived" is `storylet.a.cyclesSince >= 0`. `!=` follows C#: an unset reading is not 40, so `!=` is true. They turn on time, not on a trait's value, so the rule against hidden memory (3.7) reads them as unknown, and a storylet that reads only them still needs a trait or a cast cooldown to stop it returning. A duration an effect sets stays in weeks.
+
+**The chronicle in expressions** (slice 1e, part five) is read in days, not cycles: an entry counts while its day is within `n` days of today, today included, so a 35-day journey ages every entry by 35 days. `kind` is one of the five kinds in 3.9, checked when the pack loads ("No chronicle kind named deaths; the kinds are founding, death, mission, call, storylet."), and `n` is a whole number from 1, with no upper bound, since the chronicle keeps every entry. A chronicle department filter (`dept:`) waits for departments (Phase 5). The rule against hidden memory (3.7) reads the chronicle as unknown, as it reads time, so a storylet that reads only the chronicle still needs a trait or a cast cooldown.
 
 ## 3.9 Event log entry and chronicle entry (state)
 
@@ -355,18 +359,33 @@ type: EncounterResolved
 version: 1
 payload: { missionId: m_211, encounterId: ENCOUNTER_07, tier: failure, actors: [crew_0042] }
 
-# chronicle: curated, player-facing
-id: chr_0412
-cycle: 61
-kind: death                   # death | promotion | hull_lost | succession | feat | ...
-weight: 5                     # 1-5; drives what the chronicle screen shows first
-subjects: [crew_0017]
-hullSuffix: A
-text: "…rendered once, then frozen…"
-sourceSeq: [88213, 88214]
+# chronicle: curated, player-facing (as built in slice 1e, part five)
+id: chr_0012                  # chr_ and a counter per legacy
+day: 37529                    # the day it happened
+cycle: 9
+kind: death                   # founding | death | mission | call | storylet; later: promotion | hull_lost | succession | ...
+weight: 5                     # 1-5; drives what the Chronicle page shows first
+subjects:                     # crew ids, with their names as they were when it was written
+  - { id: crew_0017, name: Okafor }
+text: "Okafor fell at the Collapsed Gallery, on Vance's away team, after 8 cycles aboard."
+sourceSeq: [412]              # the events it records; a mission's lists its end, then its deaths
 ```
 
-Chronicle text is rendered once and stored, so later grammar edits never rewrite history.
+The chronicle module (`Sim.Chronicle`, 7.1) writes one entry, once, when what it records happens: the legacy's founding, each death, each call answered, each captain storylet answered (not a vignette), and each mission's end. A mission's deaths are written before its own entry, and a call answered before a death in the same encounter. Entries live in the module's state, one row per legacy, in the order written; a table of their own waits until the list grows too long for one row. `hullSuffix` waits for hulls (Phase 8).
+
+**Chronicle text is rendered once and stored**, with the pack live at that moment, so a later edit to a line never rewrites history (section 6), and each subject's name is frozen with it. The words are the best line for the kind's beat (`chronicle_founding`, `chronicle_death`, and so on), plain prose with no speakers, or for a storylet option its own `chronicle.text`; if no line holds, fixed words in code, so an entry is never lost.
+
+**Weights** come from `content/tuning/chronicle.yaml`:
+
+| Kind | Default weight |
+|---|---|
+| `founding` | 5 |
+| `death` | 5 |
+| `storylet` | 3; a storylet's `chronicle: { weight: n }` overrides it, and an option's `chronicle: { weight: n, text: "..." }` overrides both |
+| `call` | 3 if overruled (`callOverruled`), 2 if backed or neutral (`callBacked`); a decision's `chronicle: { weight: n }` overrides both |
+| `mission` | 2 if failed or abandoned (`missionLost`), 1 if it succeeded (`missionWon`) |
+
+`notable` (3) is the weight from which the Chronicle page's Notable view shows an entry (7.5). A weight of 0 writes no entry: it is not stored, counted, or shown. The loader refuses a weight outside 0 to 5, and `text` anywhere but on a storylet option.
 
 ## 3.10 Skills, departments, and attributes (content)
 

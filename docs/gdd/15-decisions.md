@@ -138,4 +138,4 @@ Decided by the author on 2026-11-20, in a design interview for the chronicle (de
     - **Weight** per kind in the tuning file (founding and death 5, storylet 3, call 3 when the captain overruled the lead and 2 otherwise, mission 2 when lost and 1 when won), overridable on a storylet, an option, or a decision; `weight: 0` writes no entry.
     - **Read in days:** `chronicle.count(kind, days)` and `x.chronicle.count(kind, days)`. `history.count` stays in cycles, because the history is stored per cycle.
     - **The page:** newest first under full dates, weight 4 and 5 set apart, All (default) or Notable (3 and up), no pagination.
-    - **The worked example** is "The names on the wall", gated on `chronicle.count('death', 120) >= 2`.
+    - **The worked example** is "The names on the wall", gated on `chronicle.count('death', 120) >= 2`. As built, its voice is anyone who lost a crewmate in the last 20 cycles, since a cast slot cannot prefer the one with the most losses.

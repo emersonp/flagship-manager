@@ -62,8 +62,16 @@ The event in which a lineage moves to a new hull, or the chair moves to a new ca
 _Avoid_: Respawn, replacement
 
 **Chronicle**:
-The permanent, curated history of a legacy, readable by the player and queryable by storylets.
+The permanent, curated history of a legacy, readable by the player and queryable by storylets: read by storylets with `chronicle.count`.
 _Avoid_: History log, journal, event log (that is the technical record beneath it)
+
+**Entry**:
+One item in the chronicle: a founding, a death, a mission, a call, or a storylet answered. It has a day, a weight from 1 to 5, its subjects with their names as they were, and text written once when it happened and never again.
+_Avoid_: Record, log line, event (that is the technical record it is written from)
+
+**Notable**:
+An entry at the tuning file's `notable` weight or above (3); the Chronicle page's Notable view shows only these.
+_Avoid_: Important, major
 
 **Memorial**:
 A chronicle entry for a dead crew member or lost hull that later content can reference.

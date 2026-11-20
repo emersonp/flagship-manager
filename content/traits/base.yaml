@@ -45,3 +45,9 @@
   on: crew
   levels: { 1: settled, 2: withdrawn }
   expires: { weeks: 12 }
+# Grieving (1e part five, design 4.8): someone who asked to remember the dead and was told "Not now" by "The names on the wall". It
+# does nothing on its own yet; it marks them for a later storylet, and lets go after four weeks.
+- id: grieving
+  name: Grieving
+  on: crew
+  expires: { weeks: 4 }
