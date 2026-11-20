@@ -105,8 +105,26 @@ public static partial class ContentLoader
                     Error($"decision id '{dto.Decision.Id}' is also used by {decisionOwners[dto.Decision.Id]}.");
                 }
 
+                int? chronicleWeight = null;
+                if (dto.Decision.Chronicle is { } chronicle)
+                {
+                    if (chronicle.Text is not null)
+                    {
+                        Error("The decision's chronicle has text, which only a storylet option may have.");
+                    }
+
+                    if (chronicle.Weight is not { } weight || weight < 0 || weight > Sim.Core.ChronicleTuning.Most)
+                    {
+                        Error($"The decision's chronicle weight must be a whole number from 0 to {Sim.Core.ChronicleTuning.Most}.");
+                    }
+                    else
+                    {
+                        chronicleWeight = weight;
+                    }
+                }
+
                 string? decisionName = dto.Decision.Id is null ? null : CheckName(file, $"{dto.Id} decision {dto.Decision.Id}", dto.Decision.Name, errors);
-                decision = new DecisionDef(dto.Decision.Id ?? "", dto.Decision.Stakes, Effects(dto.Decision.Bold, book, Error), Effects(dto.Decision.Safe, book, Error), decisionName);
+                decision = new DecisionDef(dto.Decision.Id ?? "", dto.Decision.Stakes, Effects(dto.Decision.Bold, book, Error), Effects(dto.Decision.Safe, book, Error), decisionName, chronicleWeight);
             }
 
             CheckTags(dto.Tags, Error);
@@ -561,6 +579,16 @@ public static partial class ContentLoader
         public Dictionary<string, string?>? Text { get; set; }
 
         public Dictionary<string, string?>? Labels { get; set; }
+
+        public ChronicleDto? Chronicle { get; set; }
+    }
+
+    // chronicle: on a decision (slice 1e part five, design 4.4). Text is read only to be refused: it belongs on a storylet option.
+    private sealed class ChronicleDto
+    {
+        public int? Weight { get; set; }
+
+        public string? Text { get; set; }
     }
 
     private sealed class ObjectiveDto

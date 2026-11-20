@@ -328,6 +328,36 @@ public class MissionContentTests
         Assert.Equal(("encounters/a.yaml", "ENCOUNTER_02: decision id 'DECISION_PROMPT_1' is also used by ENCOUNTER_01."), (error.File, error.Message));
     }
 
+    // Slice 1e part five: a decision may set the weight of its call's chronicle entry; 0 writes none.
+    [Theory]
+    [InlineData(0)]
+    [InlineData(4)]
+    public void A_decisions_chronicle_weight_loads(int weight)
+    {
+        ContentPack pack = Load(Encounter.Replace("    stakes: 2\n", $"    stakes: 2\n    chronicle: {{ weight: {weight} }}\n"), Objective).Pack!;
+
+        Assert.Equal(weight, Assert.Single(pack.Encounters).Decision!.ChronicleWeight);
+    }
+
+    [Fact]
+    public void A_decision_with_no_chronicle_leaves_the_weight_to_the_tuning_file()
+    {
+        Assert.Null(Assert.Single(Load(Encounter, Objective).Pack!.Encounters).Decision!.ChronicleWeight);
+    }
+
+    [Theory]
+    [InlineData("{ weight: 6 }", "ENCOUNTER_01: The decision's chronicle weight must be a whole number from 0 to 5.")]
+    [InlineData("{ weight: -1 }", "ENCOUNTER_01: The decision's chronicle weight must be a whole number from 0 to 5.")]
+    [InlineData("{}", "ENCOUNTER_01: The decision's chronicle weight must be a whole number from 0 to 5.")]
+    [InlineData("{ weight: 2, text: Words. }", "ENCOUNTER_01: The decision's chronicle has text, which only a storylet option may have.")]
+    public void A_decisions_chronicle_is_checked(string chronicle, string message)
+    {
+        ContentLoadResult result = Load(Encounter.Replace("    stakes: 2\n", $"    stakes: 2\n    chronicle: {chronicle}\n"), Objective);
+
+        Assert.Null(result.Pack);
+        Assert.Equal(("encounters/a.yaml", message), (result.Errors[0].File, result.Errors[0].Message));
+    }
+
     // The resolver raises the abort call with this id.
     [Fact]
     public void The_abort_decision_id_is_reserved()

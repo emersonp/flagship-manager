@@ -241,6 +241,40 @@ public class ContentWriterTests : IClassFixture<RepoContentGuard>
         Assert.Equal(System.Text.Json.JsonSerializer.Serialize(model), System.Text.Json.JsonSerializer.Serialize(read));
     }
 
+    // Slice 1e part five: a decision's chronicle weight is written after its labels, and read back the same; 0 is kept.
+    [Fact]
+    public void A_decisions_chronicle_weight_is_written_and_read_back()
+    {
+        var model = new EncounterModel(
+            "ENCOUNTER_01",
+            null,
+            ["field"],
+            false,
+            null,
+            [new ApproachModel("careful", null, "SKILL_A", 5, null, [], new Dictionary<string, IReadOnlyList<EffectModel>>())],
+            new DecisionModel("DECISION_PROMPT_1", null, 2, [new EffectModel(1, null, null, null)], [], ChronicleWeight: 0));
+
+        string text = Render(model);
+
+        Assert.Equal(
+            Lines(
+                "- id: ENCOUNTER_01",
+                "  tags: [field]",
+                "  approaches:",
+                "    - { id: careful, skill: SKILL_A, difficulty: 5 }",
+                "  decision:",
+                "    id: DECISION_PROMPT_1",
+                "    stakes: 2",
+                "    bold: [{ progress: 1 }]",
+                "    safe: []",
+                "    chronicle: { weight: 0 }"),
+            text);
+        ContentFileSet files = ContentEdits.ReplaceText(Repo(), "encounters/base.yaml", text);
+        EncounterModel read = ContentEdits.Get<EncounterModel>(files, ContentKind.Encounter, "ENCOUNTER_01")!;
+        Assert.Equal(System.Text.Json.JsonSerializer.Serialize(model), System.Text.Json.JsonSerializer.Serialize(read));
+        Assert.Empty(ContentEdits.Losses(files, "encounters/base.yaml"));
+    }
+
     // The leading comment block is kept as read, with no trailing spaces; blank lines around it go.
     [Fact]
     public void The_leading_comment_block_is_kept_and_the_rest_is_not()

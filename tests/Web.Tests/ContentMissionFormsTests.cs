@@ -627,6 +627,27 @@ public sealed class ContentMissionFormsTests(RepoContentGuard guard) : IClassFix
         Assert.Equal("DECISION_PROMPT_1", live.Decision.Id);
     }
 
+    // Slice 1e part five: the decision's chronicle weight is saved, shown again, and left out when blank.
+    [Fact]
+    public async Task Saving_an_encounter_keeps_the_decisions_chronicle_weight()
+    {
+        using TestApp app = NewApp();
+        HttpClient client = app.NewClient();
+
+        (HttpStatusCode status, _) = await Post(client, "/dev/content/encounters/ENCOUNTER_01", Merge(Encounter1, "decision.chronicleWeight=0"));
+        (_, string body) = await Get(client, "/dev/content/encounters/ENCOUNTER_01");
+
+        Assert.Equal(HttpStatusCode.OK, status);
+        Assert.Equal(0, app.Live.Pack.Encounters.Single(e => e.Id == "ENCOUNTER_01").Decision!.ChronicleWeight);
+        Assert.Contains("    chronicle: { weight: 0 }\n", Disk(app, "encounters/base.yaml"), StringComparison.Ordinal);
+        Assert.Equal("0", Value(body, "decision.chronicleWeight"));
+
+        await Post(client, "/dev/content/encounters/ENCOUNTER_01", Merge(Encounter1, "decision.chronicleWeight="));
+
+        Assert.Null(app.Live.Pack.Encounters.Single(e => e.Id == "ENCOUNTER_01").Decision!.ChronicleWeight);
+        Assert.DoesNotContain("chronicle:", Disk(app, "encounters/base.yaml"), StringComparison.Ordinal);
+    }
+
     // --- Requirements and outcomes (approaches plan, Task 4) ---
 
     [Fact]
@@ -1062,6 +1083,7 @@ public sealed class ContentMissionFormsTests(RepoContentGuard guard) : IClassFix
         { "/dev/content/encounters/ENCOUNTER_01", Encounter1, "chain=ENCOUNTER_01", "Chains to itself." },
         { "/dev/content/encounters/ENCOUNTER_01", Encounter1, "decision.stakes=6", "Must be 1 to 5." },
         { "/dev/content/encounters/ENCOUNTER_01", Encounter1, "decision.stakes=", "Enter a whole number." },
+        { "/dev/content/encounters/ENCOUNTER_01", Encounter1, "decision.chronicleWeight=6", "Must be 0 to 5." },
         { "/dev/content/encounters/ENCOUNTER_01", Encounter1, "bold[0].momentum=x", "Must be a whole number." },
         { "/dev/content/encounters/ENCOUNTER_01", Encounter1, "bold[1].strain=&bold[1].injury=", "Give the effect a value." },
         { "/dev/content/encounters/ENCOUNTER_01", Encounter1, "bold[0].injury=medium", "Choose light or severe." },

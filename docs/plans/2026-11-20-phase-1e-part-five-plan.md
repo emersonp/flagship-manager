@@ -85,13 +85,13 @@ public sealed record CrewDied(string CrewId, string MissionId, string? Encounter
 
 **Files:** `src/Sim.Chronicle/ChronicleModule.cs`, `src/Sim.Chronicle/Situations.cs` (new), `src/Sim.Core/Content/MissionContent.cs` (`DecisionDef` gains `ChronicleWeight`), `src/Sim.Content/ContentLoader.Missions.cs`, `src/Sim.Content/ContentWriter.cs` and `ContentFaithfulness.cs` (the new key), `content/lines/base.yaml`, the fixture's lines, `tests/Sim.Tests/ChronicleModuleTests.cs`.
 
-- [ ] **Step 1: what it keeps.** From `SiteArrived` and `MissionStarted`, keep each open mission's objective, site, team, and lead until its `MissionEnded`. Keep nothing else.
-- [ ] **Step 2: death.** On `CrewDied`, write a `death` entry. The subject is the dead member, with the name and pronouns taken from the pack's crew definition (the roster no longer has them). The facts are those in design 4.3; cycles served is the current `Cycle`, since every crew member has been aboard since cycle 1, until crew have a join date. Weight comes from the tuning file.
-- [ ] **Step 3: call.** On `CallAnswered`, write a `call` entry with the lead as subject. Weight is `callOverruled` or `callBacked`, unless the decision sets `chronicle: { weight: n }`. Weight 0 writes nothing.
-- [ ] **Step 4: mission.** On `MissionEnded`, write a `mission` entry with the lead as subject, the facts of design 4.3, and the number of deaths from the result. Weight is `missionWon` for a success and `missionLost` otherwise. Then forget the mission.
-- [ ] **Step 5: lines.** Write the default lines of design 4.3 in both packs, with criteria on `standing` and `outcome` where the words differ. Fallback fixed words exist for each kind, but the game's pack never needs them.
-- [ ] **Step 6: tests.** A seeded mission with a death and an overruled call writes, in order, the call, the death, and the mission. A backed call weighs 2. A decision with `weight: 0` writes no call entry. The words name the encounter and the lead.
-- [ ] **Step 7:** `./check.sh`; commit "Record deaths, calls, and missions in the chronicle".
+- [x] **Step 1: what it keeps.** From `SiteArrived` and `MissionStarted`, keep each open mission's objective, site, team, and lead until its `MissionEnded`. Keep nothing else.
+- [x] **Step 2: death.** On `CrewDied`, write a `death` entry. The subject is the dead member, with the name and pronouns taken from the pack's crew definition (the roster no longer has them). The facts are those in design 4.3; cycles served is the current `Cycle`, since every crew member has been aboard since cycle 1, until crew have a join date. Weight comes from the tuning file.
+- [x] **Step 3: call.** On `CallAnswered`, write a `call` entry with the lead as subject. Weight is `callOverruled` or `callBacked`, unless the decision sets `chronicle: { weight: n }`. Weight 0 writes nothing.
+- [x] **Step 4: mission.** On `MissionEnded`, write a `mission` entry with the lead as subject, the facts of design 4.3, and the number of deaths from the result. Weight is `missionWon` for a success and `missionLost` otherwise. Then forget the mission.
+- [x] **Step 5: lines.** Write the default lines of design 4.3 in both packs, with criteria on `standing` and `outcome` where the words differ. Fallback fixed words exist for each kind, but the game's pack never needs them.
+- [x] **Step 6: tests.** A seeded mission with a death and an overruled call writes, in order, the call, the death, and the mission. A backed call weighs 2. A decision with `weight: 0` writes no call entry. The words name the encounter and the lead.
+- [x] **Step 7:** `./check.sh`; commit "Record deaths, calls, and missions in the chronicle".
 
 ### Task 4: captain storylets in the chronicle
 

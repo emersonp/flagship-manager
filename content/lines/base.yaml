@@ -143,3 +143,74 @@
   name: The legacy is founded
   when: { beat: chronicle_founding }
   text: "The ship took on her first crew of #crew#."
+# A death. #dead# is the one lost, #lead# the lead the mission started with, #cycles# the cycles served ("8 cycles").
+- id: LINE_CHRONICLE_DEATH
+  name: A crew member is lost
+  when: { beat: chronicle_death }
+  text: "#dead# fell at the #encounter#, on #lead#'s away team, after #cycles# aboard."
+- id: LINE_CHRONICLE_DEATH_LEAD
+  name: The lead is lost
+  when: { beat: chronicle_death, dead.isLead: true }
+  text: "#dead# fell at the #encounter#, leading the away team, after #cycles# aboard."
+# A mission's end, after its deaths. #team# is how many were sent, #deaths# how many of them died.
+- id: LINE_CHRONICLE_MISSION_FULL
+  name: A mission succeeds in full
+  when: { beat: chronicle_mission, outcome: fullSuccess }
+  text: "#lead# led #team# on the #objective#, and saw it done."
+- id: LINE_CHRONICLE_MISSION_PARTIAL
+  name: A mission succeeds in part
+  when: { beat: chronicle_mission, outcome: partialSuccess }
+  text: "#lead# led #team# on the #objective#; it was done only in part."
+- id: LINE_CHRONICLE_MISSION_WITHDRAWAL
+  name: A mission is abandoned
+  when: { beat: chronicle_mission, outcome: withdrawal }
+  text: "#lead# led #team# on the #objective#; it was abandoned."
+- id: LINE_CHRONICLE_MISSION_LOSS
+  name: A mission is lost
+  when: { beat: chronicle_mission, outcome: loss }
+  text: "#lead# led #team# on the #objective#; it was lost."
+- id: LINE_CHRONICLE_MISSION_INCOMPLETE
+  name: A mission is left unfinished
+  when: { beat: chronicle_mission, outcome: incomplete }
+  text: "#lead# led #team# on the #objective#; it was left unfinished."
+- id: LINE_CHRONICLE_MISSION_WON_ONE_DEAD
+  name: A mission succeeds, and one dies
+  when: { beat: chronicle_mission, outcome: [fullSuccess, partialSuccess], deaths: 1 }
+  text: "#lead# led #team# on the #objective#, and saw it done. One did not return."
+- id: LINE_CHRONICLE_MISSION_WON_DEAD
+  name: A mission succeeds, and several die
+  when: { beat: chronicle_mission, outcome: [fullSuccess, partialSuccess], deaths: { min: 2 } }
+  text: "#lead# led #team# on the #objective#, and saw it done. #deaths# did not return."
+- id: LINE_CHRONICLE_MISSION_LOST_ONE_DEAD
+  name: A mission fails, and one dies
+  when: { beat: chronicle_mission, outcome: [withdrawal, loss, incomplete], deaths: 1 }
+  text: "#lead# led #team# on the #objective#, and it failed. One did not return."
+- id: LINE_CHRONICLE_MISSION_LOST_DEAD
+  name: A mission fails, and several die
+  when: { beat: chronicle_mission, outcome: [withdrawal, loss, incomplete], deaths: { min: 2 } }
+  text: "#lead# led #team# on the #objective#, and it failed. #deaths# did not return."
+# A call answered. #lead# is the lead who made it.
+- id: LINE_CHRONICLE_CALL_BACKED
+  name: The captain backs the lead
+  when: { beat: chronicle_call, standing: backed }
+  text: "At the #encounter#, the captain backed #lead#'s call."
+- id: LINE_CHRONICLE_CALL_NEUTRAL
+  name: The captain calls the team back
+  when: { beat: chronicle_call, standing: neutral }
+  text: "At the #encounter#, #lead# asked for caution, and the captain called the team back."
+- id: LINE_CHRONICLE_CALL_OVERRULED
+  name: The captain overrules the lead
+  when: { beat: chronicle_call, standing: overruled }
+  text: "At the #encounter#, the captain overruled #lead#."
+- id: LINE_CHRONICLE_CALL_OVERRULED_BOLD
+  name: The captain overrules the lead and presses on
+  when: { beat: chronicle_call, standing: overruled, answer: bold }
+  text: "At the #encounter#, the captain overruled #lead# and pressed on."
+- id: LINE_CHRONICLE_CALL_OVERRULED_SAFE
+  name: The captain overrules the lead and holds back
+  when: { beat: chronicle_call, standing: overruled, answer: safe }
+  text: "At the #encounter#, the captain overruled #lead# and held back."
+- id: LINE_CHRONICLE_CALL_OVERRULED_WITHDRAW
+  name: The captain overrules the lead and withdraws
+  when: { beat: chronicle_call, standing: overruled, answer: withdraw }
+  text: "At the #encounter#, the captain overruled #lead# and called the team back."

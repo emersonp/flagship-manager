@@ -33,6 +33,13 @@ public sealed record MissionTrait(string Trait, int Amount, bool Set, string? Cr
 // Traits: every trait change the mission made, in the order made.
 public sealed record MissionResult(MissionOutcome Outcome, int Progress, int Need, int Calls, int Initiatives, IReadOnlyList<CrewResult> Crew, IReadOnlyList<MissionTrait> Traits);
 
+public sealed record SiteObjective(string Id, string TemplateId);
+
+// Published by the missions module when the ship reaches a cycle's site. A contract here since slice 1e part five, so the chronicle
+// can name the site a mission was at.
+[EventType("SiteArrived", 1)]
+public sealed record SiteArrived(int Cycle, string AssignmentId, IReadOnlyList<SiteObjective> Objectives) : IEvent;
+
 [EventType("MissionStarted", 1)]
 public sealed record MissionStarted(string MissionId, string ObjectiveId, string TemplateId, IReadOnlyList<string> CrewIds, string LeadId) : IEvent;
 

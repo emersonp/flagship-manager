@@ -82,3 +82,18 @@
 - id: LINE_CHRONICLE_FOUNDING
   when: { beat: chronicle_founding }
   text: "CHRONICLE_FOUNDING #crew#."
+- id: LINE_CHRONICLE_DEATH
+  when: { beat: chronicle_death }
+  text: "CHRONICLE_DEATH #dead# #encounter# #lead# #cycles#."
+- id: LINE_CHRONICLE_MISSION
+  when: { beat: chronicle_mission }
+  text: "CHRONICLE_MISSION #lead# #objective# #team# #deaths#."
+- id: LINE_CHRONICLE_MISSION_FAILED
+  when: { beat: chronicle_mission, outcome: [withdrawal, loss, incomplete] }
+  text: "CHRONICLE_MISSION_FAILED #lead# #objective# #team# #deaths#."
+- id: LINE_CHRONICLE_CALL
+  when: { beat: chronicle_call }
+  text: "CHRONICLE_CALL #lead# #encounter#."
+- id: LINE_CHRONICLE_CALL_OVERRULED
+  when: { beat: chronicle_call, standing: overruled }
+  text: "CHRONICLE_CALL_OVERRULED #lead# #encounter#."

@@ -177,11 +177,11 @@ In the game's pack, written in place for the author to rewrite:
 ### 5.1 Modules
 
 - **`Sim.Chronicle`** (new; depends on `Sim.Core` only, as every `Sim.*` module must): its state (the entries and the counter), its subscriptions, and `IChronicleView`. It gets its words through `INarrator`, an interface in `Sim.Core.Narrative` that `Sim.Narrative` implements and `GameHost` passes in at registration (changed while planning, 2026-11-20: the architecture test allows a module no other reference). Registered after the crew, missions, storylets, and traits modules, so it hears each event after the module that owns it has acted **(my call)**. Each entry records the sequence number of the event it was written for, read from the bus's `IBusContext.Sequence` (added in Task 1).
-- **`Sim.Missions`** publishes a new contract, `CallAnswered`, when an answer is applied, and its mission facts for the chronicle (objective, site, encounter, approach, lead) travel on the Core contracts in 5.2, so `Sim.Chronicle` never reads a mission beat.
+- **`Sim.Missions`** publishes a new contract, `CallAnswered`, when an answer is applied, and its mission facts for the chronicle (objective, site, encounter, approach, lead) travel on the Core contracts in 5.2, so `Sim.Chronicle` never reads a mission beat. `SiteArrived` moves to `Sim.Core` for the same reason (Task 3).
 - **`Sim.Crew`**: `CrewDied` carries what killed them (5.2).
 - **`Sim.Storylets`**: implements the `chronicle` reads over `IChronicleView`; the loader reads `chronicle:` on storylets and options.
 - **`Sim.Expressions`**: the two reads, the kind check, and the `dept:` hint.
-- **`Sim.Content`**: the tuning file, `chronicle:` on storylets, options, and decisions, and the refusals in 4.4 and 4.5.
+- **`Sim.Content`**: the tuning file, `chronicle:` on storylets, options, and decisions, and the refusals in 4.4 and 4.5. The encounter form in `Web` carries a decision's weight.
 - **`Web`**: the Chronicle page, the top bar link, and the dev details.
 - **`SimRunner`**: the counts.
 
@@ -189,7 +189,8 @@ In the game's pack, written in place for the author to rewrite:
 
 - `CallAnswered(string MissionId, string DecisionId, string EncounterId, string Answer, string LeadPrefers, string Standing, string LeadId)`: a new event at version 1. Answers and standings travel as words, since `CallAnswer` and `CallStanding` are `Sim.Missions`' types **(my call)**.
 - `CrewDied` gains `EncounterId` and `ApproachId`, at version 2.
-- `MissionEnded` already carries the objective and the result; the chronicle reads the team, lead, and site from `MissionStarted` and `SiteArrived`, which it keeps until the mission ends.
+- `MissionEnded` already carries the objective and the result; the chronicle reads the team, lead, and site from `MissionStarted` and `SiteArrived`, which it keeps until the mission's own entry is written. `SiteArrived` and `SiteObjective` are Core contracts (moved from `Sim.Missions` in Task 3, with the same name and version).
+- `DecisionDef.ChronicleWeight`: a decision's `chronicle: { weight: n }`, or null.
 - `INarrator` (in `Sim.Core.Narrative`): `string? Line(Situation situation, string key)`, the chosen line expanded to plain text, or null when no line holds.
 - `IChronicleView`: `int Count(string kind, int days)` and `int Count(string crewId, string kind, int days)`, and the entries for the page.
 - The five kinds as constants (`ChronicleKinds`), as `HistoryKinds` are.
@@ -204,7 +205,7 @@ In the game's pack, written in place for the author to rewrite:
 
 - An entry is written once, at the event, and its text never changes.
 - The chronicle draws from no random stream and changes no other module's state.
-- Every event that writes an entry writes at most one.
+- Every event that writes an entry writes at most one of its own. The one exception: a mission's entry waits for its deaths (Task 3), so it is written while the last of them is handled, after that death's entry.
 - Entries within one day keep the order their events were published in.
 
 ## 6. Roadmap and GDD changes (applied when built)
@@ -264,3 +265,17 @@ Changed or settled while building:
 - **The beats do not change.** `AnswerBeat` does not carry the decision or the encounter, so the missions module reads them from the pending call and the current encounter before the answer advances the mission, and publishes `CallAnswered` right after the answer's `MissionBeat`. Everything else the step does, a death in the same encounter included, comes after it. The golden mission's beat hash does not move.
 - **A decision's death has no approach either.** The resolver names an approach only when a check's outcome rolled the injury; a collapse and a decision's effect (an answer or an initiative) name the encounter alone. The living name neither.
 - **The golden hash** (`Golden_seed_1_matches_the_accepted_log`) moves from `15E7E2C9…D72C910` to `5B8BEF69…EDA4FB7A`. In SimRunner's 200 x 200, both packs and both answer policies, only the event count moves (by about two `CallAnswered` a mission: the game's pack under first answers from 1,812,185 to 1,899,365 events); no outcome, result count, death, storylet, vignette, morale, or trait figure moves. The CLI test's 2 x 3 run moves from 263 events to 274.
+
+### Task 3: deaths, missions, and calls in the chronicle (2026-11-20)
+
+As designed: a `death` entry on `CrewDied` (weight `death`, the dead as subject), a `call` entry on `CallAnswered` (the lead who made the call as subject, weight `callOverruled` when overruled and `callBacked` otherwise, unless the decision sets `chronicle: { weight: n }`; 0 writes nothing), and a `mission` entry for `MissionEnded` (the starting lead as subject, `missionWon` for a full or partial success and `missionLost` otherwise). Names and pronouns come from the pack's crew definitions; cycles served is the current cycle. Default lines are in both packs, with criteria on `standing`, `answer`, `outcome`, `deaths`, and `dead.isLead`; the fallback words are "A crew member was lost.", "A mission ended.", and "The captain answered a call."
+
+Changed or settled while building:
+
+- **The deaths come after `MissionEnded` on the bus**, not before it. The crew module publishes `CrewDied` while handling `MissionEnded`, and the bus queues it, so the design's "as the events fall" would have put the mission's entry first. The chronicle instead holds the end (`OpenMission.Ended`, `EndedSeq`, and the number the result says died) until it has written that many deaths, then writes the mission's entry after them. A mission with no deaths is written on its end. The entry's `sourceSeq` is the end's and then each death's, and its line's ties break by the end's. Section 5.4's rule now names this one exception.
+- **`SiteArrived` and `SiteObjective` moved to `Sim.Core`**, unchanged in name and version, since the chronicle may read no `Sim.Missions` type. The golden hash does not move.
+- **What it keeps** is each open mission (its id, objective template, site, team, and starting lead) and also the assignment of the last site arrived at, which a mission started there takes. Both are in the module's row, so a save while a call waits keeps them.
+- **The lead.** A death and a mission name the lead the mission started with; a call names the lead who made it, from `CallAnswered`. Each person in a chronicle situation has the stats `id` and `isLead` (the starting lead's); the chronicle knows no `caution`, `discipline`, or `seniority`, so a line testing those never holds.
+- **Numbers are said in digits**: `#team#` and `#deaths#` are "3" and "1", `#cycles#` "8 cycles" or "1 cycle". The default mission lines spell "One did not return." in place of `#deaths#` when one died.
+- **The abort call** gets an entry like any other, weighed from the tuning file, since no decision defines it. `#decision#` says its id.
+- **A decision's weight in content.** The loader refuses a weight outside 0 to 5 ("The decision's chronicle weight must be a whole number from 0 to 5.") and text ("The decision's chronicle has text, which only a storylet option may have."). The writer puts `chronicle: { weight: n }` last in the decision. The encounter form gained an optional **Chronicle weight** field, so a save from the form keeps it.

@@ -7,9 +7,6 @@ public sealed record AssignTeam(string ObjectiveId, IReadOnlyList<string> CrewId
 
 public sealed record AnswerCall(string MissionId, string CallId, CallAnswer Answer) : ICommand;
 
-[EventType("SiteArrived", 1)]
-public sealed record SiteArrived(int Cycle, string AssignmentId, IReadOnlyList<SiteObjective> Objectives) : IEvent;
-
 [EventType("TeamAssigned", 1)]
 public sealed record TeamAssigned(string ObjectiveId, IReadOnlyList<string> CrewIds, string LeadId, IReadOnlyList<string> GearIds, Parameters Parameters) : IEvent;
 

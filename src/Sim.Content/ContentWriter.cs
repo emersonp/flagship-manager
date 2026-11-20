@@ -215,6 +215,10 @@ public static class ContentWriter
                     f.Add($"  safe: {Effects(decision.Safe)}");
                     f.AddRange(Texts(decision.Text, Sim.Core.Narrative.NarrativeFacts.DecisionTexts).Select(l => "  " + l));
                     f.AddRange(Texts(decision.Labels, Sim.Core.Narrative.NarrativeFacts.Answers, "labels").Select(l => "  " + l));
+                    if (decision.ChronicleWeight is { } weight)
+                    {
+                        f.Add($"  chronicle: {{ weight: {Num(weight)} }}");
+                    }
                 }
 
                 f.AddRange(OwnLines(encounter.Lines));

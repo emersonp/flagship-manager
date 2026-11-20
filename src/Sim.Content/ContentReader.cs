@@ -109,7 +109,7 @@ internal static class ContentReader
                 if (Get(m, "decision") is YamlMappingNode d)
                 {
                     Dictionary<string, YamlNode> dm = Map(d);
-                    decision = new DecisionModel(Str(Get(dm, "id")) ?? "", Str(Get(dm, "name")), Int(Get(dm, "stakes")) ?? 0, Effects(Get(dm, "bold")), Effects(Get(dm, "safe")), Texts(Get(dm, "text")), Texts(Get(dm, "labels")));
+                    decision = new DecisionModel(Str(Get(dm, "id")) ?? "", Str(Get(dm, "name")), Int(Get(dm, "stakes")) ?? 0, Effects(Get(dm, "bold")), Effects(Get(dm, "safe")), Texts(Get(dm, "text")), Texts(Get(dm, "labels")), Int(Get(Map(Get(dm, "chronicle")), "weight")));
                 }
 
                 return new EncounterModel(id, name, Strings(Get(m, "tags")), YamlBool(Str(Get(m, "commsBlocked"))), Str(Get(m, "chain")), Sequence(Get(m, "approaches")).Select(Approach).ToList(), decision, Texts(Get(m, "text")), OwnLines(Get(m, "lines")));

@@ -310,6 +310,7 @@ internal sealed class EncounterKind : KindForm
             fields.Add(new("hasDecision", "true"));
             fields.Add(new("decision.name", Name(decision.Name)));
             fields.Add(new("decision.stakes", Checks.Text(decision.Stakes)));
+            fields.Add(new("decision.chronicleWeight", decision.ChronicleWeight is { } weight ? Checks.Text(weight) : ""));
             AddEffects(fields, Bold, decision.Bold);
             AddEffects(fields, Safe, decision.Safe);
             OwnedText.Add(fields, "decision.", NarrativeFacts.DecisionTexts, decision.Text);
@@ -354,6 +355,7 @@ internal sealed class EncounterKind : KindForm
         List<EffectModel> safe = [];
         IReadOnlyDictionary<string, string>? decisionText = null;
         IReadOnlyDictionary<string, string>? labels = null;
+        int? chronicleWeight = null;
         if (hasDecision)
         {
             if (choices.FixedDecisionId is null)
@@ -364,6 +366,7 @@ internal sealed class EncounterKind : KindForm
 
             decisionName = Checks.Name(values, errors, "decision.name");
             stakes = Checks.Whole(values, "decision.stakes", 1, 5, errors);
+            chronicleWeight = Checks.OptionalWhole(values, "decision.chronicleWeight", 0, Sim.Core.ChronicleTuning.Most, errors);
             bold = BindEffects(values, Bold, errors);
             safe = BindEffects(values, Safe, errors);
             decisionText = OwnedText.Bind(values, "decision.", NarrativeFacts.DecisionTexts, errors);
@@ -387,7 +390,7 @@ internal sealed class EncounterKind : KindForm
                     throw new ChangeRefusedException($"That id is already used by {owner}.");
                 }
 
-                decision = new DecisionModel(decisionId, decisionName, stakes, bold, safe, decisionText, labels);
+                decision = new DecisionModel(decisionId, decisionName, stakes, bold, safe, decisionText, labels, chronicleWeight);
             }
 
             return new EncounterModel(id, name, tags, commsBlocked, chain.Length == 0 ? null : chain, approaches, decision, text, lines);

@@ -70,7 +70,8 @@ public sealed record ApproachModel(
 // and TraitToward what toward says (a pair, 1e part three).
 public sealed record EffectModel(int? Progress, int? Momentum, int? Strain, string? InjuryRoll, bool Withdraw = false, string? Trait = null, int? TraitAmount = null, bool TraitSet = false, string? TraitOn = null, string? TraitToward = null);
 
-public sealed record DecisionModel(string Id, string? Name, int Stakes, IReadOnlyList<EffectModel> Bold, IReadOnlyList<EffectModel> Safe, IReadOnlyDictionary<string, string>? Text = null, IReadOnlyDictionary<string, string>? Labels = null);
+// ChronicleWeight: chronicle: { weight: n } (slice 1e part five); null when the decision does not set it.
+public sealed record DecisionModel(string Id, string? Name, int Stakes, IReadOnlyList<EffectModel> Bold, IReadOnlyList<EffectModel> Safe, IReadOnlyDictionary<string, string>? Text = null, IReadOnlyDictionary<string, string>? Labels = null, int? ChronicleWeight = null);
 
 // One criterion as written: a value, a list of values, or a range. Values keep the text as written; IsList keeps [a] apart from a.
 public sealed record CriterionModel(string Fact, IReadOnlyList<string> Values, bool IsList = false, int? Min = null, int? Max = null)

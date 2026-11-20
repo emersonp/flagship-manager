@@ -4,7 +4,9 @@ using Sim.Core.Content;
 using Sim.Core.Narrative;
 using Sim.Crew;
 using Sim.Cycle;
+using Sim.Missions;
 using Sim.Narrative;
+using Sim.Traits;
 
 namespace Sim.Tests;
 
@@ -164,6 +166,184 @@ public class ChronicleModuleTests
 
         Assert.Empty(NewBus(TestContent.Pack).View<IChronicleView>(state).Entries);
         Assert.False(state.Modules.ContainsKey(ChronicleModule.Name));
+    }
+
+    // Task 3: deaths, calls, and missions. A legacy with every module that publishes what the chronicle hears, its first mission
+    // assigned to three with CREW_01 leading, and the cycle at resolution.
+    private sealed class Legacy
+    {
+        public Legacy(ulong seed, ContentPack? pack = null)
+        {
+            pack ??= TestContent.Pack;
+            Bus = new EventBus();
+            CycleModule.Register(Bus, pack);
+            CrewModule.Register(Bus, pack);
+            MissionsModule.Register(Bus, pack);
+            TraitsModule.Register(Bus, pack);
+            ChronicleModule.Register(Bus, pack, new Narrator(pack));
+            State = new LegacyState { LegacyId = Guid.Empty, Seed = seed };
+            Send(new FoundLegacy());
+            GoTo(CyclePhase.Briefing);
+            SiteState site = State.Module<MissionsState>(MissionsModule.Name).Site!;
+            Send(new AssignTeam(site.Objectives[0].Id, ["CREW_01", "CREW_02", "CREW_03"], "CREW_01", [], new Parameters()));
+            GoTo(CyclePhase.Resolution);
+        }
+
+        public EventBus Bus { get; }
+
+        public LegacyState State { get; }
+
+        public List<PublishedEvent> Events { get; } = new();
+
+        public MissionInFlight Mission => State.Module<MissionsState>(MissionsModule.Name).Site!.Mission!;
+
+        public ChronicleState Chronicle => State.Module<ChronicleState>(ChronicleModule.Name);
+
+        public IEnumerable<T> Published<T>() => Events.Select(e => e.Event).OfType<T>();
+
+        public void Send(ICommand command) => Events.AddRange(Bus.Send(State, command));
+
+        // Answers every call until the mission ends: against the lead, or with them.
+        public void Finish(bool overrule)
+        {
+            while (Mission.State.Pending is { } call)
+            {
+                CallAnswer answer = !overrule ? call.LeadPrefers : call.LeadPrefers == CallAnswer.Bold ? CallAnswer.Safe : CallAnswer.Bold;
+                Send(new AnswerCall(Mission.Id, call.CallId, answer));
+            }
+        }
+
+        public long Seq<T>(Func<T, bool>? which = null)
+            where T : IEvent
+        {
+            return Events.First(e => e.Event is T t && (which is null || which(t))).Sequence;
+        }
+
+        private void GoTo(CyclePhase phase)
+        {
+            while (State.Phase != phase)
+            {
+                Send(new AdvancePhase());
+            }
+        }
+    }
+
+    private static Legacy Played(bool overrule, Func<Legacy, bool> wanted, ContentPack? pack = null)
+    {
+        for (ulong seed = 1; seed < 2000; seed++)
+        {
+            var legacy = new Legacy(seed, pack);
+            legacy.Finish(overrule);
+            if (wanted(legacy))
+            {
+                return legacy;
+            }
+        }
+
+        throw new InvalidOperationException("No seed in range plays the mission wanted.");
+    }
+
+    private static ContentPack WithDecisionWeight(int weight)
+    {
+        return TestContent.Pack with
+        {
+            Encounters = TestContent.Pack.Encounters.Select(e => e.Decision is { } d ? e with { Decision = d with { ChronicleWeight = weight } } : e).ToList(),
+        };
+    }
+
+    // The crew module publishes the deaths after MissionEnded; the mission's entry still follows them (design 4.3).
+    [Fact]
+    public void A_mission_with_an_overruled_call_and_a_death_writes_the_call_the_death_and_the_mission_in_order()
+    {
+        Legacy legacy = Played(true, l => l.Published<CrewDied>().Count() == 1 && l.Published<CallAnswered>().Any(c => c.Standing == "overruled"));
+        CrewDied died = legacy.Published<CrewDied>().Single();
+        MissionEnded ended = legacy.Published<MissionEnded>().Single();
+        List<CallAnswered> calls = legacy.Published<CallAnswered>().ToList();
+
+        List<ChronicleEntry> entries = legacy.Chronicle.Entries.Skip(1).ToList();
+
+        Assert.Equal([.. calls.Select(_ => ChronicleKinds.Call), ChronicleKinds.Death, ChronicleKinds.Mission], entries.Select(e => e.Kind));
+        CallAnswered overruled = calls.First(c => c.Standing == "overruled");
+        ChronicleEntry call = entries.Single(e => e.SourceSeq[0] == legacy.Seq<CallAnswered>(c => c == overruled));
+        Assert.Equal((3, $"CHRONICLE_CALL_OVERRULED CREW_01 {overruled.EncounterId}."), (call.Weight, call.Text));
+        Assert.Equal([new ChronicleSubject("CREW_01", "CREW_01")], call.Subjects);
+
+        ChronicleEntry death = entries[^2];
+        Assert.Equal((5, $"CHRONICLE_DEATH {died.CrewId} {died.EncounterId} CREW_01 1 cycle."), (death.Weight, death.Text));
+        Assert.Equal([new ChronicleSubject(died.CrewId, died.CrewId)], death.Subjects);
+        Assert.Equal([legacy.Seq<CrewDied>()], death.SourceSeq);
+
+        ChronicleEntry mission = entries[^1];
+        bool won = ended.Result.Outcome is MissionOutcome.FullSuccess or MissionOutcome.PartialSuccess;
+        string template = legacy.Published<MissionStarted>().Single().TemplateId;
+        Assert.Equal((won ? 1 : 2, $"{(won ? "CHRONICLE_MISSION" : "CHRONICLE_MISSION_FAILED")} CREW_01 {template} 3 1."), (mission.Weight, mission.Text));
+        Assert.Equal([new ChronicleSubject("CREW_01", "CREW_01")], mission.Subjects);
+        Assert.Equal([legacy.Seq<MissionEnded>(), legacy.Seq<CrewDied>()], mission.SourceSeq);
+        Assert.Empty(legacy.Chronicle.Missions);
+    }
+
+    [Fact]
+    public void A_backed_call_weighs_2_and_a_mission_with_no_death_is_written_on_its_end()
+    {
+        Legacy legacy = Played(false, l => l.Published<CallAnswered>().Any(c => c.Standing == "backed") && !l.Published<CrewDied>().Any());
+
+        ChronicleEntry call = legacy.Chronicle.Entries.Single(e => e.SourceSeq[0] == legacy.Seq<CallAnswered>(c => c.Standing == "backed"));
+
+        Assert.Equal((ChronicleKinds.Call, 2), (call.Kind, call.Weight));
+        Assert.StartsWith("CHRONICLE_CALL CREW_01 ", call.Text, StringComparison.Ordinal);
+        ChronicleEntry mission = legacy.Chronicle.Entries[^1];
+        Assert.Equal(ChronicleKinds.Mission, mission.Kind);
+        Assert.Equal([legacy.Seq<MissionEnded>()], mission.SourceSeq);
+        Assert.EndsWith(" 3 0.", mission.Text, StringComparison.Ordinal);
+        Assert.Empty(legacy.Chronicle.Missions);
+    }
+
+    [Fact]
+    public void A_decision_with_a_chronicle_weight_of_0_writes_no_call_entry()
+    {
+        Legacy legacy = Played(true, l => l.Published<CallAnswered>().Any(c => c.DecisionId != DecisionIds.Abort), WithDecisionWeight(0));
+
+        List<long> answered = legacy.Events.Where(e => e.Event is CallAnswered c && c.DecisionId != DecisionIds.Abort).Select(e => e.Sequence).ToList();
+
+        Assert.DoesNotContain(legacy.Chronicle.Entries, e => answered.Contains(e.SourceSeq[0]));
+        Assert.Equal(ChronicleKinds.Mission, legacy.Chronicle.Entries[^1].Kind);
+    }
+
+    // A decision's own weight wins over the tuning file's, whichever way the call went.
+    [Fact]
+    public void A_decision_with_a_chronicle_weight_writes_its_call_at_that_weight()
+    {
+        Legacy legacy = Played(false, l => l.Published<CallAnswered>().Any(c => c.DecisionId != DecisionIds.Abort), WithDecisionWeight(5));
+
+        long answered = legacy.Seq<CallAnswered>(c => c.DecisionId != DecisionIds.Abort);
+
+        Assert.Equal(5, legacy.Chronicle.Entries.Single(e => e.SourceSeq[0] == answered).Weight);
+    }
+
+    // What a mission's entries name is kept until its own entry is written, and survives a save between its calls.
+    [Fact]
+    public void A_mission_waiting_on_a_call_is_kept_with_its_objective_site_team_and_lead()
+    {
+        for (ulong seed = 1; seed < 2000; seed++)
+        {
+            var legacy = new Legacy(seed);
+            if (legacy.Mission.State.Pending is null)
+            {
+                continue;
+            }
+
+            OpenMission open = Assert.Single(legacy.Chronicle.Missions);
+            MissionStarted started = legacy.Published<MissionStarted>().Single();
+            Assert.Equal(
+                (started.MissionId, started.TemplateId, legacy.Published<SiteArrived>().Last().AssignmentId, "CREW_01", (string?)null),
+                (open.Id, open.ObjectiveId, open.SiteId, open.LeadId, open.Ended));
+            Assert.Equal(["CREW_01", "CREW_02", "CREW_03"], open.Team);
+            string json = System.Text.Json.JsonSerializer.Serialize(legacy.Chronicle, SimJson.Options);
+            Assert.Equal(json, System.Text.Json.JsonSerializer.Serialize(System.Text.Json.JsonSerializer.Deserialize<ChronicleState>(json, SimJson.Options), SimJson.Options));
+            return;
+        }
+
+        throw new InvalidOperationException("No seed in range raises a call.");
     }
 
     private static ChronicleEntry Entry(string id, int day, string kind, params string[] subjects)

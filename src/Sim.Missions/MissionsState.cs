@@ -1,8 +1,7 @@
 using System.Text.Json.Serialization;
+using Sim.Core;
 
 namespace Sim.Missions;
-
-public sealed record SiteObjective(string Id, string TemplateId);
 
 public sealed record Briefing(string ObjectiveId, IReadOnlyList<string> CrewIds, string LeadId, IReadOnlyList<string> GearIds, Parameters Parameters);
 

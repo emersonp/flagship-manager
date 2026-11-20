@@ -25,6 +25,7 @@
             }
             <Field Name="decision.name" Label="Decision name" Value="@View.Values.Get("decision.name")" Hint="Optional. 1 to 80 characters." Error="@View.Error("decision.name")" />
             <Field Name="decision.stakes" Label="Stakes" Value="@(View.Values.Has("decision.stakes") ? View.Values.Get("decision.stakes") : "1")" Hint="1 to 5." Error="@View.Error("decision.stakes")" Numeric="true" Narrow="true" Required="true" />
+            <Field Name="decision.chronicleWeight" Label="Chronicle weight" Value="@View.Values.Get("decision.chronicleWeight")" Hint="Optional. 0 to 5: the weight of the chronicle entry this call writes; 0 writes none. Blank: the tuning file's." Error="@View.Error("decision.chronicleWeight")" Numeric="true" Narrow="true" />
             <EffectRows Set="EncounterKind.Bold" Title="Bold" Hint="What happens when the bold answer is chosen. An effect holds a value for each key it changes; leave the others blank." />
             <EffectRows Set="EncounterKind.Safe" Title="Safe" Hint="What happens when the safe answer is chosen." />
         </fieldset>

@@ -49,7 +49,9 @@ public static class DecisionIds
     public const string Abort = "DECISION_ABORT";
 }
 
-public sealed record DecisionDef(string Id, int Stakes, EffectDef Bold, EffectDef Safe, string? Name = null);
+// ChronicleWeight: the weight of the chronicle entry its call writes, in place of the tuning file's (slice 1e part five, design 4.4);
+// 0 writes none. Null: the tuning file's callOverruled or callBacked.
+public sealed record DecisionDef(string Id, int Stakes, EffectDef Bold, EffectDef Safe, string? Name = null, int? ChronicleWeight = null);
 
 public sealed record EncounterDef(
     string Id,
