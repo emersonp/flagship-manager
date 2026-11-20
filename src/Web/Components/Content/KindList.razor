@@ -54,7 +54,11 @@
             <section class="well" aria-labelledby="h-lint" id="lint">
                 <div class="well__head"><h2 id="h-lint">Lint</h2></div>
                 <div class="well__body">
-                    <p class="hint">From @lint.Samples beats of sample missions on the starting crew. A line a rare situation needs may never show here. The text written inside encounters and objectives is counted when it wins, and is not listed here.</p>
+                    <p class="hint">From @lint.Samples beats of sample missions on the starting crew and fixed chronicle samples. A line a rare situation needs may never show here. The text written inside encounters and objectives is counted when it wins, and is not listed here.</p>
+                    @if (lint.Fails)
+                    {
+                        <p class="error" id="lint-chronicle">The chronicle has no line for <span class="m">@string.Join(", ", lint.ChronicleWithout)</span>, so an entry would be written in fixed words and kept. Write a line that holds for every sample of each.</p>
+                    }
                     @if (lint.Clean)
                     {
                         <p class="alert-ok">Every line was chosen, and every beat met a line.</p>

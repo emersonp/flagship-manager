@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Runtime.CompilerServices;
+using Sim.Chronicle;
 using Sim.Content;
 using Sim.Core;
 using Sim.Core.Content;
@@ -15,7 +16,7 @@ public sealed record SampleBeat(Situation Situation, string Key, string Where);
 
 // The same fixed missions every time, so the preview and the lint see the same beats: each objective template on four seeds,
 // sent with the starting crew from the senior end and from the junior end, developing juniors on the last two seeds, and the
-// calls answered with each option in turn, so every answer turns up.
+// calls answered with each option in turn, so every answer turns up. Then the chronicle's fixed samples (ChronicleSamples).
 public static class NarrativeSamples
 {
     private static readonly ConditionalWeakTable<ContentPack, IReadOnlyList<SampleBeat>> Cache = new();
@@ -81,6 +82,8 @@ public static class NarrativeSamples
             }
         }
 
+        // The chronicle's beats come from no mission: fixed situations, built by the chronicle's own code.
+        samples.AddRange(ChronicleSamples.Of(pack).Select(s => new SampleBeat(s.Situation, s.Key, $"Chronicle sample: {s.Where}")));
         return samples;
     }
 }

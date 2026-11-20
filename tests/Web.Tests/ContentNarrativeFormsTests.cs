@@ -99,6 +99,21 @@ public sealed class ContentNarrativeFormsTests(RepoContentGuard guard) : IClassF
     }
 
     [Fact]
+    public async Task The_preview_expands_a_chronicle_line_against_the_chronicles_samples()
+    {
+        using TestApp app = NewApp();
+        using HttpClient client = app.CreateClient();
+
+        (HttpStatusCode status, string body) = await Post(client, "/dev/content/lines/rows", "id=LINE_TRY&beat=chronicle_death&when[0].fact=dead.isLead&when[0].value=true&text=" + Uri.EscapeDataString("TRY #dead# at the #encounter#, after #cycles#."), datastar: true);
+
+        Assert.Equal(HttpStatusCode.OK, status);
+        string text = WebUtility.HtmlDecode(body);
+        Assert.Contains("Chronicle sample: The lead's death on a check", text, StringComparison.Ordinal);
+        Assert.Matches("<p class=\"preview__text\">TRY [^<]+ at the [^<]+, after 8 cycles\\.</p>", text);
+        Assert.Contains("This line wins.", text, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task The_preview_names_the_line_that_beats_a_generic_one()
     {
         using TestApp app = NewApp();

@@ -160,8 +160,8 @@ In the game's pack, written in place for the author to rewrite:
 
 ### 4.9 The editor and the lint
 
-- The **lines page** lists the five chronicle beats, with sample situations to preview against (a fixed sample per kind, built in code, as the schedule's are).
-- **The lint fails a pack** with no line for one of the five kinds, so the game's pack always speaks.
+- The **lines page** lists the five chronicle beats, with sample situations to preview against (fixed samples per kind, built in code by the chronicle's own situation builder; changed while building, see section 8, Task 7).
+- **The lint fails a pack** with no line for one of the five kinds (or a line that misses one of its samples), so the game's pack always speaks.
 - An option's `chronicle.text` is checked for unbound symbols against the storylet's situation, as an option's own text is.
 - The **storylet files stay text** in the editor; forms are part six.
 
@@ -182,7 +182,7 @@ In the game's pack, written in place for the author to rewrite:
 - **`Sim.Storylets`**: implements the `chronicle` reads over `IChronicleView`, which it reads from the bus as it reads `ITraitView` (Task 5). (The loader that reads `chronicle:` on storylets and options is `Sim.Content`'s; Task 4.)
 - **`Sim.Expressions`**: the two reads (`IStateSource.ChronicleCount`, on a new `chronicle` root and on a slot), the kind check, and the `dept` hint.
 - **`Sim.Content`**: the tuning file, `chronicle:` on storylets, options, and decisions, and the refusals in 4.4 and 4.5. The encounter form in `Web` carries a decision's weight.
-- **`Web`**: the Chronicle page (`GET /legacy/{id}/chronicle`, and Dev Play's under `/dev`), drawn by `BridgeReader.Chronicle` from `IChronicleView.Entries` without rendering a text again; the top bar link; and the dev details (Task 6).
+- **`Web`**: the Chronicle page (`GET /legacy/{id}/chronicle`, and Dev Play's under `/dev`), drawn by `BridgeReader.Chronicle` from `IChronicleView.Entries` without rendering a text again; the top bar link; and the dev details (Task 6). The lines page previews and lints chronicle lines against `Sim.Chronicle`'s `ChronicleSamples` (Task 7).
 - **`SimRunner`**: the counts.
 
 ### 5.2 Contracts in `Sim.Core`
@@ -317,3 +317,15 @@ Changed or settled while building:
 - **The top bar link** sits in the ship cell beside "Legacies", as a quiet link of the same kind; on the Chronicle page the same place reads "Bridge", which draws the phase as it stands. `TopBarView` gains the legacy's id for it; a bar drawn without one shows neither.
 - **The marks**, within the design system: a set-apart entry has a 3px `ink-2` edge at its left (never azure) and its text in the display face at lg; the memorial's mark is a hairline chip reading "In memory", beside the name at 500. The selected toggle takes the selection fill, as a selected tab does. `bridge-design.md` lists the entry and the date heading.
 - **The browser test** (`tests/browser/play.sh`) opens the Chronicle from the top bar after the cycle it plays, checks the founding is the oldest entry and nothing scrolls sideways at 400 and 1280 pixels, follows Notable, and goes back to the itinerary by Bridge.
+
+### Task 7: chronicle lines in the editor, and the lint (2026-11-20)
+
+As designed: the lines page previews a chronicle line against fixed sample situations built in code, and the lint fails a pack in which a chronicle beat has no line, naming the beat ("The chronicle has no line for chronicle_death, so an entry would be written in fixed words and kept."). Neither pack fails.
+
+Changed or settled while building:
+
+- **There were no schedule samples to follow.** The plan and 4.9 said "as the `schedule` samples are", but no code builds them: the schedule's lines are previewed against nothing and the lint lists them as never chosen. They still are; that is unchanged here.
+- **The samples are built by the chronicle's own code.** `ChronicleSamples.Of(pack)`, public in `Sim.Chronicle`, builds them with the internal `Situations` the module writes entries with, so a preview holds exactly the facts, words, and people an entry would. `Web` already references `Sim.Chronicle` through `GameHost`; no `Sim.*` reference changes. `NarrativeSamples` appends them after the sample missions, each labelled "Chronicle sample: …".
+- **More than one sample per beat.** One per beat would leave most of the default lines, which test `outcome`, `deaths`, `standing`, `answer`, and `dead.isLead`, never chosen. There are 31: the founding; a death on a check, the lead's death, and a death in a collapse; each of the five outcomes with no, one, and two deaths; each answer against each preference, with the standing the missions module would give; and a storylet answered plainly, then by a check that succeeds and fails. People, objective, encounter (the first with a decision, for a call), site, and storylet are the pack's first, or ids when it has none.
+- **What fails.** A chronicle beat fails when any of its samples meets no line, not only when it has no line at all, so a pack with only a `standing: backed` call line fails for `chronicle_call`. Such a beat is listed in `LineLint.ChronicleWithout` (and makes `Fails` true and `Clean` false), not in `Without` with the missions' advice. The lint panel shows it first, as an error.
+- **The game's pack** has one line its samples never choose, `LINE_CHRONICLE_CALL_OVERRULED`: an overruled call always has an answer, and a line for each answer is more specific. The lint lists it as never chosen, as advice.

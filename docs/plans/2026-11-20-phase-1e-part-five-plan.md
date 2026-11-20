@@ -128,9 +128,9 @@ public sealed record CrewDied(string CrewId, string MissionId, string? Encounter
 
 **Files:** `src/Web/Forms/LineLint.cs`, the lines page's samples (wherever `schedule`'s samples are built), `tests/Web.Tests/`.
 
-- [ ] **Step 1: samples.** Build one fixed sample situation per chronicle beat in code, as the `schedule` samples are, so the lines page previews chronicle lines.
-- [ ] **Step 2: the lint.** A pack with no line for one of the five kinds fails, naming the kind. Neither pack fails.
-- [ ] **Step 3:** `./check.sh`; commit "Preview and lint the chronicle's lines".
+- [x] **Step 1: samples.** Build one fixed sample situation per chronicle beat in code, as the `schedule` samples are, so the lines page previews chronicle lines.
+- [x] **Step 2: the lint.** A pack with no line for one of the five kinds fails, naming the kind. Neither pack fails.
+- [x] **Step 3:** `./check.sh`; commit "Preview and lint the chronicle's lines".
 
 ### Task 8: the simulator, the golden chronicle, and freezing
 
