@@ -54,13 +54,13 @@ public static class Calendar
 }
 ```
 
-- [ ] **Step 1:** Write `CalendarTests`: 13 Vortun 105 is day 37482 and a Stoneday; `Date(DayNumber(d)) == d` across a year boundary and for the last day of a month; every 1st of a Bastion month is a Stoneday; `Days(cal, 2) == 12`. Run them red.
-- [ ] **Step 2:** Add the types and `Calendar`; run green.
-- [ ] **Step 3:** The loader reads `content/calendars/*.yaml`, `calendar:` in `pack.yaml`, and `content/tuning/calendar.yaml` (`cycle: { minDays: 5, maxDays: 7 }`). It refuses: no weekday or month, a duplicate id, a month under 1 day, a start date outside its month or year 1, a pack naming no calendar or one that doesn't exist, `minDays` under 1 or above `maxDays`. Each message names the file and the field, and quotes `docs/conventions.md` where a rule lives there. Tests for each refusal.
-- [ ] **Step 4:** Write `content/calendars/base.yaml` from `docs/lore/calendars.md`, citing it in a comment (design 4.2): ids lower case, `pelphear` for Pelpheär with the name keeping its diaeresis. Write the fixture's placeholder calendar.
-- [ ] **Step 5:** The editor's index shows `calendars/base.yaml` and `tuning/calendar.yaml` as text files validated on save, as the tuning file is.
-- [ ] **Step 6:** `docs/conventions.md`: the `calendars` content kind, and durations in `weeks:` only.
-- [ ] **Step 7:** `./check.sh`; commit "Add the Bastion Calendar as content, with its arithmetic in Sim.Core".
+- [x] **Step 1:** Write `CalendarTests`: 13 Vortun 105 is day 37482 and a Stoneday; `Date(DayNumber(d)) == d` across a year boundary and for the last day of a month; every 1st of a Bastion month is a Stoneday; `Days(cal, 2) == 12`. Run them red.
+- [x] **Step 2:** Add the types and `Calendar`; run green.
+- [x] **Step 3:** The loader reads `content/calendars/*.yaml`, `calendar:` in `pack.yaml`, and `content/tuning/calendar.yaml` (`cycle: { minDays: 5, maxDays: 7 }`). It refuses: no weekday or month, a duplicate id, a month under 1 day, a start date outside its month or year 1, a pack naming no calendar or one that doesn't exist, `minDays` under 1 or above `maxDays`. Each message names the file and the field, and quotes `docs/conventions.md` where a rule lives there. Tests for each refusal.
+- [x] **Step 4:** Write `content/calendars/base.yaml` from `docs/lore/calendars.md`, citing it in a comment (design 4.2): ids lower case, `pelphear` for Pelpheär with the name keeping its diaeresis. Write the fixture's placeholder calendar.
+- [x] **Step 5:** The editor's index shows `calendars/base.yaml` and `tuning/calendar.yaml` as text files validated on save, as the tuning file is.
+- [x] **Step 6:** `docs/conventions.md`: the `calendars` content kind, and durations in `weeks:` only.
+- [x] **Step 7:** `./check.sh`; commit "Add the Bastion Calendar as content, with its arithmetic in Sim.Core".
 
 ### Task 2: days replace weeks
 

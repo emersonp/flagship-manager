@@ -294,7 +294,7 @@ public class ContentWriterTests : IClassFixture<RepoContentGuard>
     {
         ContentFileSet files = Repo();
         ContentFileSet canonical = ContentEdits.Canonicalize(files);
-        foreach (string path in new[] { "pack.yaml", "tuning/crew.yaml", "tuning/missions.yaml" })
+        foreach (string path in new[] { "pack.yaml", "tuning/calendar.yaml", "tuning/crew.yaml", "tuning/missions.yaml", "calendars/base.yaml" })
         {
             Assert.Same(files.Files[path], canonical.Files[path]);
         }

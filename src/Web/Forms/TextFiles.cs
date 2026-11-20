@@ -4,7 +4,7 @@ using YamlDotNet.RepresentationModel;
 
 namespace Web.Forms;
 
-// The files edited as text: the pack file, the two tuning files, and the storylets, vignettes, and traits until their forms exist. The path comes from this
+// The files edited as text: the pack file, the tuning files, the calendar, and the storylets, vignettes, and traits until their forms exist. The path comes from this
 // list, never from a request.
 public sealed record TextFile(string Name, string Path, string Title, IReadOnlyList<string> Notes)
 {
@@ -15,6 +15,8 @@ public sealed record TextFile(string Name, string Path, string Title, IReadOnlyL
         new("pack", "pack.yaml", "Pack file", ["The pack's id cannot be changed here. Changing the version makes every existing legacy show a warning that its content has changed."]),
         new("missions", "tuning/missions.yaml", "Mission tuning", [Tuning]),
         new("crew-tuning", "tuning/crew.yaml", "Crew tuning", [Tuning]),
+        new("calendar-tuning", "tuning/calendar.yaml", "Calendar tuning", ["How many days a cycle can move the calendar.", "Saving checks this file with the rest of the pack."]),
+        new("calendars", "calendars/base.yaml", "Calendars", ["The months, the weekdays, and the date a legacy starts on. pack.yaml names the calendar in use.", "Saving checks this file with the rest of the pack."]),
         new("storylets", "storylets/base.yaml", "Storylets", ["The storylet form comes later.", "Saving checks this file with the rest of the pack."]),
         new("vignettes", "vignettes/base.yaml", "Vignettes", ["The vignette form comes later.", "Saving checks this file with the rest of the pack."]),
         new("traits", "traits/base.yaml", "Traits", ["The trait form comes later.", "Saving checks this file with the rest of the pack, and every use of a trait against its definition here."]),

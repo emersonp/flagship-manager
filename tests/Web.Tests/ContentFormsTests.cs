@@ -978,7 +978,7 @@ public sealed class ContentFormsTests(RepoContentGuard guard) : IClassFixture<Re
             }
         });
 
-        (HttpStatusCode text, _) = await Post(app.NewClient(), "/dev/content/files/pack", "text=" + Uri.EscapeDataString("id: CORE\nversion: 2\n"));
+        (HttpStatusCode text, _) = await Post(app.NewClient(), "/dev/content/files/pack", "text=" + Uri.EscapeDataString("id: CORE\nversion: 2\ncalendar: calendar_a\n"));
         (HttpStatusCode item, _) = await Post(app.NewClient(), "/dev/content/skills/SKILL_A", "name=NAME_PLACEHOLDER");
 
         Assert.Equal((HttpStatusCode.OK, HttpStatusCode.OK), (text, item));

@@ -13,7 +13,9 @@ public sealed record ContentPack(
     IReadOnlyList<CrewDef> Crew,
     IReadOnlyList<GearDef> Gear,
     IReadOnlyList<AssignmentDef> Assignments,
-    CrewTuning CrewTuning)
+    CrewTuning CrewTuning,
+    CalendarDef Calendar,
+    CalendarTuning CalendarTuning)
 {
     // Slice 1d. Optional: a pack with no lines shows the systems lines.
     public IReadOnlyList<LineDef> Lines { get; init; } = [];

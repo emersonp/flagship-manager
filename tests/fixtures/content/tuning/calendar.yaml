@@ -1,0 +1,4 @@
+# The calendar's numbers. All are required. See docs/plans/2026-11-20-phase-1e-calendar-design.md section 4.4.
+cycle:
+  minDays: 5                 # a cycle moves the calendar a whole number of days from minDays to maxDays, rolled when it advances:
+  maxDays: 7                 # 5 is ahead of schedule, 6 on schedule, 7 delayed (1d3+4)

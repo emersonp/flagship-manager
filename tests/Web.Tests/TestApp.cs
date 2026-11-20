@@ -146,7 +146,7 @@ public sealed class TestApp(int beatDelayMs = 0, bool wideDice = false, bool noC
     // Every item gets a name made of markup, an ampersand, and digits, then its id.
     private static void NameEverything(string root)
     {
-        foreach (string file in Directory.GetFiles(root, "*.yaml", SearchOption.AllDirectories).Where(f => !f.Contains("tuning", StringComparison.Ordinal)))
+        foreach (string file in Directory.GetFiles(root, "*.yaml", SearchOption.AllDirectories).Where(f => !f.Contains("tuning", StringComparison.Ordinal) && !f.Contains("calendars", StringComparison.Ordinal)))
         {
             string text = File.ReadAllText(file);
             text = System.Text.RegularExpressions.Regex.Replace(text, @"(?m)^(\s*)- id: (\w+)\n", m => $"{m.Value}{m.Groups[1].Value}  name: \"{OddName} {m.Groups[2].Value}\"\n");

@@ -1,0 +1,24 @@
+# The placeholder calendar: the game's shape (6 weekdays, 12 months of 30 days) with placeholder names.
+- id: calendar_a
+  name: CALENDAR_A
+  weekdays:
+    - { id: weekday_a, name: WEEKDAY_A, short: WD_A }
+    - { id: weekday_b, name: WEEKDAY_B, short: WD_B }
+    - { id: weekday_c, name: WEEKDAY_C, short: WD_C }
+    - { id: weekday_d, name: WEEKDAY_D, short: WD_D }
+    - { id: weekday_e, name: WEEKDAY_E, short: WD_E }
+    - { id: weekday_f, name: WEEKDAY_F, short: WD_F }
+  months:
+    - { id: month_a, name: MONTH_A, days: 30 }
+    - { id: month_b, name: MONTH_B, days: 30 }
+    - { id: month_c, name: MONTH_C, days: 30 }
+    - { id: month_d, name: MONTH_D, days: 30 }
+    - { id: month_e, name: MONTH_E, days: 30 }
+    - { id: month_f, name: MONTH_F, days: 30 }
+    - { id: month_g, name: MONTH_G, days: 30 }
+    - { id: month_h, name: MONTH_H, days: 30 }
+    - { id: month_i, name: MONTH_I, days: 30 }
+    - { id: month_j, name: MONTH_J, days: 30 }
+    - { id: month_k, name: MONTH_K, days: 30 }
+    - { id: month_l, name: MONTH_L, days: 30 }
+  start: { day: 13, month: month_b, year: 105 }

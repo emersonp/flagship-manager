@@ -49,15 +49,18 @@ public static partial class ContentLoader
         var storylets = new List<(string File, StoryletDto Dto)>();
         var vignettes = new List<(string File, StoryletDto Dto)>();
         var traits = new List<(string File, TraitDto Dto)>();
+        var calendars = new List<(string File, CalendarDto Dto)>();
         var seenIn = new Dictionary<string, string>();
         // Symbols and pronoun sets are named in text, apart from the ids of everything else.
         var symbolsSeenIn = new Dictionary<string, string>();
         var pronounsSeenIn = new Dictionary<string, string>();
         // Traits are typed into text and requirements, and keep lower-case ids (conventions: the one exception).
         var traitsSeenIn = new Dictionary<string, string>();
+        // Calendars are named in pack.yaml, apart from the ids of everything else, and keep lower-case ids (slice 1e-calendar).
+        var calendarsSeenIn = new Dictionary<string, string>();
         foreach ((string path, string text) in files.OrderBy(f => f.Key, StringComparer.Ordinal))
         {
-            if (path == ManifestFile || path == TuningFile || path == CrewTuningFile)
+            if (path == ManifestFile || path == TuningFile || path == CrewTuningFile || path == CalendarTuningFile)
             {
                 continue;
             }
@@ -106,8 +109,11 @@ public static partial class ContentLoader
                 case "traits":
                     traits.AddRange(Items<TraitDto>(yaml, path, text, d => d.Id, traitsSeenIn, errors, CheckLowerId).Select(d => (path, d)));
                     break;
+                case "calendars":
+                    calendars.AddRange(Items<CalendarDto>(yaml, path, text, d => d.Id, calendarsSeenIn, errors, CheckLowerId).Select(d => (path, d)));
+                    break;
                 case "tuning":
-                    errors.Add(new ContentError(path, $"Unknown tuning file. The only tuning files are {TuningFile} and {CrewTuningFile}."));
+                    errors.Add(new ContentError(path, $"Unknown tuning file. The only tuning files are {TuningFile}, {CrewTuningFile}, and {CalendarTuningFile}."));
                     break;
                 default:
                     errors.Add(new ContentError(path, $"Unknown content folder '{folder}'."));
@@ -123,6 +129,8 @@ public static partial class ContentLoader
         List<ObjectiveDef> objectiveDefs = BuildObjectives(objectives, encounterDefs, errors);
         (MissionTuning? tuning, BenchTuning? bench, CycleNumbers cycle) = LoadTuning(yaml, files, errors);
         CrewTuning? crewTuning = LoadCrewTuning(yaml, files, errors);
+        CalendarDef? calendar = BuildCalendar(calendars, manifest, errors);
+        CalendarTuning? calendarTuning = LoadCalendarTuning(yaml, files, errors);
         List<PronounSet> pronounSets = BuildPronouns(pronouns, errors);
         List<CrewDef> crewDefs = BuildCrew(crew, skills, crewTuning, pronounSets, errors);
         List<AssignmentDef> assignmentDefs = BuildAssignments(assignments, objectives.Select(o => o.Dto).ToList(), errors);
@@ -139,7 +147,7 @@ public static partial class ContentLoader
         Dictionary<string, IReadOnlyDictionary<string, string>> choiceLabels = BuildChoiceLabels(encounters, errors);
 
         ContentPack? pack = errors.Count == 0
-            ? new ContentPack(manifest!.Id!, manifest.Version, skills, encounterDefs, objectiveDefs, tuning!, bench!, crewDefs, gearDefs, assignmentDefs, crewTuning!)
+            ? new ContentPack(manifest!.Id!, manifest.Version, skills, encounterDefs, objectiveDefs, tuning!, bench!, crewDefs, gearDefs, assignmentDefs, crewTuning!, calendar!, calendarTuning!)
             {
                 Lines = lineDefs,
                 Symbols = symbolDefs,
@@ -280,6 +288,9 @@ public static partial class ContentLoader
         public string? Id { get; set; }
 
         public int Version { get; set; }
+
+        // The calendar in use, by its id in calendars/ (slice 1e-calendar).
+        public string? Calendar { get; set; }
     }
 
     private sealed class SkillDto

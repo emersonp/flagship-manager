@@ -11,6 +11,8 @@ public sealed class ContentTextFilesTests(RepoContentGuard guard) : IClassFixtur
     {
         { "missions", "tuning/missions.yaml" },
         { "crew-tuning", "tuning/crew.yaml" },
+        { "calendar-tuning", "tuning/calendar.yaml" },
+        { "calendars", "calendars/base.yaml" },
         { "pack", "pack.yaml" },
         { "storylets", "storylets/base.yaml" },
         { "vignettes", "vignettes/base.yaml" },
@@ -47,7 +49,7 @@ public sealed class ContentTextFilesTests(RepoContentGuard guard) : IClassFixtur
     // A pack file of exactly this many bytes of UTF-8: valid, with the rest a comment.
     private static string PackOfSize(int bytes)
     {
-        const string head = "id: CORE\nversion: 2\n# ";
+        const string head = "id: CORE\nversion: 2\ncalendar: calendar_a\n# ";
         return head + new string('x', bytes - head.Length - 1) + "\n";
     }
 
@@ -206,7 +208,7 @@ public sealed class ContentTextFilesTests(RepoContentGuard guard) : IClassFixtur
             string file = Path.Combine(root, "pack.yaml");
             File.WriteAllText(file, File.ReadAllText(file).Replace("\n", "\r\n", StringComparison.Ordinal));
         });
-        string typed = "id: CORE\r\nversion: 2\r\n";
+        string typed = "id: CORE\r\nversion: 2\r\ncalendar: calendar_a\r\n";
 
         (HttpStatusCode status, _) = await Post(app.NewClient(), "/dev/content/files/pack", Body(typed));
 
@@ -258,6 +260,23 @@ public sealed class ContentTextFilesTests(RepoContentGuard guard) : IClassFixtur
         Assert.Equal(before, Everything(app));
     }
 
+    // Slice 1e-calendar: the calendar and its tuning are checked on save like the rest of the pack.
+    [Theory]
+    [InlineData("calendars", "calendars/base.yaml", "start: { day: 13,", "start: { day: 31,", "calendar_a: start.day must be from 1 to 30, the days in month_b, not 31.")]
+    [InlineData("calendar-tuning", "tuning/calendar.yaml", "minDays: 5", "minDays: 9", "cycle.minDays must not be above cycle.maxDays.")]
+    public async Task A_calendar_that_cannot_work_is_refused_on_save(string name, string path, string from, string to, string message)
+    {
+        using TestApp app = NewApp();
+        string before = Everything(app);
+        string typed = Disk(app, path).Replace(from, to, StringComparison.Ordinal);
+
+        (HttpStatusCode status, string body) = await Post(app.NewClient(), $"/dev/content/files/{name}", Body(typed));
+
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, status);
+        Assert.Contains(message, WebUtility.HtmlDecode(body));
+        Assert.Equal(before, Everything(app));
+    }
+
     [Fact]
     public async Task An_empty_text_is_refused_and_nothing_is_written()
     {
@@ -303,11 +322,11 @@ public sealed class ContentTextFilesTests(RepoContentGuard guard) : IClassFixtur
         using TestApp app = NewApp();
         HttpClient client = app.NewClient();
 
-        (HttpStatusCode status, _) = await Post(client, "/dev/content/files/pack", Body("id: CORE\nversion: 7\n"));
+        (HttpStatusCode status, _) = await Post(client, "/dev/content/files/pack", Body("id: CORE\nversion: 7\ncalendar: calendar_a\n"));
         (_, string index) = await Get(client, "/dev/content");
 
         Assert.Equal(HttpStatusCode.OK, status);
-        Assert.Equal("id: CORE\nversion: 7\n", Disk(app, "pack.yaml"));
+        Assert.Equal("id: CORE\nversion: 7\ncalendar: calendar_a\n", Disk(app, "pack.yaml"));
         Assert.Matches("version </span><span class=\"m\">7</span>", index);
     }
 
@@ -349,7 +368,7 @@ public sealed class ContentTextFilesTests(RepoContentGuard guard) : IClassFixtur
 
         (_, string body) = await Get(app.NewClient(), "/dev/content");
 
-        foreach ((string name, string path) in new[] { ("pack", "pack.yaml"), ("missions", "tuning/missions.yaml"), ("crew-tuning", "tuning/crew.yaml"), ("storylets", "storylets/base.yaml"), ("vignettes", "vignettes/base.yaml") })
+        foreach ((string name, string path) in new[] { ("pack", "pack.yaml"), ("missions", "tuning/missions.yaml"), ("crew-tuning", "tuning/crew.yaml"), ("calendar-tuning", "tuning/calendar.yaml"), ("calendars", "calendars/base.yaml"), ("storylets", "storylets/base.yaml"), ("vignettes", "vignettes/base.yaml") })
         {
             Assert.Contains($"<a href=\"/dev/content/files/{name}\">{path}</a>", body);
         }
@@ -576,7 +595,7 @@ public sealed class ContentTextFilesTests(RepoContentGuard guard) : IClassFixtur
     {
         using TestApp app = NewApp();
 
-        await Post(app.NewClient(), "/dev/content/files/pack", Body("id: CORE\nversion: 5\n"));
+        await Post(app.NewClient(), "/dev/content/files/pack", Body("id: CORE\nversion: 5\ncalendar: calendar_a\n"));
 
         guard.Verify();
     }

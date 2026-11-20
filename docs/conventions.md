@@ -9,7 +9,7 @@ Every id starts with a letter, holds only letters, digits, and underscores, and 
 | Case | Used for | Examples |
 |---|---|---|
 | Upper case: `A` to `Z`, digits, `_` | Anything with its own page in the editor: skills, crew, gear, assignments, objectives, encounters, decisions, lines, storylets | `SKILL_A`, `ENCOUNTER_01`, `STORYLET_01` |
-| Lower case: `a` to `z`, digits, `_` | Anything that lives inside an item or is typed into text: approaches, a storylet's options, traits (story flags until slice 1e, part three), a trait's level names, symbols, pronoun sets, tags | `careful`, `captain_ask`, `sensors_quirk`, `scanner` |
+| Lower case: `a` to `z`, digits, `_` | Anything that lives inside an item or is typed into text: approaches, a storylet's options, traits (story flags until slice 1e, part three), a trait's level names, symbols, pronoun sets, tags, calendars and their weekdays and months | `careful`, `captain_ask`, `sensors_quirk`, `scanner`, `bastion`, `vortun` |
 
 The split is deliberate: an upper-case id in a file or a log is a reference to another item; a lower-case one belongs to the item it sits in, or is a word of the text.
 
@@ -45,6 +45,16 @@ A storylet's or vignette's cast names up to three slots (slice 1e, part four). D
 - A slot's name is lower case, like any id inside an item: `subject`, `target`, `witness`. Use `subject` for the one a storylet is about, and `target` for the one a pair trait points at, so scripts read alike across the pack.
 - These words are reserved and cannot name a slot, because each means something already: `ship`, `crew`, `captain`, `cycle`, `best`, and `handler`. `handler` is the slot an option settled by a check gives its `success` and `failure`.
 - A slot's name is the speaker in a script (`subject: ...`), the token in text (`#subject#`), and what `on:` and `toward:` name in an effect.
+
+## Calendars and durations
+
+The calendar is content (slice 1e-calendar, design 4.2): `content/calendars/<file>.yaml` lists calendars, and `pack.yaml` names the one in use with `calendar:`. Decided by the author on 2026-11-20.
+
+- A calendar's id, and the ids of its weekdays and months, are lower case: `bastion`, `stoneday`, `vortun`. An id drops what the rule does not allow, and the name keeps it: `pelphear` is named `Pelpheär`.
+- Every weekday and month has a name. A weekday may have a `short` form for narrow screens (`Stone`); without one, its name is used.
+- The week is as many days as the calendar has weekdays. A month need not be whole weeks.
+- `start` is the date a new legacy begins on: `{ day: 13, month: vortun, year: 105 }`, a day of that month, in year 1 or later.
+- **Durations are written in weeks, never in days**, in content and tuning alike: `weeks:`, `lightWeeks:`. The engine keeps time in days and converts with the calendar's week. The one number in days is a cycle's length, in `tuning/calendar.yaml`, because it is the roll that moves the calendar, not a duration an effect sets.
 
 ## YAML keys
 

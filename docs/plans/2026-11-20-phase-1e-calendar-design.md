@@ -1,7 +1,7 @@
 # Phase 1, slice 1e-calendar: the calendar
 
 **Spec:** `docs/gdd.md` sections 2.2, 2.3, 3.1, 3.2, 3.8, and 7.4, and section 15, items 40 to 43. **Lore:** `docs/lore/calendars.md` (the author's; read, never edited). **Builds on:** `main` at 2026-11-20 (`f51d1ac`), and slice 1e's first four parts.
-**Status:** designed 2026-11-20; not yet built.
+**Status:** designed 2026-11-20; being built (section 8).
 **Ends with:** the author starts a legacy on 13 Vortun 105. The top bar shows the date, not a week, and hovering over it shows "Stoneday, 13 Vortun 105". A cycle ends, and the report says the run was delayed: the calendar moves 7 days, to 20 Vortun. An injury written as two weeks heals on the day 12 days after it was taken, which may fall in the middle of a later cycle. A storylet that requires `storylet.a.daysSince >= 40` arrives only after the author presses Dev Play's "travel 5 weeks". Dev Play still shows the cycle number.
 
 This records what the author said about the calendar on 2026-11-20, in a design interview, and designs it. Items marked **(my call)** were proposed by me, not asked for by the author.
@@ -217,3 +217,19 @@ No crew member has an age in code or content yet; ageing is Phase 6. This slice 
 - Whether `storylet.s.arrived` is worth adding beside `cyclesSince >= 0`.
 - The form of the trait readings if DynamicExpresso can't put a property on a number (section 4.6).
 - The game's pack: the report lines' words and the worked example's storylet, written in place and left for the author to rewrite.
+
+## 8. As built
+
+Kept as each task of the plan lands. Differences from sections 4 and 5 are said here, and section 5 is changed to match.
+
+### Task 1: the calendar as content (2026-11-20)
+
+As designed: `CalendarDef`, `WeekdayDef`, `MonthDef`, `CalendarDate`, and `CalendarTuning` in `Sim.Core/Content/CalendarContent.cs`, and `Sim.Core.Calendar` with `DayNumber`, `Date`, `Weekday`, and `Days`. `ContentPack` carries `Calendar` (the one `pack.yaml` names) and `CalendarTuning`, both required. 13 Vortun 105 is day 37482, a Stoneday. `Date` also converts a day before day 0 (a birth date, later), counting years down from 1 the same way.
+
+Small calls made while building:
+
+- **A weekday's `short` is optional** and falls back to its name; the Bastion Calendar writes one for every weekday anyway. A weekday's and a month's `name` are required, since they are what a date shows. A calendar's `name` is required too.
+- **Calendar ids are their own namespace**, like traits and symbols: lower case, unique among calendars, and free to repeat an item's id. Weekday and month ids are unique within their own list.
+- **A refused calendar is reported once**, in its own file: `pack.yaml` reports only a calendar that is missing or defined nowhere.
+- **The editor** lists `tuning/calendar.yaml` ("Calendar tuning") and `calendars/base.yaml` ("Calendars") among its text files (`Web/Forms/TextFiles.cs` and the index), checked with the whole pack on save. The plan named `ContentKinds.cs` and `ContentModels.cs` for this; neither needed to change, since a calendar is not an item kind with a form.
+- The fixture's placeholder calendar is `calendar_a` (`WEEKDAY_A` to `WEEKDAY_F`, short `WD_A` and so on; `MONTH_A` to `MONTH_L`), starting on 13 `month_b` 105, so it matches the game's day number.

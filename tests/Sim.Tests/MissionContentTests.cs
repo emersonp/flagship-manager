@@ -489,7 +489,7 @@ public class MissionContentTests
     [Fact]
     public void A_pack_without_a_tuning_file_is_an_error()
     {
-        ContentLoadResult result = ContentLoader.Load(TestContent.WithCrewFiles(new Dictionary<string, string> { ["pack.yaml"] = "id: CORE\nversion: 1\n" }));
+        ContentLoadResult result = ContentLoader.Load(TestContent.WithCrewFiles(new Dictionary<string, string> { ["pack.yaml"] = ContentLoaderTests.Manifest }));
 
         Assert.Equal("The pack has no tuning/missions.yaml.", Assert.Single(result.Errors).Message);
     }
@@ -507,7 +507,7 @@ public class MissionContentTests
     {
         return ContentLoader.Load(TestContent.WithCrewFiles(new Dictionary<string, string>
         {
-            ["pack.yaml"] = "id: CORE\nversion: 1\n",
+            ["pack.yaml"] = ContentLoaderTests.Manifest,
             ["skills/a.yaml"] = "- id: SKILL_A\n",
             ["encounters/a.yaml"] = encounters,
             ["objectives/a.yaml"] = objectives,

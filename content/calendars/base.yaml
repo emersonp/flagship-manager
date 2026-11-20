@@ -1,0 +1,25 @@
+# The Bastion Calendar. Source: docs/lore/calendars.md (the author's; do not edit it from here).
+# A week is as many days as there are weekdays; every duration in content is written in weeks.
+- id: bastion
+  name: Bastion Calendar
+  weekdays:
+    - { id: stoneday, name: Stoneday, short: Stone }
+    - { id: quorday, name: Quorday, short: Quor }
+    - { id: kinclause, name: Kinclause, short: Kinclause }
+    - { id: embertally, name: Embertally, short: Ember }
+    - { id: menday, name: Menday, short: Menday }
+    - { id: hearthfall, name: Hearthfall, short: Hearth }
+  months:
+    - { id: krellis, name: Krellis, days: 30 }
+    - { id: vortun, name: Vortun, days: 30 }
+    - { id: zhortuna, name: Zhortuna, days: 30 }
+    - { id: moss, name: Moss, days: 30 }
+    - { id: pharoska, name: Pharoska, days: 30 }
+    - { id: pelphear, name: Pelpheär, days: 30 }
+    - { id: barx, name: Barx, days: 30 }
+    - { id: bast, name: Bast, days: 30 }
+    - { id: venjenten, name: Venjenten, days: 30 }
+    - { id: almonten, name: Almonten, days: 30 }
+    - { id: orphelten, name: Orphelten, days: 30 }
+    - { id: othra, name: Othra, days: 30 }
+  start: { day: 13, month: vortun, year: 105 }   # the 3rd Stoneday of Vortun, 105

@@ -351,7 +351,7 @@ public class ContentEditsTests : IClassFixture<RepoContentGuard>
     public void ReplaceText_changes_only_that_file()
     {
         ContentFileSet original = Repo();
-        ContentFileSet edited = ContentEdits.ReplaceText(original, "pack.yaml", "id: CORE\nversion: 2\n");
+        ContentFileSet edited = ContentEdits.ReplaceText(original, "pack.yaml", "id: CORE\nversion: 2\ncalendar: calendar_a\n");
         Assert.Equal(2, Valid(edited).Version);
         foreach ((string path, string text) in original.Files.Where(f => f.Key != "pack.yaml"))
         {
@@ -376,7 +376,7 @@ public class ContentEditsTests : IClassFixture<RepoContentGuard>
     {
         ContentFileSet files = Repo();
         Assert.Equal(
-            new[] { "assignments/base.yaml", "crew/starting.yaml", "encounters/base.yaml", "gear/base.yaml", "lines/base.yaml", "objectives/base.yaml", "pack.yaml", "pronouns/base.yaml", "skills/base.yaml", "storylets/base.yaml", "traits/base.yaml", "tuning/crew.yaml", "tuning/missions.yaml", "vignettes/base.yaml" },
+            new[] { "assignments/base.yaml", "calendars/base.yaml", "crew/starting.yaml", "encounters/base.yaml", "gear/base.yaml", "lines/base.yaml", "objectives/base.yaml", "pack.yaml", "pronouns/base.yaml", "skills/base.yaml", "storylets/base.yaml", "traits/base.yaml", "tuning/calendar.yaml", "tuning/crew.yaml", "tuning/missions.yaml", "vignettes/base.yaml" },
             files.Files.Keys.OrderBy(k => k, StringComparer.Ordinal));
         Assert.Equal(File.ReadAllText(Path.Combine(ContentRoot, "pack.yaml")), files.Files["pack.yaml"]);
     }
