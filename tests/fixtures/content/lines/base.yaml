@@ -97,3 +97,12 @@
 - id: LINE_CHRONICLE_CALL_OVERRULED
   when: { beat: chronicle_call, standing: overruled }
   text: "CHRONICLE_CALL_OVERRULED #lead# #encounter#."
+- id: LINE_CHRONICLE_STORYLET
+  when: { beat: chronicle_storylet }
+  text: "CHRONICLE_STORYLET #storylet# #option#."
+- id: LINE_CHRONICLE_STORYLET_SUCCESS
+  when: { beat: chronicle_storylet, outcome: success }
+  text: "CHRONICLE_STORYLET_SUCCESS #storylet# #option# #handler#."
+- id: LINE_CHRONICLE_STORYLET_FAILURE
+  when: { beat: chronicle_storylet, outcome: failure }
+  text: "CHRONICLE_STORYLET_FAILURE #storylet# #option# #handler#."

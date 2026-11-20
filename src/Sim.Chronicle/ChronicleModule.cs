@@ -22,6 +22,7 @@ public static class ChronicleModule
     public const string DeathFallback = "A crew member was lost.";
     public const string MissionFallback = "A mission ended.";
     public const string CallFallback = "The captain answered a call.";
+    public const string StoryletFallback = "The captain made a choice.";
 
     public static void Register(EventBus bus, ContentPack pack, INarrator narrator)
     {
@@ -35,6 +36,8 @@ public static class ChronicleModule
         bus.Subscribe<CallAnswered>(Order, Name, (e, context) => OnCall(pack, situations, narrator, e, context));
         bus.Subscribe<CrewDied>(Order, Name, (e, context) => OnDied(pack, situations, narrator, e, context));
         bus.Subscribe<MissionEnded>(Order, Name, (e, context) => OnEnded(pack, situations, narrator, e, context));
+        // A vignette's answer writes nothing (design 1): they are small and frequent, and would bury the captain's real choices.
+        bus.Subscribe<StoryletAnswered>(Order, Name, (e, context) => OnStorylet(pack, situations, narrator, e, context));
     }
 
     private static void OnFounded(ContentPack pack, INarrator narrator, IBusContext context)
@@ -106,14 +109,28 @@ public static class ChronicleModule
         context.Module<ChronicleState>().Missions.Remove(mission);
     }
 
+    // The cast are the subjects, in slot order. The option's weight wins over the storylet's, and the storylet's over the tuning
+    // file's; the option's own chronicle text over a line.
+    private static void OnStorylet(ContentPack pack, Situations situations, INarrator narrator, StoryletAnswered answered, IBusContext context)
+    {
+        StoryletDef? storylet = situations.StoryletOf(answered.StoryletId);
+        ChronicleDef? own = storylet?.Options.FirstOrDefault(o => o.Id == answered.OptionId)?.Chronicle;
+        int weight = own?.Weight ?? storylet?.Chronicle?.Weight ?? pack.Chronicle.Weights[ChronicleTuning.Storylet];
+        List<string> slots = storylet?.Slots.Where(answered.Cast.ContainsKey).ToList() ?? answered.Cast.Keys.ToList();
+        Situation situation = situations.Storylet(answered, storylet, slots);
+        List<ChronicleSubject> subjects = slots.Select(slot => situations.Subject(answered.Cast[slot])).ToList();
+        Write(narrator, context, ChronicleKinds.Storylet, weight, subjects, situation, StoryletFallback, [context.Sequence], own?.Text);
+    }
+
     private static OpenMission? Find(IBusContext context, string missionId)
     {
         return context.Module<ChronicleState>().Missions.FirstOrDefault(m => m.Id == missionId);
     }
 
     // Writes one entry, or none at weight 0. The line's ties break by the legacy's seed, the kind, and the first source's sequence
-    // number, so the same legacy always gets the same words.
-    private static void Write(INarrator narrator, IBusContext context, string kind, int weight, IReadOnlyList<ChronicleSubject> subjects, Situation situation, string fallback, IReadOnlyList<long> sources)
+    // number, so the same legacy always gets the same words. Own: text written in place of a line (an option's chronicle.text); if it
+    // cannot be expanded here, a line is used as if it were not written.
+    private static void Write(INarrator narrator, IBusContext context, string kind, int weight, IReadOnlyList<ChronicleSubject> subjects, Situation situation, string fallback, IReadOnlyList<long> sources, string? own = null)
     {
         if (weight <= 0)
         {
@@ -122,7 +139,7 @@ public static class ChronicleModule
 
         LegacyState legacy = context.State;
         string key = string.Create(CultureInfo.InvariantCulture, $"{legacy.Seed}|chronicle|{kind}|{sources[0]}");
-        string text = narrator.Line(situation, key) ?? fallback;
+        string text = (own is null ? null : narrator.Expand(own, situation, key)) ?? narrator.Line(situation, key) ?? fallback;
         ChronicleState state = context.Module<ChronicleState>();
         state.Entries.Add(new ChronicleEntry(state.NextId(), legacy.Day, legacy.Cycle, kind, weight, subjects, text, sources));
     }

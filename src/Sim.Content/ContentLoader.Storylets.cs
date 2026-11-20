@@ -40,6 +40,7 @@ public static partial class ContentLoader
             Casting casting = CastOf(dto, expressions, Error);
             Cooldown cooldown = CooldownOf(dto.Cooldown, Error) ?? Cooldown.None;
             List<StoryletOption> options = Options(dto.Options, casting, book, expressions, skills, Error);
+            ChronicleDef? chronicle = ChronicleOf(dto.Chronicle, option: false, Error);
             if (dto.Effects is not null || dto.Default is not null)
             {
                 Error("A storylet's effects and default belong to a vignette; a storylet's effects are in its options.");
@@ -69,7 +70,7 @@ public static partial class ContentLoader
 
             if (errors.Count == before)
             {
-                defs.Add(new StoryletDef(dto.Id!, dto.Stakes, casting.Cast, casting.Requires, options, name) { Reads = casting.Reads, Needs = Needs(lowest), Cooldown = cooldown });
+                defs.Add(new StoryletDef(dto.Id!, dto.Stakes, casting.Cast, casting.Requires, options, name) { Reads = casting.Reads, Needs = Needs(lowest), Cooldown = cooldown, Chronicle = chronicle });
             }
         }
 
@@ -96,6 +97,11 @@ public static partial class ContentLoader
 
             Casting casting = CastOf(dto, expressions, Error);
             Cooldown? cooldown = CooldownOf(dto.Cooldown, Error);
+            if (dto.Chronicle is not null)
+            {
+                Error("A vignette leaves no chronicle entry, so it has no chronicle.");
+            }
+
             bool effectsWritten = dto.Effects is { Count: > 0 };
             bool optionsWritten = dto.Options is { Count: > 0 };
             var effects = new List<StoryletEffect>();
@@ -317,10 +323,53 @@ public static partial class ContentLoader
 
             List<StoryletEffect> effects = (dto.Effects ?? []).Select(e => StoryletEffectOf(e ?? [], casting.Slots, book, error)).OfType<StoryletEffect>().ToList();
             StoryletCheck? check = CheckOf(dto, casting, book, skills, m => error($"Option '{dto.Id}': {m}"), vignette);
-            options.Add(new StoryletOption(dto.Id ?? "", label ?? "", effects, requires, check));
+            ChronicleDef? chronicle = null;
+            if (vignette && dto.Chronicle is not null)
+            {
+                error($"Option '{dto.Id}': {NoVignetteChronicle}");
+            }
+            else
+            {
+                chronicle = ChronicleOf(dto.Chronicle, option: true, m => error($"Option '{dto.Id}': {m}"));
+            }
+
+            options.Add(new StoryletOption(dto.Id ?? "", label ?? "", effects, requires, check) { Chronicle = chronicle });
         }
 
         return options;
+    }
+
+    private const string NoVignetteChronicle = "a vignette leaves no chronicle entry, so it has no chronicle.";
+
+    // chronicle: on a storylet or an option (slice 1e part five, design 4.4). A storylet's is a weight alone; an option's is a weight,
+    // a text, or both. The text's words are checked with the storylet's lines (BuildStoryletLines). Null when none is written or it
+    // is refused.
+    private static ChronicleDef? ChronicleOf(ChronicleDto? written, bool option, Action<string> error)
+    {
+        if (written is null)
+        {
+            return null;
+        }
+
+        bool sound = true;
+        if (!option && written.Text is not null)
+        {
+            error("A storylet's chronicle has no text; an option's may.");
+            sound = false;
+        }
+
+        if (written.Weight is { } weight ? weight is < 0 or > Sim.Core.ChronicleTuning.Most : !option)
+        {
+            error($"{(option ? "the" : "The storylet's")} chronicle weight must be a whole number from 0 to {Sim.Core.ChronicleTuning.Most}.");
+            sound = false;
+        }
+        else if (written.Weight is null && written.Text is null)
+        {
+            error("the chronicle needs a weight, a text, or both.");
+            sound = false;
+        }
+
+        return sound ? new ChronicleDef(written.Weight, written.Text?.ReplaceLineEndings("\n")) : null;
     }
 
     // An option settled by a check (design 4.7), or null when it has none or it is refused. Its effects and text are in success and
@@ -626,7 +675,9 @@ public static partial class ContentLoader
 
     // A storylet's text and each option's text, as lines whose criteria are where they sit, the way an encounter's own text is.
     // Its speakers and the people its text names are its slots; a storylet for the ship names no one.
-    private static List<LineDef> BuildStoryletLines(List<(string File, StoryletDto Dto)> items, List<SymbolDef> symbols, List<SkillDef> skills, List<ContentError> errors)
+    // Chronicle: for storylets, whose options' chronicle text is checked here too, as a chronicle line with the cast as its people
+    // (slice 1e part five, design 4.9); it is kept on the option, not made a line.
+    private static List<LineDef> BuildStoryletLines(List<(string File, StoryletDto Dto)> items, List<SymbolDef> symbols, List<SkillDef> skills, List<ContentError> errors, bool chronicle = false)
     {
         Dictionary<string, SymbolDef> symbolsById = symbols.ToDictionary(s => s.Id);
         HashSet<string> skillIds = skills.Select(s => s.Id).ToHashSet();
@@ -635,7 +686,7 @@ public static partial class ContentLoader
         {
             string id = dto.Id!;
             List<string> slots = (dto.Cast ?? []).Keys.Where(k => Ids.IsInnerId(k) && !StoryletScopes.Reserved.Contains(k)).Take(StoryletScopes.MaxSlots).ToList();
-            void Add(string where, string? text, string kind, CriterionDef[] when, bool handler = false)
+            void Add(string where, string? text, string kind, CriterionDef[] when, bool handler = false, bool keep = true)
             {
                 if (text is null)
                 {
@@ -656,7 +707,12 @@ public static partial class ContentLoader
 
                 BeatSpec scoped = NarrativeFacts.Beats[kind] with { People = handler ? [.. slots, StoryletScopes.Handler] : slots };
                 CheckScript(text, scoped, symbolsById, skillIds, m => Error($"cannot be read: {m}"), m => Error($"cannot be used: {m}"));
-                if (errors.Count == before)
+                if (errors.Count == before && NarrativeFacts.Chronicle.Is(kind) && ChronicleScript(text) is { } problem)
+                {
+                    Error($"cannot be used: {problem}");
+                }
+
+                if (errors.Count == before && keep)
                 {
                     lines.Add(new LineDef($"{id}.{where}", kind, when, text.ReplaceLineEndings("\n"), null, id));
                 }
@@ -675,6 +731,12 @@ public static partial class ContentLoader
                     {
                         Add($"{option.Id}.{outcome}.text", written?.Text, "storyletAnswer", [here, new CriterionDef("option", [option.Id!]), new CriterionDef("outcome", [outcome])], handler: true);
                     }
+                }
+
+                // A check option's chronicle text may name the handler, as its outcomes' text may.
+                if (chronicle)
+                {
+                    Add($"{option.Id}.chronicle.text", option.Chronicle?.Text, NarrativeFacts.Chronicle.Storylet, [], handler: option.Check is not null, keep: false);
                 }
             }
         }
@@ -710,6 +772,9 @@ public static partial class ContentLoader
 
         // In cycles (1e part four, design 4.6).
         public CooldownDto? Cooldown { get; set; }
+
+        // Slice 1e part five: a weight alone; refused on a vignette.
+        public ChronicleDto? Chronicle { get; set; }
     }
 
     private sealed class CooldownDto
@@ -737,6 +802,9 @@ public static partial class ContentLoader
         public OutcomeDto? Success { get; set; }
 
         public OutcomeDto? Failure { get; set; }
+
+        // Slice 1e part five: a weight, a text, or both; refused on a vignette's option.
+        public ChronicleDto? Chronicle { get; set; }
     }
 
     private sealed class CheckDto

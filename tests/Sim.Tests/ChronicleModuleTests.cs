@@ -346,6 +346,126 @@ public class ChronicleModuleTests
         throw new InvalidOperationException("No seed in range raises a call.");
     }
 
+    // Task 4: captain storylets. A test command stands in for the storylets module, publishing its answer as it would.
+    private sealed record Publish(IEvent Event) : ICommand;
+
+    private const string Title = "STORYLET_TITLE";
+
+    private static StoryletOption Option(string id, ChronicleDef? chronicle = null, StoryletCheck? check = null)
+    {
+        return new StoryletOption(id, $"LABEL_{id.ToUpperInvariant()}", [], Check: check) { Chronicle = chronicle };
+    }
+
+    // Two slots, subject then target, so the subjects' order can be seen.
+    private static ContentPack WithStorylet(ChronicleDef? chronicle, params StoryletOption[] options)
+    {
+        var storylet = new StoryletDef(
+            "STORYLET_X",
+            2,
+            [new CastSlot("subject", new Expr("true")), new CastSlot("target", new Expr("true"))],
+            null,
+            options,
+            Title) { Chronicle = chronicle };
+        return TestContent.Pack with { Storylets = [storylet] };
+    }
+
+    private static (LegacyState State, long Sequence) Answer(ContentPack pack, IEvent answered)
+    {
+        EventBus bus = NewBus(pack);
+        bus.Handle<Publish>((command, context) => context.Publish(command.Event));
+        var state = new LegacyState { LegacyId = Guid.Empty, Seed = 1 };
+        bus.Send(state, new FoundLegacy());
+        long sequence = bus.Send(state, new Publish(answered)).Single(p => p.Event == answered).Sequence;
+        return (state, sequence);
+    }
+
+    // The cast is given target first: the subjects follow the storylet's slots, not the event's order.
+    private static StoryletAnswered Answered(string optionId, string? handlerId = null, bool? success = null)
+    {
+        var cast = new Dictionary<string, string> { ["target"] = "CREW_03", ["subject"] = "CREW_02" };
+        StoryletRoll? roll = success is { } s ? new StoryletRoll("SKILL_B", 3, 0, [], 7, 11, s) : null;
+        return new StoryletAnswered("2:STORYLET_X", "STORYLET_X", cast, optionId, handlerId, roll);
+    }
+
+    private static ChronicleEntry? StoryletEntry(LegacyState state)
+    {
+        return state.Module<ChronicleState>(ChronicleModule.Name).Entries.SingleOrDefault(e => e.Kind == ChronicleKinds.Storylet);
+    }
+
+    [Fact]
+    public void A_storylet_answered_writes_an_entry_with_its_cast_in_slot_order_and_its_title_and_label()
+    {
+        (LegacyState state, long sequence) = Answer(WithStorylet(null, Option("hold"), Option("leave")), Answered("hold"));
+
+        ChronicleEntry entry = StoryletEntry(state)!;
+
+        Assert.Equal((3, $"CHRONICLE_STORYLET {Title} LABEL_HOLD."), (entry.Weight, entry.Text));
+        Assert.Equal([new ChronicleSubject("CREW_02", "CREW_02"), new ChronicleSubject("CREW_03", "CREW_03")], entry.Subjects);
+        Assert.Equal([sequence], entry.SourceSeq);
+    }
+
+    // Design 4.4: the option's weight, else the storylet's, else the tuning file's.
+    [Fact]
+    public void The_options_weight_wins_over_the_storylets_and_the_storylets_over_the_tuning_files()
+    {
+        ContentPack pack = WithStorylet(new ChronicleDef(4, null), Option("hold", new ChronicleDef(1, null)), Option("leave"));
+
+        Assert.Equal(1, StoryletEntry(Answer(pack, Answered("hold")).State)!.Weight);
+        Assert.Equal(4, StoryletEntry(Answer(pack, Answered("leave")).State)!.Weight);
+    }
+
+    [Fact]
+    public void An_option_or_a_storylet_with_weight_0_writes_no_entry()
+    {
+        Assert.Null(StoryletEntry(Answer(WithStorylet(null, Option("hold", new ChronicleDef(0, null)), Option("leave")), Answered("hold")).State));
+        Assert.Null(StoryletEntry(Answer(WithStorylet(new ChronicleDef(0, null), Option("hold"), Option("leave")), Answered("leave")).State));
+    }
+
+    // Design 4.5: the option's own text, expanded with the storylet's cast, in place of a line.
+    [Fact]
+    public void An_options_chronicle_text_is_used_in_place_of_a_line()
+    {
+        ContentPack pack = WithStorylet(null, Option("hold", new ChronicleDef(null, "#subject# asked for #target#. The captain said #option#.")), Option("leave"));
+
+        ChronicleEntry entry = StoryletEntry(Answer(pack, Answered("hold")).State)!;
+
+        Assert.Equal((3, "CREW_02 asked for CREW_03. The captain said LABEL_HOLD."), (entry.Weight, entry.Text));
+    }
+
+    // Text that cannot be expanded here (a symbol the pack has lost) is passed over for a line, so the entry is not lost.
+    [Fact]
+    public void An_options_chronicle_text_that_cannot_be_expanded_gives_way_to_a_line()
+    {
+        ContentPack pack = WithStorylet(null, Option("hold", new ChronicleDef(null, "#no_such_symbol# held.")), Option("leave"));
+
+        Assert.Equal($"CHRONICLE_STORYLET {Title} LABEL_HOLD.", StoryletEntry(Answer(pack, Answered("hold")).State)!.Text);
+    }
+
+    [Theory]
+    [InlineData(true, "CHRONICLE_STORYLET_SUCCESS")]
+    [InlineData(false, "CHRONICLE_STORYLET_FAILURE")]
+    public void A_check_option_names_its_handler_and_how_it_went(bool success, string line)
+    {
+        var check = new StoryletCheck("SKILL_B", 4, new StoryletOutcome([]), new StoryletOutcome([]));
+        ContentPack pack = WithStorylet(null, Option("talk", check: check), Option("leave"));
+
+        ChronicleEntry entry = StoryletEntry(Answer(pack, Answered("talk", "CREW_05", success)).State)!;
+
+        Assert.Equal($"{line} {Title} LABEL_TALK CREW_05.", entry.Text);
+        Assert.Equal(["CREW_02", "CREW_03"], entry.Subjects.Select(s => s.Id));
+    }
+
+    // Design 1: vignettes are small and frequent, and would bury the captain's real choices.
+    [Fact]
+    public void A_vignette_answered_leaves_no_entry()
+    {
+        var answered = new VignetteAnswered("2:VIGNETTE_02", "VIGNETTE_02", new Dictionary<string, string> { ["subject"] = "CREW_02" }, "option_a", Defaulted: false);
+
+        (LegacyState state, _) = Answer(TestContent.Pack, answered);
+
+        Assert.Equal([ChronicleKinds.Founding], state.Module<ChronicleState>(ChronicleModule.Name).Entries.Select(e => e.Kind));
+    }
+
     private static ChronicleEntry Entry(string id, int day, string kind, params string[] subjects)
     {
         return new ChronicleEntry(id, day, 1, kind, 3, subjects.Select(s => new ChronicleSubject(s, s)).ToList(), "TEXT.", [1]);

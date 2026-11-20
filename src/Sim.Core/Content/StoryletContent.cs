@@ -32,12 +32,20 @@ public sealed record SalienceTuning(int Stakes, int Specificity, int Repeat, int
 // no cast); Trait.Toward is a slot, for a pair trait held toward them (1e part four).
 public sealed record StoryletEffect(int Loyalty = 0, string? LoyaltyOn = null, TraitChange? Trait = null, int Morale = 0, string? MoraleOn = null);
 
+// chronicle: on a storylet (Weight only) or an option (Weight, Text, or both) (slice 1e part five, design 4.4 and 4.5). Weight: the
+// weight of the entry its answer writes, 0 to 5, in place of the tuning file's; 0 writes none; null leaves it to the storylet, then
+// the tuning file. Text: a line of the chronicle_storylet beat, with the storylet's cast as its people, written in place of the pack's.
+public sealed record ChronicleDef(int? Weight, string? Text);
+
 // Requires: shown, and accepted, only while it holds, with every slot bound. Check: settled by a check with a handler the captain
 // names (1e part four, design 4.7); its effects are then in the check's outcomes, and its own Effects are empty.
 public sealed record StoryletOption(string Id, string Label, IReadOnlyList<StoryletEffect> Effects, Expr? Requires = null, StoryletCheck? Check = null)
 {
     // Each set of effects an answer with it may apply: its own, or its check's success and then failure.
     public IEnumerable<IReadOnlyList<StoryletEffect>> Outcomes => Check is null ? [Effects] : [Check.Success.Effects, Check.Failure.Effects];
+
+    // Slice 1e part five: none unless written.
+    public ChronicleDef? Chronicle { get; init; }
 }
 
 // An option settled by a check (design 4.7): the handler's Skill, plus their morale and trait check bonuses, plus the check dice,
@@ -65,6 +73,9 @@ public sealed record StoryletDef(string Id, int Stakes, IReadOnlyList<CastSlot> 
 
     // 1e part four, Task 5: none unless written.
     public Cooldown Cooldown { get; init; } = Cooldown.None;
+
+    // Slice 1e part five: none unless written; a storylet's has no text.
+    public ChronicleDef? Chronicle { get; init; }
 
     public IEnumerable<string> Slots => Cast.Select(c => c.Name);
 

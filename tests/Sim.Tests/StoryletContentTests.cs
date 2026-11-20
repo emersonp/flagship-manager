@@ -689,4 +689,70 @@ public class StoryletContentTests
 
         Assert.Contains(result.Errors, e => e.File == "vignettes/base.yaml" && e.Message == "VIGNETTE_02: Option 'option_a': a vignette's options are not settled by a check.");
     }
+
+    // Slice 1e part five: chronicle: on a storylet (a weight) and an option (a weight, a text, or both).
+    [Fact]
+    public void A_chronicle_loads_on_a_storylet_and_its_options()
+    {
+        string written = Storylet
+            .Replace("  options:\n", "  chronicle: { weight: 4 }\n  options:\n")
+            .Replace("label: LABEL_A\n", "label: LABEL_A\n      chronicle: { weight: 0 }\n")
+            .Replace("label: LABEL_B\n", "label: LABEL_B\n      chronicle: { text: \"#subject# held the line.\" }\n");
+
+        ContentLoadResult result = LoadWith(written);
+
+        Assert.Empty(result.Errors);
+        StoryletDef storylet = result.Pack!.Storylets.Single();
+        Assert.Equal(new ChronicleDef(4, null), storylet.Chronicle);
+        Assert.Equal(new ChronicleDef(0, null), storylet.Options[0].Chronicle);
+        Assert.Equal(new ChronicleDef(null, "#subject# held the line."), storylet.Options[1].Chronicle);
+        Assert.DoesNotContain(result.Pack.Lines, l => l.Id.Contains("chronicle", StringComparison.Ordinal));
+        Assert.Null(TestContent.Pack.Storylets[0].Chronicle);
+    }
+
+    [Theory]
+    [InlineData("  chronicle: { weight: 6 }\n  options:\n", "STORYLET_X: The storylet's chronicle weight must be a whole number from 0 to 5.")]
+    [InlineData("  chronicle: { weight: -1 }\n  options:\n", "STORYLET_X: The storylet's chronicle weight must be a whole number from 0 to 5.")]
+    [InlineData("  chronicle: { text: X }\n  options:\n", "STORYLET_X: A storylet's chronicle has no text; an option's may.")]
+    public void A_bad_storylet_chronicle_is_refused(string chronicle, string message)
+    {
+        AssertRefused(Storylet.Replace("  options:\n", chronicle), message);
+    }
+
+    [Theory]
+    [InlineData("{ weight: 6 }", "STORYLET_X: Option 'option_b': the chronicle weight must be a whole number from 0 to 5.")]
+    [InlineData("{ }", "STORYLET_X: Option 'option_b': the chronicle needs a weight, a text, or both.")]
+    [InlineData("{ text: \"#lead# nodded.\" }", "STORYLET_X: option_b.chronicle.text cannot be used: #lead# names 'lead', which a chronicle_storylet beat does not have.")]
+    [InlineData("{ text: \"#handler# nodded.\" }", "STORYLET_X: option_b.chronicle.text cannot be used: #handler# names 'handler', which a chronicle_storylet beat does not have.")]
+    [InlineData("{ text: \"subject: We remember.\" }", "STORYLET_X: option_b.chronicle.text cannot be used: a chronicle line is plain prose: no speaker, no note (>), no report's sentence (=), and not silence (-).")]
+    public void A_bad_option_chronicle_is_refused(string chronicle, string message)
+    {
+        AssertRefused(Storylet.Replace("label: LABEL_B\n", $"label: LABEL_B\n      chronicle: {chronicle}\n"), message);
+    }
+
+    // As an outcome's own text may, a check option's chronicle text may name the one sent.
+    [Fact]
+    public void A_check_options_chronicle_text_may_name_the_handler()
+    {
+        string written = WithCheck().Replace("      label: LABEL_A\n", "      label: LABEL_A\n      chronicle: { weight: 4, text: \"#handler# sat with #subject#.\" }\n");
+
+        ContentLoadResult result = LoadWith(written);
+
+        Assert.Empty(result.Errors);
+        Assert.Equal(new ChronicleDef(4, "#handler# sat with #subject#."), result.Pack!.Storylets.Single().Options[0].Chronicle);
+    }
+
+    [Fact]
+    public void A_vignette_takes_no_chronicle()
+    {
+        Dictionary<string, string> files = TestContent.RepoFiles();
+        files["vignettes/base.yaml"] = files["vignettes/base.yaml"]
+            .Replace("  default: option_b\n", "  chronicle: { weight: 3 }\n  default: option_b\n")
+            .Replace("{ id: option_b, label: VIGNETTE_02_OPTION_B_LABEL, ", "{ id: option_b, label: VIGNETTE_02_OPTION_B_LABEL, chronicle: { weight: 3 }, ");
+
+        ContentLoadResult result = ContentLoader.Load(files);
+
+        Assert.Contains(result.Errors, e => e.File == "vignettes/base.yaml" && e.Message == "VIGNETTE_02: A vignette leaves no chronicle entry, so it has no chronicle.");
+        Assert.Contains(result.Errors, e => e.File == "vignettes/base.yaml" && e.Message == "VIGNETTE_02: Option 'option_b': a vignette leaves no chronicle entry, so it has no chronicle.");
+    }
 }

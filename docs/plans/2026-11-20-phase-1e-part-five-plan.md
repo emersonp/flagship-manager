@@ -99,10 +99,10 @@ public sealed record CrewDied(string CrewId, string MissionId, string? Encounter
 
 **Produces:** `public sealed record ChronicleDef(int? Weight, string? Text);` on a storylet (weight only) and on an option (weight and text).
 
-- [ ] **Step 1: content.** The loader reads `chronicle:` on a storylet and an option. It refuses `text` on a storylet, `chronicle:` on a vignette, and a weight outside 0 to 5. It checks an option's `text` for unbound symbols against the storylet's facts and cast, as the option's own text is checked.
-- [ ] **Step 2: the entry.** On `StoryletAnswered`, write a `storylet` entry. The subjects are the cast in slot order. The facts are the title, the option's label, and for a check option the handler and success. The weight is the option's, else the storylet's, else the tuning file's. The text is the option's `chronicle.text` expanded through the narrator's expander, else a line. `VignetteAnswered` writes nothing.
-- [ ] **Step 3: tests.** The option's weight wins over the storylet's. `text` is used in place of a line. A check option names its handler and result. A vignette leaves no entry.
-- [ ] **Step 4:** `./check.sh`; commit "Record the captain's storylets in the chronicle".
+- [x] **Step 1: content.** The loader reads `chronicle:` on a storylet and an option. It refuses `text` on a storylet, `chronicle:` on a vignette, and a weight outside 0 to 5. It checks an option's `text` for unbound symbols against the storylet's facts and cast, as the option's own text is checked.
+- [x] **Step 2: the entry.** On `StoryletAnswered`, write a `storylet` entry. The subjects are the cast in slot order. The facts are the title, the option's label, and for a check option the handler and success. The weight is the option's, else the storylet's, else the tuning file's. The text is the option's `chronicle.text` expanded through the narrator's expander, else a line. `VignetteAnswered` writes nothing.
+- [x] **Step 3: tests.** The option's weight wins over the storylet's. `text` is used in place of a line. A check option names its handler and result. A vignette leaves no entry.
+- [x] **Step 4:** `./check.sh`; commit "Record the captain's storylets in the chronicle".
 
 ### Task 5: reading the chronicle in expressions
 

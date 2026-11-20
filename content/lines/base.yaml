@@ -214,3 +214,17 @@
   name: The captain overrules the lead and withdraws
   when: { beat: chronicle_call, standing: overruled, answer: withdraw }
   text: "At the #encounter#, the captain overruled #lead# and called the team back."
+# A captain storylet answered (vignettes write nothing). #storylet# is its title, #option# the option's label, #handler# the one
+# sent on a check. A shared line cannot name the cast; a storylet's option can, with chronicle: { text: "..." }.
+- id: LINE_CHRONICLE_STORYLET
+  name: The captain answers a storylet
+  when: { beat: chronicle_storylet }
+  text: "#storylet#. The captain's word: #option#."
+- id: LINE_CHRONICLE_STORYLET_SUCCESS
+  name: The captain sends someone, and it goes well
+  when: { beat: chronicle_storylet, outcome: success }
+  text: "#storylet#. The captain's word: #option#. #handler# saw it through."
+- id: LINE_CHRONICLE_STORYLET_FAILURE
+  name: The captain sends someone, and it goes badly
+  when: { beat: chronicle_storylet, outcome: failure }
+  text: "#storylet#. The captain's word: #option#. #handler# tried, and it did not take."

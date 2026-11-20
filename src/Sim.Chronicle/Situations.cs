@@ -13,6 +13,7 @@ internal sealed class Situations(ContentPack pack)
     private readonly Dictionary<string, string> objectives = Names(pack.Objectives.Select(o => (o.Id, o.Name)));
     private readonly Dictionary<string, string> encounters = Names(pack.Encounters.Select(e => (e.Id, e.Name)));
     private readonly Dictionary<string, string> sites = Names(pack.Assignments.Select(a => (a.Id, a.Name)));
+    private readonly Dictionary<string, StoryletDef> storylets = pack.Storylets.GroupBy(s => s.Id).ToDictionary(g => g.Key, g => g.First());
     private readonly Dictionary<string, DecisionDef> decisions = pack.Encounters.Where(e => e.Decision is not null).Select(e => e.Decision!)
         .GroupBy(d => d.Id).ToDictionary(g => g.Key, g => g.First());
 
@@ -68,6 +69,37 @@ internal sealed class Situations(ContentPack pack)
         builder.Facts["answer"] = FactValue.Of(call.Answer);
         builder.Facts["prefers"] = FactValue.Of(call.LeadPrefers);
         builder.Facts["standing"] = FactValue.Of(call.Standing);
+        return builder.Build();
+    }
+
+    // The storylet answered, as the pack has it now; null when the pack no longer has it.
+    public StoryletDef? StoryletOf(string storyletId) => storylets.GetValueOrDefault(storyletId);
+
+    // The cast are its people by slot, as in the storylet's own text, and the handler for a check option. #storylet# says its title
+    // and #option# the option's label.
+    public Situation Storylet(StoryletAnswered answered, StoryletDef? storylet, IReadOnlyList<string> slots)
+    {
+        StoryletOption? option = storylet?.Options.FirstOrDefault(o => o.Id == answered.OptionId);
+        var builder = new Builder(this, NarrativeFacts.Chronicle.Storylet, null);
+        builder.Facts["storylet"] = FactValue.Of(answered.StoryletId);
+        builder.Words["storylet"] = storylet?.Name ?? answered.StoryletId;
+        builder.Facts["option"] = FactValue.Of(answered.OptionId);
+        builder.Words["option"] = option?.Label ?? answered.OptionId;
+        if (answered.Roll is { } roll)
+        {
+            builder.Facts["outcome"] = FactValue.Of(roll.Success ? "success" : "failure");
+        }
+
+        foreach (string slot in slots)
+        {
+            builder.Add(slot, answered.Cast[slot]);
+        }
+
+        if (answered.HandlerId is { } handler)
+        {
+            builder.Add(StoryletScopes.Handler, handler);
+        }
+
         return builder.Build();
     }
 

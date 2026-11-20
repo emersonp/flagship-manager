@@ -146,7 +146,7 @@ public static partial class ContentLoader
         List<VignetteDef> vignetteDefs = BuildVignettes(vignettes, book, expressions, skillIds, errors);
         List<LineDef> lineDefs = BuildLines(lines, encounters, objectives, symbolDefs, skills, encounterDefs, objectiveDefs, storylets.Concat(vignettes).Select(s => s.Dto.Id!), errors);
         lineDefs.AddRange(BuildOwnedLines(encounters, objectives, symbolDefs, skills, errors));
-        lineDefs.AddRange(BuildStoryletLines(storylets, symbolDefs, skills, errors));
+        lineDefs.AddRange(BuildStoryletLines(storylets, symbolDefs, skills, errors, chronicle: true));
         lineDefs.AddRange(BuildStoryletLines(vignettes, symbolDefs, skills, errors));
         Dictionary<string, IReadOnlyDictionary<string, string>> choiceLabels = BuildChoiceLabels(encounters, errors);
 
