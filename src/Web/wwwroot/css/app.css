@@ -234,12 +234,17 @@ input:disabled { opacity: 0.55; cursor: not-allowed; }
 .pick tr.is-off td { color: var(--color-muted); }
 .pick tr.is-off td.who { color: var(--color-muted); }
 .pick tr.is-off .hit { cursor: not-allowed; }
-/* The away team card never scrolls: the columns tighten to fit, and below the breakpoint each crew member is a two-line grid. */
+/* The away team card never scrolls: the columns tighten to fit (a name wraps before the card overflows), and in a main
+   column under 43rem each crew member is a two-line grid. The breakpoint follows the column, not the window: from 84rem the
+   roster beside it holds the column at 43rem or a little more however wide the window is, and the table must fit there. */
 .pick--crew th, .pick--crew td { padding-inline: var(--space-xs); }
+.pick--crew th.n, .pick--crew td.n { padding-inline: var(--space-2xs); }
+.pick--crew th.c, .pick--crew td.c { padding-inline: 0; }
 .pick--crew th:first-child, .pick--crew td:first-child { padding-left: var(--space-lg); }
 .pick--crew th:last-child, .pick--crew td:last-child { padding-right: var(--space-md); }
+.pick--crew td.who { white-space: normal; }
 .pick--crew .status { min-width: 0; }
-@media (max-width: 56rem) {
+@container (width < 43rem) {
   .pick--crew, .pick--crew tbody { display: block; }
   .pick--crew thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
   .pick--crew tr { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)) 44px 44px; column-gap: var(--space-xs); padding: var(--space-xs) var(--space-md); border-bottom: var(--rule-hair) solid var(--color-rule); }
