@@ -13,6 +13,7 @@ public static partial class ContentLoader
     private const string ManifestFile = "pack.yaml";
     private const string TuningFile = "tuning/missions.yaml";
     private const string CrewTuningFile = "tuning/crew.yaml";
+    private const string ChronicleTuningFile = "tuning/chronicle.yaml";
 
     // Keys are paths relative to the pack root, with forward slashes.
     public static ContentLoadResult Load(IReadOnlyDictionary<string, string> files)
@@ -61,7 +62,7 @@ public static partial class ContentLoader
         var calendarsSeenIn = new Dictionary<string, string>();
         foreach ((string path, string text) in files.OrderBy(f => f.Key, StringComparer.Ordinal))
         {
-            if (path == ManifestFile || path == TuningFile || path == CrewTuningFile || path == CalendarTuningFile)
+            if (path == ManifestFile || path == TuningFile || path == CrewTuningFile || path == CalendarTuningFile || path == ChronicleTuningFile)
             {
                 continue;
             }
@@ -114,7 +115,7 @@ public static partial class ContentLoader
                     calendars.AddRange(Items<CalendarDto>(yaml, path, text, d => d.Id, calendarsSeenIn, errors, CheckLowerId).Select(d => (path, d)));
                     break;
                 case "tuning":
-                    errors.Add(new ContentError(path, $"Unknown tuning file. The only tuning files are {TuningFile}, {CrewTuningFile}, and {CalendarTuningFile}."));
+                    errors.Add(new ContentError(path, $"Unknown tuning file. The only tuning files are {TuningFile}, {CrewTuningFile}, {CalendarTuningFile}, and {ChronicleTuningFile}."));
                     break;
                 default:
                     errors.Add(new ContentError(path, $"Unknown content folder '{folder}'."));
@@ -132,6 +133,7 @@ public static partial class ContentLoader
         CrewTuning? crewTuning = LoadCrewTuning(yaml, files, errors);
         CalendarDef? calendar = BuildCalendar(calendars, manifest, errors);
         CalendarTuning? calendarTuning = LoadCalendarTuning(yaml, files, errors);
+        ChronicleTuning? chronicleTuning = LoadChronicleTuning(yaml, files, errors);
         List<PronounSet> pronounSets = BuildPronouns(pronouns, errors);
         List<CrewDef> crewDefs = BuildCrew(crew, skills, crewTuning, pronounSets, errors);
         List<AssignmentDef> assignmentDefs = BuildAssignments(assignments, objectives.Select(o => o.Dto).ToList(), errors);
@@ -165,6 +167,7 @@ public static partial class ContentLoader
                 HistoryCycles = cycle.HistoryCycles,
                 CastTries = cycle.CastTries,
                 Salience = cycle.Salience,
+                Chronicle = chronicleTuning!,
             }
             : null;
         return new ContentLoadResult(pack, errors);

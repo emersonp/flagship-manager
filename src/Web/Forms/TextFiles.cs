@@ -16,6 +16,7 @@ public sealed record TextFile(string Name, string Path, string Title, IReadOnlyL
         new("missions", "tuning/missions.yaml", "Mission tuning", [Tuning]),
         new("crew-tuning", "tuning/crew.yaml", "Crew tuning", [Tuning]),
         new("calendar-tuning", "tuning/calendar.yaml", "Calendar tuning", ["How many days a cycle can move the calendar.", "Saving checks this file with the rest of the pack."]),
+        new("chronicle-tuning", "tuning/chronicle.yaml", "Chronicle tuning", ["How much each kind of chronicle entry weighs, and the least weight Notable shows.", "Saving checks this file with the rest of the pack."]),
         new("calendars", "calendars/base.yaml", "Calendars", ["The months, the weekdays, and the date a legacy starts on. pack.yaml names the calendar in use.", "Saving checks this file with the rest of the pack."]),
         new("storylets", "storylets/base.yaml", "Storylets", ["The storylet form comes later.", "Saving checks this file with the rest of the pack."]),
         new("vignettes", "vignettes/base.yaml", "Vignettes", ["The vignette form comes later.", "Saving checks this file with the rest of the pack."]),

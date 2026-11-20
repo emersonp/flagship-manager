@@ -94,6 +94,7 @@ public sealed class EventBus
         while (context.Pending.Count > 0)
         {
             PublishedEvent published = context.Pending.Dequeue();
+            context.Sequence = published.Sequence;
             foreach (Subscription subscription in subscriptions)
             {
                 if (subscription.EventType == published.Event.GetType())
@@ -118,6 +119,8 @@ public sealed class EventBus
         private bool guarding;
 
         public LegacyState State { get; } = state;
+
+        public long Sequence { get; set; }
 
         public Queue<PublishedEvent> Pending { get; } = new();
 

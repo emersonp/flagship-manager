@@ -12,6 +12,7 @@ public sealed class ContentTextFilesTests(RepoContentGuard guard) : IClassFixtur
         { "missions", "tuning/missions.yaml" },
         { "crew-tuning", "tuning/crew.yaml" },
         { "calendar-tuning", "tuning/calendar.yaml" },
+        { "chronicle-tuning", "tuning/chronicle.yaml" },
         { "calendars", "calendars/base.yaml" },
         { "pack", "pack.yaml" },
         { "storylets", "storylets/base.yaml" },
@@ -264,6 +265,7 @@ public sealed class ContentTextFilesTests(RepoContentGuard guard) : IClassFixtur
     [Theory]
     [InlineData("calendars", "calendars/base.yaml", "start: { day: 13,", "start: { day: 31,", "calendar_a: start.day must be from 1 to 30, the days in month_b, not 31.")]
     [InlineData("calendar-tuning", "tuning/calendar.yaml", "minDays: 5", "minDays: 9", "cycle.minDays must not be above cycle.maxDays.")]
+    [InlineData("chronicle-tuning", "tuning/chronicle.yaml", "death: 5", "death: 6", "weights.death must be a whole number from 0 to 5, not '6'.")]
     public async Task A_calendar_that_cannot_work_is_refused_on_save(string name, string path, string from, string to, string message)
     {
         using TestApp app = NewApp();
@@ -368,7 +370,7 @@ public sealed class ContentTextFilesTests(RepoContentGuard guard) : IClassFixtur
 
         (_, string body) = await Get(app.NewClient(), "/dev/content");
 
-        foreach ((string name, string path) in new[] { ("pack", "pack.yaml"), ("missions", "tuning/missions.yaml"), ("crew-tuning", "tuning/crew.yaml"), ("calendar-tuning", "tuning/calendar.yaml"), ("calendars", "calendars/base.yaml"), ("storylets", "storylets/base.yaml"), ("vignettes", "vignettes/base.yaml") })
+        foreach ((string name, string path) in new[] { ("pack", "pack.yaml"), ("missions", "tuning/missions.yaml"), ("crew-tuning", "tuning/crew.yaml"), ("calendar-tuning", "tuning/calendar.yaml"), ("chronicle-tuning", "tuning/chronicle.yaml"), ("calendars", "calendars/base.yaml"), ("storylets", "storylets/base.yaml"), ("vignettes", "vignettes/base.yaml") })
         {
             Assert.Contains($"<a href=\"/dev/content/files/{name}\">{path}</a>", body);
         }

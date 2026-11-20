@@ -79,3 +79,6 @@
 - id: LINE_SCHEDULE_TRAVEL_LATE
   when: { beat: schedule, schedule: delayed, travel: true }
   text: "SCHEDULE_TRAVEL_LATE #planned#, #days#."
+- id: LINE_CHRONICLE_FOUNDING
+  when: { beat: chronicle_founding }
+  text: "CHRONICLE_FOUNDING #crew#."

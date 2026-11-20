@@ -176,7 +176,7 @@ In the game's pack, written in place for the author to rewrite:
 
 ### 5.1 Modules
 
-- **`Sim.Chronicle`** (new; depends on `Sim.Core` only, as every `Sim.*` module must): its state (the entries and the counter), its subscriptions, and `IChronicleView`. It gets its words through `INarrator`, an interface in `Sim.Core.Narrative` that `Sim.Narrative` implements and `GameHost` passes in at registration (changed while planning, 2026-11-20: the architecture test allows a module no other reference). Registered after the crew, missions, storylets, and traits modules, so it hears each event after the module that owns it has acted **(my call)**.
+- **`Sim.Chronicle`** (new; depends on `Sim.Core` only, as every `Sim.*` module must): its state (the entries and the counter), its subscriptions, and `IChronicleView`. It gets its words through `INarrator`, an interface in `Sim.Core.Narrative` that `Sim.Narrative` implements and `GameHost` passes in at registration (changed while planning, 2026-11-20: the architecture test allows a module no other reference). Registered after the crew, missions, storylets, and traits modules, so it hears each event after the module that owns it has acted **(my call)**. Each entry records the sequence number of the event it was written for, read from the bus's `IBusContext.Sequence` (added in Task 1).
 - **`Sim.Missions`** publishes a new contract, `CallAnswered`, when an answer is applied, and its mission facts for the chronicle (objective, site, encounter, approach, lead) travel on the Core contracts in 5.2, so `Sim.Chronicle` never reads a mission beat.
 - **`Sim.Crew`**: `CrewDied` carries what killed them (5.2).
 - **`Sim.Storylets`**: implements the `chronicle` reads over `IChronicleView`; the loader reads `chronicle:` on storylets and options.
@@ -193,6 +193,8 @@ In the game's pack, written in place for the author to rewrite:
 - `INarrator` (in `Sim.Core.Narrative`): `string? Line(Situation situation, string key)`, the chosen line expanded to plain text, or null when no line holds.
 - `IChronicleView`: `int Count(string kind, int days)` and `int Count(string crewId, string kind, int days)`, and the entries for the page.
 - The five kinds as constants (`ChronicleKinds`), as `HistoryKinds` are.
+- `ChronicleTuning(Weights, Notable)`, read from `tuning/chronicle.yaml` and carried on `ContentPack.Chronicle`.
+- `IBusContext.Sequence`: the sequence number of the event whose subscribers are running (added in Task 1).
 
 ### 5.3 Persistence
 
@@ -229,3 +231,26 @@ In the game's pack, written in place for the author to rewrite:
 - How the cast expression in 4.8 picks the one with the most losses, if a cast slot can't order: a `requires` on a minimum count is an acceptable substitute.
 - The wording of refusals, and of the fallback text.
 - The game's pack: the default lines and the worked example, written in place for the author to rewrite.
+
+## 8. As built
+
+Kept as each task of the plan lands. Differences from sections 4 and 5 are said here, and section 5 is changed to match.
+
+### Task 1: the module, the narrator, and the founding entry (2026-11-20)
+
+As designed: `Sim.Chronicle` references `Sim.Core` alone, registers last in `Game.Build` (subscriber order 400, after storylets at 300 and before the cycle's next day at 1000), and writes a `founding` entry on `LegacyFounded`: today's day and cycle, no subjects, the starting crew's size as the fact `crew`, and the narrator's text or the fixed "The ship took on her first crew." `ChronicleKinds`, `ChronicleSubject`, `ChronicleEntry`, and `ChronicleTuning` are in `Sim.Core/ChronicleContracts.cs`; `IChronicleView` is in `Views.cs`; `INarrator` is in `Sim.Core.Narrative`, and `Sim.Narrative.Narrator` implements it, passed in by `GameHost`. The schema is 14 and the export format 12; an older one is refused with the message used before.
+
+Changed or settled while building:
+
+- **The bus now says which event is being handled.** It had no way for a subscriber to read its event's sequence number, so `IBusContext` gains `Sequence`: the sequence number of the event whose subscribers are running, or 0 while a top-level command's handler runs. Section 5.1 says so. Nothing else reads it yet.
+- **The tuning file** is `tuning/chronicle.yaml`, required, read by the same strict reader as the other tuning files. A weight outside 0 to 5 reads "weights.death must be a whole number from 0 to 5, not '6'."; `notable` outside 1 to 5 the same; a missing key "weights.callBacked is missing."; a stray one "weights.vignette is not a tuning value." `ContentPack.Chronicle` carries it, defaulting to the design's numbers for a pack built in code. The editor lists it as "Chronicle tuning", a text file checked with the whole pack on save.
+- **The five beats** are `chronicle_founding`, `chronicle_death`, `chronicle_mission`, `chronicle_call`, and `chronicle_storylet`, named in `NarrativeFacts.Chronicle`. They do not take the mission beats' common facts. As written now (Tasks 3 and 4 may refine them, and will say so here):
+  - founding: the number `crew`, said by `#crew#`. **No date**: the page already heads each day with its full date, and `Sim.Core` does not format dates.
+  - death: `objective`, `encounter`, `approach` (absent for a collapse), the number `cycles`; people `dead` and `lead`; things `objective`, `encounter`, `site`, `cycles`.
+  - mission: `objective`, `outcome`, the numbers `team` and `deaths`; person `lead`; things `objective`, `site`, `team`, `deaths`.
+  - call: `objective`, `encounter`, `decision`, `answer`, `prefers`, `standing`; person `lead`; things `objective`, `encounter`, `site`, `decision`.
+  - storylet: `storylet`, `option`, `outcome` (for a check option); person `handler`; things `storylet`, `option`. A shared line cannot name a storylet's cast, whose slots each storylet names for itself; an option's own `chronicle.text` can (Task 4).
+- **A script in a chronicle line is refused**: "a chronicle line is plain prose: no speaker, no note (>), no report's sentence (=), and not silence (-)." Plain narration over several lines is allowed; the narrator joins its lines with a space.
+- **New role names.** `dead`, `site`, `cycles`, `team`, `deaths`, `option`, and `handler` now name people or things in some beat, so a symbol cannot take those ids, and `#handler#` outside a check's outcomes is refused as "names 'handler', which a storylet beat does not have" rather than "names no person, thing, or symbol". Neither pack has such a symbol.
+- **The editor's beat glossary** says when each chronicle beat plays and names them "Chronicle: the founding" and so on. Until Task 7 builds samples for them, the lint lists chronicle lines as never chosen, as it does the schedule's.
+- The default founding line is in both packs: "The ship took on her first crew of #crew#." in the game's, `CHRONICLE_FOUNDING #crew#.` in the fixture's.

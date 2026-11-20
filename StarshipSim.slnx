@@ -3,6 +3,7 @@
     <Project Path="src/GameHost/GameHost.csproj" />
     <Project Path="src/MissionBench/MissionBench.csproj" />
     <Project Path="src/Persistence/Persistence.csproj" />
+    <Project Path="src/Sim.Chronicle/Sim.Chronicle.csproj" />
     <Project Path="src/Sim.Content/Sim.Content.csproj" />
     <Project Path="src/Sim.Core/Sim.Core.csproj" />
     <Project Path="src/Sim.Crew/Sim.Crew.csproj" />

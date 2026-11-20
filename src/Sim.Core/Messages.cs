@@ -22,6 +22,10 @@ public interface IBusContext
 {
     LegacyState State { get; }
 
+    // The sequence number of the event whose subscribers are running (slice 1e part five: the chronicle records it on each entry);
+    // 0 while a top-level command's handler runs, before any event is handled.
+    long Sequence { get; }
+
     void Publish(IEvent @event);
 
     void Send(ICommand command);

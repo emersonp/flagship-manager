@@ -148,7 +148,64 @@ public static class NarrativeFacts
             [new("schedule", FactType.Text, FactDomain.Words, Schedules), new("days", FactType.Number), new("weeks", FactType.Number), new("travel", FactType.Flag)],
             [],
             ["days", "planned"]),
+        // The chronicle's entries (slice 1e part five, design 4.3), one beat for each kind, apart from any mission's beats: their text
+        // is stored when written, and is plain prose, never a script. Founding: crew is the starting crew's size, said by #crew#.
+        new BeatSpec(Chronicle.Founding, [new("crew", FactType.Number)], [], ["crew"]),
+        // Approach: absent for a death in a collapse. Cycles: cycles served, said by #cycles# ("8 cycles").
+        new BeatSpec(
+            Chronicle.Death,
+            [
+                new("objective", FactType.Text, FactDomain.Objective),
+                new("encounter", FactType.Text, FactDomain.Encounter),
+                new("approach", FactType.Text),
+                new("cycles", FactType.Number),
+            ],
+            ["dead", "lead"],
+            ["objective", "encounter", "site", "cycles"]),
+        // Team: how many were sent; deaths: how many of them died. #team# and #deaths# say them.
+        new BeatSpec(
+            Chronicle.Mission,
+            [
+                new("objective", FactType.Text, FactDomain.Objective),
+                new("outcome", FactType.Text, FactDomain.Words, Outcomes),
+                new("team", FactType.Number),
+                new("deaths", FactType.Number),
+            ],
+            ["lead"],
+            ["objective", "site", "team", "deaths"]),
+        new BeatSpec(
+            Chronicle.Call,
+            [
+                new("objective", FactType.Text, FactDomain.Objective),
+                new("encounter", FactType.Text, FactDomain.Encounter),
+                new("decision", FactType.Text, FactDomain.Decision),
+                new("answer", FactType.Text, FactDomain.Words, Answers),
+                new("prefers", FactType.Text, FactDomain.Words, Answers),
+                new("standing", FactType.Text, FactDomain.Words, Standings),
+            ],
+            ["lead"],
+            ["objective", "encounter", "site", "decision"]),
+        // Option: the option's id, said by #option# (its label). Outcome: for an option settled by a check, which the handler took.
+        new BeatSpec(
+            Chronicle.Storylet,
+            [new("storylet", FactType.Text, FactDomain.Storylet), new("option", FactType.Text), new("outcome", FactType.Text, FactDomain.Words, CheckOutcomes)],
+            ["handler"],
+            ["storylet", "option"]),
     }.ToDictionary(b => b.Kind);
+
+    // The chronicle's beats, by the kind of entry they write (ChronicleKinds).
+    public static class Chronicle
+    {
+        public const string Founding = "chronicle_founding";
+        public const string Death = "chronicle_death";
+        public const string Mission = "chronicle_mission";
+        public const string Call = "chronicle_call";
+        public const string Storylet = "chronicle_storylet";
+
+        public static readonly IReadOnlyList<string> All = [Founding, Death, Mission, Call, Storylet];
+
+        public static bool Is(string beat) => All.Contains(beat);
+    }
 
     public static IReadOnlyList<string> Kinds => Beats.Keys.ToList();
 

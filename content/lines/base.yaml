@@ -137,3 +137,9 @@
   name: A journey arrives late
   when: { beat: schedule, schedule: delayed, travel: true }
   text: "Planned at #planned#, the journey ran #days# late."
+# The chronicle (slice 1e part five, design 4.3): each entry's words, written once when it happens and never again. Plain prose,
+# no speakers. The founding names no ship or captain: neither exists yet. #crew# is the starting crew's size.
+- id: LINE_CHRONICLE_FOUNDING
+  name: The legacy is founded
+  when: { beat: chronicle_founding }
+  text: "The ship took on her first crew of #crew#."

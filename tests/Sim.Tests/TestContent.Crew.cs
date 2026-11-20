@@ -35,7 +35,7 @@ internal static partial class TestContent
             .ToDictionary(f => Path.GetRelativePath(content, f).Replace('\\', '/'), File.ReadAllText);
     }
 
-    // Adds the crew, gear, assignment, calendar, and crew and calendar tuning files a pack now needs, so a test of something else still loads.
+    // Adds the crew, gear, assignment, calendar, and crew, calendar, and chronicle tuning files a pack now needs, so a test of something else still loads.
     // The crew and assignment are fixtures with ids of their own, because the repository's would clash with the skills
     // and objectives a test defines. A test with no objectives of its own also gets one, since an assignment needs a match.
     public static Dictionary<string, string> WithCrewFiles(Dictionary<string, string> files)
@@ -47,6 +47,7 @@ internal static partial class TestContent
         files.TryAdd("tuning/crew.yaml", repo["tuning/crew.yaml"]);
         files.TryAdd("calendars/base.yaml", repo["calendars/base.yaml"]);
         files.TryAdd("tuning/calendar.yaml", repo["tuning/calendar.yaml"]);
+        files.TryAdd("tuning/chronicle.yaml", repo["tuning/chronicle.yaml"]);
         if (!files.Keys.Any(k => k.StartsWith("objectives/", StringComparison.Ordinal)))
         {
             files["skills/fixture.yaml"] = FixtureSkill;

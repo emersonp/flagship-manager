@@ -1,4 +1,5 @@
 using Sim.Content;
+using Sim.Core;
 using Sim.Core.Content;
 
 namespace Sim.Tests;
@@ -249,6 +250,62 @@ public class ContentLoaderTests
         ContentLoadResult result = ContentLoader.Load(files);
 
         Assert.Equal("tuning/calendar.yaml|The pack has no tuning/calendar.yaml.", Assert.Single(result.Errors.Select(e => $"{e.File}|{e.Message}")));
+    }
+
+    // Slice 1e part five, design 4.4: every weight 0 to 5, notable 1 to 5, every key present and no other, each named in its file.
+    public static TheoryData<string, string, string> ChronicleTuningRefusals => new()
+    {
+        { "  death: 5", "  death: 6", "weights.death must be a whole number from 0 to 5, not '6'." },
+        { "  missionWon: 1", "  missionWon: -1", "weights.missionWon must be a whole number from 0 to 5, not '-1'." },
+        { "  callBacked: 2              # backed or neutral\n", "","weights.callBacked is missing." },
+        { "  missionWon: 1\n", "  missionWon: 1\n  vignette: 1\n", "weights.vignette is not a tuning value." },
+        { "notable: 3", "notable: 0", "notable must be a whole number from 1 to 5, not '0'." },
+        { "notable: 3", "notable: 6", "notable must be a whole number from 1 to 5, not '6'." },
+    };
+
+    [Theory]
+    [MemberData(nameof(ChronicleTuningRefusals))]
+    public void A_chronicle_tuning_file_that_cannot_work_is_refused(string from, string to, string message)
+    {
+        ContentLoadResult result = LoadFixtureWith("tuning/chronicle.yaml", from, to);
+
+        Assert.Null(result.Pack);
+        Assert.Equal($"tuning/chronicle.yaml|{message}", Assert.Single(result.Errors.Select(e => $"{e.File}|{e.Message}")));
+    }
+
+    [Fact]
+    public void The_chronicle_tuning_file_is_read_and_required()
+    {
+        Dictionary<string, string> files = TestContent.RepoFiles();
+        ChronicleTuning tuning = ContentLoader.Load(files).Pack!.Chronicle;
+        files.Remove("tuning/chronicle.yaml");
+
+        ContentLoadResult without = ContentLoader.Load(files);
+
+        Assert.Equal((5, 5, 3, 3, 2, 2, 1, 3), (tuning.Weights["founding"], tuning.Weights["death"], tuning.Weights["storylet"], tuning.Weights["callOverruled"], tuning.Weights["callBacked"], tuning.Weights["missionLost"], tuning.Weights["missionWon"], tuning.Notable));
+        Assert.Equal("tuning/chronicle.yaml|The pack has no tuning/chronicle.yaml.", Assert.Single(without.Errors.Select(e => $"{e.File}|{e.Message}")));
+    }
+
+    // Design 4.5: a chronicle line is a record, not a scene, so a script in one is refused; plain prose over several lines is not.
+    [Theory]
+    [InlineData("\"lead: We are home.\"")]
+    [InlineData("\"> Logged.\"")]
+    [InlineData("\"CHRONICLE_FOUNDING.\\n= The ship was founded.\"")]
+    [InlineData("\"-\"")]
+    public void A_script_in_a_chronicle_line_is_refused(string text)
+    {
+        ContentLoadResult result = LoadFixtureWith("lines/base.yaml", "  text: \"CHRONICLE_FOUNDING #crew#.\"", $"  text: {text}");
+
+        Assert.Null(result.Pack);
+        Assert.Contains(result.Errors, e => e.File == "lines/base.yaml" && e.Message == "LINE_CHRONICLE_FOUNDING: a chronicle line is plain prose: no speaker, no note (>), no report's sentence (=), and not silence (-).");
+    }
+
+    [Fact]
+    public void A_chronicle_line_of_plain_prose_over_two_lines_loads()
+    {
+        ContentLoadResult result = LoadFixtureWith("lines/base.yaml", "  text: \"CHRONICLE_FOUNDING #crew#.\"", "  text: \"CHRONICLE_FOUNDING.\\nCREW #crew#.\"");
+
+        Assert.Empty(result.Errors);
     }
 
     private static ContentLoadResult LoadFixtureWith(string file, string from, string to)

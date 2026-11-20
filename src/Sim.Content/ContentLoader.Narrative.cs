@@ -217,6 +217,10 @@ public static partial class ContentLoader
             else
             {
                 CheckScript(dto.Text, beat is null ? null : NarrativeFacts.Beats[beat], symbolsById, skillIds, Error, Error);
+                if (beat is not null && NarrativeFacts.Chronicle.Is(beat) && ChronicleScript(dto.Text) is { } problem)
+                {
+                    Error(problem);
+                }
             }
 
             string? name = owner is null ? CheckName(file, id, dto.Name, errors) : null;
@@ -420,6 +424,25 @@ public static partial class ContentLoader
         {
             Check(summary);
         }
+    }
+
+    // A chronicle line is a record, not a scene (slice 1e part five, design 4.5): plain prose, with no speaker, no note (>), no
+    // report's sentence (=), and no silence. Null when it is that, or when it cannot be read (CheckScript has said so).
+    private static string? ChronicleScript(string text)
+    {
+        Script script;
+        try
+        {
+            script = Scripts.Parse(text.ReplaceLineEndings("\n"));
+        }
+        catch (NarrativeFormatException)
+        {
+            return null;
+        }
+
+        return script.Entries.Count == 0 || script.Summary is not null || script.Entries.Any(e => e.Kind != EntryKind.Narration)
+            ? "a chronicle line is plain prose: no speaker, no note (>), no report's sentence (=), and not silence (-)."
+            : null;
     }
 
     // A value as written: one value, a list of values (any of), or a range { min, max } on a number.

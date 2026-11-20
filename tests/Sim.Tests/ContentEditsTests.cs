@@ -376,7 +376,7 @@ public class ContentEditsTests : IClassFixture<RepoContentGuard>
     {
         ContentFileSet files = Repo();
         Assert.Equal(
-            new[] { "assignments/base.yaml", "calendars/base.yaml", "crew/starting.yaml", "encounters/base.yaml", "gear/base.yaml", "lines/base.yaml", "objectives/base.yaml", "pack.yaml", "pronouns/base.yaml", "skills/base.yaml", "storylets/base.yaml", "traits/base.yaml", "tuning/calendar.yaml", "tuning/crew.yaml", "tuning/missions.yaml", "vignettes/base.yaml" },
+            new[] { "assignments/base.yaml", "calendars/base.yaml", "crew/starting.yaml", "encounters/base.yaml", "gear/base.yaml", "lines/base.yaml", "objectives/base.yaml", "pack.yaml", "pronouns/base.yaml", "skills/base.yaml", "storylets/base.yaml", "traits/base.yaml", "tuning/calendar.yaml", "tuning/chronicle.yaml", "tuning/crew.yaml", "tuning/missions.yaml", "vignettes/base.yaml" },
             files.Files.Keys.OrderBy(k => k, StringComparer.Ordinal));
         Assert.Equal(File.ReadAllText(Path.Combine(ContentRoot, "pack.yaml")), files.Files["pack.yaml"]);
     }

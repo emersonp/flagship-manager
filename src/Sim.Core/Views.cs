@@ -46,6 +46,19 @@ public interface IHistoryView
     int Count(string crewId, string kind, int cycles);
 }
 
+// The chronicle (slice 1e part five, design 4.6), served by the chronicle module for the storylets' reads and the Chronicle page.
+public interface IChronicleView
+{
+    // In the order written.
+    IReadOnlyList<ChronicleEntry> Entries { get; }
+
+    // Entries of this kind on a day within the last `days` days, today included: day >= today - days + 1.
+    int Count(string kind, int days);
+
+    // The same, among the entries with this crew member as a subject.
+    int Count(string crewId, string kind, int days);
+}
+
 // What the history records of a crew member in one cycle (design 4.3).
 public static class HistoryKinds
 {

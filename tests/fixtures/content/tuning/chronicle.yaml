@@ -1,0 +1,10 @@
+# The chronicle's numbers. All are required. See docs/plans/2026-11-20-phase-1e-part-five-design.md section 4.4.
+weights:                     # each kind of entry's weight, 0 to 5; 0 writes no entry
+  founding: 5
+  death: 5
+  storylet: 3                # a storylet or its option may set its own
+  callOverruled: 3           # a call's decision may set its own, for either standing
+  callBacked: 2              # backed or neutral
+  missionLost: 2             # failed or abandoned
+  missionWon: 1
+notable: 3                   # Notable shows this weight and up, 1 to 5

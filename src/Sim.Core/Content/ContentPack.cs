@@ -61,6 +61,9 @@ public sealed record ContentPack(
     // Shown on the itinerary and not yet spent (tuning captainsTime.perCycle; slice 1g spends it).
     public int CaptainsTimePerCycle { get; init; } = 3;
 
+    // tuning/chronicle.yaml (slice 1e part five, design 4.4).
+    public ChronicleTuning Chronicle { get; init; } = ChronicleTuning.Default;
+
     // What a call's answer buttons say, by decision id and then by answer ("bold", "safe", "withdraw"); an answer with no label shows its own word.
     public IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>> ChoiceLabels { get; init; } = new Dictionary<string, IReadOnlyDictionary<string, string>>();
 

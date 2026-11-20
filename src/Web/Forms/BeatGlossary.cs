@@ -26,6 +26,11 @@ internal static class BeatGlossary
         ["storylet"] = "A storylet arrives in the aftermath, apart from any mission, for a crew member (its subject) or for the ship.",
         ["storyletAnswer"] = "The captain picks one of a storylet's options.",
         ["schedule"] = "The cycle has turned and the ship has arrived: ahead of schedule, on schedule, or delayed. Shown at the top of the itinerary.",
+        ["chronicle_founding"] = "The legacy is founded. Its words are written into the chronicle once and never change.",
+        ["chronicle_death"] = "A crew member dies on a mission. The chronicle's memorial, written once.",
+        ["chronicle_mission"] = "A mission ends. The chronicle's entry for it, written once.",
+        ["chronicle_call"] = "The captain answers a call. The chronicle's entry for it, written once.",
+        ["chronicle_storylet"] = "The captain answers a storylet. The chronicle's entry for it, written once, unless the option writes its own.",
     };
 
     // Names for the beats the "What plays here" panel never shows.
@@ -34,6 +39,11 @@ internal static class BeatGlossary
         ["storylet"] = "A storylet",
         ["storyletAnswer"] = "A storylet answered",
         ["schedule"] = "The cycle's length",
+        ["chronicle_founding"] = "Chronicle: the founding",
+        ["chronicle_death"] = "Chronicle: a death",
+        ["chronicle_mission"] = "Chronicle: a mission",
+        ["chronicle_call"] = "Chronicle: a call",
+        ["chronicle_storylet"] = "Chronicle: a storylet",
     };
     private static readonly HashSet<string> CommonFacts = NarrativeFacts.Common.Select(f => f.Name).ToHashSet();
 

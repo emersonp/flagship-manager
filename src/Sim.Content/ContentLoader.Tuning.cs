@@ -1,4 +1,5 @@
 using System.Globalization;
+using Sim.Core;
 using Sim.Core.Content;
 using YamlDotNet.Serialization;
 
@@ -115,6 +116,30 @@ public static partial class ContentLoader
         return read.ReportUnused() && errors.Count == errorsBefore ? (tuning, bench, cycle) : (null, null, cycle);
     }
 
+    // tuning/chronicle.yaml (slice 1e part five, design 4.4): a weight for each kind of entry, 0 (no entry) to 5, and the least
+    // weight Notable shows, 1 to 5. Every key is required, and a key the file should not have is refused.
+    private static ChronicleTuning? LoadChronicleTuning(IDeserializer yaml, IReadOnlyDictionary<string, string> files, List<ContentError> errors)
+    {
+        if (!files.TryGetValue(ChronicleTuningFile, out string? text))
+        {
+            errors.Add(new ContentError(ChronicleTuningFile, $"The pack has no {ChronicleTuningFile}."));
+            return null;
+        }
+
+        Dictionary<object, object>? root = Parse<Dictionary<object, object>>(yaml, ChronicleTuningFile, text, errors);
+        if (root is null)
+        {
+            return null;
+        }
+
+        var values = new Dictionary<string, string>();
+        Flatten("", root, values);
+        var read = new TuningReader(ChronicleTuningFile, values, errors);
+        var weights = ChronicleTuning.Keys.ToDictionary(key => key, key => read.Int($"weights.{key}", min: 0, max: ChronicleTuning.Most));
+        int notable = read.Int("notable", min: 1, max: ChronicleTuning.Most);
+        return read.ReportUnused() ? new ChronicleTuning(weights, notable) : null;
+    }
+
     // A threshold or range the wrong way round switches a rule off or crashes a draw, so it is a load error.
     private static void CheckRanges(MissionTuning t, BenchTuning bench, List<ContentError> errors)
     {
@@ -190,19 +215,25 @@ public static partial class ContentLoader
 
         public bool Complete { get; private set; } = true;
 
-        public int Int(string path, int min = int.MinValue)
+        public int Int(string path, int min = int.MinValue, int max = int.MaxValue)
         {
             if (Text(path) is not { } text)
             {
                 return 0;
             }
 
-            if (int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out int value) && value >= min)
+            if (int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out int value) && value >= min && value <= max)
             {
                 return value;
             }
 
-            Fail(path, min == int.MinValue ? $"must be a whole number, not '{text}'." : $"must be a whole number of {min} or more, not '{text}'.");
+            string rule = (min, max) switch
+            {
+                (int.MinValue, int.MaxValue) => "a whole number",
+                (_, int.MaxValue) => $"a whole number of {min} or more",
+                _ => $"a whole number from {min} to {max}",
+            };
+            Fail(path, $"must be {rule}, not '{text}'.");
             return 0;
         }
 

@@ -652,10 +652,10 @@ public class StoryletContentTests
             "STORYLET_X: handler is a slot only in a check's success and failure.");
         AssertRefused(
             Storylet.Replace("label: LABEL_B\n", "label: LABEL_B\n      text: \"#handler# nodded.\"\n"),
-            "STORYLET_X: option_b.text cannot be used: #handler# names no person, thing, or symbol.");
+            "STORYLET_X: option_b.text cannot be used: #handler# names 'handler', which a storyletAnswer beat does not have.");
         AssertRefused(
             Storylet.Replace("  options:\n", "  text: \"#handler# came.\"\n  options:\n"),
-            "STORYLET_X: text cannot be used: #handler# names no person, thing, or symbol.");
+            "STORYLET_X: text cannot be used: #handler# names 'handler', which a storylet beat does not have.");
     }
 
     // Review focus 4: a check option is not the always-open answer, since no one may be fit to send.
