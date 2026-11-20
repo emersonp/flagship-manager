@@ -380,11 +380,12 @@ public class BridgeReaderTests
         CrewInjured hurt = light.CycleEvents().OfType<CrewInjured>().First(i => i.Outcome == MemberStatus.Active);
         List<int> heals = light.State.Module<CrewState>(CrewModule.Name).Members.Single(m => m.Id == hurt.CrewId).LightInjuriesHealAtDay.TakeLast(hurt.LightInjuries).ToList();
         List<CrewChange> lines = Read(light).Aftermath!.Changes.Where(c => c.CrewId == hurt.CrewId && c.Kind == "injury").ToList();
-        Assert.Equal(heals.Select(w => $"{hurt.CrewId} lightly injured, heals day {w}."), lines.Select(c => c.Text));
+        Assert.Equal(heals.Select(d => $"{hurt.CrewId} lightly injured, heals in {Dates.Weeks(Wide.Calendar, d - light.State.Day)}."), lines.Select(c => c.Text));
+        Assert.All(lines, c => Assert.Matches(@"heals in (under a week|1 week|\d+ weeks)\.$", c.Text));
 
         Played incapacitated = Until(Wide, p => p.State.Phase == CyclePhase.Aftermath && p.CycleEvents().OfType<CrewInjured>().Any(i => i.Outcome == MemberStatus.Incapacitated), 400);
         CrewInjured down = incapacitated.CycleEvents().OfType<CrewInjured>().First(i => i.Outcome == MemberStatus.Incapacitated);
-        Assert.Contains(Read(incapacitated).Aftermath!.Changes, c => c.Kind == "injury" && c.Text == $"{down.CrewId} incapacitated, returns day {down.ReturnsAtDay}.");
+        Assert.Contains(Read(incapacitated).Aftermath!.Changes, c => c.Kind == "injury" && c.Text == $"{down.CrewId} incapacitated, returns in {Dates.Weeks(Wide.Calendar, down.ReturnsAtDay!.Value - incapacitated.State.Day)}.");
 
         Played died = Until(Wide, p => p.State.Phase == CyclePhase.Aftermath && p.CycleEvents().OfType<CrewDied>().Any(), 200);
         string gone = died.CycleEvents().OfType<CrewDied>().First().CrewId;

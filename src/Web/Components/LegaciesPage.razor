@@ -1,4 +1,5 @@
 @using Microsoft.Extensions.Options
+@using Sim.Core.Content
 <Layout Title="Legacies">
     <div class="page">
         <main id="main">
@@ -30,8 +31,14 @@
                                     <div class="legacy__id">
                                         <h3 class="legacy__name" id="@head">@legacy.Name</h3>
                                         <dl class="legacy__facts">
-                                            <div><dt>Day</dt><dd class="m">@legacy.Day</dd></div>
-                                            <div><dt>Cycle</dt><dd class="m">@legacy.Cycle</dd></div>
+                                            @if (Calendar is not null)
+                                            {
+                                                <div><dt>Date</dt><dd class="m" title="@Dates.Full(Calendar, legacy.Day)">@Dates.Short(Calendar, legacy.Day)</dd></div>
+                                            }
+                                            @if (DeveloperMode)
+                                            {
+                                                <div><dt>Cycle</dt><dd class="m">@legacy.Cycle</dd></div>
+                                            }
                                             <div><dt>Started</dt><dd><time class="m" datetime="@legacy.CreatedAt.ToString("O")">@legacy.CreatedAt.UtcDateTime.ToString("yyyy-MM-dd")</time></dd></div>
                                         </dl>
                                     </div>
@@ -79,6 +86,9 @@
     private bool DeveloperMode => Services.GetService<IOptions<WebSettings>>()?.Value.DeveloperMode == true;
 
     [Parameter] public IReadOnlyList<LegacyListing> Legacies { get; set; } = [];
+
+    // The loaded pack's calendar, which turns each legacy's day into its date; a render without one shows no date.
+    [Parameter] public CalendarDef? Calendar { get; set; }
 
     [Parameter] public string? Name { get; set; }
 

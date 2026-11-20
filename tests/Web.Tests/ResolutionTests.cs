@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using Sim.Core;
 using Sim.Core.Content;
 using Sim.Missions;
+using Web.Bridge;
 
 namespace Web.Tests;
 
@@ -593,7 +594,7 @@ public sealed class ResolutionTests : IDisposable
     }
 
     [Fact]
-    public async Task A_whole_cycle_through_the_requests_returns_to_the_itinerary_at_week_two()
+    public async Task A_whole_cycle_through_the_requests_returns_to_the_itinerary_a_cycle_on()
     {
         (Guid id, WebCaptain captain, _) = await LaunchedWithCall();
         while ((await captain.Read()).State.Cycle == 1)
@@ -603,8 +604,8 @@ public sealed class ResolutionTests : IDisposable
 
         string page = await Page(id);
 
-        Assert.Contains($"<dt>Day</dt><dd>{(await captain.Read()).State.Day}</dd>", page);
-        Assert.Contains("<dt>Cycle</dt><dd>2</dd>", page);
+        Assert.Contains($"<dd><span aria-hidden=\"true\">{Dates.Short(app.Live.Pack.Calendar, (await captain.Read()).State.Day)}</span>", page);
+        Assert.DoesNotContain("<dt>Cycle</dt>", page);
         Assert.Matches("aria-current=\"step\"[^>]*><span class=\"phase__no\">1</span><span class=\"phase__name\">Itinerary</span>", page);
         Assert.Contains("To orders", Entity(page));
     }

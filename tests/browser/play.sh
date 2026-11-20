@@ -160,8 +160,13 @@ done
 pw dblclick "getByRole('button', { name: 'Next cycle' })" > /dev/null
 wait_for "document.querySelector('[aria-current=step] .phase__name').textContent === 'Orders'" "the next cycle's orders"
 sleep 1
-clock=$(js "[...document.querySelectorAll('.clock dd')].map(d => d.textContent).join(' ')")
-[ "$clock" = "2 2" ] || fail "after a double click on Next cycle the week and cycle read '$clock', expected '2 2'."
+# One turn moves the fixture's calendar 5 to 7 days from 13 MONTH_B 105; two would be 10 or more. Play shows no cycle.
+clock=$(js "[...document.querySelectorAll('.clock dd > [aria-hidden=true]')].map(d => d.textContent).join(' ')")
+case "$clock" in
+  "18 MONTH_B 105" | "19 MONTH_B 105" | "20 MONTH_B 105") ;;
+  *) fail "after a double click on Next cycle the date reads '$clock', expected 18, 19, or 20 MONTH_B 105." ;;
+esac
+[ "$(js "document.querySelectorAll('.clock dt').length")" = "1" ] || fail "the top bar shows more than the date in play."
 [ "$(phase)" = "Orders" ] || fail "a double click on Next cycle left the page in $(phase), not Orders."
 
 console=$(pw --raw console)

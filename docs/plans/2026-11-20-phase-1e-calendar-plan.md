@@ -116,13 +116,13 @@ public static class Dates
 }
 ```
 
-- [ ] **Step 1:** Tests for `Dates`: 3, 4, 8, 9, 14, and 15 days; a date on the last day of a year; the full forms. Run red, then green.
-- [ ] **Step 2: the top bar.** `TopBarView` carries the day, not a week. It shows the short date where "Week" was, with the full date in a `title` and an accessible label (and the narrow form under the bar's narrow breakpoint). The cycle number shows only in dev mode, beside the dev badge. Follow `docs/design/bridge-design.md` for the figure style.
-- [ ] **Step 3: durations.** The roster's status ("heals in 2 weeks", "returns in 1 week"), the aftermath's injury lines, and the briefing's trait chips where they show time left, all through `Dates.Weeks` from today's day. No "week N" remains.
-- [ ] **Step 4: the list of legacies** shows each legacy's date where it showed its week.
-- [ ] **Step 5: Dev Play.** The trait table's "Week" column becomes "Changed", a short date. Dev Play shows the cycle number, today's day number, and, in the advance phase, "Travel N weeks" (a number from 1 to 10 and a button) sending `Travel`.
-- [ ] **Step 6: the guard** (review focus 5). A web test renders every play-mode screen for a fixture legacy and fails on the words "Week " followed by a figure, on "Cycle", and on any bare day number.
-- [ ] **Step 7:** `./check.sh`, including the browser tests; commit "Show the date and weeks left in place of the week counter".
+- [x] **Step 1:** Tests for `Dates`: 3, 4, 8, 9, 14, and 15 days; a date on the last day of a year; the full forms. Run red, then green.
+- [x] **Step 2: the top bar.** `TopBarView` carries the day, not a week. It shows the short date where "Week" was, with the full date in a `title` and an accessible label (and the narrow form under the bar's narrow breakpoint). The cycle number shows only in dev mode, beside the dev badge. Follow `docs/design/bridge-design.md` for the figure style.
+- [x] **Step 3: durations.** The roster's status ("heals in 2 weeks", "returns in 1 week"), the aftermath's injury lines, and the briefing's trait chips where they show time left, all through `Dates.Weeks` from today's day. No "week N" remains.
+- [x] **Step 4: the list of legacies** shows each legacy's date where it showed its week.
+- [x] **Step 5: Dev Play.** The trait table's "Week" column becomes "Changed", a short date. Dev Play shows the cycle number, today's day number, and, in the advance phase, "Travel N weeks" (a number from 1 to 10 and a button) sending `Travel`.
+- [x] **Step 6: the guard** (review focus 5). A web test renders every play-mode screen for a fixture legacy and fails on the words "Week " followed by a figure, on "Cycle", and on any bare day number.
+- [x] **Step 7:** `./check.sh`, including the browser tests; commit "Show the date and weeks left in place of the week counter".
 
 ### Task 6: the simulator
 

@@ -4,14 +4,14 @@
 }
 else if (Row.Status != nameof(Sim.Crew.CrewStatus.Active))
 {
-    <span class="quiet">@Row.Status@if (Row.ReturnsAtDay is { } day)
+    <span class="quiet">@Row.Status@if (Row.ReturnsIn is { } left)
         {
-            <text> (returns day </text><span class="m">@day</span><text>)</text>
+            <text> (returns in </text>@Figures.Mono(left)<text>)</text>
         }</span>
 }
 else if (Row.LightInjuryHealDays.Count > 0)
 {
-    @Row.Status<text>, </text><span class="harm">@Injuries</span><text> (heals </text>@HealDays<text>)</text>
+    @Row.Status<text>, </text><span class="harm">@Injuries</span><text> (heals in </text>@HealsIn<text>)</text>
 }
 else
 {
@@ -24,13 +24,6 @@ else
 
     private string Injuries => Row.LightInjuryHealDays.Count == 1 ? "1 light injury" : $"{Row.LightInjuryHealDays.Count} light injuries";
 
-    // The raw day until slice 1e-calendar's Task 5 shows the time left in weeks.
-    private MarkupString HealDays
-    {
-        get
-        {
-            List<string> days = Row.LightInjuryHealDays.Distinct().Order().Select(d => d.ToString(System.Globalization.CultureInfo.InvariantCulture)).ToList();
-            return Figures.Mono((days.Count == 1 ? "day " : "days ") + Figures.List(days));
-        }
-    }
+    // The time left to heal, in weeks, soonest first: "1 week", or "1 week and 2 weeks" for injuries due apart.
+    private MarkupString HealsIn => Figures.Mono(Figures.List(Row.HealsIn ?? []));
 }

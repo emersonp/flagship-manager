@@ -1,0 +1,19 @@
+@* Dev Play's journey (slice 1e-calendar): turns the cycle as N weeks planned, one roll times N, in place of the next cycle's one
+   week. Drawn only for Dev Play, beside the button that turns the cycle; the route exists only under /dev. *@
+@if (Bar.Dev && Bar.Phase is CyclePhase.Aftermath or CyclePhase.Advance)
+{
+    <form class="travel" data-on:submit="@Post" data-indicator:_travelling><StampFields Bar="Bar" />
+        <label for="travel-weeks">Travel</label>
+        <input id="travel-weeks" name="weeks" type="number" min="1" max="@Sim.Core.Travel.Most" value="5" required inputmode="numeric">
+        <span>weeks</span>
+        <button class="btn btn--dev" type="submit" data-attr:disabled="$_travelling" data-attr:aria-busy="$_travelling ? 'true' : false">Travel</button>
+    </form>
+}
+
+@code {
+    [Parameter, EditorRequired] public Guid LegacyId { get; set; }
+
+    [Parameter, EditorRequired] public TopBarView Bar { get; set; } = null!;
+
+    private string Post => $"@post('{BridgeRoutes.Action(Bar, LegacyId, "travel")}', {{contentType: 'form'}})";
+}

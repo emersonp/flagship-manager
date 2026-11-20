@@ -90,7 +90,9 @@ public static class BridgeReader
         string? warning = record.ContentPackId == pack.Id && record.ContentPackVersion == pack.Version
             ? null
             : Inv($"Legacy uses pack {record.ContentPackId} version {record.ContentPackVersion}, and pack {pack.Id} version {pack.Version} is loaded.");
-        return new TopBarView(record.Name, record.State.Day, record.State.Cycle, record.State.Phase, warning);
+        int day = record.State.Day;
+        return new TopBarView(record.Name, day, record.State.Cycle, record.State.Phase, warning,
+            Date: Dates.Short(pack.Calendar, day), FullDate: Dates.Full(pack.Calendar, day), Weekday: Sim.Core.Calendar.Weekday(pack.Calendar, day).Short);
     }
 
     private static IReadOnlyList<CrewRow> Roster(LegacyState state, ContentPack pack, Names names)
@@ -103,11 +105,12 @@ public static class BridgeReader
         // Stable sort: the dead go last, the rest keep roster order.
         List<StoredTrait> traits = state.TryModule(TraitsModule.Name, out TraitsState? held) ? held.Traits : [];
         return MarkShared(crew.Members.OrderBy(m => m.Status == CrewStatus.Dead)
-            .Select(m => Row(m, pack.CrewTuning, names) with { Traits = TraitWords.Shown(pack, names, traits, m.Id, names.Crew) })
+            .Select(m => Row(m, pack, state.Day, names) with { Traits = TraitWords.Shown(pack, names, traits, m.Id, names.Crew) })
             .ToList());
     }
 
-    private static CrewRow Row(CrewMember member, CrewTuning tuning, Names names)
+    // HealsIn and ReturnsIn: the time left from today, in weeks; the due days stay for Dev Play and the tests.
+    private static CrewRow Row(CrewMember member, ContentPack pack, int today, Names names)
     {
         int injuries = member.LightInjuriesHealAtDay.Count;
         List<SkillCell> skills = member.Skills
@@ -125,7 +128,9 @@ public static class BridgeReader
             member.Loyalty,
             member.AwayMissions,
             Name: names.Crew(member.Id),
-            Morale: MoraleWord(tuning, member.Morale));
+            Morale: MoraleWord(pack.CrewTuning, member.Morale),
+            HealsIn: member.LightInjuriesHealAtDay.Distinct().Order().Select(d => Dates.Weeks(pack.Calendar, d - today)).Distinct().ToList(),
+            ReturnsIn: member.ReturnsAtDay is { } back ? Dates.Weeks(pack.Calendar, back - today) : null);
     }
 
     private static ObjectiveView Objective(ContentPack pack, Names names, SiteState site, SiteObjective objective)
@@ -312,17 +317,19 @@ public static class BridgeReader
                     changes.Add(Change(raised.CrewId, "skill", names, c => BeatLines.Compose($"{c} raises {new BeatLines.Nm(names.Skill(raised.SkillId))} to level {raised.Level}.")));
                     break;
                 case CrewInjured injured:
-                    // One line per light injury with its heal day: this mission's are the last ones the crew state added. The raw day
-                    // until slice 1e-calendar's Task 5 shows the time left in weeks.
+                    // One line per light injury with the time it takes to heal, in weeks from today: this mission's are the last ones
+                    // the crew state added.
                     IEnumerable<int> heals = crew?.Members.FirstOrDefault(m => m.Id == injured.CrewId)?.LightInjuriesHealAtDay.TakeLast(injured.LightInjuries) ?? [];
                     foreach (int day in heals)
                     {
-                        changes.Add(Change(injured.CrewId, "injury", names, c => BeatLines.Compose($"{c} lightly injured, heals day {day}.")));
+                        string left = Dates.Weeks(pack.Calendar, day - state.Day);
+                        changes.Add(Change(injured.CrewId, "injury", names, c => BeatLines.Compose($"{c} lightly injured, heals in {left}.")));
                     }
 
-                    if (injured.Outcome == MemberStatus.Incapacitated)
+                    if (injured.Outcome == MemberStatus.Incapacitated && injured.ReturnsAtDay is { } back)
                     {
-                        changes.Add(Change(injured.CrewId, "injury", names, c => BeatLines.Compose($"{c} incapacitated, returns day {injured.ReturnsAtDay}.")));
+                        string left = Dates.Weeks(pack.Calendar, back - state.Day);
+                        changes.Add(Change(injured.CrewId, "injury", names, c => BeatLines.Compose($"{c} incapacitated, returns in {left}.")));
                     }
 
                     break;

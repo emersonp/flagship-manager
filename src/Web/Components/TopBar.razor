@@ -7,9 +7,14 @@
                 <a class="home" href="/dev/content">Content</a>
             }</span>
     </div>
+    @* The short date, with the full one on hover and for a screen reader. Under the narrow breakpoint, where there is no hover, the
+       label gives way to the weekday's short form, so the bar reads as the narrow full date. The cycle shows in Dev Play alone. *@
     <dl class="clock">
-        <div><dt>Day</dt><dd>@Bar.Day</dd></div>
-        <div><dt>Cycle</dt><dd>@Bar.Cycle</dd></div>
+        <div title="@Bar.FullDate"><dt><span class="clock__label">Date</span><span class="clock__weekday" aria-hidden="true">@Bar.Weekday</span></dt><dd><span aria-hidden="true">@Bar.Date</span><span class="visually-hidden">@Bar.FullDate</span></dd></div>
+        @if (Bar.Dev)
+        {
+            <div class="clock__dev"><dt>Cycle</dt><dd>@Bar.Cycle</dd></div>
+        }
     </dl>
     <nav class="phases" aria-label="Cycle phases">
         <ol>

@@ -13,14 +13,21 @@ public sealed record DevView(IReadOnlyList<DevTraitRow> Traits, IReadOnlyList<De
 
     // "Why these storylets" (1e part four, Task 7); null in a view built without this cycle's events.
     public WhyView? Why { get; init; }
+
+    // The numbers play never shows (slice 1e-calendar): the cycle, today's day number, and today's full date beside them.
+    public int Cycle { get; init; }
+
+    public int Day { get; init; }
+
+    public string Date { get; init; } = "";
 }
 
 public sealed record DevMoraleRow(string Shown, int Morale, string Word);
 
 // On: the crew member's shown name, or "Ship"; Toward: a pair's target, shown (1e part three). Level: the value's level name, if it has
 // one. Hidden: a trait never shown in play. From: the encounter that last changed it in play, shown; null when only answers or the
-// developer have.
-public sealed record DevTraitRow(string Trait, string On, int Value, int Day, string? From, string? Toward = null, string? Level = null, bool Hidden = false);
+// developer have. Day: the day it last changed, and Changed, that day's short date.
+public sealed record DevTraitRow(string Trait, string On, int Value, int Day, string Changed, string? From, string? Toward = null, string? Level = null, bool Hidden = false);
 
 // Id: "ship" or a crew id, as the form posts it.
 public sealed record DevTarget(string Id, string Shown);
@@ -39,7 +46,7 @@ public static class DevReader
             .ThenBy(t => t.Trait, StringComparer.Ordinal)
             .ThenBy(t => t.TargetId is null ? -1 : IndexOf(roster, t.TargetId))
             .Select(t => new DevTraitRow(
-                t.Trait, t.CrewId is null ? "Ship" : names.Crew(t.CrewId), t.Value, t.ChangedAtDay, t.EncounterId is null ? null : names.Encounter(t.EncounterId),
+                t.Trait, t.CrewId is null ? "Ship" : names.Crew(t.CrewId), t.Value, t.ChangedAtDay, Dates.Short(pack.Calendar, t.ChangedAtDay), t.EncounterId is null ? null : names.Encounter(t.EncounterId),
                 t.TargetId is null ? null : names.Crew(t.TargetId),
                 pack.Traits.FirstOrDefault(d => d.Id == t.Trait)?.LevelName(t.Value),
                 pack.Traits.FirstOrDefault(d => d.Id == t.Trait) is { Shown: false }))
@@ -47,7 +54,13 @@ public static class DevReader
         List<DevTarget> targets = [new(Ship, "Ship"), .. roster.Select(id => new DevTarget(id, names.Crew(id)))];
         IRosterView view = game.Bus.View<IRosterView>(state);
         List<DevMoraleRow> morale = roster.Select(id => new DevMoraleRow(names.Crew(id), view.Morale(id), BridgeReader.MoraleWord(pack.CrewTuning, view.Morale(id)))).ToList();
-        return new DevView(rows, targets, Known(pack), SetTrait.Most) { Morale = morale, Why = WhyReader.Read(state, game, pack, names, cycleEvents) };
+        return new DevView(rows, targets, Known(pack), SetTrait.Most) {
+            Morale = morale,
+            Why = WhyReader.Read(state, game, pack, names, cycleEvents),
+            Cycle = state.Cycle,
+            Day = state.Day,
+            Date = Dates.Full(pack.Calendar, state.Day),
+        };
     }
 
     // Every trait the pack defines, reads, or changes, for the form's suggestions.

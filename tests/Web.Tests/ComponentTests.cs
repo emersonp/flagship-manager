@@ -27,7 +27,7 @@ public sealed class ComponentTests : IDisposable
 
     private static CrewRow Crew(string id, string status, int level, int injuries)
     {
-        return new CrewRow(id, 1, status, status == "Active", [new SkillCell("SKILL_A", level, Math.Max(0, level - injuries))], Enumerable.Repeat(9, injuries).ToList(), null, 50, 1);
+        return new CrewRow(id, 1, status, status == "Active", [new SkillCell("SKILL_A", level, Math.Max(0, level - injuries))], Enumerable.Repeat(9, injuries).ToList(), null, 50, 1, HealsIn: injuries > 0 ? ["1 week"] : []);
     }
 
     // A template the editor deleted while the site offers it: the row says so and offers no radio to launch with.

@@ -4,6 +4,7 @@ using Persistence;
 using Sim.Core;
 using Sim.Crew;
 using Sim.Missions;
+using Web.Bridge;
 
 namespace Web.Tests;
 
@@ -378,8 +379,8 @@ public sealed class BriefingTests : IDisposable
         var after = Snapshot(id);
         Assert.Equal((CyclePhase.Itinerary, 2), (after.Phase, after.Cycle));
         Assert.InRange(after.Day, 37482 + 5, 37482 + 7);
-        Assert.Contains($"<dt>Day</dt><dd>{after.Day}</dd>", stream);
-        Assert.Contains("<dt>Cycle</dt><dd>2</dd>", stream);
+        Assert.Contains($"<dd><span aria-hidden=\"true\">{Dates.Short(app.Live.Pack.Calendar, after.Day)}</span>", stream);
+        Assert.DoesNotContain("<dt>Cycle</dt>", stream);
         Assert.Matches("aria-current=\"step\"[^>]*><span class=\"phase__no\">1</span><span class=\"phase__name\">Itinerary</span>", stream);
         Assert.Contains("To orders", stream);
     }

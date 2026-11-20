@@ -73,9 +73,9 @@ app.UseStaticFiles();
 // Every game route takes its pack snapshot in the group's filter, once, and answers the invalid-pack page when there is none.
 RouteGroupBuilder gameRoutes = app.MapGroup("").AddEndpointFilter(RequestPack.Filter);
 
-gameRoutes.MapGet("/", async (GameServices game, Render render) =>
+gameRoutes.MapGet("/", async (HttpContext http, GameServices game, Render render) =>
 {
-    string html = await render.Html<LegaciesPage>(new Dictionary<string, object?> { ["Legacies"] = game.Store.ListLegacies() });
+    string html = await render.Html<LegaciesPage>(new Dictionary<string, object?> { ["Legacies"] = game.Store.ListLegacies(), ["Calendar"] = RequestPack.Of(http).Pack.Calendar });
     return Results.Content(html, "text/html; charset=utf-8");
 });
 
@@ -83,7 +83,7 @@ gameRoutes.MapPost("/legacies", async Task<IResult> (HttpContext http, HttpReque
 {
     async Task<IResult> Refused(string name, string reason)
     {
-        string html = await render.Html<LegaciesPage>(new Dictionary<string, object?> { ["Legacies"] = game.Store.ListLegacies(), ["Name"] = name, ["Error"] = reason });
+        string html = await render.Html<LegaciesPage>(new Dictionary<string, object?> { ["Legacies"] = game.Store.ListLegacies(), ["Calendar"] = RequestPack.Of(http).Pack.Calendar, ["Name"] = name, ["Error"] = reason });
         return Results.Content(html, "text/html; charset=utf-8", statusCode: StatusCodes.Status400BadRequest);
     }
 

@@ -36,6 +36,12 @@ public static class BridgeEndpoints
             => AnswerItinerary(id, http, game, sessions, render, (offer, option, handler) => new AnswerStorylet(offer, option, handler), dev, cancellation));
         group.MapPost("/{id}/vignette", (string id, HttpContext http, GameServices game, LegacySession sessions, Render render, CancellationToken cancellation)
             => AnswerItinerary(id, http, game, sessions, render, (offer, option, _) => new AnswerVignette(offer, option), dev, cancellation));
+        if (dev)
+        {
+            // Dev Play alone turns a cycle as a journey of N weeks (slice 1e-calendar); play never offers it.
+            group.MapPost("/{id}/travel", (string id, HttpContext http, GameServices game, LegacySession sessions, Render render, CancellationToken cancellation)
+                => Travel(id, http, game, sessions, render, cancellation));
+        }
     }
 
     private static async Task<IResult> Page(string id, HttpContext http, GameServices game, LegacySession sessions, Render render, CancellationToken cancellation)
@@ -67,6 +73,38 @@ public static class BridgeEndpoints
                 {
                     legacy.Send(new AdvancePhase());
                 }
+            }
+            catch (CommandRejectedException rejected)
+            {
+                throw new RefusedException(rejected.Message, RefusedStatus(http));
+            }
+        }, cancellation);
+    }
+
+    // As Advance from the aftermath or the advance phase, but the turn is Travel(weeks): one roll times N. The cycle module guards
+    // the phase and the weeks, so a refusal reads as its message.
+    private static async Task<IResult> Travel(string id, HttpContext http, GameServices game, LegacySession sessions, Render render, CancellationToken cancellation)
+    {
+        IFormCollection? form = await ReadForm(http.Request, cancellation);
+        Stamp? stamp = StampOf(form);
+        string? weeks = form is null ? null : Single(form, "weeks");
+        LivePack live = RequestPack.Of(http);
+        return await Send(id, http, game, live, sessions, render, true, legacy =>
+        {
+            Check(stamp, true, game, live, legacy);
+            try
+            {
+                if (!int.TryParse(weeks, NumberStyles.None, CultureInfo.InvariantCulture, out int n))
+                {
+                    throw new CommandRejectedException($"A journey is 1 to {Sim.Core.Travel.Most} weeks.");
+                }
+
+                if (legacy.State.Phase == CyclePhase.Aftermath)
+                {
+                    legacy.Send(new AdvancePhase());
+                }
+
+                legacy.Send(new Sim.Core.Travel(n));
             }
             catch (CommandRejectedException rejected)
             {
