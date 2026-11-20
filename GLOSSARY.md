@@ -23,16 +23,28 @@ One captain's tenure in the chair, from appointment to departure.
 _Avoid_: Reign, term
 
 **Cycle**:
-One round of the captain's itinerary, orders, briefing, resolution, and aftermath. Usually one week long, and longer in transit.
-_Avoid_: Turn, week (a cycle is not always one), tick
+One round of the captain's itinerary, orders, briefing, resolution, and aftermath, from one away mission to the next. It moves the calendar 5 to 7 days, rolled when it turns; travel of N weeks is one cycle of N times that roll.
+_Avoid_: Turn, week (a cycle is not one), tick
 
 **Captain's itinerary**:
 The first screen of a cycle: the storylets that must be answered and the vignettes that may be, in any order, and the captain's time.
 _Avoid_: Inbox (until it has a backlog), matters aboard
 
+**Day**:
+The unit the engine keeps time in. Every timed effect (healing, a return to duty, a trait's expiry or step, the morale drift) is due on a day and happens when the calendar passes it, never at a cycle. Shown to the player only as part of a date.
+_Avoid_: Tick, turn
+
 **Week**:
-The unit of time. A legacy counts weeks from 1, and anything that takes time (healing, training, ageing) is due at a week, never at a cycle.
-_Avoid_: Day, turn
+A span of 6 days: how content writes a duration (`weeks: 2`) and how the player reads one ("heals in 2 weeks", rounded to the nearest). Never a counter: no screen shows a week number.
+_Avoid_: Cycle, turn
+
+**Calendar**:
+The content that turns a day into a date: its weekdays (6, which make the week), its months, and the date a legacy starts on. A pack names one.
+_Avoid_: Clock, timeline
+
+**Date**:
+A day as the calendar writes it: the short form for a figure (day, month, and year), and the full form, with the weekday, on hover or as a heading.
+_Avoid_: Timestamp, week number
 
 **Transit**:
 A single long cycle between assignments in which no missions run.
@@ -67,7 +79,7 @@ Every living crew member of the ship. The dead leave the roster and stay in the 
 _Avoid_: Crew list, party
 
 **Fit**:
-Said of a crew member who can be sent on an away team this week. A lightly injured crew member is fit, at a penalty; an incapacitated one is not.
+Said of a crew member who can be sent on an away team this cycle. A lightly injured crew member is fit, at a penalty; an incapacitated one is not.
 _Avoid_: Available, healthy
 
 **Department**:
@@ -279,7 +291,7 @@ Each living crew member's record of their last N cycles: whether they were sent,
 _Avoid_: Chronicle (the curated, player-facing record), last cycle
 
 **Morale**:
-How a crew member feels, 0 to 100, seen as Low, Steady, or High. Missions, hurts, deaths, rest, and a weekly drift move it; at Low it is a minus on their checks and at High a plus.
+How a crew member feels, 0 to 100, seen as Low, Steady, or High. Missions, hurts, deaths, rest, and a drift every week move it; at Low it is a minus on their checks and at High a plus.
 _Avoid_: Mood, happiness
 
 **Captain storylet**:

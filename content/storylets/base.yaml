@@ -131,3 +131,28 @@
         success: { effects: [{ trait: came_back, set: 0, on: subject }, { trait: avoids, set: 0, on: subject, toward: target }, { morale: 2, on: subject }], text: "#handler# sat #subject# and #target# down in the same room and did not let either leave. It came out at last: #subject# blamed #target# for not being there, and knew it was not fair." },
         failure: { effects: [{ morale: -1, on: handler }], text: "#handler# got as far as the door of #subject#'s quarters, and no further." } }
     - { id: let_it_lie, label: Let it lie, effects: [], text: "Nobody pushed it. The roster kept #subject# and #target# on different watches." }
+# The ghosts have names now (slice 1e-calendar, design 4.6): the worked example of a storylet that waits on time. It comes only once
+# "A quirk in the sensors" was answered by flying on, at least three cycles and 40 days ago, so a run of ordinary cycles (5 to 7 days
+# each) is rarely enough and a journey usually is. Both clocks are counted from the day the first arrived. Leaving it is allowed, so
+# the cast cooldown, not a trait, keeps it from coming straight back. Generated words, in place, for the author to rewrite.
+- id: STORYLET_07
+  name: The ghosts have names now
+  stakes: 3
+  requires: "ship.trait.sensors_quirk == 'let_ride' && storylet.STORYLET_01.cyclesSince >= 3 && storylet.STORYLET_01.daysSince >= 40"
+  cooldown: { cast: 6 }
+  text: |-
+    > Forward array variance: 1.1 seconds. Ghost contacts logged since the Debris Shoal: 212.
+    best SKILL_A: Captain, the array is worse than when we chose to fly on it. The night watch has started giving the ghosts names.
+    best SKILL_B: It's past a night's recalibration now. Stripping it to the frame means two days with the forward array dark.
+    captain: And if we leave it again?
+    best SKILL_A: Then the ghosts keep coming, and we keep naming them.
+    = The forward array has read false since the Debris Shoal, and the long run has made it worse.
+  options:
+    - id: strip_down
+      label: Strip it to the frame
+      effects: [{ trait: sensors_quirk, set: 0 }, { morale: -1, on: crew }]
+      text: The ship flew two days with the forward array dark and every watch on edge. It came back reading true, and the ghosts stopped.
+    - id: live_with_it
+      label: Keep flying on it
+      effects: [{ loyalty: -1, on: crew }]
+      text: The array stays as it is. The night watch keeps its list of names, and fewer of them laugh about it.

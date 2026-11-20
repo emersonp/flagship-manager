@@ -1,7 +1,7 @@
 # Phase 1, slice 1e-calendar: the calendar
 
 **Spec:** `docs/gdd.md` sections 2.2, 2.3, 3.1, 3.2, 3.8, and 7.4, and section 15, items 40 to 43. **Lore:** `docs/lore/calendars.md` (the author's; read, never edited). **Builds on:** `main` at 2026-11-20 (`f51d1ac`), and slice 1e's first four parts.
-**Status:** designed 2026-11-20; being built (section 8).
+**Status:** designed 2026-11-20; built 2026-11-20 (section 8).
 **Ends with:** the author starts a legacy on 13 Vortun 105. The top bar shows the date, not a week, and hovering over it shows "Stoneday, 13 Vortun 105". A cycle ends, and the report says the run was delayed: the calendar moves 7 days, to 20 Vortun. An injury written as two weeks heals on the day 12 days after it was taken, which may fall in the middle of a later cycle. A storylet that requires `storylet.a.daysSince >= 40` arrives only after the author presses Dev Play's "travel 5 weeks". Dev Play still shows the cycle number.
 
 This records what the author said about the calendar on 2026-11-20, in a design interview, and designs it. Items marked **(my call)** were proposed by me, not asked for by the author.
@@ -307,3 +307,29 @@ Settled while building:
 - **Nothing was per week.** Every rate the simulator reported was already per 100 cycles and said so, so no figure changed its basis. The new line's figures are per turn and its heading says so.
 - **The date's words.** The simulator does not reference `Web`, so `Simulation.ShortDate` writes the date as `Web.Bridge.Dates.Short` does ("27 Orphelten 105").
 - **The figures.** On the game's pack, 20 legacies × 50 cycles from seed 1: 1000 turns, 34.0% of 5 days, 34.3% of 6, 31.7% of 7, a mean of 5.98 days; the legacies end between 27 Orphelten 105 and 22 Othra 105. Nothing else moved: no golden hash changed.
+
+### Task 7: the worked example, and the record (2026-11-20)
+
+As designed: "The ghosts have names now" (`STORYLET_07`, `content/storylets/base.yaml`) is a storylet for the ship that requires `ship.trait.sensors_quirk == 'let_ride' && storylet.STORYLET_01.cyclesSince >= 3 && storylet.STORYLET_01.daysSince >= 40`: the forward array the captain chose to fly on in "A quirk in the sensors" has got worse. "Strip it to the frame" clears the quirk at a point of everyone's morale; "Keep flying on it" costs a point of everyone's loyalty and leaves it. `WorkedExampleTests` plays it on the game's pack: "A quirk in the sensors" answered by flying on, three cycles with all three cycles counted but 15 to 21 days, so it waits, then Dev Play's `Travel(5)`, and it arrives on the next itinerary. With the `daysSince` clause taken out, the same test fails at the third cycle, so it is the days that hold it.
+
+Settled while building:
+
+- **A cast cooldown, not a trait.** "Keep flying on it" changes no trait the storylet reads, so the rule against hidden memory would refuse it; the storylet takes `cooldown: { cast: 6 }` instead and comes back every 6 cycles while the quirk is let ride. Every alternative needed a new trait or level, and this slice's content may gain only the storylet.
+- **Why three cycles and 40 days.** Three cycles alone come in 15 to 21 days; 40 days alone come in 6 to 8 ordinary cycles. Together, three ordinary cycles never suffice and three cycles then a journey of 5 weeks always do (at least 15 + 25 days).
+- **The GDD.** Section 2.3 is rewritten (days, a rolled length, travel as one roll, effects on days, rest per cycle, durations in weeks); 3.1 holds `healsAtDay` and the age rule, and 3.2 says an expiry and a step count days from the last change; 3.3's `sinceWeek` is `sinceDay`; section 1's row for time is the new rule; 3.8 and 7.5 were done in Tasks 4 and 5. The status line is v1.24. Section 7.1's table "In part three" still says the traits module steps on `WeekAdvanced`: it records part three as built, so it is left, and section 5 of this design holds the modules as they are now.
+- **The glossary.** **Day**, **Week** (a span of 6 days, never a counter), **Calendar**, and **Date**; **Cycle** moves the calendar 5 to 7 days; **Fit** is "this cycle" and morale's drift is "every week". `docs/conventions.md` was done in Task 1.
+
+The simulator, on the game's pack, 200 legacies × 200 cycles from seed 1, before and after the storylet:
+
+| Run | Before | After |
+|---|---|---|
+| First answers | 1812185 events; 38805 full, 1039 partial, 105 incomplete, 36 withdrawn, 11 lost; 8 deaths | Unchanged: the first answer to "A quirk in the sensors" recalibrates, so "The ghosts have names now" is never eligible |
+| Random answers | 1816444 events; 38672, 1095, 123, 74, 36; 22 deaths; "A ghost on the night watch" 0.4 per 100 cycles | 1814911 events; 38670, 1097, 123, 74, 36; 22 deaths; the ghost 0.0 (13 arrivals in all). "A quirk in the sensors" was let ride in 5 legacies; "The ghosts have names now" arrived 8 times and was stripped down 5 times, ending the ghost vignette there, which moves 2 missions by a point of morale |
+
+The fixture's content is unchanged, so its golden seeds are.
+
+Left for the author to judge in play:
+
+- **The words** of "The ghosts have names now" and of the six schedule lines (Task 3) are generated, in place, for the author to rewrite.
+- **It is rare.** The game's missions seldom set the sensor quirk (0.0 per 100 cycles, as before), and only a journey brings the storylet within its first few cycles; until real transit (Phase 7) only Dev Play travels, so in ordinary play it comes 6 to 8 cycles after the quirk was let ride.
+- **Whether 6 cycles is the right return** for an array left as it is, and whether a cycle of 5 to 7 days feels right against healing and the drift at the table.

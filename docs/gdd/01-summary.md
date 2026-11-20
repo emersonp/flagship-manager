@@ -25,5 +25,5 @@ None of these is the game by itself. Developing juniors is one consideration amo
 | Scale | Every crew member simulated identically, up to roughly 500 |
 | Permanence | Permadeath, single autosave, no game over |
 | Online | Isolated legacies per player; shared universe later |
-| Time | Cycles of variable length, one week by default; crew and captains age and turn over |
+| Time | Kept in days and shown as dates; a cycle moves the calendar a rolled 5 to 7 days, travel one roll times its weeks; effects fall due on days; crew and captains age and turn over |
 | Lineage | One name; every new hull takes the next suffix |

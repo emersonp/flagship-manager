@@ -51,7 +51,7 @@ public sealed class WorkedExampleTests
 
         public CrewMember Member(string id) => State.Module<CrewState>(CrewModule.Name).Members.Single(m => m.Id == id);
 
-        public int Trait(string trait, string crewId, string? targetId = null) => Game.Bus.View<ITraitView>(State).Value(trait, crewId, targetId);
+        public int Trait(string trait, string? crewId, string? targetId = null) => Game.Bus.View<ITraitView>(State).Value(trait, crewId, targetId);
 
         public WaitingStorylet Waiting(string storyletId) => State.Module<StoryletsState>(StoryletsModule.Name).Waiting.Single(w => w.StoryletId == storyletId);
     }
@@ -118,5 +118,34 @@ public sealed class WorkedExampleTests
         legacy.To(CyclePhase.Itinerary, 6);
         Assert.Equal(4, legacy.Trait("avoids", holder, target));
         Assert.Equal((holder, target), (legacy.Waiting("STORYLET_04").Cast["subject"], legacy.Waiting("STORYLET_04").Cast["target"]));
+    }
+
+    // Slice 1e-calendar's worked example (design 4.6): "The ghosts have names now" needs three cycles and 40 days since "A quirk in
+    // the sensors". Three ordinary cycles bring the cycles (15 to 21 days) but never the days; a journey of 5 weeks brings both.
+    [Fact]
+    public void A_storylet_that_waits_forty_days_arrives_only_after_a_journey()
+    {
+        var legacy = new Legacy();
+        legacy.Send(new FoundLegacy());
+        legacy.Send(new SetTrait("sensors_quirk", null, null, 1));
+        legacy.To(CyclePhase.Itinerary, 2);
+        legacy.Send(new AnswerStorylet(legacy.Waiting("STORYLET_01").OfferId, "fly_on"));
+        int arrived = legacy.State.Day;
+
+        for (int cycle = 3; cycle <= 5; cycle++)
+        {
+            legacy.To(CyclePhase.Itinerary, cycle);
+            Assert.DoesNotContain(legacy.State.Module<StoryletsState>(StoryletsModule.Name).Waiting, w => w.StoryletId == "STORYLET_07");
+        }
+
+        Assert.InRange(legacy.State.Day - arrived, 15, 21);
+
+        legacy.To(CyclePhase.Advance, 5);
+        legacy.Send(new Travel(5));
+        Assert.Equal((CyclePhase.Itinerary, 6), (legacy.State.Phase, legacy.State.Cycle));
+        Assert.True(legacy.State.Day - arrived >= 40, $"{legacy.State.Day - arrived} days");
+
+        legacy.Send(new AnswerStorylet(legacy.Waiting("STORYLET_07").OfferId, "strip_down"));
+        Assert.Equal(0, legacy.Trait("sensors_quirk", null));
     }
 }

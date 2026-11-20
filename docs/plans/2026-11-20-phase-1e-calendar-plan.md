@@ -136,9 +136,9 @@ public static class Dates
 
 **Files:** `content/storylets/base.yaml`, the GDD chapters named in design section 6, `GLOSSARY.md`, `docs/conventions.md`, `docs/gdd/11-roadmap.md`, `docs/plans/phase-1-outline.md`, `docs/gdd.md`, the design's "As built".
 
-- [ ] **Step 1: the example** (design 4.6). One storylet in the game's pack that requires another storylet's `daysSince >= 40` and `cyclesSince >= 3`, so it arrives only after a trip. Generated words, in place, for the author to rewrite. A web test plays it: the first storylet, three cycles without it, "Travel 5 weeks", and it arrives.
-- [ ] **Step 2: the GDD.** Section 2.3 rewritten (days, a rolled length, effects on days, travel as one roll); 3.1 and 3.2's fields in days and the age rule; 7.4's top bar, hover, and durations; 1's "Settled decisions" row for time. Bump the status line and name the slice. Rebuild and republish the GDD page (`tools/gdd-page/README.md`).
-- [ ] **Step 3: the glossary.** **Day**, **Date**, **Calendar**; **Week** as a span of 6 days, never a counter; **Cycle** "moves the calendar 5 to 7 days". In-fiction names stay out.
-- [ ] **Step 4: progress.** The roadmap's row and the outline's paragraph say "Done", with the date and a pointer to "As built". The chronicle list (part five) becomes "Next".
-- [ ] **Step 5: As built.** The design's section 8, task by task: what changed from the design and why, the golden-seed figures before and after, and anything left for the author to judge in play.
-- [ ] **Step 6:** `./check.sh`; commit "Give the game a storylet that waits for a journey, and record the calendar".
+- [x] **Step 1: the example** (design 4.6). One storylet in the game's pack that requires another storylet's `daysSince >= 40` and `cyclesSince >= 3`, so it arrives only after a trip. Generated words, in place, for the author to rewrite. A web test plays it: the first storylet, three cycles without it, "Travel 5 weeks", and it arrives.
+- [x] **Step 2: the GDD.** Section 2.3 rewritten (days, a rolled length, effects on days, travel as one roll); 3.1 and 3.2's fields in days and the age rule; 7.4's top bar, hover, and durations; 1's "Settled decisions" row for time. Bump the status line and name the slice. Rebuild and republish the GDD page (`tools/gdd-page/README.md`).
+- [x] **Step 3: the glossary.** **Day**, **Date**, **Calendar**; **Week** as a span of 6 days, never a counter; **Cycle** "moves the calendar 5 to 7 days". In-fiction names stay out.
+- [x] **Step 4: progress.** The roadmap's row and the outline's paragraph say "Done", with the date and a pointer to "As built". The chronicle list (part five) becomes "Next".
+- [x] **Step 5: As built.** The design's section 8, task by task: what changed from the design and why, the golden-seed figures before and after, and anything left for the author to judge in play.
+- [x] **Step 6:** `./check.sh`; commit "Give the game a storylet that waits for a journey, and record the calendar".

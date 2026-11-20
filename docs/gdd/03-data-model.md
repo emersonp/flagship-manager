@@ -16,7 +16,7 @@ id: crew_0042
 legacyId: legacy_01
 name: CREW_NAME
 speciesId: SPECIES_A
-age: 31                       # years; advances with weeks elapsed
+age: 31                       # years of 360 days; advances with the calendar (see below)
 rank: RANK_2
 status: active                # active | away | injured | departed | dead
 departmentId: DEPT_A
@@ -36,13 +36,15 @@ personality:                  # each axis -2..+2
 traits: [TRAIT_A, TRAIT_B]
 morale: 62                    # 0-100; built in 1e part two: resting 50, a minus on checks at 25 or below and a plus at 75 or above
 loyalty: 55                   # 0-100; captains get a standing bonus
-ambitions: [{ kind: reach_rank, target: RANK_4, byWeek: 600 }]
+ambitions: [{ kind: reach_rank, target: RANK_4, byDay: 41100 }]
 renown: 12
 awayMissions: 9               # gates promotion
-injuries: [{ kind: INJURY_A, healsAtWeek: 188 }]
+injuries: [{ kind: INJURY_A, healsAtDay: 37494 }]   # a day number; due a whole number of weeks after the injury
 portrait: { face: f03, hair: h11, hairTint: "#3a2b1f", uniform: u_dept_a, features: [sp_a_ridge] }
 isCaptain: false
 ```
+
+**Days and ages** (slice 1e-calendar): every field that falls due holds a **day number**, counted from the 1st of the first month of year 1 (13 Vortun 105 is day 37482). As built, a light injury's `healsAtDay` and an incapacitated member's `returnsAtDay`. A year is the calendar's days in a year (360). No crew member has an age in code or content yet, since ageing is Phase 6; when one does, a member written with `age: 31` gets a birth date rolled from the legacy's seed within the year that makes them 31 on the legacy's start day, and ages on its anniversaries.
 
 The four personality axes are systems vocabulary, not fiction. `caution` and `discipline` drive calls and delegation; the other two drive storylets. The author may rename or add axes.
 
@@ -74,15 +76,17 @@ Traits never contain bespoke code. They are a list of conditional modifiers over
     sent: [{ set: level_b }, { loyalty: -2 }]
     notSent: [{ set: 0 }]
   mission: { checkBonus: -1 }           # on every check the holder makes; withTarget: true for pairs
-  expires: { weeks: 6 }                 # back to 0 after this many weeks unchanged
+  expires: { weeks: 6 }                 # back to 0 on the day this many weeks (6 days each) after its last change
 - id: trait_b
   on: pair
   max: 5
-  every: { weeks: 4, add: -1 }          # a signed weekly step; not on a trait with levels; rising needs max
+  every: { weeks: 4, add: -1 }          # a signed step every 4 weeks from its last change; not on a trait with levels; rising needs max
   onTargetDied: [{ set: 0 }]            # pairs only
 ```
 
 The conditional modifiers above wait for the expression language (part four); part three's definitions have one modifier, the check bonus. Every key is optional but `id`. A level's name may be written wherever its number would be (`{ trait: stood_down, set: broken }`, a requirement's `is: broken`); a trait with levels is never added to, by content, a rule, or Dev Play. Every change is clamped to 0 and `max` (or the highest level). A rule's effect is `{ set }` or `{ add }` on its own trait, `{ trait, set | add }` on another, or `{ loyalty }` or `{ morale }`, with `on: holder` (the default), `target` (a pair's), or `crew` (loyalty and morale only). The loader checks every use of a trait in an encounter, storylet, or vignette against its definition: where it may sit, its levels, and no `add` to a trait with levels. The game's pack defines `sensors_quirk`, `shaken`, `shaken_heard`, `stood_down`, and `avoids`.
+
+Since slice 1e-calendar (2026-11-20) a trait's expiry and step count in days from its last change (`changedAtDay`, section 3.8), and happen on the day they fall due, which may be in the middle of a cycle; an expiry due before a step cancels it. The trait also keeps the cycle of its last change (`changedAtCycle`), for `x.trait.t.cyclesSince`. Definitions still write `weeks:`.
 
 ## 3.3 Relationship (state)
 
@@ -91,7 +95,7 @@ from: crew_0042
 to: crew_0017
 kind: rival                   # friend | rival | romance | grudge | mentor
 strength: 34                  # 0-100
-sinceWeek: 161
+sinceDay: 37170
 lastEventId: evt_88213
 ```
 
