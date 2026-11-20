@@ -16,6 +16,12 @@ internal static class TestPack
         return ContentLoader.LoadDirectory(Path.Combine(Root(), "tests", "fixtures", "content")).Pack ?? throw new InvalidOperationException("The content pack did not load.");
     }
 
+    // The game's own pack, for the golden chronicle: its words are the ones a player reads.
+    public static ContentPack LoadGame()
+    {
+        return ContentLoader.LoadDirectory(Path.Combine(Root(), "content")).Pack ?? throw new InvalidOperationException("The game's pack did not load.");
+    }
+
     public static string Root()
     {
         DirectoryInfo? directory = new(AppContext.BaseDirectory);
@@ -278,6 +284,64 @@ public class SimulationTests
         SimSummary summary = Simulation.Run(new SimOptions(Legacies: 1, Cycles: 10, Seed: 1), Pack);
 
         Assert.Equal("5B8BEF69E6F4867DCD6031BAA31F522F7101CC66AD1ABA4073B9274FEDA4FB7A", summary.Legacies[0].LogHash);
+    }
+
+    // --- The chronicle (1e part five, Task 8) ---
+
+    // Focus 5: an entry at weight 0 is counted by the simulator and never stored. Every call is weighed 0 here, so each CallAnswered
+    // is skipped, and nothing else moves.
+    [Fact]
+    public void A_weight_of_0_is_counted_as_skipped_and_not_stored()
+    {
+        var weights = new Dictionary<string, int>(Pack.Chronicle.Weights) { [ChronicleTuning.CallBacked] = 0, [ChronicleTuning.CallOverruled] = 0 };
+        ContentPack silent = Pack with { Chronicle = Pack.Chronicle with { Weights = weights } };
+        var options = new SimOptions(Legacies: 2, Cycles: 5, Seed: 1);
+
+        LegacySummary plain = Simulation.Run(options, Pack).Legacies[0];
+        LegacySummary quiet = Simulation.Run(options, silent).Legacies[0];
+        int calls = Play(Pack, 1, 5).Events.Count(e => e.Event is CallAnswered);
+
+        Assert.True(calls > 0, "No call was answered; choose another seed.");
+        Assert.Equal(calls, plain.Chronicle[ChronicleKinds.Call]);
+        Assert.Empty(plain.ChronicleSkipped);
+        Assert.False(quiet.Chronicle.ContainsKey(ChronicleKinds.Call));
+        Assert.Equal(new Dictionary<string, int> { [ChronicleKinds.Call] = calls }, quiet.ChronicleSkipped);
+        Assert.Equal(plain.Chronicle.Where(k => k.Key != ChronicleKinds.Call).OrderBy(k => k.Key, StringComparer.Ordinal), quiet.Chronicle.OrderBy(k => k.Key, StringComparer.Ordinal));
+        Assert.Equal(plain.LogHash, quiet.LogHash);
+    }
+
+    // The golden chronicle (design 4.10): seed 12 of the game's pack, run for 30 cycles, pins every entry's day, kind, weight, subjects,
+    // and text, one entry a line, in tests/SimRunner.Tests/golden-chronicle.txt. A change to a line, a weight, or a name shows up here
+    // and nowhere else. If the change is intended, accept it in the same commit: the test writes what it found beside the file, as
+    // golden-chronicle.received.txt, to copy over it. Seed 12 is the first whose 30 cycles hold a death and a storylet.
+    [Fact]
+    public void Golden_chronicle_of_seed_12_matches_the_accepted_words()
+    {
+        ContentPack pack = TestPack.LoadGame();
+        Game game = Game.Build(pack);
+        LegacyState state = TestPack.NewLegacy(12);
+        while (state.Cycle <= 30)
+        {
+            AutoCaptain.Step(game, state, pack);
+        }
+
+        IReadOnlyList<ChronicleEntry> entries = game.Bus.View<IChronicleView>(state).Entries;
+        string actual = string.Concat(entries.Select(e => $"{e.Day} {e.Kind} {e.Weight} [{string.Join(", ", e.Subjects.Select(s => $"{s.Id} {s.Name}"))}] {e.Text}\n"));
+        string path = Path.Combine(TestPack.Root(), "tests", "SimRunner.Tests", "golden-chronicle.txt");
+        string received = Path.ChangeExtension(path, ".received.txt");
+        string expected = File.Exists(path) ? File.ReadAllText(path).ReplaceLineEndings("\n") : "";
+        if (actual == expected)
+        {
+            File.Delete(received);
+        }
+        else
+        {
+            File.WriteAllText(received, actual);
+        }
+
+        Assert.Contains(entries, e => e.Kind == ChronicleKinds.Death);
+        Assert.Contains(entries, e => e.Kind == ChronicleKinds.Storylet);
+        Assert.Equal(expected, actual);
     }
 
     // --- The captain's policies and promises (1e part three, Task 6) ---

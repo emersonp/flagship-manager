@@ -244,4 +244,14 @@ public class CliTests
         Assert.Equal(0, exit);
         Assert.Matches(@"(?m)^Calendar, by turn: 6 turns, of 5 days \d+\.\d%, 6 days \d+\.\d%, 7 days \d+\.\d%; mean \d\.\d\d days\. Last dates?: \d+ MONTH_\w+ \d+( to \d+ MONTH_\w+ \d+)?\.\r?$", output);
     }
+
+    // 1e part five, Task 8: the chronicle's entries by kind, and those a weight of 0 skipped.
+    [Fact]
+    public void Cycles_reports_the_chronicle()
+    {
+        (int exit, string output, _) = Run("cycles", "--legacies", "2", "--cycles", "3", "--content", Content);
+
+        Assert.Equal(0, exit);
+        Assert.Contains("Chronicle: 19 entries (2 founding, 0 death, 6 mission, 11 call, 0 storylet); 0 skipped at weight 0 (0 founding, 0 death, 0 mission, 0 call, 0 storylet).", output, StringComparison.Ordinal);
+    }
 }

@@ -136,10 +136,10 @@ public sealed record CrewDied(string CrewId, string MissionId, string? Encounter
 
 **Files:** `src/SimRunner/Simulation.cs`, `tests/SimRunner.Tests/SimulationTests.cs`, `tests/Sim.Tests/ChronicleModuleTests.cs` (or `GameContentTests.cs`), `tests/Persistence.Tests/`.
 
-- [ ] **Step 1: the counts.** `SimRunner cycles` reports the entries by kind and the weight-0 entries skipped (each `weight: 0` is counted, not stored).
-- [ ] **Step 2: the golden chronicle.** A fixed seed in the game's pack, run for 30 cycles, pins every entry's day, kind, weight, subjects, and text.
-- [ ] **Step 3: freezing.** Write entries, commit, change every chronicle line in a scratch copy of the pack, load under it, and play on. The old entries' texts are unchanged, and new ones use the new lines.
-- [ ] **Step 4:** `./check.sh`; commit "Report the chronicle in the simulator, and pin its words".
+- [x] **Step 1: the counts.** `SimRunner cycles` reports the entries by kind and the weight-0 entries skipped (each `weight: 0` is counted, not stored).
+- [x] **Step 2: the golden chronicle.** A fixed seed in the game's pack, run for 30 cycles, pins every entry's day, kind, weight, subjects, and text.
+- [x] **Step 3: freezing.** Write entries, commit, change every chronicle line in a scratch copy of the pack, load under it, and play on. The old entries' texts are unchanged, and new ones use the new lines.
+- [x] **Step 4:** `./check.sh`; commit "Report the chronicle in the simulator, and pin its words".
 
 ### Task 9: the worked example, and the record
 

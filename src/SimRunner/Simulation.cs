@@ -57,6 +57,11 @@ public sealed record LegacySummary(
     public int LastDay { get; init; }
 
     public string LastDate { get; init; } = "";
+
+    // The chronicle (1e part five, Task 8): the entries written, by kind, and the entries a weight of 0 left unwritten, by kind.
+    public IReadOnlyDictionary<string, int> Chronicle { get; init; } = new Dictionary<string, int>();
+
+    public IReadOnlyDictionary<string, int> ChronicleSkipped { get; init; } = new Dictionary<string, int>();
 }
 
 public sealed record SimSummary(IReadOnlyList<LegacySummary> Legacies);
@@ -156,6 +161,7 @@ public static class Simulation
             return contenders.Where(which).GroupBy(c => c.Id).ToDictionary(g => g.Key, g => g.Count());
         }
 
+        IReadOnlyList<ChronicleEntry> entries = game.Bus.View<IChronicleView>(state).Entries;
         return new LegacySummary(
             seed, cycles, events.Count, Hash(events.Select(game.Events.ToEnvelope)), missions, deaths, alive, highest, offered, answered,
             arrived, defaulted, morale.Count(b => b < 0), morale.Count(b => b == 0), morale.Count(b => b > 0))
@@ -171,7 +177,36 @@ public static class Simulation
             CycleLengths = lengths,
             LastDay = state.Day,
             LastDate = ShortDate(pack.Calendar, state.Day),
+            Chronicle = entries.GroupBy(e => e.Kind).ToDictionary(g => g.Key, g => g.Count()),
+            ChronicleSkipped = Skipped(events, entries),
         };
+    }
+
+    // Each event the chronicle writes an entry for that left none, by kind: its weight was 0, so it was counted here and never stored
+    // (design 4.10). An entry names the events it records by sequence number, a mission's its end first, so the chronicle keeps no
+    // count of its own.
+    private static Dictionary<string, int> Skipped(List<PublishedEvent> events, IReadOnlyList<ChronicleEntry> entries)
+    {
+        HashSet<(string Kind, long Sequence)> written = entries.Select(e => (e.Kind, e.SourceSeq[0])).ToHashSet();
+        var skipped = new Dictionary<string, int>();
+        foreach (PublishedEvent published in events)
+        {
+            string? kind = published.Event switch
+            {
+                LegacyFounded => ChronicleKinds.Founding,
+                CrewDied => ChronicleKinds.Death,
+                MissionEnded => ChronicleKinds.Mission,
+                CallAnswered => ChronicleKinds.Call,
+                StoryletAnswered => ChronicleKinds.Storylet,
+                _ => null,
+            };
+            if (kind is not null && !written.Contains((kind, published.Sequence)))
+            {
+                skipped[kind] = skipped.GetValueOrDefault(kind) + 1;
+            }
+        }
+
+        return skipped;
     }
 
     // As the web's short date ("13 Vortun 105"; Web.Bridge.Dates.Short), which the simulator does not reference.

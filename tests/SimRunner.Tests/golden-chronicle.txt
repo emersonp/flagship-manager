@@ -1,0 +1,100 @@
+37482 founding 5 [] The ship took on her first crew of 8.
+37482 call 2 [CREW_01 Lt. Cmdr. Maren Okafor] At the Sealed Vault, the captain backed Lt. Cmdr. Maren Okafor's call.
+37482 call 2 [CREW_01 Lt. Cmdr. Maren Okafor] At the Dead Lift, the captain backed Lt. Cmdr. Maren Okafor's call.
+37482 mission 1 [CREW_01 Lt. Cmdr. Maren Okafor] Lt. Cmdr. Maren Okafor led 2 on the Waystation survey, and saw it done.
+37489 call 2 [CREW_01 Lt. Cmdr. Maren Okafor] At the Waking Core, the captain backed Lt. Cmdr. Maren Okafor's call.
+37489 call 2 [CREW_01 Lt. Cmdr. Maren Okafor] At the Sealed Vault, the captain backed Lt. Cmdr. Maren Okafor's call.
+37489 mission 1 [CREW_01 Lt. Cmdr. Maren Okafor] Lt. Cmdr. Maren Okafor led 2 on the Waystation survey; it was done only in part.
+37494 call 2 [CREW_01 Lt. Cmdr. Maren Okafor] At the Waking Core, the captain backed Lt. Cmdr. Maren Okafor's call.
+37494 call 2 [CREW_01 Lt. Cmdr. Maren Okafor] At the Salvagers' Picket, the captain backed Lt. Cmdr. Maren Okafor's call.
+37494 call 2 [CREW_01 Lt. Cmdr. Maren Okafor] At the Sealed Vault, the captain backed Lt. Cmdr. Maren Okafor's call.
+37494 mission 1 [CREW_01 Lt. Cmdr. Maren Okafor] Lt. Cmdr. Maren Okafor led 2 on the Waystation survey, and saw it done.
+37499 call 2 [CREW_01 Lt. Cmdr. Maren Okafor] At the Dead Lift, the captain backed Lt. Cmdr. Maren Okafor's call.
+37499 mission 1 [CREW_01 Lt. Cmdr. Maren Okafor] Lt. Cmdr. Maren Okafor led 2 on the Relay restoration, and saw it done.
+37504 call 2 [CREW_01 Lt. Cmdr. Maren Okafor] At the Dead Lift, the captain backed Lt. Cmdr. Maren Okafor's call.
+37504 mission 1 [CREW_01 Lt. Cmdr. Maren Okafor] Lt. Cmdr. Maren Okafor led 2 on the Relay restoration, and saw it done.
+37511 call 2 [CREW_01 Lt. Cmdr. Maren Okafor] At the Dead Lift, the captain backed Lt. Cmdr. Maren Okafor's call.
+37511 call 2 [CREW_01 Lt. Cmdr. Maren Okafor] At the Salvagers' Picket, the captain backed Lt. Cmdr. Maren Okafor's call.
+37511 mission 1 [CREW_01 Lt. Cmdr. Maren Okafor] Lt. Cmdr. Maren Okafor led 2 on the Relay restoration, and saw it done.
+37518 call 2 [CREW_01 Lt. Cmdr. Maren Okafor] At the Salvagers' Picket, the captain backed Lt. Cmdr. Maren Okafor's call.
+37518 call 2 [CREW_01 Lt. Cmdr. Maren Okafor] At the Dead Lift, the captain backed Lt. Cmdr. Maren Okafor's call.
+37518 mission 1 [CREW_01 Lt. Cmdr. Maren Okafor] Lt. Cmdr. Maren Okafor led 2 on the Waystation survey, and saw it done.
+37525 call 2 [CREW_01 Lt. Cmdr. Maren Okafor] At the Waking Core, the captain backed Lt. Cmdr. Maren Okafor's call.
+37525 call 2 [CREW_01 Lt. Cmdr. Maren Okafor] At the Salvagers' Picket, the captain backed Lt. Cmdr. Maren Okafor's call.
+37525 mission 1 [CREW_01 Lt. Cmdr. Maren Okafor] Lt. Cmdr. Maren Okafor led 2 on the Relay restoration; it was done only in part.
+37532 call 2 [CREW_03 Lt. Seshat Ilune] At the Waking Core, the captain backed Lt. Seshat Ilune's call.
+37532 death 5 [CREW_02 Lt. Kell Varro] Lt. Kell Varro fell at the Waking Core, leading the away team, after 9 cycles aboard.
+37532 mission 2 [CREW_02 Lt. Kell Varro] Lt. Kell Varro led 2 on the Waystation survey, and it failed. One did not return.
+37539 storylet 3 [CREW_03 Lt. Seshat Ilune, CREW_07 Crewman Wren Halloran] The one who came back. The captain's word: Have someone talk to them. Envoy Teodor Kask saw it through.
+37539 call 2 [CREW_01 Lt. Cmdr. Maren Okafor] At the Sealed Vault, the captain backed Lt. Cmdr. Maren Okafor's call.
+37539 call 2 [CREW_01 Lt. Cmdr. Maren Okafor] At the Salvagers' Picket, the captain backed Lt. Cmdr. Maren Okafor's call.
+37539 mission 1 [CREW_01 Lt. Cmdr. Maren Okafor] Lt. Cmdr. Maren Okafor led 2 on the Waystation survey, and saw it done.
+37544 call 2 [CREW_01 Lt. Cmdr. Maren Okafor] At the Waking Core, the captain backed Lt. Cmdr. Maren Okafor's call.
+37544 call 2 [CREW_01 Lt. Cmdr. Maren Okafor] At the Sealed Vault, the captain backed Lt. Cmdr. Maren Okafor's call.
+37544 call 2 [CREW_01 Lt. Cmdr. Maren Okafor] At the Dead Lift, the captain backed Lt. Cmdr. Maren Okafor's call.
+37544 mission 1 [CREW_01 Lt. Cmdr. Maren Okafor] Lt. Cmdr. Maren Okafor led 2 on the Waystation survey, and saw it done.
+37549 call 2 [CREW_01 Lt. Cmdr. Maren Okafor] At the Waking Core, the captain backed Lt. Cmdr. Maren Okafor's call.
+37549 call 2 [CREW_01 Lt. Cmdr. Maren Okafor] At the Salvagers' Picket, the captain backed Lt. Cmdr. Maren Okafor's call.
+37549 mission 1 [CREW_01 Lt. Cmdr. Maren Okafor] Lt. Cmdr. Maren Okafor led 2 on the Waystation survey, and saw it done.
+37555 call 2 [CREW_01 Lt. Cmdr. Maren Okafor] At the Dead Lift, the captain backed Lt. Cmdr. Maren Okafor's call.
+37555 call 2 [CREW_01 Lt. Cmdr. Maren Okafor] At the Waking Core, the captain backed Lt. Cmdr. Maren Okafor's call.
+37555 call 2 [CREW_01 Lt. Cmdr. Maren Okafor] At the Salvagers' Picket, the captain backed Lt. Cmdr. Maren Okafor's call.
+37555 mission 1 [CREW_01 Lt. Cmdr. Maren Okafor] Lt. Cmdr. Maren Okafor led 2 on the Waystation survey, and saw it done.
+37560 call 2 [CREW_01 Lt. Cmdr. Maren Okafor] At the Dead Lift, the captain backed Lt. Cmdr. Maren Okafor's call.
+37560 call 2 [CREW_01 Lt. Cmdr. Maren Okafor] At the Waking Core, the captain backed Lt. Cmdr. Maren Okafor's call.
+37560 call 2 [CREW_01 Lt. Cmdr. Maren Okafor] At the Sealed Vault, the captain backed Lt. Cmdr. Maren Okafor's call.
+37560 mission 1 [CREW_01 Lt. Cmdr. Maren Okafor] Lt. Cmdr. Maren Okafor led 2 on the Waystation survey, and saw it done.
+37566 call 2 [CREW_01 Lt. Cmdr. Maren Okafor] At the Waking Core, the captain backed Lt. Cmdr. Maren Okafor's call.
+37566 call 2 [CREW_01 Lt. Cmdr. Maren Okafor] At the Salvagers' Picket, the captain backed Lt. Cmdr. Maren Okafor's call.
+37566 mission 1 [CREW_01 Lt. Cmdr. Maren Okafor] Lt. Cmdr. Maren Okafor led 2 on the Waystation survey, and saw it done.
+37572 call 2 [CREW_01 Lt. Cmdr. Maren Okafor] At the Dead Lift, the captain backed Lt. Cmdr. Maren Okafor's call.
+37572 call 2 [CREW_01 Lt. Cmdr. Maren Okafor] At the Sealed Vault, the captain backed Lt. Cmdr. Maren Okafor's call.
+37572 call 2 [CREW_01 Lt. Cmdr. Maren Okafor] At the Salvagers' Picket, the captain backed Lt. Cmdr. Maren Okafor's call.
+37572 mission 1 [CREW_01 Lt. Cmdr. Maren Okafor] Lt. Cmdr. Maren Okafor led 2 on the Relay restoration, and saw it done.
+37579 call 2 [CREW_01 Lt. Cmdr. Maren Okafor] At the Dead Lift, the captain backed Lt. Cmdr. Maren Okafor's call.
+37579 call 2 [CREW_01 Lt. Cmdr. Maren Okafor] At the Waking Core, the captain backed Lt. Cmdr. Maren Okafor's call.
+37579 call 2 [CREW_01 Lt. Cmdr. Maren Okafor] At the Salvagers' Picket, the captain backed Lt. Cmdr. Maren Okafor's call.
+37579 mission 1 [CREW_01 Lt. Cmdr. Maren Okafor] Lt. Cmdr. Maren Okafor led 2 on the Waystation survey, and saw it done.
+37584 call 2 [CREW_01 Lt. Cmdr. Maren Okafor] At the Dead Lift, the captain backed Lt. Cmdr. Maren Okafor's call.
+37584 call 2 [CREW_01 Lt. Cmdr. Maren Okafor] At the Sealed Vault, the captain backed Lt. Cmdr. Maren Okafor's call.
+37584 mission 1 [CREW_01 Lt. Cmdr. Maren Okafor] Lt. Cmdr. Maren Okafor led 2 on the Relay restoration, and saw it done.
+37589 call 2 [CREW_01 Lt. Cmdr. Maren Okafor] At the Sealed Vault, the captain backed Lt. Cmdr. Maren Okafor's call.
+37589 call 2 [CREW_01 Lt. Cmdr. Maren Okafor] At the Salvagers' Picket, the captain backed Lt. Cmdr. Maren Okafor's call.
+37589 mission 1 [CREW_01 Lt. Cmdr. Maren Okafor] Lt. Cmdr. Maren Okafor led 2 on the Relay restoration; it was done only in part.
+37595 call 2 [CREW_01 Lt. Cmdr. Maren Okafor] At the Sealed Vault, the captain backed Lt. Cmdr. Maren Okafor's call.
+37595 call 2 [CREW_01 Lt. Cmdr. Maren Okafor] At the Salvagers' Picket, the captain backed Lt. Cmdr. Maren Okafor's call.
+37595 mission 1 [CREW_01 Lt. Cmdr. Maren Okafor] Lt. Cmdr. Maren Okafor led 2 on the Relay restoration, and saw it done.
+37600 call 2 [CREW_01 Lt. Cmdr. Maren Okafor] At the Salvagers' Picket, the captain backed Lt. Cmdr. Maren Okafor's call.
+37600 call 2 [CREW_01 Lt. Cmdr. Maren Okafor] At the Sealed Vault, the captain backed Lt. Cmdr. Maren Okafor's call.
+37600 call 2 [CREW_01 Lt. Cmdr. Maren Okafor] At the Waking Core, the captain backed Lt. Cmdr. Maren Okafor's call.
+37600 mission 1 [CREW_01 Lt. Cmdr. Maren Okafor] Lt. Cmdr. Maren Okafor led 2 on the Waystation survey, and saw it done.
+37607 call 2 [CREW_01 Lt. Cmdr. Maren Okafor] At the Waking Core, the captain backed Lt. Cmdr. Maren Okafor's call.
+37607 call 2 [CREW_01 Lt. Cmdr. Maren Okafor] At the Dead Lift, the captain backed Lt. Cmdr. Maren Okafor's call.
+37607 call 2 [CREW_01 Lt. Cmdr. Maren Okafor] At the Salvagers' Picket, the captain backed Lt. Cmdr. Maren Okafor's call.
+37607 mission 1 [CREW_01 Lt. Cmdr. Maren Okafor] Lt. Cmdr. Maren Okafor led 2 on the Relay restoration, and saw it done.
+37613 call 2 [CREW_01 Lt. Cmdr. Maren Okafor] At the Sealed Vault, the captain backed Lt. Cmdr. Maren Okafor's call.
+37613 call 2 [CREW_01 Lt. Cmdr. Maren Okafor] At the Dead Lift, the captain backed Lt. Cmdr. Maren Okafor's call.
+37613 call 2 [CREW_01 Lt. Cmdr. Maren Okafor] At the Salvagers' Picket, the captain backed Lt. Cmdr. Maren Okafor's call.
+37613 mission 1 [CREW_01 Lt. Cmdr. Maren Okafor] Lt. Cmdr. Maren Okafor led 2 on the Relay restoration, and saw it done.
+37618 call 2 [CREW_01 Lt. Cmdr. Maren Okafor] At the Sealed Vault, the captain backed Lt. Cmdr. Maren Okafor's call.
+37618 call 2 [CREW_01 Lt. Cmdr. Maren Okafor] At the Salvagers' Picket, the captain backed Lt. Cmdr. Maren Okafor's call.
+37618 mission 1 [CREW_01 Lt. Cmdr. Maren Okafor] Lt. Cmdr. Maren Okafor led 2 on the Relay restoration, and saw it done.
+37624 call 2 [CREW_01 Lt. Cmdr. Maren Okafor] At the Sealed Vault, the captain backed Lt. Cmdr. Maren Okafor's call.
+37624 mission 1 [CREW_01 Lt. Cmdr. Maren Okafor] Lt. Cmdr. Maren Okafor led 2 on the Waystation survey, and saw it done.
+37631 call 2 [CREW_01 Lt. Cmdr. Maren Okafor] At the Waking Core, the captain backed Lt. Cmdr. Maren Okafor's call.
+37631 call 2 [CREW_01 Lt. Cmdr. Maren Okafor] At the Salvagers' Picket, the captain backed Lt. Cmdr. Maren Okafor's call.
+37631 mission 1 [CREW_01 Lt. Cmdr. Maren Okafor] Lt. Cmdr. Maren Okafor led 2 on the Waystation survey, and saw it done.
+37638 call 2 [CREW_01 Lt. Cmdr. Maren Okafor] At the Sealed Vault, the captain backed Lt. Cmdr. Maren Okafor's call.
+37638 call 2 [CREW_01 Lt. Cmdr. Maren Okafor] At the Dead Lift, the captain backed Lt. Cmdr. Maren Okafor's call.
+37638 call 2 [CREW_01 Lt. Cmdr. Maren Okafor] At the Waking Core, the captain backed Lt. Cmdr. Maren Okafor's call.
+37638 mission 1 [CREW_01 Lt. Cmdr. Maren Okafor] Lt. Cmdr. Maren Okafor led 2 on the Waystation survey, and saw it done.
+37644 call 2 [CREW_01 Lt. Cmdr. Maren Okafor] At the Dead Lift, the captain backed Lt. Cmdr. Maren Okafor's call.
+37644 call 2 [CREW_01 Lt. Cmdr. Maren Okafor] At the Waking Core, the captain backed Lt. Cmdr. Maren Okafor's call.
+37644 mission 1 [CREW_01 Lt. Cmdr. Maren Okafor] Lt. Cmdr. Maren Okafor led 2 on the Relay restoration, and saw it done.
+37651 call 2 [CREW_01 Lt. Cmdr. Maren Okafor] At the Waking Core, the captain backed Lt. Cmdr. Maren Okafor's call.
+37651 call 2 [CREW_01 Lt. Cmdr. Maren Okafor] At the Salvagers' Picket, the captain backed Lt. Cmdr. Maren Okafor's call.
+37651 mission 1 [CREW_01 Lt. Cmdr. Maren Okafor] Lt. Cmdr. Maren Okafor led 2 on the Relay restoration, and saw it done.
+37658 call 2 [CREW_01 Lt. Cmdr. Maren Okafor] At the Waking Core, the captain backed Lt. Cmdr. Maren Okafor's call.
+37658 call 2 [CREW_01 Lt. Cmdr. Maren Okafor] At the Sealed Vault, the captain backed Lt. Cmdr. Maren Okafor's call.
+37658 call 2 [CREW_01 Lt. Cmdr. Maren Okafor] At the Dead Lift, the captain backed Lt. Cmdr. Maren Okafor's call.
+37658 mission 1 [CREW_01 Lt. Cmdr. Maren Okafor] Lt. Cmdr. Maren Okafor led 2 on the Waystation survey, and saw it done.

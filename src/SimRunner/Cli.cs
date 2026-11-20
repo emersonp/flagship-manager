@@ -77,6 +77,7 @@ public static class Cli
             + $"Vignettes per 100 cycles: {PerHundred(l => l.VignettesArrived)} arrived, {PerHundred(l => l.VignettesDefaulted)} left to their default. "
             + $"Morale at the end: {summary.Legacies.Sum(l => l.MoraleLow)} low, {summary.Legacies.Sum(l => l.MoraleSteady)} steady, {summary.Legacies.Sum(l => l.MoraleHigh)} high. OK.");
         output.WriteLine(CalendarLine(pack, summary));
+        output.WriteLine(ChronicleLine(summary));
         Report(pack, summary, options, output);
         return 0;
     }
@@ -104,6 +105,19 @@ public static class Cli
         LegacySummary last = summary.Legacies.MaxBy(l => l.LastDay)!;
         string dates = first.LastDay == last.LastDay ? $"Last date: {first.LastDate}." : $"Last dates: {first.LastDate} to {last.LastDate}.";
         return string.Create(CultureInfo.InvariantCulture, $"Calendar, by turn: {turns} turns, of {spread}; mean {mean:0.00} days. {dates}");
+    }
+
+    // The chronicle (1e part five, Task 8): the entries written and those a weight of 0 skipped, each by kind, in the kinds' order.
+    private static string ChronicleLine(SimSummary summary)
+    {
+        string ByKind(Func<LegacySummary, IReadOnlyDictionary<string, int>> of)
+        {
+            return string.Join(", ", ChronicleKinds.All.Select(kind => $"{summary.Legacies.Sum(l => of(l).GetValueOrDefault(kind))} {kind}"));
+        }
+
+        int written = summary.Legacies.Sum(l => l.Chronicle.Values.Sum());
+        int skipped = summary.Legacies.Sum(l => l.ChronicleSkipped.Values.Sum());
+        return $"Chronicle: {written} entries ({ByKind(l => l.Chronicle)}); {skipped} skipped at weight 0 ({ByKind(l => l.ChronicleSkipped)}).";
     }
 
     // What fired, per 100 cycles of one legacy (1e part three, design 4.10): each storylet and vignette and each of its options, and

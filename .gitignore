@@ -6,3 +6,6 @@ obj/
 out/
 .vs/
 *.user
+
+# A golden test's output when it differs from the accepted file (the golden chronicle).
+*.received.txt
