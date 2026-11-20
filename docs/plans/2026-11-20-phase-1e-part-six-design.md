@@ -1,0 +1,264 @@
+# Phase 1, slice 1e, part six: writing storylets in the editor
+
+**Spec:** `docs/gdd.md` sections 3.7, 3.8, 5.1, 6, and 7.5, and section 15, items 22, 23, 40, 41, and 45. **Builds on:** `main` at 2026-11-20 (`d22f765`): slice 1e's first five parts and the calendar.
+**Status:** designed 2026-11-20.
+**Ends with:** the author opens the editor, taps **New storylet**, and writes one from start to finish in the form: a name, a cast slot built from rows ("subject · trait grieving · is at least · 1"), a script with chips for the speakers, three options with their words and effects. As they type, "What plays here" shows the storylet as it would read on **USS Quality Assurance**, cast for real, with "Next sample" rotating whoever fits. They save; the loader accepts it; in Dev Play on a legacy where someone is grieving, it arrives. Nothing was typed into a YAML file.
+
+This records what the author decided on 2026-11-20, in a design interview, and designs it. Items marked **(my call)** were proposed by me, not asked for by the author.
+
+## 1. What the author decided (2026-11-20)
+
+- **Scope: storylets, vignettes, and traits,** built in that order, in one plan of three stages. The trait forms also finish the encounter form's leftover job: writing a new trait condition on an approach.
+- **Notes, not comments.** The writer keeps only a file's leading comment and drops every inner comment; the faithfulness check compares YAML trees and cannot see comments, so saving from a form would silently drop the design reasoning the storylet and trait files carry (26 and 9 comment lines). Storylets, vignettes, traits, and encounters gain a `notes:` field, plain text, shown in the form as "Author's notes" and never in play. The existing inner comments move into it once, by hand. The leading comment stays.
+- **The form follows the encounter form:** definitions, a tab for each option, then "What plays here".
+- **Storylets and vignettes stay two kinds,** two files and two lists, sharing one form part (slice 1d authoring, decision 10: "one reusable part, for every later storylet kind").
+- **The text view stays.** Each of the three files still opens as text, with part four's expression errors at line and column. An item the form cannot keep sends the author there.
+- **Expressions are a hybrid:** a builder of rows for the common shapes, the language as text for the rest. Writing storylets is first class: the author wants it as easy as playing.
+- **Test ships.** The previews need state with traits, history, a chronicle, and time behind it, so the time has come for the "USS Quality Assurance": a ship described in content, against which the editor casts for real.
+- **The tablet waits for hosting.** The author means to write storylets on a tablet, but reaching the editor from one, touch-first forms, and drafts kept in the browser all wait until the game is served at a URL. The roadmap's "Track: online" row is replaced and widened to carry them (section 6). This part only avoids working against that: nothing needs hover, and the builder offers selects and steppers wherever a value comes from a known set.
+- **The worked example** is a new storylet that picks up `grieving` ("does nothing on its own yet; it marks them for a later storylet"), written entirely in the browser.
+
+Accepted as recommended: the trait form's "Where it's used" panel, a lint on the storylets and vignettes lists, the lists' columns, "Save as test ship" in Dev Play, and how new items and options get their ids.
+
+## 2. Goals, non-goals, anti-goals
+
+**Goals**
+- Every storylet, vignette, and trait in the pack can be opened, edited, and saved in a form without loss.
+- A new storylet can be written, previewed, and saved without the keyboard except for its words.
+- The previews show the real casting on a real-looking ship, and say why when no one fits.
+- The design reasoning in the files survives the first save from a form.
+
+**Non-goals**
+- A form for test ships (they are written as text, or captured from play).
+- Moving the encounter and line previews onto test ships (section 7, open question 6).
+- Reaching the editor from another device, a login, touch-first redesign, and drafts in the browser (the online track).
+- A clause builder for `||`, arithmetic, or grouped `!`.
+- Redesigning the encounter, objective, and line forms.
+
+**Anti-goals**
+- A second stored form of an expression. The YAML holds the string the loader reads; the builder is a view of it.
+- A preview that claims a storylet can arrive when the real casting would refuse it.
+- A save that drops anything the author wrote, comments included.
+
+## 3. Approaches considered
+
+**Expressions.**
+- **A. Text boxes with a live check and chips.** Exact and cheap; on a tablet, and for an author who does not want to remember `history.count('lost_mission', 2)`, a wall.
+- **B. A clause builder only.** Easy for common shapes, but `||`, `.toward(...)` and `count(...)` turn it into a second language.
+- **C. Hybrid (chosen).** Rows when the expression is clauses joined by `&&` in shapes the builder knows; text otherwise. Every expression in today's pack fits in rows.
+
+**What the previews cast against.**
+- **A. The starting crew with slots filled at will,** ignoring the conditions. Shows how words read; says nothing about whether anyone fits.
+- **B. A sample built to satisfy the conditions.** A solver, and it cannot handle `||` or ranges in general.
+- **C. A ship described in content (chosen).** It implements `IStateSource`, so the real casting runs on it and `Casting.Failed` says which clause held for no one. "Preview anyway" keeps A's use when nothing fits.
+
+**Comments in the files.**
+- **A. A writer that keeps comments.** Fragile: a comment's anchor moves when items are reordered or edited.
+- **B. Accept the loss; git keeps the history.** The reasoning would leave the file it explains.
+- **C. A `notes:` field (chosen).** Moves with its item, is edited in the form, and reads in the file as the comment did.
+
+## 4. Design
+
+### 4.1 Notes
+
+`notes:` is an optional string on a storylet, a vignette, a trait, and an encounter (the encounter file has two inner comments and gets the field for consistency). The writer writes it as a block scalar after `name`. The loader reads and ignores it; nothing in play shows it. The form shows it as a multi-line box, "Author's notes", at the foot of the definitions.
+
+The migration is one task: each inner comment becomes its item's `notes`, worded as it stands. A comment that sits on an option or an effect (for example "Everyone's loyalty dips but the subject's") goes into its item's notes, prefixed with the option's id. A comment that explains the file as a whole joins the leading comment. After the migration the faithfulness check gains one rule **(my call)**: a list file with an inner comment is lossy, so the editor refuses to rewrite it and says why, instead of dropping the comment. That closes the hole for every kind, not only these.
+
+### 4.2 The editor's new kinds
+
+Four kinds join the editor's index: **Storylets** (`storylets`), **Vignettes** (`vignettes`), **Traits** (`traits`), and **Test ships** (`testships`, text only). The storylets, vignettes, and traits files stop appearing as text files on the index; each list page has "Edit as text", which opens the file in today's text view.
+
+A file the form cannot keep (an unknown key, an inner comment, a value the models cannot hold) still lists its items, marked as today, and their forms say so and link to the text view.
+
+**List columns:**
+
+| Kind | Columns |
+|---|---|
+| Storylets | Stakes, Cast (slot names), Requires (shortened), Options (count), Cooldown, Casts on (test ships it can be cast on, of how many) |
+| Vignettes | Cast, Choice (Yes or No), Casts on |
+| Traits | On, Levels or max, Shown, Used by (count) |
+| Test ships | Date, Crew, Traits held |
+
+**New items.** "New storylet" suggests the next free id in the pack's pattern (`STORYLET_09`); the author may change it before the first save. A new option's id is made from its label as it is typed ("Hold a service" becomes `hold_service`), can be edited, and locks once saved, because saves, events, and the chronicle refer to option ids. A trait's id follows the same rule from its name, lower case (`docs/conventions.md`).
+
+### 4.3 The storylet form
+
+Top to bottom:
+
+1. **Definitions.** Id, name, stakes (a stepper, 1 to 5), `requires` (the expression widget, 4.5), the cast (up to three slots, each a name and an expression widget; add and remove), cooldown (cast and global, steppers, blank for none), notes.
+2. **A tab for each option,** in order, with add, remove, and move. Each holds:
+   - id and label;
+   - `requires` (the expression widget, with the storylet's slots in scope);
+   - **Settled by:** "Its effects" or "A check". Effects are rows (4.4). A check has a skill (a select of the pack's skills), a difficulty (a stepper), and two panels, Success and Failure, each with effect rows;
+   - its words: the option's text, or the success and failure texts, as boxes with chips;
+   - **Chronicle:** a weight select (blank for the tuning file's, 0 for none, 1 to 5) and an optional text, on the option or on each outcome where the loader allows it.
+3. **What plays here.** The storylet's opening script; then, for each option in order, its text, or its success and failure texts; then the chronicle line each would write (the option's own text, or the shared `chronicle_storylet` line, greyed). Each row is a box with a live preview, as on an encounter: a blank box shows what plays there now, greyed. A text sits both in its tab and here, as an approach's does (slice 1d approaches).
+
+**Chips** insert, at the caret: the script speakers the storylet allows (`captain:`, each slot as `subject:`, `best SKILL_ID:` for each skill), the tokens (`#subject#` and the other slots, `#handler#` inside a check's outcomes only), and the pack's symbols. The script syntax is slice 1d's: `speaker: words`, `> note`, narration, and a last line `= sentence`.
+
+### 4.4 Effect rows
+
+One row is one effect, with selects for its parts:
+
+| What | Amount | On | Toward |
+|---|---|---|---|
+| Morale, Loyalty | a stepper, signed | a slot, `crew`, or `handler` (in a check's outcome) | |
+| Trait (a select of defined traits) | Add a stepper, or Set to a level (by name where the trait has names, or a number) | a slot, `crew`, `handler`, or the ship, as the trait's `on` allows | a slot, for a pair trait |
+
+Rows are added and removed freely; there is no fixed count. The rows write exactly the flow maps the loader reads today (`{ trait: avoids, add: 2, on: subject, toward: target }`). A vignette with no options has the same rows on the vignette itself.
+
+### 4.5 The expression widget
+
+The YAML stores the expression string, as now. The widget is a view of it.
+
+- **Rows** when the expression is clauses joined at the top level by `&&`, each in one of the ten shapes below. Each row is a sentence of selects and steppers; the row's text is shown under it, small, so the author learns the language by reading it.
+- **Text** otherwise, with a one-line reason ("uses `||`; edit as text"), checked as typed, with the loader's error placed at its character, and chips for paths: the slots, traits with their level names, history kinds, chronicle kinds, and storylet ids.
+- **A switch, Rows / Text,** always shown. Going to Text shows the string the rows make. Going back to Rows works whenever the text parses into rows, and otherwise says why.
+
+The shapes (*who* is a slot, or the ship where it applies):
+
+1. *who* is aboard, is fit, or is not (`subject.aboard`, `!subject.fit`)
+2. *who*'s trait *T* is, is at least, or is at most a *level*, by name where the trait has names (`subject.trait.shaken >= 1`, `ship.trait.sensors_quirk == 'let_ride'`)
+3. *who*'s pair trait *T* toward *another slot*, compared with *n* (`subject.trait.avoids.toward(target) >= 3`)
+4. *who*'s morale or loyalty, compared with *n*
+5. *who*'s skill *S*, compared with *n*
+6. *who* had *kind* last cycle (`subject.history.last('hurt')`)
+7. *who* had *kind* in the last *m* cycles, compared with *n* (`subject.history.count('lost_mission', 2) > 0`)
+8. chronicle entries of *kind* in the last *d* days, for the ship or for *who*, compared with *n* (`chronicle.count('death', 120) >= 2`)
+9. storylet *X* arrived at least or at most *n* cycles or days ago (`storylet.STORYLET_01.daysSince >= 40`)
+10. trait *T* on *who* changed at least or at most *n* cycles or days ago (`subject.trait.cyclesSince('grieving') >= 2`)
+
+A range on one value (`>= 3` and `<= 4`) is two rows; the builder does not merge them **(my call)**, so a row always round-trips to the same text.
+
+Parsing into rows is done in `Sim.Expressions` from the same rewrite the loader uses, so "fits in rows" and "is valid" never disagree. Rows are rendered by the server, as every form is, and posted as fields; the server writes the string.
+
+### 4.6 Test ships
+
+A new content kind, dev-only: `content/testships/base.yaml`, a list. Play never loads it; the loader checks it against the pack when developer mode reads the pack. The game's pack ships one, **USS Quality Assurance**; the test fixture pack ships its own.
+
+```yaml
+- id: uss_quality_assurance
+  name: USS Quality Assurance
+  notes: Every storylet and vignette in the pack can be cast here.
+  date: 40              # the day number; the calendar shows it as a date
+  cycle: 9
+  crew:
+    - { id: CREW_01, morale: 30, loyalty: 65 }
+    - { id: CREW_03, fit: false }
+    - { id: CREW_05, aboard: false }
+  traits:
+    - { trait: sensors_quirk, value: let_ride, daysAgo: 45, cyclesAgo: 7 }
+    - { trait: shaken, on: CREW_02, value: 2, daysAgo: 6, cyclesAgo: 1 }
+    - { trait: avoids, on: CREW_04, toward: CREW_06, value: 3, daysAgo: 12, cyclesAgo: 2 }
+  history:
+    CREW_02: { lost_mission: [1], hurt: [1] }
+    CREW_04: { lost_crewmate: [3, 8] }
+  chronicle:
+    - { kind: death, daysAgo: 20, subjects: [CREW_07] }
+    - { kind: death, daysAgo: 90, subjects: [CREW_08] }
+  storylets:
+    - { id: STORYLET_01, daysAgo: 45, cyclesAgo: 7 }
+```
+
+- **Crew** are starting-crew ids with changes (morale, loyalty, a skill level, fit, aboard); anyone not listed is as the starting crew file has them. A crew member may be listed as dead (`alive: false`), for chronicle entries about them.
+- **History** lists, for each kind, the cycles ago it happened (1 is last cycle).
+- **Timing** is written as days and cycles ago, so a ship never goes stale as the calendar changes.
+- The ship is an `IStateSource`, built by a new class in `Sim.Storylets` (beside `StateSource` and `DryRun.Rewound`), so the editor reads it through exactly the interface the module reads the game through.
+- The loader checks crew ids, trait ids, level names, `on` and `toward` against the trait's kind, history kinds, chronicle kinds, and storylet ids.
+
+**A test** casts every storylet and vignette in the game's pack against the game's test ships and fails if any cannot be cast on at least one. The lint (4.9) says the same thing in the editor. USS Quality Assurance is written so that all of today's eight storylets and six vignettes cast on it **(my call: one ship to start; a second only when two storylets need contradictory states)**.
+
+**Save as test ship.** Dev Play gains a button that writes the legacy's current state as a new entry in `content/testships/base.yaml`, named "<legacy> on <date>", through the editor's usual save (whole pack built, loader run, then one file written). Times are written as days and cycles ago from the legacy's today. Captured ships are edited as text.
+
+### 4.7 Previews on a test ship
+
+The storylet and vignette forms have a **ship select** above "What plays here" (USS Quality Assurance by default; the choice is kept in the URL, so it survives a reload). On every change, the form as posted is lowered as the loader would lower it and:
+
+1. **The top line** says whether `requires` holds on this ship, and whether a cooldown would hold the storylet back, from the ship's storylet arrivals: "Requires holds · cast cooldown clear" or "Requires fails: `chronicle.count('death', 120) >= 2` is 1".
+2. **Casting** runs `Casting.Cast` on the ship with a fixed stream for the sample number. If it casts, every preview renders with that cast. **Next sample** moves to the next cast that fits (and, for a check, rotates the handler among those fit to send).
+3. **If no one fits,** each slot says why, from `Casting.Failed`: "subject: no one aboard has `trait.grieving >= 1`" or "out of tries". **Preview anyway** fills the slots from the ship's crew in order, ignoring the conditions, so the words can still be read; the previews say they are unconditioned.
+4. **An option** whose `requires` fails for the cast is marked "Not offered with this cast" on its tab and in What plays here.
+
+Previews are rendered by `Sim.Narrative` as play renders them, and draw no randomness from any legacy. Typing posts the form to the existing previews route for the kind, which patches only the previews and the sample control, as encounters do.
+
+### 4.8 The vignette form
+
+The storylet form's part, with four differences: no stakes; options are optional (a vignette with none has effect rows on itself); a vignette with options has a `default` select of its options ("If left: Let them rest"); and What plays here has no chronicle rows, since vignettes write none.
+
+### 4.9 The trait form
+
+Every key the loader accepts:
+
+- id, name, **On** (ship, crew, or pair), **Shown** (a switch);
+- **Levels**: named levels as rows (number and name), or a **max** for a counting trait; the form offers one or the other;
+- **Every**: weeks and add, blank for none; **Expires**: weeks, blank for never;
+- **Briefing**: the chip's text, blank for none;
+- **Launch rules**: Sent, Not sent, and With target, each a list of rule rows (set or add the trait, loyalty, morale);
+- **On a mission**: check bonus and "only with the target", blank for none;
+- **When the target dies** (pairs): rule rows;
+- notes.
+
+In place of What plays here, **Where it's used**: every storylet, vignette, encounter, and test ship that reads or changes the trait, grouped by kind, each linked to its form, with what it does ("reads: `subject.trait.shaken >= 1`", "sets 1 on subject"). Above it, a warning when the trait is read but never set anywhere, or set but never read and has no rules of its own.
+
+**The encounter form** gains "Trait" in an approach's condition select: a trait (from the defined ones), at least and at most (by level name where it has names), and on. Today it keeps a trait condition as written but cannot make a new one.
+
+### 4.10 The lint on the storylets and vignettes lists
+
+Above each list, as on the Lines page:
+
+- items that cannot be cast on any test ship;
+- traits read but never set by anything in the pack;
+- `#handler#` outside a check's outcome;
+- a slot used in the words but not in the cast, or cast but never used in the words **(my call: the second as advice, not a fault)**;
+- an option whose `requires` cannot hold for any cast on any test ship.
+
+Each names the item and links to its form.
+
+### 4.11 The worked example: a storylet for the grieving
+
+`grieving` is set by "The names on the wall" when the captain says "Not now", and nothing reads it. The worked example is a storylet that does, written in the browser and never in the file: a slot `subject` with the row "subject · trait grieving · is at least · 1", a script, and options whose effects clear `grieving` or let it run its four weeks. Its words are generated fiction under the author's standing allowance for slice 1e (GDD section 15, item 37), for the author to rewrite. USS Quality Assurance gets a grieving crew member so it casts. The plan's last task writes it through the form in a browser session and records what was awkward.
+
+### 4.12 Tests
+
+- The writer round-trips every storylet, vignette, and trait in the game's pack and the fixture without loss, `notes` included.
+- A file with an inner comment is lossy and is not rewritten.
+- Every expression in the game's pack parses into rows, and rows render back to the same string.
+- A test ship builds an `IStateSource` that answers each of the interface's readings as written; the loader refuses a ship that names an unknown crew member, trait, level, or storylet.
+- Every storylet and vignette in the game's pack casts on some game test ship.
+- The previews route casts on the chosen ship and reports a failed slot's clause.
+- Browser tests: write a storylet with one slot from rows and one option, save, and see it on the list; switch a slot to text and back.
+- No golden moves: nothing here changes play.
+
+## 5. Architecture
+
+### 5.1 Modules
+
+- **`Sim.Expressions`** gains the reading of an expression into rows and the writing of rows back (`Clauses.cs` already splits on `&&`; the shapes go beside it).
+- **`Sim.Storylets`** gains the test ship's `IStateSource` and a preview entry point: cast this definition on this state with this sample number, and say why not.
+- **`Sim.Content`** gains the four models (storylet, vignette, trait, test ship), their writer, their faithfulness keys, `notes`, the inner-comment rule, and the test ships' loader checks.
+- **`Web`** gains the four kinds in `ContentKinds`, the forms, the expression widget, the trait panel, the lint, and Dev Play's "Save as test ship". The 1d "What plays here" part is reused, as decision 10 intended; where it assumes a mission beat, it is generalised rather than copied.
+
+### 5.2 Rules that hold
+
+- The YAML is the stored form; the loader is the judge of a save, as since 1c-editor.
+- The builder never writes a string the loader would not accept, and never stores anything but the string.
+- Test ships never reach play: the bridge and the simulator never read them.
+- No event, state, or golden changes.
+
+## 6. Roadmap and GDD changes
+
+Applied with this design:
+- **GDD 11.1, "Track: online"**, in both tables, is replaced and widened: serving the game at a URL, accounts, a hosted database, and one legacy per player (as before); a login on the developer pages; touch-first editor forms, starting with the storylet forms; and drafts kept in the browser so a reloaded tab loses nothing. It stays a track, to start whenever convenient.
+- **GDD section 15, item 45** records this part's decisions.
+- **GDD section 16, question 6**: whether the encounter and line previews move onto test ships.
+- **The outline's** paragraph on slice 1e names this design.
+
+Applied when built: GDD 7.5's editor paragraph (the new kinds, the expression widget, test ships), the roadmap's row "Done" with a pointer to "As built", and `docs/conventions.md` for `notes` and test ship ids.
+
+## 7. Open, and left to the builder
+
+- The look of a row and of the Rows / Text switch: from `docs/design/`'s recipes, mocked up first in `docs/screens/1e-6/`.
+- Whether a test ship's skills can be overridden one by one or only as a whole set.
+- Whether "Save as test ship" also captures morale history and injuries' days to heal; the minimum is what `IStateSource` reads.
+- How the form says that an item is lossy (inner comment, unknown key) without hiding what it can show.

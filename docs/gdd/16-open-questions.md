@@ -28,3 +28,8 @@ Recommend deciding with question 3, since a failed unattended roll costs the sam
 The sample encounter's decision has an `abortStage` effect. The built effects are progress, momentum, strain, injury, withdraw (which ends the whole mission), and story flags; none ends part of one. In play a stage is only a label on its encounters (3.4), so "the rest of the stage" means the following encounters that the same stage drew.
 (a) Add it: skip the rest of the stage's encounters (b) Drop it; withdraw and the momentum skip cover it
 Recommend deciding when stage versus encounter is settled, that is, whether a stage becomes a unit of play.
+
+6. **Previews on test ships for encounters and lines**
+Slice 1e part six casts storylet and vignette previews on test ships (`content/testships/`). The encounter, objective, and line previews still use slice 1d's synthetic samples, built for the item from the starting crew.
+(a) Move them onto test ships, with a mission started on the ship (b) Keep the synthetic samples, which can satisfy any line's criteria (c) Both: the synthetic sample by default, a test ship on request
+Recommend (c) for now, and revisit once storylets have been written on test ships for a while and the author knows whether a ship's realism is worth more than a sample made to fit.

@@ -139,3 +139,13 @@ Decided by the author on 2026-11-20, in a design interview for the chronicle (de
     - **Read in days:** `chronicle.count(kind, days)` and `x.chronicle.count(kind, days)`. `history.count` stays in cycles, because the history is stored per cycle.
     - **The page:** newest first under full dates, weight 4 and 5 set apart, All (default) or Notable (3 and up), no pagination.
     - **The worked example** is "The names on the wall", gated on `chronicle.count('death', 120) >= 2`. As built, its voice is anyone who lost a crewmate in the last 20 cycles, since a cast slot cannot prefer the one with the most losses.
+
+Decided by the author on 2026-11-20, in a design interview for writing storylets in the editor (design in `docs/plans/2026-11-20-phase-1e-part-six-design.md`):
+
+45. **Writing storylets in the editor: a builder, notes, and test ships.**
+    - **Forms for storylets, vignettes, and traits,** in that order; storylets and vignettes are two kinds sharing one form part. The trait forms also let the encounter form write a new trait condition. Each file still opens as text.
+    - **Expressions are a hybrid:** rows of selects and steppers for clauses joined by `&&` in ten known shapes, the language as text for the rest, with a switch between them. The YAML keeps storing the string; the builder is a view of it. Writing storylets is first class, as easy as playing.
+    - **Notes in place of inner comments:** a `notes:` field on storylets, vignettes, traits, and encounters, since the writer keeps only a file's leading comment. The existing comments move into it once.
+    - **Test ships.** A dev-only content kind, `content/testships/`, starting with **USS Quality Assurance**: a ship's state (crew, traits, history, chronicle, storylet arrivals, in days and cycles ago) that implements the state the expressions read. The editor's previews cast on it for real, say which clause failed when no one fits, and offer "Preview anyway". Dev Play can save a legacy's state as a test ship. Every storylet and vignette must cast on some test ship.
+    - **The tablet waits for hosting:** reaching the editor from another device, touch-first forms, and drafts in the browser join the online track, which is widened to carry them. This part only avoids working against them.
+    - **The worked example** is a storylet that reads `grieving`, written entirely in the browser.
