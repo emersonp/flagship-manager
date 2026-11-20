@@ -233,6 +233,7 @@ Small calls made while building:
 - **A refused calendar is reported once**, in its own file: `pack.yaml` reports only a calendar that is missing or defined nowhere.
 - **The editor** lists `tuning/calendar.yaml` ("Calendar tuning") and `calendars/base.yaml` ("Calendars") among its text files (`Web/Forms/TextFiles.cs` and the index), checked with the whole pack on save. The plan named `ContentKinds.cs` and `ContentModels.cs` for this; neither needed to change, since a calendar is not an item kind with a form.
 - The fixture's placeholder calendar is `calendar_a` (`WEEKDAY_A` to `WEEKDAY_F`, short `WD_A` and so on; `MONTH_A` to `MONTH_L`), starting on 13 `month_b` 105, so it matches the game's day number.
+- **A duration in days is refused** (section 5.4; added after Task 4's review, 2026-11-20). A key `days`, or one ending in `Days`, that nothing reads is refused with the rule, quoting `docs/conventions.md`: "traits/base.yaml: Line 10: 'days' is in days. Durations are written in weeks, never in days (docs/conventions.md, "Calendars and durations"): weeks:, lightWeeks:." In tuning it reads "injury.lightDays is in days. ...". The calendar's own `days` (a month's, a start date's) and `tuning/calendar.yaml`'s `minDays` and `maxDays` are read by name, so they never meet it; a stray key in `tuning/calendar.yaml`, whose numbers are days, is only "not a tuning value".
 
 ### Task 2: days replace weeks (2026-11-20)
 

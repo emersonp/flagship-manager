@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using Sim.Core;
 using Sim.Core.Content;
 using Sim.Expressions;
@@ -229,7 +230,13 @@ public static partial class ContentLoader
         }
         catch (YamlException e)
         {
-            errors.Add(new ContentError(file, $"Line {e.Start.Line}: {e.InnerException?.Message ?? e.Message}"));
+            string message = e.InnerException?.Message ?? e.Message;
+            if (UnknownProperty().Match(message) is { Success: true } unknown && InDays(unknown.Groups[1].Value))
+            {
+                message = $"'{unknown.Groups[1].Value}' is in days. {DurationRule}";
+            }
+
+            errors.Add(new ContentError(file, $"Line {e.Start.Line}: {message}"));
             return null;
         }
     }
@@ -262,6 +269,10 @@ public static partial class ContentLoader
         errors.Add(new ContentError(file, $"Id '{id}' must be {Said(Ids.ItemRule)}"));
         return false;
     }
+
+    // YamlDotNet's message for a key no type has: "Property 'lightDays' not found on type '...'."
+    [GeneratedRegex(@"^Property '([^']+)' not found on type")]
+    private static partial Regex UnknownProperty();
 
     // A rule string read mid-sentence: "Lower case: ..." becomes "lower case: ...".
     // The key effects and requirements wrote before slice 1e, part three.

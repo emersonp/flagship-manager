@@ -173,6 +173,26 @@ public class ContentLoaderTests
         Assert.Contains(result.Errors, e => e.File == file && e.Message == message);
     }
 
+    // Design 5.4: a duration written in days is refused with the rule, in an item and in tuning alike. A stray key in
+    // tuning/calendar.yaml, whose numbers are days, is only stray.
+    public static TheoryData<string, string, string, string> DaysRefusals => new()
+    {
+        { "traits/base.yaml", "every: { weeks: 3, add: -1 }", "every: { days: 18, add: -1 }", "Line 10: 'days' is in days. " + ContentLoader.DurationRule },
+        { "traits/base.yaml", "expires: { weeks: 6 }", "expires: { days: 36 }", "Line 18: 'days' is in days. " + ContentLoader.DurationRule },
+        { "tuning/crew.yaml", "lightWeeks: 2", "lightDays: 12", "injury.lightDays is in days. " + ContentLoader.DurationRule },
+        { "tuning/calendar.yaml", "  maxDays: 7", "  maxDays: 7\n  restDays: 2", "cycle.restDays is not a tuning value." },
+    };
+
+    [Theory]
+    [MemberData(nameof(DaysRefusals))]
+    public void A_duration_in_days_is_refused_with_the_rule(string file, string from, string to, string message)
+    {
+        ContentLoadResult result = LoadFixtureWith(file, from, to);
+
+        Assert.Null(result.Pack);
+        Assert.Contains(result.Errors, e => e.File == file && e.Message == message);
+    }
+
     [Fact]
     public void A_calendar_with_no_weekday_or_month_is_refused()
     {

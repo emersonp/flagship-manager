@@ -226,7 +226,9 @@ public static partial class ContentLoader
         {
             foreach (string path in values.Keys.Where(k => !_read.Contains(k)).Order(StringComparer.Ordinal))
             {
-                Fail(path, "is not a tuning value.");
+                // tuning/calendar.yaml is the one file whose numbers are in days, a cycle's length, so a stray key there is only stray.
+                bool inDays = file != CalendarTuningFile && InDays(path[(path.LastIndexOf('.') + 1)..]);
+                Fail(path, inDays ? $"is in days. {DurationRule}" : "is not a tuning value.");
             }
 
             return Complete;

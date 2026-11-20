@@ -8,6 +8,17 @@ public static partial class ContentLoader
 {
     private const string CalendarTuningFile = "tuning/calendar.yaml";
 
+    // Design 5.4: content and tuning write durations only in weeks. Quoted from docs/conventions.md, "Calendars and durations".
+    public const string DurationRule = "Durations are written in weeks, never in days (docs/conventions.md, \"Calendars and durations\"): weeks:, lightWeeks:.";
+
+    // A key that writes a duration in days: days, or one ending in Days (lightDays). Only the calendar itself (a month's days, a
+    // start date's day) and tuning/calendar.yaml (a cycle's minDays and maxDays) count in days, and both read those keys by name,
+    // so a key like this is refused only where nothing reads it.
+    private static bool InDays(string key)
+    {
+        return key == "days" || key.EndsWith("Days", StringComparison.Ordinal);
+    }
+
     // Every calendar is checked; the one the pack names is returned. Null when it is missing or any calendar is refused.
     private static CalendarDef? BuildCalendar(List<(string File, CalendarDto Dto)> calendars, PackDto? manifest, List<ContentError> errors)
     {
