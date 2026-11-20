@@ -1,5 +1,6 @@
 using Sim.Content;
 using Sim.Core.Content;
+using Sim.Core.Narrative;
 
 namespace Sim.Tests;
 
@@ -556,6 +557,23 @@ public class StoryletContentTests
         Assert.Contains(result.Errors, e => e.File == "encounters/base.yaml" && e.Message.EndsWith("'flag' is now 'trait' (GDD section 15, item 40).", StringComparison.Ordinal));
     }
 
+    // 1e part four, Task 9 (design 4.2): every slot speaks, not only subject; found in play, where "target:" read as narration.
+    // A speaker that is no slot of the storylet is refused, as any speaker its beat does not have.
+    [Fact]
+    public void Every_slot_speaks_and_a_speaker_that_is_no_slot_is_refused()
+    {
+        string pair = Storylet.Replace(Cast, "  cast:\n    subject: \"subject.trait.trait_a == 1\"\n    witness: \"witness.aboard\"\n  text: |-\n    subject: LINE_1\n    witness: LINE_2\n");
+
+        ContentLoadResult result = LoadWith(pair);
+
+        Assert.Empty(result.Errors);
+        LineDef line = result.Pack!.Lines.Single(l => l.Id == "STORYLET_X.text");
+        Assert.Equal(["subject", "witness"], Scripts.Parse(line.Text).Entries.Select(e => e.Speaker));
+        ContentLoadResult refused = LoadWith(pair.Replace("    witness: LINE_2", "    bystander: LINE_2"));
+        Assert.Null(refused.Pack);
+        Assert.Contains(refused.Errors, e => e.Message.StartsWith("STORYLET_X: text cannot be used: speaker 'bystander' is not in a storylet beat", StringComparison.Ordinal));
+    }
+
     // Both packs load with every storylet and vignette migrated (review focus 2).
     [Fact]
     public void The_games_pack_loads()
@@ -563,7 +581,7 @@ public class StoryletContentTests
         ContentLoadResult result = ContentLoader.LoadDirectory(Path.Combine(TestContent.Root, "content"));
 
         Assert.Empty(result.Errors);
-        Assert.Equal(["STORYLET_01", "STORYLET_02", "STORYLET_03", "STORYLET_04"], result.Pack!.Storylets.Select(s => s.Id));
+        Assert.Equal(["STORYLET_01", "STORYLET_02", "STORYLET_03", "STORYLET_04", "STORYLET_05", "STORYLET_06"], result.Pack!.Storylets.Select(s => s.Id));
         Assert.Equal(["rested", "hurt", "lost_crewmate", "sent", null, null], result.Pack.Vignettes.Select(v => v.Fact));
     }
 

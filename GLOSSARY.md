@@ -254,6 +254,30 @@ See Trait (its name until slice 1e, part three).
 **Storylet**:
 A unit of narrative content with requirements, a cast, and mechanical effects.
 
+**Expression**:
+A condition in the expression language, read through the state view, true or false: `subject.trait.shaken >= 1 && subject.history.last('hurt')`. Storylets, vignettes, and options are written with them; encounter approaches are not.
+_Avoid_: Formula, script (a script is a storylet's text)
+
+**Slot**:
+A named place in a storylet's or vignette's cast, filled by one crew member: `subject`, `target`, or any lower-case name not reserved. At most three, read in order.
+_Avoid_: Role, scope (its forerunner, until slice 1e, part four)
+
+**Cast**:
+One binding of every slot to a crew member, which a storylet or vignette arrives with. As a verb: to find one.
+_Avoid_: Binding (in prose), subject (one slot of it)
+
+**Contender**:
+A storylet or vignette that was cast this cycle and is out of its cooldowns, so salience ranks it against the budget.
+_Avoid_: Candidate
+
+**Handler**:
+The crew member the captain names to settle an option by a check. Anyone living, fit, aboard, and not in the cast.
+_Avoid_: Delegate (a department head's role, Phase 5)
+
+**History**:
+Each living crew member's record of their last N cycles: whether they were sent, hurt, rested, lost a crewmate or a teammate, or were on a lost mission. Read by expressions. The chronicle grows from it.
+_Avoid_: Chronicle (the curated, player-facing record), last cycle
+
 **Morale**:
 How a crew member feels, 0 to 100, seen as Low, Steady, or High. Missions, hurts, deaths, rest, and a weekly drift move it; at Low it is a minus on their checks and at High a plus.
 _Avoid_: Mood, happiness
@@ -276,7 +300,7 @@ The per-cycle budget the captain spends on captain storylets and discretionary a
 The per-cycle summary of what department heads resolved without the captain.
 
 **Salience**:
-How well a piece of content fits the moment. Among eligible storylets it decides what reaches the player this cycle; among report lines, the line whose criteria match most specifically wins.
+How well a piece of content fits the moment. Among contenders it is a score (stakes, then specificity, less freshness) that decides what reaches the itinerary this cycle; among report lines, the line whose criteria match most specifically wins.
 
 **Developer mode**:
 A setting of the running game that adds the content editor and, later, the bench and tuning pages. Off in normal play.

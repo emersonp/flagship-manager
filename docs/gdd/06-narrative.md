@@ -132,7 +132,7 @@ text:
     = #lead# called in from #encounter#.
 ```
 
-- **Speech** starts with who is speaking and a colon. The speaker is one of the beat's people (`lead`, and for a check `actor` and `helper`, for an injury `crew`), `captain`, or `best` and a skill id, which is whoever still standing is best at that skill, not counting the lead. If nobody fits (no helper, nobody left with the skill), that entry is left out and the rest of the script plays.
+- **Speech** starts with who is speaking and a colon. The speaker is one of the beat's people (`lead`, and for a check `actor` and `helper`, for an injury `crew`, and for a storylet or vignette each slot of its cast, `subject`, `target`, or any other; slice 1e, part four), `captain`, or `best` and a skill id, which is whoever still standing is best at that skill, not counting the lead. If nobody fits (no helper, nobody left with the skill), that entry is left out and the rest of the script plays.
 - **A system note** starts with `>`: the ship's instruments talking.
 - **Narration** is any other line.
 - **The report's sentence** is a last line starting with `=`. Without one, the report uses the shared line for that beat.

@@ -21,7 +21,7 @@ public sealed record Script(IReadOnlyList<ScriptEntry> Entries, string? Summary)
 }
 
 // The script grammar of line text (GDD section 6). Each line of the text is one entry:
-//   lead: Captain, we are here.      speech, when the line starts with a speaker and a colon
+//   lead: Captain, we are here.      speech, when the line starts with a speaker (a lower-case name, or best SKILL_ID) and a colon
 //   > No life signs detected.        a system note
 //   = The team reached the relay.    the report's sentence; at most one, and last
 //   anything else                    narration
@@ -96,6 +96,7 @@ public static partial class Scripts
         return rest.Length > 0 ? rest : throw new NarrativeFormatException(problem);
     }
 
-    [GeneratedRegex(@"^(captain|lead|actor|helper|crew|subject|best [A-Za-z][A-Za-z0-9_]*):\s+(\S.*)$")]
+    // Any lower-case name is a speaker (1e part four: a storylet's slots speak, design 4.2); the loader refuses one its beat does not have.
+    [GeneratedRegex(@"^(captain|best [A-Za-z][A-Za-z0-9_]*|[a-z][a-z0-9_]*):\s+(\S.*)$")]
     private static partial Regex SpeechPattern();
 }

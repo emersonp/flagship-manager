@@ -229,83 +229,69 @@ Gear, like traits, is only modifiers. Gear opens approaches (through `gearTags`)
 
 ## 3.7 Storylet (content)
 
-As built in slice 1e, part one (`content/storylets/`), with part three's words (flags are traits):
+As built in slice 1e, part four (`content/storylets/`; `docs/plans/2026-11-18-phase-1e-part-four-design.md`), on part one's shape and in part three's words (flags are traits):
 
 ```yaml
 - id: STORYLET_01
   name: STORYLET_01_NAME          # optional display name
-  stakes: 2                       # 1 to 5; orders arrivals, highest first (5.1)
-  scope: crew                     # ship, crew, or pair (part three): whose traits it reads, and who it is for
-  requires:                       # one to four entries, all must hold; part four replaces this with the expression language
-    - { trait: trait_b, min: 1 }
-    - { trait: trait_c, max: 0 }
+  stakes: 3                       # 1 to 5; weighs most in salience (5.1)
+  cast:                           # optional; none: a storylet for the ship. Up to three slots, cast in order
+    subject: "subject.history.count('lost_mission', 2) > 0 && subject.trait.trait_a == 0"
+    target: "target.aboard && target.history.count('lost_mission', 2) == 0"
+  requires: "ship.trait.trait_b == 0"     # optional; read once every slot is bound
+  cooldown: { cast: 8, global: 2 }        # optional, in cycles; both default to 0
   text: |-                        # a script (section 6): speech, notes, narration, and a report sentence
     subject: STORYLET_01_LINE_1
-    captain: STORYLET_01_LINE_2
+    target: STORYLET_01_LINE_2
     = #subject# STORYLET_01_REPORT
   options:                        # two to four
     - id: option_a
-      label: STORYLET_01_OPTION_A_LABEL                     # the answer's button, 1 to 40 characters
-      effects: [{ trait: trait_b, add: -1 }, { trait: trait_c, set: 1 }]
-      text: STORYLET_01_OPTION_A_TEXT                       # what the log says once it is chosen
+      label: STORYLET_01_OPTION_A_LABEL                    # the answer's button, 1 to 40 characters
+      check: { skill: SKILL_D, difficulty: 4 }             # settled by a check, with a handler the captain names
+      success: { effects: [{ trait: trait_a, set: level_a }, { morale: 3, on: subject }], text: "#handler# STORYLET_01_SUCCESS" }
+      failure: { effects: [{ trait: trait_a, set: level_b }, { trait: trait_c, add: 2, on: subject, toward: target }], text: STORYLET_01_FAILURE }
     - id: option_b
       label: STORYLET_01_OPTION_B_LABEL
-      effects: [{ trait: trait_c, set: 2 }, { loyalty: -2, on: subject }]
-      text: "#subject# STORYLET_01_OPTION_B_TEXT"
+      effects: [{ trait: trait_a, set: level_b }]
+      text: STORYLET_01_OPTION_B_TEXT                      # what the log says once it is chosen
+    - id: option_c
+      label: STORYLET_01_OPTION_C_LABEL
+      requires: "subject.loyalty >= 60"                    # not shown while it is false
+      effects: [{ trait: trait_a, set: level_a }, { loyalty: -1, on: subject }]
+      text: STORYLET_01_OPTION_C_TEXT
 ```
 
-- **Requires.** Each entry names a trait and a range (or `is:` a level or number, part three): `min` is 1 when left out, or 0 when only `max` is given; `max` has no limit when left out. "Has it happened twice" is `min: 2`; "not yet" is `max: 0`. The loader refuses requirements no value can satisfy. Since part two an entry may instead read the subject's morale or loyalty (`{ stat: morale, max: 25 }`, with `min` and `max` as a trait's) or a fact about the cycle just ended (`{ last: sent }`, `hurt`, `rested`, or `lost_crewmate`; `not: true` turns it round); a storylet for the ship can read neither, and every storylet still needs a trait among its requirements, since only traits can be moved by its own answers.
-- **Scope.** A storylet for the ship reads the ship's traits and has no subject; its text and effects may not name one. A storylet for the crew reads one crew member's traits and arrives once for each crew member whose requirements hold, as its `subject`. A storylet for a pair (part three) arrives once for each holder and target whose requirements hold: its `subject` is the holder, and its `target` the other.
-- **Text.** Speakers are `subject` (crew and pair scope), `target` (pair scope), `captain`, and `best SKILL_ID` among the living, fit crew. An option's `text` is what the log says once it is chosen.
-- **Effects.** `loyalty` (a whole number, `on: subject` or `on: crew` for everyone living), `morale` (the same, since part two), and `trait` with `add` or `set` (a level by name, part three), `on: ship`, `on: subject`, or `on: target` (pair scope), or no `on` for the scope the storylet arrived for; `toward: target` makes it the pair's (part three). `loyalty` and `morale` may also be `on: target`. Nothing else; the loader refuses the rest by name.
-- **No hidden memory.** Each option must move the storylet's own traits out of its range (clamped to their caps, part three), to 0 (dealt with) or onward (to 2, "known and let ride", which another storylet may require). The loader refuses an option that leaves every requirement true, since the storylet would come back every cycle.
+- **Cast.** Each slot is a lower-case name (`docs/conventions.md`) with an expression (3.8) that may read the ship, the cycle, its own slot, and the slots before it, never a later one. The slots are cast from the living crew in a seeded order, drawn from the stream `cast:<id>:<cycle>`, searched depth first. Every expression read is a try. The search stops at the first full binding that holds and is out of its cast cooldown, or when `storylets.castTries` (tuning, 100) are spent ("out of tries", which Dev Play and the simulator tell apart from "no cast"). No crew member fills two slots. A storylet with no `cast` is for the ship, and its text and effects name no slot. A storylet arrives at most once a cycle and keeps its cast while it waits. It is not cast again while it waits, and it is withdrawn if anyone in its cast dies. Part three's `scope` is gone, and the loader refuses it: "scope was replaced by cast in part four; a storylet for crew casts subject."
+- **Requires.** One expression, read once every slot is bound. Whether a condition goes on a slot or in `requires` is the author's choice; both count towards specificity (5.1). The loader refuses part one's list form, as it refuses `flag:`.
+- **Must read a trait.** Some expression across `cast` and `requires` must read a trait, since only traits are moved by its answers. With `cooldown.cast` above 0 the cooldown meets the rule instead. A trait read in an expression must be defined in `content/traits/` ("No trait named nosuch").
+- **Cooldown.** With `cast: N`, the same binding (the same crew in the same slots) does not arrive again within N cycles of its last arrival. With `global: M`, the storylet does not arrive at all within M cycles of its last arrival. Both count from the arrival.
+- **Text.** Speakers are any slot, `captain`, and `best SKILL_ID` among the living, fit crew. An option's `text` is what the log says once it is chosen.
+- **Effects.** `loyalty` and `morale` take a whole number and `on:` a slot, or `crew` for everyone living. `trait` takes `add` or `set` (a level by name) and `on:` a slot or `ship`; with no `on`, it applies to the first slot, or to the ship when there is no cast. `toward:` names another slot, for a pair trait. Nothing else is allowed, and the loader refuses the rest by name.
+- **An option's `requires`** is an expression. While it is false, the option is not shown and is refused if sent. One option must have neither `requires` nor `check`, so a storylet can always be answered.
+- **An option settled by a check** has `check: { skill, difficulty }` with `success` and `failure`, each with `effects` and `text`, and no effects or text of its own. Choosing it asks the captain to name a **handler**: anyone living, fit, aboard, and not in the cast. Each is listed with their skill and a word for their chance (long shot, even, likely, or sure). The roll is the handler's skill, plus their morale modifier and their trait check bonuses, plus the check dice (4.2), against `difficulty + 7`, drawn from `storylet-check:<offer>`. A margin of 0 or more succeeds. `handler` is a slot only inside `success` and `failure`. With no one fit to send, the option is disabled with "No one fit to send."
+- **No hidden memory.** When `cooldown.cast` is 0, every option, and each outcome of a check, must move a trait its expressions read out of the range they allow. The loader works this out: it takes the lowest trait values that let every expression hold, applies the option's trait changes, and refuses an option that leaves them all true. A clause on a stat or the history counts as "may still hold". With `cooldown.cast` above 0, a storylet may come back by design.
 
-**Vignettes, as built in slice 1e, part two,** are a second kind on the same shape, in `content/vignettes/`:
+**Vignettes** are a second kind on the same shape, in `content/vignettes/`, on the same engine (cast, expressions, and salience), as built in part two and rewritten in part four:
 
 ```yaml
 - id: VIGNETTE_02
-  scope: crew
-  requires:
-    - { last: lost_crewmate }
+  cast:
+    subject: "subject.history.last('lost_crewmate')"
   text: "subject: VIGNETTE_02_LINE_1"     # one to three entries
   default: option_b                       # taken when the itinerary closes unanswered
   options:                                # one small choice: exactly two
     - { id: option_a, label: VIGNETTE_02_OPTION_A_LABEL, effects: [{ morale: 3, on: subject }], text: VIGNETTE_02_OPTION_A_TEXT }
     - { id: option_b, label: VIGNETTE_02_OPTION_B_LABEL, effects: [], text: VIGNETTE_02_OPTION_B_TEXT }
 - id: VIGNETTE_01
-  scope: crew
-  requires:
-    - { last: rested }
+  cast:
+    subject: "subject.history.last('rested')"
   text: "subject: VIGNETTE_01_LINE_1"
   effects: [{ morale: 2, on: subject }]   # no choice: these apply when it arrives
 ```
 
-A vignette has no stakes and needs no trait. It has `effects` (at least one) or two `options` and a `default`, never both. Nothing in its own answers stops it returning, so a cooldown does: it does not arrive again for the same scope within `vignettes.cooldown` cycles (tuning, 6). Its words are lines of the storylet beats.
+A vignette has no stakes and needs no trait. It has either `effects` (at least one) or two `options` and a `default`, never both, and its options take neither `requires` nor `check`. Nothing in its own answers stops it returning, so a cooldown does: a vignette with no `cooldown` takes `{ cast: vignettes.cooldown }` (tuning, 6). Its words are lines of the storylet beats.
 
-Part three (built 2026-11-17; `docs/plans/2026-11-17-phase-1e-part-three-design.md`) renamed flags to traits (`{ trait: shaken, min: 1 }`; the loader refuses `flag:`), added `is:` for a trait's named levels, and added `scope: pair`: a storylet or vignette for a pair arrives once for each holder and target whose requirements hold, with `target` as a speaker, as an `on:` for effects, as `of: target` on stat and last-cycle requirements, and `toward: target` on its subject's pair trait. A trait requirement in a pair storylet reads the pair's trait when the trait is defined on a pair, and the holder's own otherwise. Part four (renumbered on 2026-11-17; this paragraph said part three until then) replaces `requires` with the expression language over the state view, and adds casting from the crew in place of the one subject, salience in place of the fixed order, storylet cooldowns, and an option settled by a check. There is no `ifIgnored`: storylets are always answered (section 15, item 40). The fuller form it is designed towards, as sketched before slice 1e (`cost` is gone: section 15, item 35; `ifIgnored` is gone: item 40):
-
-```yaml
-id: STORYLET_031
-kind: captain                 # captain | vignette
-stakes: 3
-tags: [rivalry, department]
-cast:
-  a: "crew.status == 'active'"
-  b: "rel(a, b).kind == 'rival' and rel(a, b).strength >= 50 and a.departmentId == b.departmentId"
-requires: "a.trait.rivalry_done == 0"
-cooldown: { perCast: 40, global: 5 }
-text: STORYLET_031_TEXT
-options:
-  - id: option_a
-    requires: "captain.empathy >= 1"
-    effects: [{ relAdjust: [a, b, -20] }, { morale: [a, 5] }]
-  - id: option_b
-    effects: [{ transfer: [b, otherDepartment] }, { morale: [b, -10] }]
-ifIgnored:
-  afterWeeks: 3
-  effects: [{ relAdjust: [a, b, 15] }, { trait: rivalry_escalated, set: 1, on: ship }]
-  then: STORYLET_032
-```
+How it got here. Part one (2026-11-16) built storylets with a list of requirements and fixed answers. Part two (2026-11-17) added vignettes and requirements on morale, loyalty, and the last cycle. Part three (2026-11-17) renamed flags to traits and added `scope: pair`. Part four (2026-11-19) replaced the scope with `cast` and the list with expressions, and added salience, cooldowns, an option's `requires`, and checks. Of the fuller form sketched before slice 1e, what is not built is tags (for 5.1's index), relationships (`rel(a, b)`, Phase 4), and the captain's own traits on an option (`captain.empathy`). There is no `ifIgnored`, since storylets are always answered (section 15, item 40), and no `cost` (item 35).
 
 ## 3.8 Quality
 
@@ -327,6 +313,25 @@ encounterId: ENCOUNTER_01       # the encounter whose effect last changed it, or
 ```
 
 A pair is held by one crew member (the **holder**) and points at another (the **target**), made by an encounter's effect with `toward` (`{ trait: avoids, add: 1, on: actor, toward: lead }`) or a pair storylet's `toward: target`. When the target dies, the definition's `onTargetDied` runs once and the pair goes; when the holder dies, it goes with no rule. Every change publishes `TraitChanged` with its cause (mission, answer, vignette, launch, weekly, expired, death, or developer). A pair trait is not a relationship (3.3): whether relationships become pair traits with levels is Phase 4's question.
+
+**The state view in expressions**, as built in slice 1e, part four. An expression is written with C#'s operators (`&&`, `||`, `!`, `==`, `!=`, `<`, `<=`, `>`, `>=`, `+`, `-`, `*`, and parentheses) over whole numbers and quoted names, and is true or false. It runs on DynamicExpresso, and the loader checks it when the pack loads; every error names the storylet, the key, and the character ("STORYLET_02: cast.subject, at character 45: No trait named nosuch."). A slot is read as a crew member:
+
+| Read | Type | Meaning |
+|---|---|---|
+| `x.morale`, `x.loyalty` | number | Stats |
+| `x.skills.SKILL_A` | number | A skill's level; the skill id is checked |
+| `x.fit` | true or false | Not injured or incapacitated |
+| `x.aboard` | true or false | Alive and not on a mission; in Phase 1, true whenever the itinerary is open |
+| `x.trait.t` | number | The trait's value on them; the trait must be defined, and on crew |
+| `x.trait.t.toward(y)` | number | A pair trait `x` holds toward `y`; only a trait defined on a pair, and always with `toward` |
+| `x.trait.t == 'level'` | true or false | A level by name; the name is checked |
+| `x.history.count('kind', n)` | number | How many of the last `n` cycles `kind` happened to them in |
+| `x.history.last('kind')` | true or false | It happened to them in the last cycle |
+| `x == y`, `x != y` | true or false | The same crew member |
+| `ship.trait.t` | number | A ship trait |
+| `cycle.number` | number | The cycle now starting |
+
+The history is each living crew member's last `history.cycles` (tuning, 20) cycles, kept by the storylets module and served to other modules as `IHistoryView`. Its kinds are `sent`, `hurt`, `rested`, `lost_crewmate` (someone died on the cycle's mission and they are alive, sent or not), `lost_teammate` (someone died on their mission and they came home), and `lost_mission` (they were on a mission whose objective failed or was abandoned). `n` is 1 to `history.cycles`. Anything not in the table is refused by name, for example "rel() waits for relationships (Phase 4)", "grade waits for 1h", and `chronicle`, which waits for part five. An expression can reach nothing but the view: no reflection, type names, or static methods, no division, and no side effects.
 
 ## 3.9 Event log entry and chronicle entry (state)
 

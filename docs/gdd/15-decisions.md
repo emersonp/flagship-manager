@@ -92,3 +92,21 @@ Decided by the author on 2026-11-17, in a design interview before slice 1e's thi
     - **The roster's trait cell is interim,** until the crew file (part five), and is documented as such.
     - **The simulator's captain answers by `first` or `random`.** No `ignore` policy.
     - **The roadmap was revisited the same day:** the skills, attributes, and gear overhaul became slice 1h, before the playtest (the author's note on the GDD page); planets and a sector map joined the art track; seniority joined Phase 6.
+
+Decided by the author on 2026-11-18, in a design interview before slice 1e's fourth part (design in `docs/plans/2026-11-18-phase-1e-part-four-design.md`):
+
+41. **The storylet engine in full, carried by one example.**
+    - **All five pieces at once:** the expression language, casting, salience, storylet cooldowns, and an option settled by a check, held together by one worked storyline that uses each ("The one who came back").
+    - **Expressions replace the structured lists** for storylets, vignettes, and options. All content in both packs is migrated, and the loader refuses the list form. Encounter approaches keep their structured `requires`.
+    - **DynamicExpresso, with C#'s operators**, checked at load time, after a spike that showed it could be sandboxed with a rewrite and a whitelist of our own (NCalc was the fallback, and was not needed).
+    - **The state view's vocabulary is fixed** (section 3.8). Anything else is refused by name. An expression reads only a trait with a definition.
+    - **Vignettes run on the same engine,** and their cooldown becomes the shared `cooldown` field.
+    - **Recent history is a real store:** a rolling record of each crew member's last N cycles, from which part five's chronicle grows. There are two kinds of loss: a crewmate dying aboard (`lost_crewmate`) and a teammate dying beside you on the away team (`lost_teammate`). A lost mission is one whose objective failed or was abandoned; a death alone does not make a mission lost.
+    - **Cast slots replace `scope`:** up to three ordered, named slots. Casting is sampled: a seeded order, a cap on tries (`storylets.castTries`, 100), and at most one cast per storylet per cycle.
+    - **Salience, simple first:** stakes, then specificity, then freshness, then a seeded tie. Routing to department heads stays out, as there are no heads yet, and the index waits for a pack of hundreds.
+    - **Cooldowns** are `{ cast, global }` in cycles. The rule against hidden memory applies only when a storylet has no cast cooldown.
+    - **Options can carry `requires`,** and one option must have none. **A check option** has success and failure only, and the captain names a handler, scored by skill, morale, and trait bonus with the mission dice.
+    - **The itinerary shows the cast.** **Dev Play's "Why these storylets"** lists only this cycle's contenders, with a count line and a search for any other, since a list of every storylet would not scale to hundreds.
+    - **The simulator** picks handlers by its policy, and reports "never cast", check success rates, and losses on the budget.
+    - **Old saves are refused,** and the history starts empty.
+    - **Casting at 500 crew** is planned (candidates for a slot from the traits it needs, read from the traits module) and built when the simulator's "out of tries" report shows the need.

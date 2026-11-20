@@ -1,7 +1,7 @@
 # Phase 1, slice 1e, part four: the storylet engine in full
 
 **Spec:** `docs/gdd.md` sections 3.7, 3.8, 4.2, 5.1 to 5.3, and 7.5, and section 15, items 36, 37, and 40. **Builds on:** `main` at 2026-11-18 (`22022fa`), and slice 1e's first three parts (`2026-11-16-phase-1e-design.md`, `2026-11-17-phase-1e-part-two-design.md`, `2026-11-17-phase-1e-part-three-design.md`).
-**Status:** designed 2026-11-18.
+**Status:** designed 2026-11-18; built 2026-11-18 to 2026-11-19 (section 9).
 **Ends with:** the author plays "The one who came back" in the browser. A mission is lost. A survivor is cast with someone who wasn't on it, and wants nothing to do with them. The storylet ranks above the older ones on salience. The captain picks "Have someone talk to them" and names who goes, and a check settles it. On failure a follow-up storylet comes, and its cooldown lets it come back once. Dev Play's "Why these storylets" shows why each contender arrived or didn't. Every storylet and vignette in both packs is written in the expression language.
 
 This records what the author said about part four on 2026-11-18, in a design interview, and designs it. Items marked **(my call)** were proposed by me, not asked for by the author. Section 5 is the architecture and is kept current as the part is built.
@@ -567,3 +567,83 @@ Built as 4.11 says. Section 5 says what was built. No golden hash moved: not the
   - **The fixture under `first`** does not move against Task 6: missions 38834 full, 1028 partial, 101 incomplete, 32 withdrawn, 5 lost; STORYLET_04 24.6 per 100 cycles, option_a 24.4, option_b and option_c 0.0. **STORYLET_04 option_a succeeds 83.0% of the time** (8,091 of 9,750). That is the rate Task 6 left for this task, and Task 6's captain had it too, since its logs are the same. STORYLET_04 cast 9,824 times and lost on the budget none. Never eligible: STORYLET_02, VIGNETTE_03. Never cast, though eligible: STORYLET_03, STORYLET_05 (eligible in 139 cycles), VIGNETTE_04. Out of tries: none.
   - **The fixture under `random`:** missions, deaths, fires, traits set, and end morale do not move against Task 6. STORYLET_04 is 24.6, option_a 12.2, option_c 12.2, option_b 0.0. Events go from 1,628,283 to 1,624,307, as different handlers roll and the outcomes move morale on different crew. **option_a succeeds 42.1% of the time** (of 4,871): a handler drawn at random is often a weak one. Never eligible: STORYLET_02 (VIGNETTE_03 is eligible under random, in 564 cycles). Never cast and out of tries: as under `first`.
 - **Tests.** The plan's five are in `SimulationTests`. `Never_cast_is_told_apart_from_never_eligible` and `Check_success_rates_are_reported` read both the summary and the printed lines. The check test counts the rolls again from a separate play of the same legacies. `Losses_on_the_budget_are_reported` runs with `storylets.perCycle` 0, where every cast is lost. With the fixture's budget, it checks that each storylet's casts are its arrivals plus its losses. `NextCommand` keeps its shape, so the web parity test is unchanged.
+
+### Task 9: the game's pack, and the record (2026-11-19)
+
+Built as 4.13 says, in `content/traits/base.yaml` and `content/storylets/base.yaml`, in generated words (section 15, item 37). Section 5 is unchanged: the content needed no new code. Play found one fault in the build, fixed here (below). Differences and choices:
+
+- **`came_back`** is as 4.13 says: hidden, on crew, `settled` (1) and `withdrawn` (2), and it expires after 12 weeks.
+- **What sets it.** Only the two storylets' own answers. Every answer to STORYLET_05 sets it: success and "Put them back on the watch bill" to `settled`, and failure and "Leave them be" to `withdrawn`. STORYLET_06's successful check clears it to 0. What brings STORYLET_05 is a lost mission, which the history records as `lost_mission` (objective failed or abandoned, section 8 item 3). So `came_back` needs no encounter of its own.
+- **STORYLET_05, "The one who came back"** (stakes 3, `cooldown: { cast: 8, global: 2 }`):
+  - `subject: "subject.history.count('lost_mission', 2) > 0 && subject.trait.came_back == 0"`.
+  - `target: "target.aboard && target.history.count('lost_mission', 2) == 0"`, someone who was not on the lost mission, since everyone sent has it.
+  - Its first answer, "Have someone talk to them", is a check on SKILL_D (Diplomacy) at difficulty 4, against 11. On the starting crew, Kask (6) is likely, Ilune (5) likely, Okafor and Anand (3) even, and the rest long shots. Success sets `came_back` to `settled` and gives morale +3. Failure sets `withdrawn` and `avoids` +2 toward the target.
+  - "Leave them be" does what failure does, and "Put them back on the watch bill" needs `subject.loyalty >= 60`.
+- **Two differences from 4.2's sketch, both for "comes back once":**
+  - **The window is 2 cycles, not 3.** STORYLET_06's success clears `came_back` to 0 (4.13). The earliest that can happen is two cycles after the loss. With a window of 3, STORYLET_05 would then cast again over the same loss with a new target, since its cast cooldown holds only the old pair. With 2, the loss has left the window by then. A STORYLET_05 that loses on the budget still holds a cycle later.
+  - **Failure adds `avoids` 2, not 1.** `avoids` steps down by 1 every 4 weeks (one cycle is one week, and the week steps before the itinerary opens). Fail in cycle c, and STORYLET_06 comes at c+1. At 1, `avoids` would reach 0 at c+4, before the cast cooldown lets it back at c+5, so it would never come back. At 2 it is 1 at c+5, so STORYLET_06 comes back once, and it is 0 at c+8, so not a third time. `came_back` lets go at c+12. `subject.fit` is dropped from the subject's slot: a survivor is often hurt, and a hurt one would miss the two-cycle window.
+- **STORYLET_06, "Still not talking"** (stakes 2), cast and cooldown as 4.13 says. "Send someone to try again" is a check on SKILL_D at difficulty 5, against 12. Success sets `came_back` and `avoids` to 0, with morale +2. Failure costs the handler 1 morale and changes no trait. "Let it lie" has no effects. It reads two traits, and its cast cooldown lifts the no-hidden-memory rule (4.6), so both are allowed.
+- **Salience (4.13's check).** STORYLET_05 has 4 clauses, "Someone shaken" 2, and both have stakes 3, so 34 against 32 when neither has fired in the window:
+  - In five seeded legacies whose mission was lost, with `shaken` set by hand on someone not sent, the dry run ranked STORYLET_05 34 (30 + 4 − 0) above STORYLET_02 32 (30 + 2 − 0).
+  - Dev Play showed the same in the browser: "The one who came back (STORYLET_05), Ens. Orrin Thule · Lt. Seshat Ilune, 30, 4, 0, tie 2, 34, Arrived" above "Someone shaken (STORYLET_02), Lt. Cmdr. Maren Okafor, 30, 2, 0, tie 1, 32, Arrived".
+  - No clause or tuning was changed for it. If STORYLET_05 had fired once in the last 20 cycles and STORYLET_02 had not, they would tie at 32 and the draw would decide.
+- **Never cast (Task 8): STORYLET_04 and VIGNETTE_06 in the game's pack.** The migration is not at fault, and they are unchanged.
+  - **Why.** Both read `avoids` toward their target, and before this task nothing the simulator plays ever set `avoids`. Its only source was a disaster on the Salvagers' Picket's Fast approach. In 40,000 missions under either policy, "Traits set from 0" never listed it.
+  - **Why "eligible".** A pair trait is read with `toward`, which needs the target bound. So their first slot is `subject.aboard`, which holds for everyone every cycle, and the clause that fails is the target's. Part three's list form (`scope: pair` with `avoids` min 1, or 3 to 4) fired 0.0 per 100 cycles too, so the migration changed nothing.
+  - **Now.** VIGNETTE_06 casts after STORYLET_05's failure or "Leave them be" (0.1 per 100 cycles under `first`, 0.6 under `random`). STORYLET_04 needs `avoids` at 3 or 4, which STORYLET_05's 2 does not reach alone, so it is still never cast.
+  - **A matter of taste, the author's:** whether a pair storylet should count as eligible on a first slot that holds for anyone.
+- **The fault play found: every slot speaks (design 4.2).** A script's speech line was recognised only for `captain`, `lead`, `actor`, `helper`, `crew`, `subject`, and `best SKILL_ID`. So `target: Was it something I said?` played as narration, with "target:" on screen.
+  - The game's STORYLET_04 and the fixture's STORYLET_03 and VIGNETTE_04 had the same fault since part three. No test drew a `target` line, and Task 7 could not look at the game's pack.
+  - **The fix.** `Scripts` reads any lower-case name before the colon as a speaker. The loader already refuses a speaker its beat does not have, so a slot speaks and a misspelt speaker is now a load error instead of narration.
+  - `Every_slot_speaks_and_a_speaker_that_is_no_slot_is_refused` covers it. No hash moved: the event log does not hold rendered prose.
+- **Also found and fixed in play:** at 400 pixels a long handler name ("Crewman Wren Halloran, Diplomacy 2") squeezed the chance word until it broke mid-word ("eve / n"). The chance word no longer wraps, and the name wraps beside it, left-aligned.
+- **Figures.** `SimRunner cycles`, seed 1, game pack. Before is Task 8's figures, run again this morning.
+
+  | Line | 200 × 200, first | 200 × 200, random |
+  |---|---|---|
+  | Missions (full, partial, incomplete, withdrawn, lost) | 38835, 1027, 101, 32, 5 → 38816, 1033, 103, 34, 10 | 38838, 1023, 102, 32, 5 → 38700, 1076, 118, 70, 36 |
+  | Deaths | 5 → 8 | 5 → 24 |
+  | STORYLET_05 per 100 cycles | 0.4 (talk 0.4) | 0.5 (talk 0.2, leave_it 0.2, back_on_watch 0.1) |
+  | STORYLET_06 per 100 cycles | 0.1 (try_again 0.1) | 0.7 (try_again 0.3, let_it_lie 0.3) |
+  | Check success | STORYLET_05 talk 83.9% of 143; STORYLET_06 try_again 60.6% of 33 | STORYLET_05 talk 42.2% of 90; STORYLET_06 try_again 30.0% of 130 |
+  | Lost on the budget | none, of 0.4 and 0.1 cast | none, of 0.5 and 0.7 cast |
+  | Traits set from 0 | `avoids` 0.1, `came_back` 0.4 (`avoids` was never set before) | `avoids` 0.4, `came_back` 0.5 |
+  | Never eligible | STORYLET_02, STORYLET_03, VIGNETTE_05 (VIGNETTE_04 now eligible) | STORYLET_02, STORYLET_03 (VIGNETTE_04 now eligible) |
+  | Never cast, though eligible | STORYLET_04 (VIGNETTE_06 now casts) | STORYLET_04 |
+  | Out of tries | none | none |
+
+  At 20 × 50: under `first`, STORYLET_05 fires 1.0 per 100 cycles (talk, 90.0% of 10) and STORYLET_06 0.2 (try_again, 50.0% of 2). Under `random`, 1.0 (talk 0.4, leave_it 0.4, back_on_watch 0.2; talk 75.0% of 4) and 0.9 (try_again 50% of the time, 20.0% of 5). Out of tries: none. The fixture's figures do not move.
+- **Does STORYLET_06 come back as designed?** Yes. A throwaway probe followed every STORYLET_06 arrival over the 200 × 200 run by cast:
+  - **Under `first`,** STORYLET_05 left 24 survivors withdrawn, and STORYLET_06 followed every one with the same cast. 13 casts settled on the first arrival, 11 came back exactly once 4 cycles later, and none came a third time.
+  - **Under `random`,** 141 were withdrawn and 140 followed (I did not trace the one that was not). 117 came back once, 19 settled the first time, and two casts showed three or four arrivals. Each of those is two episodes: a second loss after `came_back` expired.
+  - **Seven returns came 5 or 6 cycles later, not 4.** In each, another withdrawn crew member's STORYLET_06 had arrived in that cycle, and a storylet arrives once a cycle.
+- **What did not fire, and why** (no difficulty was changed):
+  - STORYLET_02 and STORYLET_03 are never eligible, as before, since nothing the simulator plays sets `shaken`.
+  - STORYLET_04 is never cast (above).
+  - STORYLET_05's "Put them back on the watch bill" never fires under `first`, since the first policy takes the check. Under `random` it fires 0.1 per 100 cycles, so loyalty of 60 is reached.
+  - The figures are sparse because they all hang on a lost mission, about 0.4% of missions under `first`. Remember that `came_back` expires and the fixture's `trait_b` decays when reading figures over many cycles.
+- **Why the missions moved,** most under `random`. The new content reaches a mission only through `avoids`: −3 morale at launch and −1 on checks when holder and target are sent together. The simulator's captain picks teams without regard to it, and under `random` it takes "Leave them be" and "Let it lie" half the time, so pairs linger. Lost missions bring more STORYLET_05s, which make more pairs. Withdrawn missions double and losses rise sevenfold under `random`. I have not separated the causes. **This is for the author to judge**: in play a captain sees "Avoids" on the briefing and need not send the pair together.
+- **Hashes.** The fixture is unchanged, so the simulation's golden hash, the CLI test's 2 × 3 run, the walkthrough's hash, and the web parity test do not move, and none was re-pinned. No test pins the game pack's figures. `The_games_pack_loads` lists its storylets, so it gains STORYLET_05 and STORYLET_06. `check.sh`'s game run (3 × 5) checks the exit code only.
+- **Played** ("Ends with") in headless Edge over the DevTools protocol at 1280 and 400 pixels, on a scratch copy of the game's pack, as in Tasks 6 and 7, since Claude in Chrome was not connected. The steps:
+  1. Sent Thule, Halloran, and Bakshi with Autonomy "Ask often", and pulled them back at the Waking Core's call ("Get them out of there"): withdrawn, a lost mission.
+  2. In the aftermath, set `shaken` 1 on Okafor in Dev Play. "Why these storylets" foresaw cycle 2: "6 storylets, 6 vignettes: 6 eligible, 4 cast, 4 arrived", with STORYLET_05 at 34 above STORYLET_02 at 32.
+  3. In cycle 2's itinerary the head read "Ens. Orrin Thule · Lt. Seshat Ilune". "Have someone talk to them" opened the list in place, without the cast and with each name's Diplomacy and chance. "Put them back on the watch bill" was hidden, as Thule's loyalty was 50.
+  4. Sent Bakshi: "Crewman Juno Bakshi (Diplomacy 1) rolled 3 against 11: failure", then the failure text and its tags ("came_back 0 to withdrawn", "avoids 0 to 2, … toward Lt. Seshat Ilune").
+  5. STORYLET_06 and VIGNETTE_06 arrived in cycle 3 with the same cast. "Let it lie".
+  6. In cycle 6 the search for "still not" read "every cast that held is in its cast cooldown of 4 cycles; Ens. Orrin Thule · Lt. Seshat Ilune may have it again from cycle 7".
+  7. It came back in cycle 7 (freshness −3, salience 19). "Let it lie" again.
+  8. In cycle 11 the search read "target: subject.trait.avoids.toward(target) >= 1 held for no one".
+
+  The page did not scroll sideways at either width, and the Dev Play tables scroll inside their regions at 400. The game's names in the head ("Ens. Orrin Thule · Lt. Seshat Ilune"), which Task 7 could not check, sit right of the title at 1280 and under it at 400.
+- **Not checked in a browser:**
+  - STORYLET_06's check, success or failure (the simulator covers both), and "Put them back on the watch bill" shown.
+  - The disabled "No one fit to send.".
+  - Keyboard use and a screen reader.
+  - STORYLET_04 in the game's pack (still never cast).
+- **For the author to judge in play:**
+  - The words of both storylets.
+  - Whether a failed talk and "Leave them be" should cost the same (both `withdrawn` and `avoids` 2).
+  - Whether difficulty 4 is right: likely for Kask and Ilune, even for Okafor and Anand.
+  - Whether the settled panel should keep the cast line under its title: it shows the roll and the outcome, and the outcome text names both.
+  - Dev Play writes a negative total with a hyphen ("-1") beside freshness's minus sign ("−3").
+  - The rise in lost missions under `random`, above.

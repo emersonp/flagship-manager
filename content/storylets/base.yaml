@@ -2,7 +2,8 @@
 # The ids and every number are the placeholders' own; only names and words are new.
 # Traits (docs/conventions.md; their rules are in traits/base.yaml): sensors_quirk on the ship (noticed, let_ride), set by the Debris
 # Shoal; shaken on a crew member, added to by the Collapsed Gallery; shaken_heard on them (heard, turned_away); stood_down, the
-# promise of a rest (promised, broken); avoids, a pair, set by the Salvagers' Picket.
+# promise of a rest (promised, broken); avoids, a pair, set by the Salvagers' Picket and by "The one who came back"; came_back
+# on a crew member (settled, withdrawn), set by "The one who came back" and "Still not talking".
 - id: STORYLET_01
   name: A quirk in the sensors
   stakes: 2
@@ -89,3 +90,44 @@
       # Out of this storylet's range; the weekly step brings it back to 4 in four weeks, and they are in each other's way again.
       effects: [{ trait: avoids, set: 5, toward: target }]
       text: "#subject# and #target# were posted on different watches, and the roster quietly grew a rule."
+# The one who came back (1e part four, design 4.13): a survivor of a lost mission, and someone who was not on it. Every answer sets
+# came_back, which is how both this and "Still not talking" come to be read. The window is two cycles, not three: "Still not talking"
+# can clear came_back two cycles after the loss at the earliest, and three would cast this again over the same loss.
+# Failure and leave_it add avoids 2, so "Still not talking" comes, and with its cast cooldown of 4 comes back once at 1; avoids
+# falls to 0 before a third time.
+- id: STORYLET_05
+  name: The one who came back
+  stakes: 3
+  cast:
+    subject: "subject.history.count('lost_mission', 2) > 0 && subject.trait.came_back == 0"
+    target: "target.aboard && target.history.count('lost_mission', 2) == 0"
+  cooldown: { cast: 8, global: 2 }
+  text: |-
+    > Mess hall, second watch. #target# sat down across the table, and #subject# picked up their tray and left.
+    target: Was it something I said?
+    subject: You weren't down there. Leave it.
+    = #subject# has kept apart since the mission was lost, and walked away from #target# in the mess.
+  options:
+    - { id: talk, label: Have someone talk to them, check: { skill: SKILL_D, difficulty: 4 },
+        success: { effects: [{ trait: came_back, set: settled, on: subject }, { morale: 3, on: subject }], text: "#handler# found #subject# in the observation lounge and stayed until the talking started. By the next watch #subject# was back at the mess table." },
+        failure: { effects: [{ trait: came_back, set: withdrawn, on: subject }, { trait: avoids, add: 2, on: subject, toward: target }], text: "#handler# tried. #subject# heard them out, said nothing, and now keeps clear of #target# as well." } }
+    - { id: leave_it, label: Leave them be, effects: [{ trait: came_back, set: withdrawn, on: subject }, { trait: avoids, add: 2, on: subject, toward: target }], text: "#subject# was left to it. They eat alone now, and take the long way round when #target# is in the corridor." }
+    - { id: back_on_watch, label: Put them back on the watch bill, requires: "subject.loyalty >= 60", effects: [{ trait: came_back, set: settled, on: subject }, { loyalty: -1, on: subject }], text: "#subject# was told the mission was over and the watch was not. They took it as an order, and went back to work." }
+# Still not talking (1e part four, design 4.13): the one who came back still keeps clear of someone. The cast cooldown lets it come
+# back while came_back and avoids last; only a talk that gets through clears them.
+- id: STORYLET_06
+  name: Still not talking
+  stakes: 2
+  cast:
+    subject: "subject.trait.came_back == 'withdrawn'"
+    target: "subject.trait.avoids.toward(target) >= 1"
+  cooldown: { cast: 4 }
+  text: |-
+    > Duty roster note: #subject# has swapped off every watch they shared with #target#.
+    target: I don't know what I did, Captain. They won't say.
+    = #subject# still isn't talking to #target#.
+  options:
+    - { id: try_again, label: Send someone to try again, check: { skill: SKILL_D, difficulty: 5 },
+        success: { effects: [{ trait: came_back, set: 0, on: subject }, { trait: avoids, set: 0, on: subject, toward: target }, { morale: 2, on: subject }], text: "#handler# sat #subject# and #target# down in the same room and did not let either leave. It came out at last: #subject# blamed #target# for not being there, and knew it was not fair." },
+        failure: { effects: [{ morale: -1, on: handler }], text: "#handler# got as far as the door of #subject#'s quarters, and no further." } }
+    - { id: let_it_lie, label: Let it lie, effects: [], text: "Nobody pushed it. The roster kept #subject# and #target# on different watches." }

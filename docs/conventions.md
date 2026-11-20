@@ -32,10 +32,19 @@ Story flags until slice 1e, part three (GDD section 15, item 40); the loader ref
 
 - A trait's id is lower case, like every other id inside an item: `shaken`, `sensors_quirk`. So are its level names: `promised`, `let_ride`.
 - Where the content already says it is a trait, the id stands alone: `{ trait: shaken, add: 1, on: actor }`, `requires: [{ trait: shaken, min: 1 }]`.
-- Anywhere a trait is read beside other properties (text, criteria, and the expression language when it arrives), it is read through `trait`: `subject.trait.shaken`, `ship.trait.sensors_quirk`, `#subject.trait.shaken#`. So a trait can never be mistaken for a built-in property, however many properties there come to be, and no name is forbidden to a trait. Skills and grades are read the same way: `actor.skills.SKILL_A`.
+- Anywhere a trait is read beside other properties (text, criteria, and the expression language), it is read through `trait`: `subject.trait.shaken`, `ship.trait.sensors_quirk`, `#subject.trait.shaken#`. So a trait can never be mistaken for a built-in property, however many properties there come to be, and no name is forbidden to a trait. Skills and grades are read the same way: `actor.skills.SKILL_A`.
 - Related traits share a prefix: `shaken` and `shaken_heard`.
 - Every trait is a number. A trait whose definition (`content/traits/`) names its levels is only ever set, to a level (by name or number) or 0; one without can be added to and set. Where a level has a name, content writes the name: `{ trait: stood_down, set: broken }`, `{ trait: stood_down, is: broken }`.
-- A trait that sits on a pair is defined `on: pair` and always written with `toward`.
+- A trait that sits on a pair is defined `on: pair` and always written with `toward`: `subject.trait.avoids.toward(target)`.
+- In an expression a level is compared by name, in single quotes: `subject.trait.stood_down == 'broken'`.
+
+## Slots
+
+A storylet's or vignette's cast names up to three slots (slice 1e, part four). Decided with the design on 2026-11-18 (GDD section 15, item 41).
+
+- A slot's name is lower case, like any id inside an item: `subject`, `target`, `witness`. Use `subject` for the one a storylet is about, and `target` for the one a pair trait points at, so scripts read alike across the pack.
+- These words are reserved and cannot name a slot, because each means something already: `ship`, `crew`, `captain`, `cycle`, `best`, and `handler`. `handler` is the slot an option settled by a check gives its `success` and `failure`.
+- A slot's name is the speaker in a script (`subject: ...`), the token in text (`#subject#`), and what `on:` and `toward:` name in an effect.
 
 ## YAML keys
 

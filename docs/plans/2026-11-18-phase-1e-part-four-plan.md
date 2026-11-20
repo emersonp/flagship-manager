@@ -164,13 +164,13 @@ public interface IStateSource { /* reads roster, traits, history, cycle: what th
 
 **Files:** `content/traits/base.yaml`, `content/storylets/base.yaml`, `content/vignettes/base.yaml`; the docs below.
 
-- [ ] **Step 1:** Content, in generated words (design 4.13): `came_back`; STORYLET_05 "The one who came back"; STORYLET_06 "Still not talking". Check with the numbers that STORYLET_05 outranks "Someone shaken" when both hold; change clauses, not tuning, if it doesn't. Run `SimRunner cycles` (20 legacies × 50 cycles, seed 1) under `first` and `random`, and read the reports. Do not change difficulty to force a storylet to fire; say what did not.
-- [ ] **Step 2:** `./check.sh`; play the design's "Ends with" in the browser through Dev Play: lose a mission, see STORYLET_05 cast and ranked, send a handler, fail, see STORYLET_06 come and come back once, and read "Why these storylets".
-- [ ] **Step 3:** The record.
+- [x] **Step 1:** Content, in generated words (design 4.13): `came_back`; STORYLET_05 "The one who came back"; STORYLET_06 "Still not talking". Check with the numbers that STORYLET_05 outranks "Someone shaken" when both hold; change clauses, not tuning, if it doesn't. Run `SimRunner cycles` (20 legacies × 50 cycles, seed 1) under `first` and `random`, and read the reports. Do not change difficulty to force a storylet to fire; say what did not.
+- [x] **Step 2:** `./check.sh`; play the design's "Ends with" in the browser through Dev Play: lose a mission, see STORYLET_05 cast and ranked, send a handler, fail, see STORYLET_06 come and come back once, and read "Why these storylets".
+- [x] **Step 3:** The record.
   - GDD: status line to v1.22. 3.7 and 3.8 as built (`cast`, expression `requires`, `cooldown`, `check`; the state view's table); 5.1 steps 1 to 3 as built, step 4 waiting for department heads; 7.5 (the itinerary's cast and handler list, Dev Play's "Why these storylets"); 11.1 (part four done with the date; part five next); 15, item 41 (design section 1).
   - Glossary: expression, slot, cast, contender, salience, handler, history.
   - Conventions: slot names and the reserved words.
   - Design: section 9 with differences, the simulator's figures, and what the author should judge in play. Keep section 5 true.
   - Outline's slice 1e paragraph; README and map, one line each if they mention `scope` or requirements.
   - Rebuild and republish the GDD page (`tools/gdd-page/README.md`) to `https://claude.ai/artifact/9CKdbu7bhV7UvriU9jzWHW`.
-- [ ] **Step 4:** Commit: "Give the game the one who came back, and record slice 1e's fourth part".
+- [x] **Step 4:** Commit: "Give the game the one who came back, and record slice 1e's fourth part".

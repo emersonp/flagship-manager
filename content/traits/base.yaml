@@ -36,3 +36,12 @@
   mission: { checkBonus: -1, withTarget: true }
   every: { weeks: 4, add: -1 }
   onTargetDied: [{ set: 0 }]
+# Someone who came back from a lost mission (1e part four, design 4.13): settled once someone got through to them, withdrawn while
+# they keep to themselves. Only "The one who came back" and "Still not talking" set it. It lets go after twelve weeks, so a later loss
+# can be raised again.
+- id: came_back
+  name: Came back
+  shown: false
+  on: crew
+  levels: { 1: settled, 2: withdrawn }
+  expires: { weeks: 12 }
