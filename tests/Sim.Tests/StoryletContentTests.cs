@@ -206,7 +206,7 @@ public class StoryletContentTests
     {
         AssertRefused(
             WithCast("  cast:\n    subject: \"subject.trait.trait_a == 1 && subject != target\"\n    target: \"target.fit\"\n"),
-            "STORYLET_X: cast.subject, at character 42: target is not a slot this expression can read; it reads subject, ship, and cycle.");
+            "STORYLET_X: cast.subject, at character 42: target is not a slot this expression can read; it reads subject, ship, cycle, and storylet.");
     }
 
     [Fact]
@@ -217,11 +217,26 @@ public class StoryletContentTests
             "STORYLET_X: requires, at character 39: rel() waits for relationships (Phase 4).");
     }
 
+    // Slice 1e-calendar, Task 4: storylet.s names a storylet in the pack, and never a vignette, which it does not count.
+    [Fact]
+    public void Storylet_reads_name_a_storylet()
+    {
+        string Requiring(string requires)
+        {
+            return Storylet.Replace(Cast, Cast + $"  requires: \"{requires}\"\n");
+        }
+
+        AssertRefused(Requiring("storylet.nosuch.daysSince >= 40"), "STORYLET_X: requires, at character 10: No storylet named nosuch.");
+        AssertRefused(Requiring("storylet.VIGNETTE_01.cyclesSince >= 3"), "STORYLET_X: requires, at character 10: storylet reads storylets; vignettes are not counted.");
+        AssertRefused(Requiring("subject.trait.trait_g.daysSince >= 3"), "STORYLET_X: requires, at character 23: trait_g is held toward someone; daysSince is read only on a trait on one crew member or the ship, for now.");
+        Assert.Empty(LoadWith(Requiring("storylet.STORYLET_X.cyclesSince >= 3 && storylet.STORYLET_X.daysSince >= 40 && subject.trait.trait_a.daysSince < 12")).Errors);
+    }
+
     [Fact]
     public void A_storylet_for_the_ship_cannot_read_a_slot()
     {
         AssertRefused(ShipStorylet.Replace("  requires: \"ship.trait.trait_a == 1\"\n", "  requires: \"ship.trait.trait_a == 1 && subject.morale < 25\"\n"),
-            "STORYLET_X: requires, at character 28: subject is not a slot this expression can read; it reads ship and cycle.");
+            "STORYLET_X: requires, at character 28: subject is not a slot this expression can read; it reads ship, cycle, and storylet.");
     }
 
     [Fact]
@@ -265,7 +280,7 @@ public class StoryletContentTests
         Assert.Equal("subject.loyalty >= 60", result.Pack!.Storylets.Single().Options[1].Requires?.Source);
 
         AssertRefused(Storylet.Replace("      label: LABEL_B\n", "      label: LABEL_B\n      requires: \"subject.loyalty >= target\"\n"),
-            "STORYLET_X: options.option_b.requires, at character 20: target is not a slot this expression can read; it reads subject, ship, and cycle.");
+            "STORYLET_X: options.option_b.requires, at character 20: target is not a slot this expression can read; it reads subject, ship, cycle, and storylet.");
         AssertRefused(guarded.Replace("      label: LABEL_A\n", "      label: LABEL_A\n      requires: \"subject.fit\"\n"),
             "STORYLET_X: A storylet needs an option with neither requires nor check, so it can always be answered.");
     }

@@ -23,7 +23,16 @@ public interface IStateSource
 
     // Cycles among the last `cycles` in which `kind` happened to them.
     int History(string crewId, string kind, int cycles);
+
+    // How long ago storylet `storylet` last arrived, anywhere on the ship (slice 1e-calendar, design 4.6); null if it never has.
+    Since? StoryletSince(string storylet);
+
+    // How long ago a trait last changed on a crew member, or on the ship (crewId null); null when it is not held (at 0).
+    Since? TraitSince(string trait, string? crewId);
 }
+
+// Whole cycles and whole days since something happened, counted from the cycle and the day it happened on.
+public readonly record struct Since(int Cycles, int Days);
 
 // The objects an expression reads, and nothing else: every public member here is a word of the language, so each is lower case,
 // as the language is. The whitelist (Whitelist.cs) lets an expression touch only these types. Ids are internal, so no expression
@@ -96,7 +105,9 @@ public sealed class SkillsView
     public int this[string skill] => state.Skill(id, skill);
 }
 
-// x.trait.t, rewritten to x.trait["t"]; x.trait.t.toward(y), rewritten to x.trait.toward("t", y).
+// x.trait.t, rewritten to x.trait["t"]; x.trait.t.toward(y), rewritten to x.trait.toward("t", y); x.trait.t.cyclesSince and
+// x.trait.t.daysSince, rewritten to x.trait.cyclesSince("t") and x.trait.daysSince("t"). The two readings of time are null when the
+// trait is not held, and C#'s lifted comparisons make every <, <=, >, >=, and == with null false.
 public sealed class TraitsView
 {
     private readonly IStateSource state;
@@ -113,6 +124,16 @@ public sealed class TraitsView
     public int toward(string trait, CrewView target)
     {
         return state.Trait(trait, id, target.Id);
+    }
+
+    public int? cyclesSince(string trait)
+    {
+        return state.TraitSince(trait, id)?.Cycles;
+    }
+
+    public int? daysSince(string trait)
+    {
+        return state.TraitSince(trait, id)?.Days;
     }
 }
 
@@ -139,7 +160,7 @@ public sealed class HistoryView
     }
 }
 
-// ship.trait.t, rewritten to ship.trait["t"].
+// ship.trait.t, rewritten to ship.trait["t"]; its readings of time as a crew member's.
 public sealed class ShipView
 {
     internal ShipView(IStateSource state)
@@ -160,6 +181,16 @@ public sealed class ShipTraitsView
     }
 
     public int this[string trait] => state.Trait(trait, null);
+
+    public int? cyclesSince(string trait)
+    {
+        return state.TraitSince(trait, null)?.Cycles;
+    }
+
+    public int? daysSince(string trait)
+    {
+        return state.TraitSince(trait, null)?.Days;
+    }
 }
 
 // cycle.number.
@@ -173,4 +204,26 @@ public sealed class CycleView
     }
 
     public int number => state.Cycle;
+}
+
+// storylet.s.cyclesSince and storylet.s.daysSince (slice 1e-calendar, design 4.6), rewritten to storylet.cyclesSince("s") and
+// storylet.daysSince("s"): how long since storylet s last arrived, or null if it never has.
+public sealed class StoryletsView
+{
+    private readonly IStateSource state;
+
+    internal StoryletsView(IStateSource state)
+    {
+        this.state = state;
+    }
+
+    public int? cyclesSince(string storylet)
+    {
+        return state.StoryletSince(storylet)?.Cycles;
+    }
+
+    public int? daysSince(string storylet)
+    {
+        return state.StoryletSince(storylet)?.Days;
+    }
 }

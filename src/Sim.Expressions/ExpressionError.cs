@@ -15,7 +15,7 @@ public sealed record LastRead(string Kind, string Slot);
 public sealed class CheckedExpression
 {
     private readonly Lambda lambda;
-    private Func<CrewView?, CrewView?, CrewView?, ShipView, CycleView, bool>? compiled;
+    private Func<CrewView?, CrewView?, CrewView?, ShipView, CycleView, StoryletsView, bool>? compiled;
 
     internal CheckedExpression(string source, IReadOnlyList<string> slots, int clauses, IReadOnlyList<TraitRead> traits, IReadOnlyList<LastRead> lasts, Lambda lambda)
     {
@@ -42,6 +42,6 @@ public sealed class CheckedExpression
 
     // The fixed signature: three slots (unbound ones under names no expression can write), then ship and cycle. A race compiles
     // twice and keeps either; both are the same.
-    internal Func<CrewView?, CrewView?, CrewView?, ShipView, CycleView, bool> Compiled =>
-        compiled ??= lambda.Compile<Func<CrewView?, CrewView?, CrewView?, ShipView, CycleView, bool>>();
+    internal Func<CrewView?, CrewView?, CrewView?, ShipView, CycleView, StoryletsView, bool> Compiled =>
+        compiled ??= lambda.Compile<Func<CrewView?, CrewView?, CrewView?, ShipView, CycleView, StoryletsView, bool>>();
 }

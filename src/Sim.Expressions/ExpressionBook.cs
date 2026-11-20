@@ -7,7 +7,7 @@ using Sim.Core.Content;
 namespace Sim.Expressions;
 
 // The expression language of storylets and vignettes (1e part four, design 4.3), built once per pack from what it may read: the
-// trait definitions, the skill ids, the history kinds, and history.cycles. Check parses an expression against the state view's
+// trait definitions, the skill ids, the history kinds, history.cycles, and the storylet and vignette ids. Check parses an expression against the state view's
 // types and refuses anything else with its position (the loader checks with it); Evaluate runs a checked expression against the
 // state (the storylets module runs with it), compiled the first time.
 public sealed partial class ExpressionBook
@@ -18,11 +18,17 @@ public sealed partial class ExpressionBook
 
     public const string Cycle = "cycle";
 
+    public const string Storylet = "storylet";
+
     private readonly Dictionary<string, TraitDef> traits;
     private readonly Interpreter interpreter;
 
-    public ExpressionBook(IEnumerable<TraitDef> traits, IEnumerable<string> skills, IEnumerable<string> historyKinds, int historyCycles)
+    // Storylets: the ids storylet.s may read (slice 1e-calendar); vignettes: those it refuses by name, since it does not count them.
+    public ExpressionBook(IEnumerable<TraitDef> traits, IEnumerable<string> skills, IEnumerable<string> historyKinds, int historyCycles,
+        IEnumerable<string>? storylets = null, IEnumerable<string>? vignettes = null)
     {
+        Storylets = new HashSet<string>(storylets ?? [], StringComparer.Ordinal);
+        Vignettes = new HashSet<string>(vignettes ?? [], StringComparer.Ordinal);
         this.traits = traits.ToDictionary(t => t.Id, StringComparer.Ordinal);
         Skills = new HashSet<string>(skills, StringComparer.Ordinal);
         HistoryKinds = [.. historyKinds];
@@ -38,6 +44,10 @@ public sealed partial class ExpressionBook
     internal IReadOnlyList<string> HistoryKinds { get; }
 
     internal int HistoryCycles { get; }
+
+    internal IReadOnlySet<string> Storylets { get; }
+
+    internal IReadOnlySet<string> Vignettes { get; }
 
     // The slots this expression may read, in reading order: for a slot's own expression, the slots before it and itself; for
     // requires, every slot. Null and an error when it is refused.
@@ -91,7 +101,8 @@ public sealed partial class ExpressionBook
             slots.Count > 1 ? View(state, cast, slots[1]) : null,
             slots.Count > 2 ? View(state, cast, slots[2]) : null,
             new ShipView(state),
-            new CycleView(state));
+            new CycleView(state),
+            new StoryletsView(state));
     }
 
     internal TraitDef? Trait(string id)
@@ -114,10 +125,10 @@ public sealed partial class ExpressionBook
     }
 
     // The fixed signature: three slots, the unbound ones named so that no expression can write them (the rewrite refuses a name
-    // that is not a slot), then ship and cycle.
+    // that is not a slot), then ship, cycle, and storylet.
     private Lambda Parse(string text, IReadOnlyList<string> slots)
     {
-        var parameters = new Parameter[MaxSlots + 2];
+        var parameters = new Parameter[MaxSlots + 3];
         for (int k = 0; k < MaxSlots; k++)
         {
             parameters[k] = new Parameter(k < slots.Count ? slots[k] : $"_{k}", typeof(CrewView));
@@ -125,6 +136,7 @@ public sealed partial class ExpressionBook
 
         parameters[MaxSlots] = new Parameter(Ship, typeof(ShipView));
         parameters[MaxSlots + 1] = new Parameter(Cycle, typeof(CycleView));
+        parameters[MaxSlots + 2] = new Parameter(Storylet, typeof(StoryletsView));
         return interpreter.Parse(text, parameters);
     }
 
@@ -135,9 +147,9 @@ public sealed partial class ExpressionBook
             throw new ArgumentException($"An expression reads at most {MaxSlots} slots.", nameof(slots));
         }
 
-        if (slots.Any(s => s is Ship or Cycle || !SlotName().IsMatch(s)) || slots.Distinct(StringComparer.Ordinal).Count() != slots.Count)
+        if (slots.Any(s => s is Ship or Cycle or Storylet || !SlotName().IsMatch(s)) || slots.Distinct(StringComparer.Ordinal).Count() != slots.Count)
         {
-            throw new ArgumentException($"Slots must be distinct lower-case names, not {Ship} or {Cycle}: {string.Join(", ", slots)}.", nameof(slots));
+            throw new ArgumentException($"Slots must be distinct lower-case names, not {Ship}, {Cycle}, or {Storylet}: {string.Join(", ", slots)}.", nameof(slots));
         }
     }
 

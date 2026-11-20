@@ -72,6 +72,6 @@ public static class LaunchWhen
     public const string WithTarget = "withTarget";
 }
 
-// One trait as it stands. TargetId: the crew member a pair trait points at. EncounterId: the last encounter that changed it,
-// or null when nothing on a mission has.
-public sealed record TraitHeld(string Trait, string? TargetId, int Value, int ChangedAtDay, string? EncounterId);
+// One trait as it stands. TargetId: the crew member a pair trait points at. ChangedAtDay and ChangedAtCycle: when it last
+// changed. EncounterId: the last encounter that changed it, or null when nothing on a mission has.
+public sealed record TraitHeld(string Trait, string? TargetId, int Value, int ChangedAtDay, int ChangedAtCycle, string? EncounterId);

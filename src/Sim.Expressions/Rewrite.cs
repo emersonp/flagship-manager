@@ -11,11 +11,14 @@ namespace Sim.Expressions;
 //   x.skills.S           -> x.skills["S"]          (S a skill id)
 //   x.history.count('k', n), x.history.last('k')   (k a history kind and n a constant from 1 to history.cycles)
 //   x.trait.t == 'level' -> x.trait["t"] == 2      (the level resolved to its number)
+//   x.trait.t.daysSince  -> x.trait.daysSince("t") (and cyclesSince; ship.trait.t too; not on a pair trait yet)
+//   storylet.s.daysSince -> storylet.daysSince("s") (and cyclesSince; s a storylet, never a vignette)
 // and single quotes to double. A map from each character it writes back to the source keeps the parser's positions true.
 internal sealed class Rewrite
 {
     private const string Ship = ExpressionBook.Ship;
     private const string Cycle = ExpressionBook.Cycle;
+    private const string Storylet = ExpressionBook.Storylet;
 
     private static readonly Dictionary<string, string> Waiting = new(StringComparer.Ordinal)
     {
@@ -133,6 +136,7 @@ internal sealed class Rewrite
             _ when slots.Contains(name.Text) => Crew(i),
             Ship => ShipRead(i),
             Cycle => CycleRead(i),
+            Storylet => StoryletRead(i),
             _ => throw NotReadable(name),
         };
 
@@ -198,6 +202,20 @@ internal sealed class Rewrite
             throw new RewriteException($"{id.Text} is on the ship; read it as ship.trait.{id.Text}.", id.Position);
         }
 
+        if (Member(i + 5) is { Text: "cyclesSince" or "daysSince" } since)
+        {
+            if (def.OnPair)
+            {
+                throw PairSince(id, since);
+            }
+
+            Put(slot.Text, slot.Position);
+            Put(".trait", member.Position, glued: true);
+            Put("." + since.Text, since.Position, glued: true);
+            Put($"(\"{id.Text}\")", id.Position, glued: true);
+            return i + 7;
+        }
+
         if (Member(i + 5) is { Text: "toward" } toward)
         {
             if (!def.OnPair)
@@ -210,7 +228,7 @@ internal sealed class Rewrite
                 : throw new RewriteException("toward takes a slot, as toward(target).", (At(i + 8) ?? open).Position);
             if (!slots.Contains(target.Text))
             {
-                throw target.Text is Ship or Cycle || Spelled.ContainsKey(target.Text) || target.Text is "true" or "false"
+                throw target.Text is Ship or Cycle or Storylet || Spelled.ContainsKey(target.Text) || target.Text is "true" or "false"
                     ? new RewriteException("toward takes a slot, as toward(target).", target.Position)
                     : NotReadable(target);
             }
@@ -219,6 +237,11 @@ internal sealed class Rewrite
             Put(".trait", member.Position, glued: true);
             Put($".toward(\"{id.Text}\", ", id.Position, glued: true);
             Put(target.Text + ")", target.Position, glued: true);
+            if (Member(i + 10) is { Text: "cyclesSince" or "daysSince" } after)
+            {
+                throw PairSince(id, after);
+            }
+
             Read(new TraitRead(id.Text, slot.Text, target.Text));
             lastTrait = (def, i + 10);
             return i + 10;
@@ -318,6 +341,13 @@ internal sealed class Rewrite
 
         Put(ship.Text, ship.Position);
         Put(".trait", member.Position, glued: true);
+        if (Member(i + 5) is { Text: "cyclesSince" or "daysSince" } since)
+        {
+            Put("." + since.Text, since.Position, glued: true);
+            Put($"(\"{id.Text}\")", id.Position, glued: true);
+            return i + 7;
+        }
+
         Put($"[\"{id.Text}\"]", id.Position, glued: true);
         Read(new TraitRead(id.Text, Ship, null));
         lastTrait = (def, i + 5);
@@ -341,6 +371,41 @@ internal sealed class Rewrite
         Put(cycle.Text, cycle.Position);
         Put(".number", member.Position, glued: true);
         return i + 3;
+    }
+
+    // storylet.s.cyclesSince and storylet.s.daysSince (slice 1e-calendar, design 4.6). Not a trait read: they turn on time, so the
+    // rule against hidden memory reads them as unknown.
+    private int StoryletRead(int i)
+    {
+        Token root = tokens[i];
+        if (Member(i + 1) is not { } id)
+        {
+            Put(root.Text, root.Position);
+            return i + 1;
+        }
+
+        if (!book.Storylets.Contains(id.Text))
+        {
+            throw new RewriteException(book.Vignettes.Contains(id.Text) ? "storylet reads storylets; vignettes are not counted." : $"No storylet named {id.Text}.", id.Position);
+        }
+
+        const string usage = "A storylet is read as storylet.some_storylet.cyclesSince or storylet.some_storylet.daysSince.";
+        Token reading = Member(i + 3) ?? throw new RewriteException(usage, id.Position + id.Length);
+        if (reading.Text is not ("cyclesSince" or "daysSince"))
+        {
+            throw new RewriteException(usage, reading.Position);
+        }
+
+        Put(root.Text, root.Position);
+        Put("." + reading.Text, reading.Position, glued: true);
+        Put($"(\"{id.Text}\")", id.Position, glued: true);
+        return i + 5;
+    }
+
+    // How long since a pair trait changed waits: the slice reads it only on one crew member or the ship.
+    private static RewriteException PairSince(Token id, Token since)
+    {
+        return new RewriteException($"{id.Text} is held toward someone; {since.Text} is read only on a trait on one crew member or the ship, for now.", since.Position);
     }
 
     // A quoted name before the trait it is compared with: 'withdrawn' == subject.trait.came_back.
@@ -391,8 +456,8 @@ internal sealed class Rewrite
 
     private RewriteException NotReadable(Token name)
     {
-        List<string> readable = [.. slots, Ship, Cycle];
-        string list = readable.Count == 2 ? $"{Ship} and {Cycle}" : string.Join(", ", readable.Take(readable.Count - 1)) + ", and " + Cycle;
+        List<string> readable = [.. slots, Ship, Cycle, Storylet];
+        string list = string.Join(", ", readable.Take(readable.Count - 1)) + ", and " + Storylet;
         return new RewriteException($"{name.Text} is not a slot this expression can read; it reads {list}.", name.Position);
     }
 

@@ -23,7 +23,9 @@ public class ExpressionsTests
         ],
         ["SKILL_A", "SKILL_B"],
         ["sent", "hurt", "rested", "lost_crewmate", "lost_mission"],
-        20);
+        20,
+        ["STORYLET_A", "STORYLET_NEVER"],
+        ["VIGNETTE_A"]);
 
     private static readonly Dictionary<string, string> Cast = new() { ["subject"] = A, ["target"] = B };
 
@@ -58,6 +60,12 @@ public class ExpressionsTests
     [InlineData("cycle.number > 12", false)]
     [InlineData("subject.trait.mood == 0 && ship.trait.mood == 0", true)]
     [InlineData("subject.morale + subject.loyalty * 2 - 10 == 170 && -subject.morale < 0", true)]
+    [InlineData("storylet.STORYLET_A.cyclesSince >= 3", true)]
+    [InlineData("storylet.STORYLET_A.cyclesSince > 3", false)]
+    [InlineData("storylet.STORYLET_A.daysSince == 20", true)]
+    [InlineData("storylet.STORYLET_A.daysSince - subject.morale == -20", true)]
+    [InlineData("subject.trait.shaken.cyclesSince == 2 && subject.trait.shaken.daysSince == 14", true)]
+    [InlineData("ship.trait.hull_strain.daysSince > 30 && ship.trait.hull_strain.cyclesSince == 5", true)]
     public void Each_read_of_the_view_holds_or_not(string source, bool expected)
     {
         CheckedExpression expression = Checked(source, Pair);
@@ -100,7 +108,18 @@ public class ExpressionsTests
     [InlineData("ship.morale > 0", "ship reads only trait", 5)]
     [InlineData("subject.morale.value > 0", "Nothing is read from subject.morale", 14)]
     [InlineData("subject.trait > 0", "A trait is read as subject.trait.some_trait", 8)]
-    [InlineData("subject.fit && captain.fit", "captain is not a slot this expression can read; it reads subject, target, ship, and cycle", 15)]
+    [InlineData("storylet.nosuch.daysSince > 0", "No storylet named nosuch", 9)]
+    [InlineData("storylet.VIGNETTE_A.daysSince > 0", "storylet reads storylets; vignettes are not counted", 9)]
+    [InlineData("storylet.STORYLET_A > 0", "A storylet is read as storylet.some_storylet.cyclesSince", 19)]
+    [InlineData("storylet.STORYLET_A.age > 0", "A storylet is read as", 20)]
+    [InlineData("storylet.daysSince(\"STORYLET_A\") > 0", "No storylet named daysSince", 9)]
+    [InlineData("storylet.STORYLET_A.daysSince.cyclesSince > 0", "Nothing is read from storylet.STORYLET_A.daysSince", 29)]
+    [InlineData("storylet.STORYLET_A.daysSince", "true or false", 0)]
+    [InlineData("subject.trait.avoids.daysSince > 0", "avoids is held toward someone; daysSince is read only on a trait on one crew member or the ship", 21)]
+    [InlineData("subject.trait.avoids.toward(target).cyclesSince > 0", "avoids is held toward someone; cyclesSince is read only", 36)]
+    [InlineData("subject.trait.came_back.daysSince == 'withdrawn'", "A quoted name is", 37)]
+    [InlineData("subject.trait.avoids.toward(storylet) > 0", "toward takes a slot", 28)]
+    [InlineData("subject.fit && captain.fit", "captain is not a slot this expression can read; it reads subject, target, ship, cycle, and storylet", 15)]
     public void A_refusal_names_its_position(string source, string message, int position)
     {
         Assert.Null(Book.Check(source, Pair, out ExpressionError? error));
@@ -127,7 +146,7 @@ public class ExpressionsTests
     public void A_later_slot_cannot_be_read()
     {
         Assert.Null(Book.Check("subject.fit && target.fit", ["subject"], out ExpressionError? error));
-        Assert.Equal(new ExpressionError("target is not a slot this expression can read; it reads subject, ship, and cycle.", 15), error);
+        Assert.Equal(new ExpressionError("target is not a slot this expression can read; it reads subject, ship, cycle, and storylet.", 15), error);
 
         Assert.Null(Book.Check("subject.trait.avoids.toward(target) > 0", ["subject"], out error));
         Assert.Equal(28, error!.Position);
@@ -173,6 +192,41 @@ public class ExpressionsTests
             expression.Traits);
     }
 
+    // Review focus 4 (slice 1e-calendar): a reading of time for something that never happened is unset, and every <, <=, >, >=, and
+    // == with it is false, through arithmetic too. != is C#'s: true, since unset is not the number.
+    [Theory]
+    [InlineData("storylet.STORYLET_NEVER.daysSince >= 40", false)]
+    [InlineData("storylet.STORYLET_NEVER.daysSince < 40", false)]
+    [InlineData("storylet.STORYLET_NEVER.daysSince <= 0", false)]
+    [InlineData("storylet.STORYLET_NEVER.daysSince == 0", false)]
+    [InlineData("storylet.STORYLET_NEVER.cyclesSince >= 0", false)]
+    [InlineData("40 > storylet.STORYLET_NEVER.daysSince", false)]
+    [InlineData("storylet.STORYLET_NEVER.daysSince + 5 > 0", false)]
+    [InlineData("target.trait.shaken.daysSince >= 0", false)]
+    [InlineData("subject.trait.mood.cyclesSince < 99", false)]
+    [InlineData("ship.trait.mood.daysSince >= 0", false)]
+    [InlineData("storylet.STORYLET_NEVER.daysSince != 40", true)]
+    [InlineData("!(storylet.STORYLET_NEVER.daysSince < 40)", true)]
+    public void Unset_is_never_true(string source, bool expected)
+    {
+        Assert.Equal(expected, Book.Evaluate(Checked(source, Pair), new FakeState(), Cast));
+    }
+
+    // Step 4: the readings of time turn on time, not on a trait's value, so they are not trait reads and the rule against hidden
+    // memory reads them as unknown.
+    [Fact]
+    public void Readings_of_time_are_not_trait_reads()
+    {
+        CheckedExpression time = Checked("subject.trait.shaken.daysSince > 3 && storylet.STORYLET_A.cyclesSince >= 3 && ship.trait.hull_strain.cyclesSince > 0", Pair);
+        CheckedExpression both = Checked("subject.trait.shaken == 0 && subject.trait.shaken.daysSince > 3", Pair);
+
+        Assert.Empty(time.Traits);
+        Assert.Null(Book.OnTraits(time, _ => 0));
+        Assert.Equal([new TraitRead("shaken", "subject", null)], both.Traits);
+        Assert.Null(Book.OnTraits(both, _ => 0));
+        Assert.False(Book.OnTraits(both, _ => 1));
+    }
+
     [Fact]
     public void A_ship_expression_reads_no_slot()
     {
@@ -180,7 +234,7 @@ public class ExpressionsTests
 
         Assert.True(Book.Evaluate(expression, new FakeState(), new Dictionary<string, string>()));
         Assert.Null(Book.Check("subject.fit", [], out ExpressionError? error));
-        Assert.Equal("subject is not a slot this expression can read; it reads ship and cycle.", error!.Message);
+        Assert.Equal("subject is not a slot this expression can read; it reads ship, cycle, and storylet.", error!.Message);
     }
 
     [Fact]
@@ -190,6 +244,7 @@ public class ExpressionsTests
 
         Assert.True(Book.Evaluate(expression, new FakeState(), new Dictionary<string, string> { ["first"] = A, ["second"] = "CREW_C", ["third"] = B }));
         Assert.Throws<ArgumentException>(() => Book.Check("true", ["a", "b", "c", "d"], out _));
+        Assert.Throws<ArgumentException>(() => Book.Check("true", ["storylet"], out _));
     }
 
     // Focus 1: nothing reaches past the state view. Each is refused when it is checked, never when it is played.
@@ -251,6 +306,7 @@ public class ExpressionsTests
     public void The_whitelist_lets_the_rewritten_language_through()
     {
         Assert.Null(Book.ParseError("subject.trait[\"shaken\"] > 0 && subject.trait.toward(\"avoids\", target) == 1 && subject.skills[\"SKILL_A\"] > 0 && subject.history.count(\"hurt\", 5) > 0 && subject != target", Pair));
+        Assert.Null(Book.ParseError("storylet.daysSince(\"STORYLET_A\") >= 40 && subject.trait.cyclesSince(\"shaken\") < 3 && ship.trait.daysSince(\"hull_strain\") > 0", Pair));
     }
 
     [Fact]
@@ -290,6 +346,8 @@ public class ExpressionsTests
     }
 
     // A holds shaken 2, came_back withdrawn, avoids 1 toward B; was hurt two and three cycles ago and sent last cycle. B is unfit.
+    // STORYLET_A arrived 3 cycles and 20 days ago, and STORYLET_NEVER never has; A's shaken changed 2 cycles and 14 days ago, and
+    // the ship's hull_strain 5 cycles and 31 days ago.
     private sealed class FakeState : IStateSource
     {
         private readonly Dictionary<(string Trait, string? Crew, string? Target), int> traits = new()
@@ -337,6 +395,21 @@ public class ExpressionsTests
         public int History(string crewId, string kind, int cycles)
         {
             return history.Count(h => h.Crew == crewId && h.Kind == kind && h.Ago <= cycles);
+        }
+
+        public Since? StoryletSince(string storylet)
+        {
+            return storylet == "STORYLET_A" ? new Since(3, 20) : null;
+        }
+
+        public Since? TraitSince(string trait, string? crewId)
+        {
+            return (trait, crewId) switch
+            {
+                ("shaken", A) => new Since(2, 14),
+                ("hull_strain", null) => new Since(5, 31),
+                _ => null,
+            };
         }
     }
 }

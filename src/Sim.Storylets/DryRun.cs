@@ -38,7 +38,7 @@ internal sealed class DryRun(ContentPack pack, Casting casting, LegacyState lega
             int cycle = legacy.Cycle;
             List<IEvent> since = Since(cycleEvents, cycle);
             Rewind(copy, cycle, since);
-            return (copy, new Rewound(new StateSource(roster, traits, copy, cycle), since), cycle, true);
+            return (copy, new Rewound(new StateSource(roster, traits, copy, cycle, legacy.Day), since), cycle, true);
         }
 
         int next = legacy.Cycle + 1;
@@ -49,7 +49,8 @@ internal sealed class DryRun(ContentPack pack, Casting casting, LegacyState lega
             fired.Cycles.RemoveAll(c => next - c > pack.Salience.Window);
         }
 
-        return (copy, new StateSource(roster, traits, copy, next), next, false);
+        // The next cycle's day is rolled as it turns, so how long ago something happened is read from today.
+        return (copy, new StateSource(roster, traits, copy, next, legacy.Day), next, false);
     }
 
     // The events after this cycle's itinerary opened: the storylets module opens it on PhaseEntered, after every module that changes
@@ -69,7 +70,8 @@ internal sealed class DryRun(ContentPack pack, Casting casting, LegacyState lega
 
     // The module's records as they stood when the contest ran: before this cycle's offers, arrivals, and fires, with any storylet
     // waiting from an earlier cycle and answered since put back. A cast cooldown's arrival that this cycle's replaced was older than
-    // its cooldown (or it could not have arrived again), and so was the global cooldown's last fire, so neither is missed.
+    // its cooldown (or it could not have arrived again). A fire this cycle made is undone to the arrival before it, cycle and day, so
+    // the global cooldown and how long ago it arrived read as they did.
     private static void Rewind(StoryletsState copy, int cycle, List<IEvent> since)
     {
         copy.Waiting.RemoveAll(w => w.OfferId == StoryletsModule.OfferId(cycle, w.StoryletId));
@@ -90,9 +92,10 @@ internal sealed class DryRun(ContentPack pack, Casting casting, LegacyState lega
                 continue;
             }
 
-            if (fired.Cycles.Count > 0)
+            if (fired is { Before: { } before, BeforeDay: { } beforeDay })
             {
-                fired.Last = fired.Cycles.Max();
+                (fired.Last, fired.LastDay) = (before, beforeDay);
+                (fired.Before, fired.BeforeDay) = (null, null);
             }
             else
             {
@@ -110,7 +113,7 @@ internal sealed class DryRun(ContentPack pack, Casting casting, LegacyState lega
             History = state.History.Select(h => new HistoryCycle { Cycle = h.Cycle, Crew = h.Crew.ToDictionary(c => c.Key, c => c.Value.ToList()) }).ToList(),
             Vignettes = state.Vignettes.Select(v => new WaitingVignette { OfferId = v.OfferId, VignetteId = v.VignetteId, Cast = new(v.Cast, StringComparer.Ordinal) }).ToList(),
             Arrivals = state.Arrivals.Select(a => new Arrival { Id = a.Id, Cast = new(a.Cast, StringComparer.Ordinal), Cycle = a.Cycle }).ToList(),
-            Fired = state.Fired.Select(f => new Fired { Id = f.Id, Last = f.Last, Cycles = f.Cycles.ToList() }).ToList(),
+            Fired = state.Fired.Select(f => new Fired { Id = f.Id, Last = f.Last, LastDay = f.LastDay, Before = f.Before, BeforeDay = f.BeforeDay, Cycles = f.Cycles.ToList() }).ToList(),
         };
     }
 
@@ -177,6 +180,19 @@ internal sealed class DryRun(ContentPack pack, Casting casting, LegacyState lega
         public int History(string crewId, string kind, int cycles)
         {
             return now.History(crewId, kind, cycles);
+        }
+
+        // The copy's arrivals are already rewound.
+        public Since? StoryletSince(string storylet)
+        {
+            return now.StoryletSince(storylet);
+        }
+
+        // A trait not held when the itinerary opened is unset. One held then and changed since keeps only its value from then, not its
+        // clock, so it reads as changed today: a dev-mode approximation, kept rather than store a second clock on every trait.
+        public Since? TraitSince(string trait, string? crewId)
+        {
+            return traits.TryGetValue((trait, crewId, null), out int then) && then == 0 ? null : now.TraitSince(trait, crewId);
         }
     }
 }

@@ -308,7 +308,8 @@ trait: avoids
 crewId: crew_0042               # null: the ship
 targetId: crew_0017             # a pair's target: the crew member it points at; null for a trait on one
 value: 1
-changedAtWeek: 164              # its weekly step and expiry count from its last change
+changedAtDay: 37494             # the day it last changed: its step and expiry count from here, in days (slice 1e-calendar)
+changedAtCycle: 3               # the cycle it last changed in, for x.trait.t.cyclesSince
 encounterId: ENCOUNTER_01       # the encounter whose effect last changed it, or null
 ```
 
@@ -324,14 +325,20 @@ A pair is held by one crew member (the **holder**) and points at another (the **
 | `x.aboard` | true or false | Alive and not on a mission; in Phase 1, true whenever the itinerary is open |
 | `x.trait.t` | number | The trait's value on them; the trait must be defined, and on crew |
 | `x.trait.t.toward(y)` | number | A pair trait `x` holds toward `y`; only a trait defined on a pair, and always with `toward` |
+| `x.trait.t.cyclesSince` | number, or unset | Cycles since the trait last changed on `x`; unset when it is not held. Not yet on a pair trait |
+| `x.trait.t.daysSince` | number, or unset | Days since it last changed; unset when it is not held. Not yet on a pair trait |
 | `x.trait.t == 'level'` | true or false | A level by name; the name is checked |
 | `x.history.count('kind', n)` | number | How many of the last `n` cycles `kind` happened to them in |
 | `x.history.last('kind')` | true or false | It happened to them in the last cycle |
 | `x == y`, `x != y` | true or false | The same crew member |
-| `ship.trait.t` | number | A ship trait |
+| `ship.trait.t` | number | A ship trait; `ship.trait.t.cyclesSince` and `.daysSince` as a crew member's |
 | `cycle.number` | number | The cycle now starting |
+| `storylet.s.cyclesSince` | number, or unset | Cycles since storylet `s` last arrived, anywhere on the ship; unset if it never has. `s` must be a storylet, not a vignette |
+| `storylet.s.daysSince` | number, or unset | Days since it last arrived |
 
 The history is each living crew member's last `history.cycles` (tuning, 20) cycles, kept by the storylets module and served to other modules as `IHistoryView`. Its kinds are `sent`, `hurt`, `rested`, `lost_crewmate` (someone died on the cycle's mission and they are alive, sent or not), `lost_teammate` (someone died on their mission and they came home), and `lost_mission` (they were on a mission whose objective failed or was abandoned). `n` is 1 to `history.cycles`. Anything not in the table is refused by name, for example "rel() waits for relationships (Phase 4)", "grade waits for 1h", and `chronicle`, which waits for part five. An expression can reach nothing but the view: no reflection, type names, or static methods, no division, and no side effects.
+
+The four readings of time (slice 1e-calendar) count whole cycles and whole days back from the itinerary now open, to the cycle and day the storylet arrived on (arriving and being answered fall on the same cycle and day) or the trait last changed. **Unset** means it never happened, or the trait is at 0: any `<`, `<=`, `>`, `>=`, or `==` with an unset reading is false, through `+`, `-`, and `*` too, so `storylet.a.daysSince >= 40` and `storylet.a.daysSince < 40` are both false before A has arrived, and "A has arrived" is `storylet.a.cyclesSince >= 0`. `!=` follows C#: an unset reading is not 40, so `!=` is true. They turn on time, not on a trait's value, so the rule against hidden memory (3.7) reads them as unknown, and a storylet that reads only them still needs a trait or a cast cooldown to stop it returning. A duration an effect sets stays in weeks.
 
 ## 3.9 Event log entry and chronicle entry (state)
 

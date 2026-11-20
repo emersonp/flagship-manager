@@ -9,12 +9,16 @@ namespace Sim.Expressions;
 internal sealed class Whitelist : ExpressionVisitor
 {
     private static readonly HashSet<Type> Views =
-        [typeof(CrewView), typeof(SkillsView), typeof(TraitsView), typeof(HistoryView), typeof(ShipView), typeof(ShipTraitsView), typeof(CycleView)];
+        [typeof(CrewView), typeof(SkillsView), typeof(TraitsView), typeof(HistoryView), typeof(ShipView), typeof(ShipTraitsView), typeof(CycleView), typeof(StoryletsView)];
 
-    // History's count and last, and a pair trait's toward. The indexer (x.trait["t"], x.skills["S"]) is an Index node.
-    private static readonly HashSet<string> Methods = ["count", "last", "toward"];
+    // History's count and last, a pair trait's toward, and the readings of time on a trait or a storylet (slice 1e-calendar). The
+    // indexer (x.trait["t"], x.skills["S"]) is an Index node.
+    private static readonly HashSet<string> Methods = ["count", "last", "toward", "cyclesSince", "daysSince"];
 
     private static readonly HashSet<Type> Constants = [typeof(int), typeof(bool), typeof(string)];
+
+    // A conversion may also lift a number to a reading of time's int?, so that it compares with one.
+    private static readonly HashSet<Type> Converts = [typeof(int), typeof(bool), typeof(string), typeof(int?)];
 
     private static readonly HashSet<ExpressionType> Nodes =
     [
@@ -94,7 +98,7 @@ internal sealed class Whitelist : ExpressionVisitor
 
     protected override Expression VisitUnary(UnaryExpression node)
     {
-        if (node.Method is not null || (node.NodeType == ExpressionType.Convert && !(Constants.Contains(node.Type) && Constants.Contains(node.Operand.Type))))
+        if (node.Method is not null || (node.NodeType == ExpressionType.Convert && !(Converts.Contains(node.Type) && Converts.Contains(node.Operand.Type))))
         {
             throw new RefusedException(node.Method?.Name ?? node.Type.Name);
         }

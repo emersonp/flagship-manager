@@ -37,7 +37,7 @@ internal sealed class Casting
 
     public Casting(ContentPack pack)
     {
-        book = new ExpressionBook(pack.Traits, pack.Skills.Select(s => s.Id), HistoryKinds.All, pack.HistoryCycles);
+        book = new ExpressionBook(pack.Traits, pack.Skills.Select(s => s.Id), HistoryKinds.All, pack.HistoryCycles, pack.Storylets.Select(s => s.Id), pack.Vignettes.Select(v => v.Id));
         foreach (StoryletDef storylet in pack.Storylets)
         {
             byId[storylet.Id] = Compile(storylet.Id, storylet.Cast, storylet.Requires);
@@ -259,8 +259,8 @@ internal sealed class Casting
 }
 
 // What an expression reads, over the views the module may use (design 4.3). Aboard: alive and not away; in Phase 1 nobody is away
-// while the itinerary is open, so it is everyone living.
-internal sealed class StateSource(IRosterView roster, ITraitView traits, StoryletsState state, int cycle) : IStateSource
+// while the itinerary is open, so it is everyone living. Cycle and day: now, which the readings of time count back from.
+internal sealed class StateSource(IRosterView roster, ITraitView traits, StoryletsState state, int cycle, int day) : IStateSource
 {
     public int Cycle => cycle;
 
@@ -297,5 +297,18 @@ internal sealed class StateSource(IRosterView roster, ITraitView traits, Storyle
     public int History(string crewId, string kind, int cycles)
     {
         return new HistoryView(state, cycle).Count(crewId, kind, cycles);
+    }
+
+    public Since? StoryletSince(string storylet)
+    {
+        return state.Fired.FirstOrDefault(f => f.Id == storylet) is { } fired ? new Since(cycle - fired.Last, day - fired.LastDay) : null;
+    }
+
+    // A trait on one crew member or the ship; at 0 it is not held, and so unset.
+    public Since? TraitSince(string trait, string? crewId)
+    {
+        return traits.Held(crewId).FirstOrDefault(t => t.Trait == trait && t.TargetId is null && t.Value > 0) is { } held
+            ? new Since(cycle - held.ChangedAtCycle, day - held.ChangedAtDay)
+            : null;
     }
 }

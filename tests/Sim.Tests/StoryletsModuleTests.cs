@@ -1140,7 +1140,7 @@ public class StoryletsModuleTests
 
         Contest Run()
         {
-            var source = new StateSource(h.Bus.View<IRosterView>(h.State), h.Bus.View<ITraitView>(h.State), h.Storylets, 3);
+            var source = new StateSource(h.Bus.View<IRosterView>(h.State), h.Bus.View<ITraitView>(h.State), h.Storylets, 3, h.State.Day);
             return Salience.Contend(pack, new Casting(pack), h.Storylets, source, h.Bus.View<IRosterView>(h.State).Roster, 3, name => RngStream.For(1, 3, name));
         }
 
@@ -1227,11 +1227,119 @@ public class StoryletsModuleTests
         h.End([Raise("trait_j", 1, "CREW_03"), Raise("trait_b", 1, "CREW_02")]);
         h.To(CyclePhase.Aftermath);
 
-        var source = new StateSource(h.Bus.View<IRosterView>(h.State), h.Bus.View<ITraitView>(h.State), h.Storylets, 2);
+        var source = new StateSource(h.Bus.View<IRosterView>(h.State), h.Bus.View<ITraitView>(h.State), h.Storylets, 2, h.State.Day);
         Contest contest = Salience.Contend(pack, new Casting(pack), h.Storylets, source, h.Bus.View<IRosterView>(h.State).Roster, 2, name => RngStream.For(1, 2, name));
 
         Assert.Equal(["STORYLET_HIGH Arrived 31", "STORYLET_LOW LostOnBudget 11"], contest.Storylets.Select(c => $"{c.Id} {c.Fate} {c.Score!.Total}"));
         Assert.Equal("subject=CREW_02", Show(contest.Storylets[1].Cast!));
+    }
+
+    // Slice 1e-calendar, Task 4 (design 4.6): how long ago a storylet arrived. STORYLET_A arrives in cycle 2, when its trait is set.
+    private static readonly StoryletDef First = Ship("STORYLET_A", 1, "ship.trait.trait_a == 1", Option("done", Set("trait_a", 0)));
+
+    // Answers whatever waits, then turns to the next itinerary, by a cycle or a journey of some weeks; the offers it opened with.
+    private static List<string> NextOffers(Harness h, int? travel = null)
+    {
+        foreach (string offer in h.Waiting)
+        {
+            h.Send(new AnswerStorylet(offer, "done"));
+        }
+
+        List<IEvent> events = travel is { } weeks ? [.. h.To(CyclePhase.Advance), .. h.Send(new Travel(weeks))] : h.To(CyclePhase.Itinerary);
+        return events.OfType<StoryletOffered>().Select(o => o.OfferId).ToList();
+    }
+
+    [Fact]
+    public void A_storylet_that_waits_three_cycles_for_another_arrives_three_cycles_after_it()
+    {
+        StoryletDef after = Ship("STORYLET_B", 1, "ship.trait.trait_c == 1 && storylet.STORYLET_A.cyclesSince >= 3", Option("done", Set("trait_c", 0)));
+        var h = new Harness(Pack(2, First, after));
+
+        Assert.Equal(["2:STORYLET_A"], h.Mission(Raise("trait_a", 1), Raise("trait_c", 1)).OfType<StoryletOffered>().Select(o => o.OfferId));
+        Assert.Empty(NextOffers(h));
+        Assert.Empty(NextOffers(h));
+        Assert.Equal(["5:STORYLET_B"], NextOffers(h));
+    }
+
+    // C needs 3 cycles and 40 days since A: three cycles of 5 to 7 days are not enough, and a journey of 5 weeks then is.
+    [Fact]
+    public void A_storylet_that_waits_days_for_another_arrives_only_after_a_journey()
+    {
+        StoryletDef journey = Ship("STORYLET_C", 1, "ship.trait.trait_c == 1 && storylet.STORYLET_A.cyclesSince >= 3 && storylet.STORYLET_A.daysSince >= 40", Option("done", Set("trait_c", 0)));
+        var h = new Harness(Pack(2, First, journey));
+        h.Mission(Raise("trait_a", 1), Raise("trait_c", 1));
+        int arrived = h.State.Day;
+
+        Assert.Empty(NextOffers(h));
+        Assert.Empty(NextOffers(h));
+        Assert.Empty(NextOffers(h));
+        Assert.InRange(h.State.Day - arrived, 15, 21);
+        Assert.Equal(["6:STORYLET_C"], NextOffers(h, travel: 5));
+        Assert.True(h.State.Day - arrived >= 40);
+    }
+
+    // Review focus 4: before A has arrived, no reading of it is true, and neither is daysSince < 40.
+    [Fact]
+    public void Nothing_waiting_on_a_storylet_that_never_arrived_arrives()
+    {
+        StoryletDef after = Ship("STORYLET_B", 1, "ship.trait.trait_c == 1 && storylet.STORYLET_A.cyclesSince >= 3", Option("done", Set("trait_c", 0)));
+        StoryletDef journey = Ship("STORYLET_C", 1, "ship.trait.trait_c == 1 && storylet.STORYLET_A.daysSince >= 40", Option("done", Set("trait_c", 0)));
+        StoryletDef sooner = Ship("STORYLET_SOONER", 1, "ship.trait.trait_c == 1 && storylet.STORYLET_A.daysSince < 40", Option("done", Set("trait_c", 0)));
+        StoryletDef ever = Ship("STORYLET_EVER", 1, "ship.trait.trait_c == 1 && storylet.STORYLET_A.cyclesSince >= 0", Option("done", Set("trait_c", 0)));
+        var h = new Harness(Pack(4, First, after, journey, sooner, ever));
+
+        var offers = h.Mission(Raise("trait_c", 1)).OfType<StoryletOffered>().Select(o => o.OfferId).ToList();
+        offers.AddRange(NextOffers(h));
+        offers.AddRange(NextOffers(h));
+        offers.AddRange(NextOffers(h, travel: 10));
+        offers.AddRange(NextOffers(h));
+
+        Assert.Empty(offers);
+        Assert.Equal(1, h.Trait("trait_c"));
+    }
+
+    // A trait's clock: cycles and days since it last changed, restarted by any change, and unset when it is not held.
+    [Fact]
+    public void A_traits_clock_restarts_when_it_changes_and_is_unset_at_0()
+    {
+        var h = new Harness(Pack(2));
+        h.Mission(Raise("trait_c", 1), Raise("trait_j", 2, "CREW_02"));
+
+        Since? Read(string trait, string? crewId = null)
+        {
+            return new StateSource(h.Bus.View<IRosterView>(h.State), h.Bus.View<ITraitView>(h.State), h.Storylets, h.State.Cycle, h.State.Day).TraitSince(trait, crewId);
+        }
+
+        Since then = new(1, h.State.Day - h.State.StartDay);
+        Assert.Equal(then, Read("trait_c"));
+        Assert.Equal(then, Read("trait_j", "CREW_02"));
+        Assert.Null(Read("trait_a"));
+        Assert.Null(Read("trait_j", "CREW_01"));
+        Assert.Null(Read("trait_c", "CREW_02"));
+
+        h.Send(new SetTrait("trait_c", null, null, 3));
+        Assert.Equal(new Since(0, 0), Read("trait_c"));
+
+        h.Send(new SetTrait("trait_c", null, null, 0));
+        Assert.Null(Read("trait_c"));
+    }
+
+    // Dev Play's dry run, once the itinerary is open, reads how long ago A arrived as the contest did, before A arrived again in it.
+    [Fact]
+    public void The_dry_run_reads_how_long_ago_a_storylet_arrived_as_the_contest_did()
+    {
+        StoryletDef again = Ship("STORYLET_A", 1, "ship.trait.trait_a == 1", Option("done"));
+        StoryletDef after = Ship("STORYLET_B", 1, "ship.trait.trait_c == 1 && storylet.STORYLET_A.cyclesSince >= 1", Option("done"));
+        var h = new Harness(Pack(2, again, after));
+        h.Mission(Raise("trait_a", 1), Raise("trait_c", 1));
+        h.Send(new AnswerStorylet("2:STORYLET_A", "done"));
+
+        List<IEvent> opened = h.To(CyclePhase.Itinerary);
+        Contest dry = h.Bus.View<IStoryletDryRun>(h.State).Contest(opened);
+
+        Assert.Equal(["3:STORYLET_A", "3:STORYLET_B"], opened.OfType<StoryletOffered>().Select(o => o.OfferId).Order());
+        Assert.Equal(JsonSerializer.Serialize(h.Storylets.Opened!.Storylets), JsonSerializer.Serialize(dry.Storylets));
+        Assert.Equal((3, h.State.Day), (h.Storylets.Fired.Single(f => f.Id == "STORYLET_A").Last, h.Storylets.Fired.Single(f => f.Id == "STORYLET_A").LastDay));
     }
 
     // What the casting search reads in Out_of_tries_is_told_apart_from_no_cast: trait_b by crew member, and every one fit.
@@ -1272,6 +1380,16 @@ public class StoryletsModuleTests
         public int History(string crewId, string kind, int cycles)
         {
             return 0;
+        }
+
+        public Since? StoryletSince(string storylet)
+        {
+            return null;
+        }
+
+        public Since? TraitSince(string trait, string? crewId)
+        {
+            return null;
         }
     }
 }

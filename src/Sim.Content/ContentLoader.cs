@@ -136,7 +136,8 @@ public static partial class ContentLoader
         List<AssignmentDef> assignmentDefs = BuildAssignments(assignments, objectives.Select(o => o.Dto).ToList(), errors);
         List<SymbolDef> symbolDefs = BuildSymbols(symbols, errors);
         // Storylets and vignettes are read in the expression language (1e part four), against the traits, skills, and history.
-        var expressions = new ExpressionBook(traitDefs, skills.Select(s => s.Id), HistoryKinds.All, Math.Max(1, cycle.HistoryCycles));
+        var expressions = new ExpressionBook(traitDefs, skills.Select(s => s.Id), HistoryKinds.All, Math.Max(1, cycle.HistoryCycles),
+            storylets.Select(s => s.Dto.Id!), vignettes.Select(v => v.Dto.Id!));
         HashSet<string> skillIds = skills.Select(s => s.Id).ToHashSet(StringComparer.Ordinal);
         List<StoryletDef> storyletDefs = BuildStorylets(storylets, book, expressions, skillIds, errors);
         List<VignetteDef> vignetteDefs = BuildVignettes(vignettes, book, expressions, skillIds, errors);

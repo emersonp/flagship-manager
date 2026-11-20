@@ -21,7 +21,7 @@ public static class StoryletsModule
         var casting = new Casting(pack);
         bus.Module<StoryletsState>(Name);
         bus.Provide<IHistoryView>(state => new HistoryView(state.Module<StoryletsState>(Name), state.Cycle));
-        bus.Provide<IStoryletView>(state => new StoryletView(pack, casting, state.Module<StoryletsState>(Name), bus.View<IRosterView>(state), bus.View<ITraitView>(state), state.Cycle));
+        bus.Provide<IStoryletView>(state => new StoryletView(pack, casting, state.Module<StoryletsState>(Name), bus.View<IRosterView>(state), bus.View<ITraitView>(state), state.Cycle, state.Day));
         bus.Provide<IStoryletDryRun>(state => new DryRun(pack, casting, state, state.Module<StoryletsState>(Name), bus.View<IRosterView>(state), bus.View<ITraitView>(state)));
         bus.Guard<AnswerStorylet>(Order, Name, (command, context) => CheckAnswer(pack, casting, command, context));
         bus.Guard<AdvancePhase>(Order, Name, (_, context) => context.State.Phase == CyclePhase.Itinerary && Answerable(pack, context).Any() ? AnswerStorylet.WaitingReason : null);
@@ -73,7 +73,7 @@ public static class StoryletsModule
         }
 
         IRosterView roster = context.View<IRosterView>();
-        var source = new StateSource(roster, context.View<ITraitView>(), context.Module<StoryletsState>(), context.State.Cycle);
+        var source = new StateSource(roster, context.View<ITraitView>(), context.Module<StoryletsState>(), context.State.Cycle, context.State.Day);
         if (!casting.Open(storylet.Id, option, source, waiting.Cast))
         {
             return "That answer is not open to this storylet now.";
@@ -227,7 +227,7 @@ public static class StoryletsModule
         }
 
         ITraitView traits = context.View<ITraitView>();
-        var source = new StateSource(context.View<IRosterView>(), traits, state, cycle);
+        var source = new StateSource(context.View<IRosterView>(), traits, state, cycle, context.State.Day);
         Contest contest = Salience.Contend(pack, casting, state, source, roster, cycle, context.Rng);
         state.Opened = contest with { Cycle = cycle, Open = true };
         foreach (Contender arrived in contest.Storylets.Where(c => c.Fate == ContestFate.Arrived))
@@ -243,7 +243,7 @@ public static class StoryletsModule
                 .FirstOrDefault(e => e is not null);
             var offer = new WaitingStorylet { OfferId = OfferId(cycle, arrived.Id), StoryletId = arrived.Id, Cast = cast, EncounterId = encounterId };
             state.Waiting.Add(offer);
-            Arrived(state, arrived.Id, cast, cycle);
+            Arrived(state, arrived.Id, cast, cycle, context.State.Day);
             context.Publish(new StoryletOffered(offer.OfferId, offer.StoryletId, Copy(cast), offer.EncounterId, arrived.Score!.Total));
         }
 
@@ -252,7 +252,7 @@ public static class StoryletsModule
             VignetteDef vignette = pack.Vignettes.First(v => v.Id == arrived.Id);
             Dictionary<string, string> cast = Copy(arrived.Cast!);
             var offer = new WaitingVignette { OfferId = OfferId(cycle, vignette.Id), VignetteId = vignette.Id, Cast = cast };
-            Arrived(state, vignette.Id, cast, cycle);
+            Arrived(state, vignette.Id, cast, cycle, context.State.Day);
             context.Publish(new VignetteArrived(offer.OfferId, vignette.Id, Copy(cast), arrived.Score!.Total));
             if (vignette.Options.Count == 0)
             {
@@ -272,19 +272,21 @@ public static class StoryletsModule
         context.Publish(new StoryletWithdrawn(waiting.OfferId, waiting.StoryletId, Copy(waiting.Cast)));
     }
 
-    // Its cast's latest arrival, for the cast cooldown, and its arrivals over every cast, for the global cooldown and freshness.
-    private static void Arrived(StoryletsState state, string id, Dictionary<string, string> cast, int cycle)
+    // Its cast's latest arrival, for the cast cooldown, and its arrivals over every cast, for the global cooldown, freshness, and how
+    // long ago it last arrived.
+    private static void Arrived(StoryletsState state, string id, Dictionary<string, string> cast, int cycle, int day)
     {
         state.Arrivals.RemoveAll(a => a.Id == id && Salience.Same(a.Cast, cast));
         state.Arrivals.Add(new Arrival { Id = id, Cast = Copy(cast), Cycle = cycle });
         if (state.Fired.FirstOrDefault(f => f.Id == id) is { } fired)
         {
-            fired.Last = cycle;
+            (fired.Before, fired.BeforeDay) = (fired.Last, fired.LastDay);
+            (fired.Last, fired.LastDay) = (cycle, day);
             fired.Cycles.Add(cycle);
         }
         else
         {
-            state.Fired.Add(new Fired { Id = id, Last = cycle, Cycles = [cycle] });
+            state.Fired.Add(new Fired { Id = id, Last = cycle, LastDay = day, Cycles = [cycle] });
         }
     }
 

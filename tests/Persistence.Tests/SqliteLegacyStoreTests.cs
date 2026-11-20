@@ -100,7 +100,7 @@ public sealed class SqliteLegacyStoreTests : IDisposable
             EncounterId = null,
         });
         record.State.Module<StoryletsState>("storylets").Arrivals.Add(new Arrival { Id = "VIGNETTE_01", Cast = new Dictionary<string, string> { ["subject"] = "CREW_03" }, Cycle = 3 });
-        record.State.Module<StoryletsState>("storylets").Fired.Add(new Fired { Id = "VIGNETTE_01", Last = 3, Cycles = [1, 3] });
+        record.State.Module<StoryletsState>("storylets").Fired.Add(new Fired { Id = "VIGNETTE_01", Last = 3, LastDay = 37494, Before = 1, BeforeDay = 37482, Cycles = [1, 3] });
         store.Commit(record.State, Array.Empty<EventEnvelope>(), 1);
 
         var types = new Dictionary<string, Type> { ["storylets"] = typeof(StoryletsState) };
@@ -111,6 +111,7 @@ public sealed class SqliteLegacyStoreTests : IDisposable
         Assert.Equal(["CREW_02", "CREW_01"], storylets.Waiting.Single().Cast.Values);
         Assert.Equal(("VIGNETTE_01", "CREW_03", 3), (storylets.Arrivals.Single().Id, storylets.Arrivals.Single().Cast["subject"], storylets.Arrivals.Single().Cycle));
         Assert.Equal(("VIGNETTE_01", 3, "1,3"), (storylets.Fired.Single().Id, storylets.Fired.Single().Last, string.Join(",", storylets.Fired.Single().Cycles)));
+        Assert.Equal((37494, 1, 37482), (storylets.Fired.Single().LastDay, storylets.Fired.Single().Before, storylets.Fired.Single().BeforeDay));
         Assert.Equal(3, loaded.Cycle);
         Assert.Equal(["CREW_01", "CREW_02"], loaded.Crew.Keys);
         Assert.Equal(["sent", "hurt", "lost_mission"], loaded.Crew["CREW_01"]);

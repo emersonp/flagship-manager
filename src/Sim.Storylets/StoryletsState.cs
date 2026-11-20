@@ -53,6 +53,14 @@ public sealed class Fired
 
     public required int Last { get; set; }
 
+    // The day it last arrived on, with Last (slice 1e-calendar), for storylet.s.daysSince.
+    public required int LastDay { get; set; }
+
+    // The arrival before Last, its cycle and day, or null for none: what Dev Play's dry run puts back when it rewinds the cycle's own.
+    public int? Before { get; set; }
+
+    public int? BeforeDay { get; set; }
+
     // Oldest first; those older than salience.window fall out when the itinerary opens.
     public required List<int> Cycles { get; set; }
 }
