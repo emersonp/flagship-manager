@@ -32,9 +32,14 @@ fail() {
   exit 1
 }
 
-# playwright-cli writes its snapshots under the working directory, so it runs inside the scratch directory.
+# playwright-cli writes its snapshots under the working directory, so it runs inside the scratch directory. A step that fails
+# (no element matches, a timeout) stops the script with what playwright-cli said, rather than set -e's silent exit.
 pw() {
-  (cd "$tmp" && timeout 60 playwright-cli -s="$session" "$@")
+  local out
+  if ! out=$(cd "$tmp" && timeout 60 playwright-cli -s="$session" "$@"); then
+    fail "playwright-cli $* failed: $out"
+  fi
+  printf '%s\n' "$out"
 }
 
 # A JavaScript expression's value, without the quotes the raw output puts around a string.
@@ -119,6 +124,9 @@ visit "/"
 pw fill "#name" "LEGACY_ONE" > /dev/null
 pw click "getByRole('button', { name: 'Start a legacy' })" > /dev/null
 wait_for "location.pathname.startsWith('/legacy/')" "the bridge to open"
+# A cycle opens on the captain's itinerary; nothing in the fixture waits there on the first, so it goes straight to the orders.
+pw click "getByRole('button', { name: 'To orders' })" > /dev/null
+wait_for "document.querySelector('[aria-current=step] .phase__name')?.textContent === 'Orders'" "the orders"
 pw click "getByRole('button', { name: 'To briefing' })" > /dev/null
 wait_for "document.querySelector('#briefing') !== null" "the briefing"
 [ "$(js "document.body.textContent.includes('$crew_name')")" = "true" ] || fail "the briefing does not show the crew member's new name."

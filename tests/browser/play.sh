@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # One cycle in a real browser through playwright-cli: every action button is double-clicked, and the page must move one
-# step each time, and the aftermath holds a storylet that must be answered before the next cycle. Scratch database and copy of tests/fixtures/content, free port, and everything removed on exit. Not part of check.sh.
+# step each time, and the itinerary holds a storylet that must be answered before the orders. Scratch database and copy of tests/fixtures/content, free port, and everything removed on exit. Not part of check.sh.
 set -euo pipefail
 root="$(cd "$(dirname "$0")/../.." && pwd)"
 
@@ -28,9 +28,14 @@ fail() {
   exit 1
 }
 
-# playwright-cli writes its snapshots under the working directory, so it runs inside the scratch directory.
+# playwright-cli writes its snapshots under the working directory, so it runs inside the scratch directory. A step that fails
+# (no element matches, a timeout) stops the script with what playwright-cli said, rather than set -e's silent exit.
 pw() {
-  (cd "$tmp" && timeout 60 playwright-cli -s="$session" "$@")
+  local out
+  if ! out=$(cd "$tmp" && timeout 60 playwright-cli -s="$session" "$@"); then
+    fail "playwright-cli $* failed: $out"
+  fi
+  printf '%s\n' "$out"
 }
 
 # A JavaScript expression's value, without the quotes the raw output puts around a string.
@@ -57,15 +62,16 @@ dotnet build --nologo -v quiet "$root/src/Web" > "$tmp/build.log" 2>&1 || { cat 
 
 # The app reads a scratch copy of the tests' placeholder pack, never the game's content/.
 cp -r "$root/tests/fixtures/content" "$tmp/content"
-# In the copy STORYLET_01 holds while trait_a is 5 or less, so it waits in the first aftermath whatever the mission did; either answer ends it.
+# In the copy STORYLET_01 holds while trait_a is 5 or less, so it waits on the first itinerary; either answer sets trait_a to 9,
+# so it does not come back.
 "$python" - "$tmp/content/storylets/base.yaml" <<'PY'
 import sys
 path = sys.argv[1]
 text = open(path, encoding="utf-8", newline="").read()
 edits = [
-    ("- { trait: trait_a, min: 1, max: 1 }", "- { trait: trait_a, max: 5 }"),
-    ("effects: [{ trait: trait_a, set: 0 }, { loyalty: -1, on: crew }]", "effects: [{ trait: trait_a, set: 9 }, { loyalty: -1, on: crew }]"),
-    ("effects: [{ trait: trait_a, set: 2 }]", "effects: [{ trait: trait_a, set: 9 }]"),
+    ('requires: "ship.trait.trait_a == 1"', 'requires: "ship.trait.trait_a <= 5"'),
+    ("{ trait: trait_a, set: 0 }", "{ trait: trait_a, set: 9 }"),
+    ("{ trait: trait_a, set: 2 }", "{ trait: trait_a, set: 9 }"),
 ]
 for old, new in edits:
     assert text.count(old) == 1, old
@@ -82,6 +88,38 @@ pw open "$base/" > /dev/null
 pw fill "#name" "LEGACY_ONE" > /dev/null
 pw click "getByRole('button', { name: 'Start a legacy' })" > /dev/null
 wait_for "location.pathname.startsWith('/legacy/')" "the bridge to open"
+[ "$(phase)" = "Itinerary" ] || fail "a new legacy opened in $(phase), not the itinerary."
+
+# Itinerary: the storylet waits, and To orders is disabled with the reason beside it.
+wait_for "document.querySelector('#storylets form.answer') !== null" "a waiting storylet"
+[ "$(js "document.querySelector('.actions .act button').disabled")" = "true" ] || fail "To orders is not disabled while a storylet waits."
+[ "$(js "document.querySelector('#advance-blocked').textContent")" = "A storylet is waiting for an answer." ] || fail "To orders does not say why it is disabled."
+
+# At 400 and 1280 pixels wide nothing scrolls sideways, and no storylet panel scrolls inside itself.
+fits="document.documentElement.scrollWidth <= document.documentElement.clientWidth && [...document.querySelectorAll('#storylets, .storylet')].every(p => p.scrollWidth <= p.clientWidth && p.scrollHeight <= p.clientHeight)"
+for width in 400 1280; do
+  pw resize "$width" 900 > /dev/null
+  [ "$(js "$fits")" = "true" ] || fail "the waiting storylet scrolls at $width pixels wide."
+done
+
+# The first answer, double-clicked: the panel settles with its tags, and To orders is free.
+pw dblclick "#storylets form.answer >> nth=0 >> button" > /dev/null
+wait_for "document.querySelector('#storylets form') === null && document.querySelector('#storylets .fig-tag') !== null" "the storylet to settle"
+[ "$(js "document.querySelector('.actions .act button').disabled")" = "false" ] || fail "To orders is still disabled after the answer."
+
+# A reload still shows the settled panel, and it fits at both widths.
+js "location.reload()" > /dev/null || true
+wait_for "document.readyState === 'complete' && document.querySelector('#storylets .fig-tag') !== null" "the settled storylet after a reload"
+for width in 400 1280; do
+  pw resize "$width" 900 > /dev/null
+  [ "$(js "$fits")" = "true" ] || fail "the settled storylet scrolls at $width pixels wide."
+done
+
+# Itinerary: a double click reaches the orders and stops there.
+pw dblclick "getByRole('button', { name: 'To orders' })" > /dev/null
+wait_for "document.querySelector('[aria-current=step] .phase__name').textContent === 'Orders'" "the orders"
+sleep 1
+[ "$(phase)" = "Orders" ] || fail "a double click on To orders left the page in $(phase), not Orders."
 
 # Orders: a double click reaches the briefing and stops there.
 pw dblclick "getByRole('button', { name: 'To briefing' })" > /dev/null
@@ -131,34 +169,9 @@ wait_for "document.querySelector('.verdict') !== null" "the aftermath"
 sleep 1
 [ "$(phase)" = "Aftermath" ] || fail "a double click on To aftermath left the page in $(phase), not Aftermath."
 
-# Aftermath: the storylet waits, and Next cycle is disabled with the reason beside it.
-wait_for "document.querySelector('#matters form.answer') !== null" "a waiting storylet"
-[ "$(js "document.querySelector('.actions .act button').disabled")" = "true" ] || fail "Next cycle is not disabled while a storylet waits."
-[ "$(js "document.querySelector('#advance-blocked').textContent")" = "A storylet is waiting for an answer." ] || fail "Next cycle does not say why it is disabled."
-
-# At 400 and 1280 pixels wide nothing scrolls sideways, and no storylet panel scrolls inside itself.
-fits="document.documentElement.scrollWidth <= document.documentElement.clientWidth && [...document.querySelectorAll('#matters, .storylet')].every(p => p.scrollWidth <= p.clientWidth && p.scrollHeight <= p.clientHeight)"
-for width in 400 1280; do
-  pw resize "$width" 900 > /dev/null
-  [ "$(js "$fits")" = "true" ] || fail "the waiting storylet scrolls at $width pixels wide."
-done
-
-# The first answer, double-clicked: the panel settles with its tags, and Next cycle is free.
-pw dblclick "#matters form.answer >> nth=0 >> button" > /dev/null
-wait_for "document.querySelector('#matters form') === null && document.querySelector('#matters .fig-tag') !== null" "the storylet to settle"
-[ "$(js "document.querySelector('.actions .act button').disabled")" = "false" ] || fail "Next cycle is still disabled after the answer."
-
-# A reload still shows the settled panel, and it fits at both widths.
-js "location.reload()" > /dev/null || true
-wait_for "document.readyState === 'complete' && document.querySelector('#matters .fig-tag') !== null" "the settled storylet after a reload"
-for width in 400 1280; do
-  pw resize "$width" 900 > /dev/null
-  [ "$(js "$fits")" = "true" ] || fail "the settled storylet scrolls at $width pixels wide."
-done
-
 # Aftermath: a double click starts one new cycle, not two.
 pw dblclick "getByRole('button', { name: 'Next cycle' })" > /dev/null
-wait_for "document.querySelector('[aria-current=step] .phase__name').textContent === 'Orders'" "the next cycle's orders"
+wait_for "document.querySelector('[aria-current=step] .phase__name').textContent === 'Itinerary'" "the next cycle's itinerary"
 sleep 1
 # One turn moves the fixture's calendar 5 to 7 days from 13 MONTH_B 105; two would be 10 or more. Play shows no cycle.
 clock=$(js "[...document.querySelectorAll('.clock dd > [aria-hidden=true]')].map(d => d.textContent).join(' ')")
@@ -167,7 +180,7 @@ case "$clock" in
   *) fail "after a double click on Next cycle the date reads '$clock', expected 18, 19, or 20 MONTH_B 105." ;;
 esac
 [ "$(js "document.querySelectorAll('.clock dt').length")" = "1" ] || fail "the top bar shows more than the date in play."
-[ "$(phase)" = "Orders" ] || fail "a double click on Next cycle left the page in $(phase), not Orders."
+[ "$(phase)" = "Itinerary" ] || fail "a double click on Next cycle left the page in $(phase), not the itinerary."
 
 console=$(pw --raw console)
 case "$console" in
