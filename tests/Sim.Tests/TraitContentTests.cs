@@ -233,7 +233,7 @@ public class TraitContentTests
     [Theory]
     [InlineData("{ loyalty: -1, on: crew }", "{ loyalty: -1, on: target }", "STORYLET_01: on: target names no slot; this storylet casts no one.")]
     [InlineData("{ trait: trait_a, set: 2 }", "{ trait: trait_a, set: 2, toward: target }", "STORYLET_01: toward: target names no slot; this storylet casts no one.")]
-    [InlineData("subject.trait.trait_c == 0", "subject.trait.trait_c == 0 && target.morale <= 20", "STORYLET_02: cast.subject, at character 61: target is not a slot this expression can read; it reads subject, ship, cycle, and storylet.")]
+    [InlineData("subject.trait.trait_c == 0", "subject.trait.trait_c == 0 && target.morale <= 20", "STORYLET_02: cast.subject, at character 61: target is not a slot this expression can read; it reads subject, ship, cycle, storylet, and chronicle.")]
     [InlineData("{ trait: trait_g, set: 5, toward: target }", "{ trait: trait_g, set: 5, on: target, toward: target }", "STORYLET_03: toward: target names the slot the trait is on; a pair trait is held toward someone else.")]
     [InlineData("{ trait: trait_g, set: 5, toward: target }", "{ trait: trait_g, set: 5 }", "STORYLET_03: trait_g sits on a pair, so it is used with toward.")]
     [InlineData("{ trait: trait_g, set: 5, toward: target }", "{ trait: trait_b, set: 1, toward: target }", "STORYLET_03: A trait on a pair needs a definition with on: pair.")]

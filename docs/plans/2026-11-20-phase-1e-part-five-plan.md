@@ -108,11 +108,11 @@ public sealed record CrewDied(string CrewId, string MissionId, string? Encounter
 
 **Files:** `src/Sim.Expressions/Rewrite.cs`, `Whitelist.cs`, `StateView.cs`, `ExpressionBook.cs`, `TraitReading.cs`, `src/Sim.Storylets/StoryletView.cs` (its `IStateSource`), `src/Sim.Storylets/StoryletsModule.cs` (it is handed an `IChronicleView`), `src/GameHost/Game.cs`, `tests/Sim.Tests/ExpressionsTests.cs`, `tests/Sim.Tests/StoryletsModuleTests.cs`.
 
-- [ ] **Step 1: the source.** `IStateSource` gains `ChronicleCount(string kind, int days)` and `ChronicleCount(string crewId, string kind, int days)`. The storylets module reads them from `IChronicleView`. It gets the view the way it gets `ITraitView` today; if the chronicle being registered last gets in the way, say so in "As built".
-- [ ] **Step 2: the language.** `chronicle.count('kind', n)` at the root and `x.chronicle.count('kind', n)` on a slot. In the rewrite, check that the kind is one of `ChronicleKinds` ("No chronicle kind named deaths") and that `n` is a whole-number constant from 1, with positions, as `history.count` is checked. `chronicle` stops being refused, and `dept` is refused as "dept waits for departments (Phase 5)".
-- [ ] **Step 3: hidden memory.** `TraitReading` treats the chronicle reads as unknown, as it does `daysSince`, so the rule is unchanged for every existing storylet.
-- [ ] **Step 4: tests.** Two deaths 100 days apart pass `count('death', 120) >= 2`. A single travel of 5 weeks between them fails it. `x.chronicle.count('call', 60)` counts only entries with `x` as a subject. A bad kind and a non-constant `n` are refused with their positions.
-- [ ] **Step 5:** `./check.sh`; commit "Let storylets read the chronicle by kind and by crew member, over days".
+- [x] **Step 1: the source.** `IStateSource` gains `ChronicleCount(string kind, int days)` and `ChronicleCount(string crewId, string kind, int days)`. The storylets module reads them from `IChronicleView`. It gets the view the way it gets `ITraitView` today; if the chronicle being registered last gets in the way, say so in "As built".
+- [x] **Step 2: the language.** `chronicle.count('kind', n)` at the root and `x.chronicle.count('kind', n)` on a slot. In the rewrite, check that the kind is one of `ChronicleKinds` ("No chronicle kind named deaths") and that `n` is a whole-number constant from 1, with positions, as `history.count` is checked. `chronicle` stops being refused, and `dept` is refused as "dept waits for departments (Phase 5)".
+- [x] **Step 3: hidden memory.** `TraitReading` treats the chronicle reads as unknown, as it does `daysSince`, so the rule is unchanged for every existing storylet.
+- [x] **Step 4: tests.** Two deaths 100 days apart pass `count('death', 120) >= 2`. A single travel of 5 weeks between them fails it. `x.chronicle.count('call', 60)` counts only entries with `x` as a subject. A bad kind and a non-constant `n` are refused with their positions.
+- [x] **Step 5:** `./check.sh`; commit "Let storylets read the chronicle by kind and by crew member, over days".
 
 ### Task 6: the Chronicle page
 

@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text;
+using Sim.Core;
 using Sim.Core.Content;
 
 namespace Sim.Expressions;
@@ -13,18 +14,20 @@ namespace Sim.Expressions;
 //   x.trait.t == 'level' -> x.trait["t"] == 2      (the level resolved to its number)
 //   x.trait.t.daysSince  -> x.trait.daysSince("t") (and cyclesSince; ship.trait.t too; not on a pair trait yet)
 //   storylet.s.daysSince -> storylet.daysSince("s") (and cyclesSince; s a storylet, never a vignette)
+//   chronicle.count('k', n), x.chronicle.count('k', n) (k a chronicle kind and n a constant from 1, in days)
 // and single quotes to double. A map from each character it writes back to the source keeps the parser's positions true.
 internal sealed class Rewrite
 {
     private const string Ship = ExpressionBook.Ship;
     private const string Cycle = ExpressionBook.Cycle;
     private const string Storylet = ExpressionBook.Storylet;
+    private const string Chronicle = ExpressionBook.Chronicle;
 
     private static readonly Dictionary<string, string> Waiting = new(StringComparer.Ordinal)
     {
         ["rel"] = "rel() waits for relationships (Phase 4).",
         ["grade"] = "grade waits for 1h.",
-        ["chronicle"] = "chronicle waits for the chronicle (1e part five).",
+        ["dept"] = "dept waits for departments (Phase 5).",
     };
 
     private static readonly Dictionary<string, string> Spelled = new(StringComparer.Ordinal)
@@ -137,6 +140,7 @@ internal sealed class Rewrite
             Ship => ShipRead(i),
             Cycle => CycleRead(i),
             Storylet => StoryletRead(i),
+            Chronicle => ChronicleRead(i, name, null),
             _ => throw NotReadable(name),
         };
 
@@ -169,13 +173,15 @@ internal sealed class Rewrite
                 return CrewTrait(i, slot, member);
             case "history":
                 return History(i, slot, member);
+            case "chronicle":
+                return ChronicleRead(i + 2, member, slot);
             default:
                 if (Waiting.TryGetValue(member.Text, out string? waiting))
                 {
                     throw new RewriteException(waiting, member.Position);
                 }
 
-                throw new RewriteException($"A crew member has nothing named {member.Text}; it reads morale, loyalty, skills, fit, aboard, trait, and history.", member.Position);
+                throw new RewriteException($"A crew member has nothing named {member.Text}; it reads morale, loyalty, skills, fit, aboard, trait, history, and chronicle.", member.Position);
         }
     }
 
@@ -228,7 +234,7 @@ internal sealed class Rewrite
                 : throw new RewriteException("toward takes a slot, as toward(target).", (At(i + 8) ?? open).Position);
             if (!slots.Contains(target.Text))
             {
-                throw target.Text is Ship or Cycle or Storylet || Spelled.ContainsKey(target.Text) || target.Text is "true" or "false"
+                throw target.Text is Ship or Cycle or Storylet or Chronicle || Spelled.ContainsKey(target.Text) || target.Text is "true" or "false"
                     ? new RewriteException("toward takes a slot, as toward(target).", target.Position)
                     : NotReadable(target);
             }
@@ -402,6 +408,48 @@ internal sealed class Rewrite
         return i + 5;
     }
 
+    // chronicle.count('k', n) at the root, or on a slot (design 4.6), with `at` the index of the word chronicle. Not a trait read: it
+    // turns on what has happened, so the rule against hidden memory reads it as unknown.
+    private int ChronicleRead(int at, Token chronicle, Token? slot)
+    {
+        string usage = $"The chronicle is read as {(slot is null ? "" : slot.Value.Text + ".")}chronicle.count('death', 120): a kind in quotes and a number of days.";
+        Token method = Member(at + 1) ?? throw new RewriteException(usage, chronicle.Position + chronicle.Length);
+        if (method.Text != "count")
+        {
+            throw new RewriteException(usage, method.Position);
+        }
+
+        Expect(at + 3, "(", method, usage);
+        Token kind = At(at + 4) is { Kind: TokenKind.Quoted } quoted ? quoted : throw Usage(at + 4, tokens[at + 3], usage);
+        if (!ChronicleKinds.All.Contains(kind.Text))
+        {
+            throw new RewriteException($"No chronicle kind named {kind.Text}; the kinds are {string.Join(", ", ChronicleKinds.All)}.", kind.Position);
+        }
+
+        Expect(at + 5, ",", kind, usage);
+        Token days = At(at + 6) is { Kind: TokenKind.Number } number ? number : throw Usage(at + 6, kind, usage);
+        Expect(at + 7, ")", days, usage);
+        if (!int.TryParse(days.Text, NumberStyles.None, CultureInfo.InvariantCulture, out int n) || n < 1)
+        {
+            throw new RewriteException($"chronicle.count reads a whole number of days from 1, not {days.Text}.", days.Position);
+        }
+
+        if (slot is { } crew)
+        {
+            Put(crew.Text, crew.Position);
+            Put(".chronicle", chronicle.Position, glued: true);
+        }
+        else
+        {
+            Put(chronicle.Text, chronicle.Position);
+        }
+
+        Put(".count", method.Position, glued: true);
+        Put($"(\"{kind.Text}\", ", kind.Position, glued: true);
+        Put(n.ToString(CultureInfo.InvariantCulture) + ")", days.Position, glued: true);
+        return at + 8;
+    }
+
     // How long since a pair trait changed waits: the slice reads it only on one crew member or the ship.
     private static RewriteException PairSince(Token id, Token since)
     {
@@ -419,7 +467,7 @@ internal sealed class Rewrite
             return i + 1;
         }
 
-        throw new RewriteException("A quoted name is a level of the trait it is compared with, or a history kind.", quoted.Position);
+        throw new RewriteException("A quoted name is a level of the trait it is compared with, or a history or chronicle kind.", quoted.Position);
     }
 
     private string Level(TraitDef def, Token level)
@@ -456,8 +504,8 @@ internal sealed class Rewrite
 
     private RewriteException NotReadable(Token name)
     {
-        List<string> readable = [.. slots, Ship, Cycle, Storylet];
-        string list = string.Join(", ", readable.Take(readable.Count - 1)) + ", and " + Storylet;
+        List<string> readable = [.. slots, Ship, Cycle, Storylet, Chronicle];
+        string list = string.Join(", ", readable.Take(readable.Count - 1)) + ", and " + Chronicle;
         return new RewriteException($"{name.Text} is not a slot this expression can read; it reads {list}.", name.Position);
     }
 

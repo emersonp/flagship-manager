@@ -5,7 +5,7 @@ namespace Sim.Storylets;
 
 // The answers open on a waiting storylet, read as the guard reads them (1e part four, Task 6): its options whose requires holds,
 // and for a check option, who may be sent and their chance.
-internal sealed class StoryletView(ContentPack pack, Casting casting, StoryletsState state, IRosterView roster, ITraitView traits, int cycle, int day) : IStoryletView
+internal sealed class StoryletView(ContentPack pack, Casting casting, StoryletsState state, IRosterView roster, ITraitView traits, IChronicleView chronicle, int cycle, int day) : IStoryletView
 {
     public Contest? Opened => state.Opened;
 
@@ -17,7 +17,7 @@ internal sealed class StoryletView(ContentPack pack, Casting casting, StoryletsS
             return [];
         }
 
-        var source = new StateSource(roster, traits, state, cycle, day);
+        var source = new StateSource(roster, traits, chronicle, state, cycle, day);
         return storylet.Options
             .Where(o => casting.Open(storylet.Id, o, source, waiting.Cast))
             .Select(o => new OpenAnswer(o.Id, o.Check is not { } check ? null

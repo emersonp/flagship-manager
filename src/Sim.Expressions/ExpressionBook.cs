@@ -20,6 +20,8 @@ public sealed partial class ExpressionBook
 
     public const string Storylet = "storylet";
 
+    public const string Chronicle = "chronicle";
+
     private readonly Dictionary<string, TraitDef> traits;
     private readonly Interpreter interpreter;
 
@@ -102,7 +104,8 @@ public sealed partial class ExpressionBook
             slots.Count > 2 ? View(state, cast, slots[2]) : null,
             new ShipView(state),
             new CycleView(state),
-            new StoryletsView(state));
+            new StoryletsView(state),
+            new ChronicleView(state, null));
     }
 
     internal TraitDef? Trait(string id)
@@ -125,10 +128,10 @@ public sealed partial class ExpressionBook
     }
 
     // The fixed signature: three slots, the unbound ones named so that no expression can write them (the rewrite refuses a name
-    // that is not a slot), then ship, cycle, and storylet.
+    // that is not a slot), then ship, cycle, storylet, and chronicle.
     private Lambda Parse(string text, IReadOnlyList<string> slots)
     {
-        var parameters = new Parameter[MaxSlots + 3];
+        var parameters = new Parameter[MaxSlots + 4];
         for (int k = 0; k < MaxSlots; k++)
         {
             parameters[k] = new Parameter(k < slots.Count ? slots[k] : $"_{k}", typeof(CrewView));
@@ -137,6 +140,7 @@ public sealed partial class ExpressionBook
         parameters[MaxSlots] = new Parameter(Ship, typeof(ShipView));
         parameters[MaxSlots + 1] = new Parameter(Cycle, typeof(CycleView));
         parameters[MaxSlots + 2] = new Parameter(Storylet, typeof(StoryletsView));
+        parameters[MaxSlots + 3] = new Parameter(Chronicle, typeof(ChronicleView));
         return interpreter.Parse(text, parameters);
     }
 
@@ -147,9 +151,9 @@ public sealed partial class ExpressionBook
             throw new ArgumentException($"An expression reads at most {MaxSlots} slots.", nameof(slots));
         }
 
-        if (slots.Any(s => s is Ship or Cycle or Storylet || !SlotName().IsMatch(s)) || slots.Distinct(StringComparer.Ordinal).Count() != slots.Count)
+        if (slots.Any(s => s is Ship or Cycle or Storylet or Chronicle || !SlotName().IsMatch(s)) || slots.Distinct(StringComparer.Ordinal).Count() != slots.Count)
         {
-            throw new ArgumentException($"Slots must be distinct lower-case names, not {Ship}, {Cycle}, or {Storylet}: {string.Join(", ", slots)}.", nameof(slots));
+            throw new ArgumentException($"Slots must be distinct lower-case names, not {Ship}, {Cycle}, {Storylet}, or {Chronicle}: {string.Join(", ", slots)}.", nameof(slots));
         }
     }
 

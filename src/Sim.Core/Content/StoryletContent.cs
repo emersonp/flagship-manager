@@ -94,7 +94,7 @@ public static class StoryletScopes
     public const string Target = "target";
 
     // A slot may not be called any of these (design 4.2): each already means something in an expression, an effect, or a script.
-    public static readonly IReadOnlyList<string> Reserved = ["ship", "crew", "captain", "cycle", "best", "handler"];
+    public static readonly IReadOnlyList<string> Reserved = ["ship", "crew", "captain", "cycle", "storylet", "chronicle", "best", "handler"];
 
     // The crew member the captain sends on a check: a slot only in a check's success and failure (design 4.7).
     public const string Handler = "handler";

@@ -1,9 +1,11 @@
 using System.Text.Json;
+using Sim.Chronicle;
 using Sim.Core;
 using Sim.Core.Content;
 using Sim.Crew;
 using Sim.Cycle;
 using Sim.Expressions;
+using Sim.Narrative;
 using Sim.Storylets;
 using Sim.Traits;
 
@@ -20,7 +22,10 @@ public class StoryletsModuleTests
 
     internal sealed record PassDays(int Days) : ICommand;
 
-    // Cycle, crew, traits, and storylets on one bus; a test command stands in for the missions module's end of a mission.
+    // Stands in for the missions module's answer to a call (1e part five): the lead who made it is the chronicle entry's subject.
+    internal sealed record AnswerCall(string LeadId) : ICommand;
+
+    // Cycle, crew, traits, storylets, and the chronicle on one bus; a test command stands in for the missions module's end of a mission.
     internal sealed class Harness
     {
         public Harness(ContentPack pack, ulong seed = 1)
@@ -121,6 +126,7 @@ public class StoryletsModuleTests
             CrewModule.Register(bus, pack);
             TraitsModule.Register(bus, pack);
             StoryletsModule.Register(bus, pack);
+            ChronicleModule.Register(bus, pack, new Narrator(pack));
             bus.Handle<EndMission>((command, context) => context.Publish(new MissionEnded("MISSION_1", "OBJECTIVE_1", command.Result)));
             bus.Handle<PassDays>((command, context) =>
             {
@@ -129,6 +135,7 @@ public class StoryletsModuleTests
                     context.Publish(new DayReached(day));
                 }
             });
+            bus.Handle<AnswerCall>((command, context) => context.Publish(new CallAnswered("MISSION_1", "DECISION_1", Encounter, "bold", "safe", "overruled", command.LeadId)));
             bus.Handle<StartMission>((command, context) => context.Publish(new MissionStarted("MISSION_1", "OBJECTIVE_1", "OBJECTIVE_TEMPLATE_1", command.CrewIds, command.CrewIds[0])));
             return bus;
         }
@@ -1140,7 +1147,7 @@ public class StoryletsModuleTests
 
         Contest Run()
         {
-            var source = new StateSource(h.Bus.View<IRosterView>(h.State), h.Bus.View<ITraitView>(h.State), h.Storylets, 3, h.State.Day);
+            var source = new StateSource(h.Bus.View<IRosterView>(h.State), h.Bus.View<ITraitView>(h.State), h.Bus.View<IChronicleView>(h.State), h.Storylets, 3, h.State.Day);
             return Salience.Contend(pack, new Casting(pack), h.Storylets, source, h.Bus.View<IRosterView>(h.State).Roster, 3, name => RngStream.For(1, 3, name));
         }
 
@@ -1227,7 +1234,7 @@ public class StoryletsModuleTests
         h.End([Raise("trait_j", 1, "CREW_03"), Raise("trait_b", 1, "CREW_02")]);
         h.To(CyclePhase.Aftermath);
 
-        var source = new StateSource(h.Bus.View<IRosterView>(h.State), h.Bus.View<ITraitView>(h.State), h.Storylets, 2, h.State.Day);
+        var source = new StateSource(h.Bus.View<IRosterView>(h.State), h.Bus.View<ITraitView>(h.State), h.Bus.View<IChronicleView>(h.State), h.Storylets, 2, h.State.Day);
         Contest contest = Salience.Contend(pack, new Casting(pack), h.Storylets, source, h.Bus.View<IRosterView>(h.State).Roster, 2, name => RngStream.For(1, 2, name));
 
         Assert.Equal(["STORYLET_HIGH Arrived 31", "STORYLET_LOW LostOnBudget 11"], contest.Storylets.Select(c => $"{c.Id} {c.Fate} {c.Score!.Total}"));
@@ -1307,7 +1314,7 @@ public class StoryletsModuleTests
 
         Since? Read(string trait, string? crewId = null)
         {
-            return new StateSource(h.Bus.View<IRosterView>(h.State), h.Bus.View<ITraitView>(h.State), h.Storylets, h.State.Cycle, h.State.Day).TraitSince(trait, crewId);
+            return new StateSource(h.Bus.View<IRosterView>(h.State), h.Bus.View<ITraitView>(h.State), h.Bus.View<IChronicleView>(h.State), h.Storylets, h.State.Cycle, h.State.Day).TraitSince(trait, crewId);
         }
 
         Since then = new(1, h.State.Day - h.State.StartDay);
@@ -1340,6 +1347,53 @@ public class StoryletsModuleTests
         Assert.Equal(["3:STORYLET_A", "3:STORYLET_B"], opened.OfType<StoryletOffered>().Select(o => o.OfferId).Order());
         Assert.Equal(JsonSerializer.Serialize(h.Storylets.Opened!.Storylets), JsonSerializer.Serialize(dry.Storylets));
         Assert.Equal((3, h.State.Day), (h.Storylets.Fired.Single(f => f.Id == "STORYLET_A").Last, h.Storylets.Fired.Single(f => f.Id == "STORYLET_A").LastDay));
+    }
+
+    // 1e part five, Task 5 (review focus 4): the chronicle is read in days, today included, whatever the cycles were. A death in
+    // cycle 1, 100 days passed in cycle 2 before a second death, and the next itinerary: with ordinary cycles the first is under 120
+    // days back and counts; with a 5-week journey (30 days in the fixture's calendar) between them, in the same number of cycles,
+    // it is past 120 and does not.
+    [Theory]
+    [InlineData(null, true)]
+    [InlineData(5, false)]
+    public void A_second_death_within_120_days_is_read_in_days_not_cycles(int? travel, bool arrives)
+    {
+        StoryletDef wall = Ship("STORYLET_WALL", 1, "chronicle.count('death', 120) >= 2", Option("done"));
+        var h = new Harness(Pack(1, wall));
+        h.To(CyclePhase.Resolution);
+        h.End([], Died("CREW_03"));
+        int first = h.State.Day;
+        h.To(CyclePhase.Advance);
+        Assert.Empty((travel is { } weeks ? h.Send(new Travel(weeks)) : h.To(CyclePhase.Itinerary)).OfType<StoryletOffered>());
+
+        h.To(CyclePhase.Resolution);
+        h.PassDays(100);
+        h.End([], Died("CREW_04"));
+        List<string> offers = h.To(CyclePhase.Itinerary).OfType<StoryletOffered>().Select(o => o.OfferId).ToList();
+
+        Assert.Equal(3, h.State.Cycle);
+        Assert.Equal(2, h.Bus.View<IChronicleView>(h.State).Entries.Count(e => e.Kind == ChronicleKinds.Death));
+        Assert.InRange(h.State.Day - first, travel is null ? 100 : 120, travel is null ? 119 : 160);
+        Assert.Equal(arrives ? ["3:STORYLET_WALL"] : [], offers);
+    }
+
+    // x.chronicle.count reads only the entries with x as a subject: CREW_01's call, 70 days and more back, is out of a 60-day window;
+    // CREW_02's, today, is in it.
+    [Fact]
+    public void A_slots_chronicle_counts_only_its_own_entries()
+    {
+        StoryletDef calls = Crew("STORYLET_CALLS", 1, "subject.chronicle.count('call', 60) >= 1", Option("done"));
+        var h = new Harness(Pack(1, calls));
+        h.Send(new AnswerCall("CREW_01"));
+        h.PassDays(70);
+        h.Send(new AnswerCall("CREW_02"));
+
+        List<IEvent> opened = h.To(CyclePhase.Itinerary);
+
+        Assert.Equal(["2:STORYLET_CALLS"], opened.OfType<StoryletOffered>().Select(o => o.OfferId));
+        Assert.Equal("subject=CREW_02", h.CastOf("STORYLET_CALLS"));
+        IChronicleView view = h.Bus.View<IChronicleView>(h.State);
+        Assert.Equal((0, 1, 2), (view.Count("CREW_01", ChronicleKinds.Call, 60), view.Count("CREW_01", ChronicleKinds.Call, 100), view.Count(ChronicleKinds.Call, 100)));
     }
 
     // What the casting search reads in Out_of_tries_is_told_apart_from_no_cast: trait_b by crew member, and every one fit.
@@ -1390,6 +1444,16 @@ public class StoryletsModuleTests
         public Since? TraitSince(string trait, string? crewId)
         {
             return null;
+        }
+
+        public int ChronicleCount(string kind, int days)
+        {
+            return 0;
+        }
+
+        public int ChronicleCount(string crewId, string kind, int days)
+        {
+            return 0;
         }
     }
 }

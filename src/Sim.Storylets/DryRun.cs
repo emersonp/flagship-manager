@@ -16,7 +16,7 @@ namespace Sim.Storylets;
 // cycles it is the next itinerary as things stand now: the copy is opened as the module opens it (the last cycle's rest marked, old
 // history and stale offers dropped), but the week's recovery and a trait's change with the weeks, which come as the cycle begins,
 // are not in it.
-internal sealed class DryRun(ContentPack pack, Casting casting, LegacyState legacy, StoryletsState state, IRosterView roster, ITraitView traits) : IStoryletDryRun
+internal sealed class DryRun(ContentPack pack, Casting casting, LegacyState legacy, StoryletsState state, IRosterView roster, ITraitView traits, IChronicleView chronicle) : IStoryletDryRun
 {
     public Contest Contest(IReadOnlyList<IEvent> cycleEvents)
     {
@@ -38,7 +38,7 @@ internal sealed class DryRun(ContentPack pack, Casting casting, LegacyState lega
             int cycle = legacy.Cycle;
             List<IEvent> since = Since(cycleEvents, cycle);
             Rewind(copy, cycle, since);
-            return (copy, new Rewound(new StateSource(roster, traits, copy, cycle, legacy.Day), since), cycle, true);
+            return (copy, new Rewound(new StateSource(roster, traits, chronicle, copy, cycle, legacy.Day), since), cycle, true);
         }
 
         int next = legacy.Cycle + 1;
@@ -50,7 +50,7 @@ internal sealed class DryRun(ContentPack pack, Casting casting, LegacyState lega
         }
 
         // The next cycle's day is rolled as it turns, so how long ago something happened is read from today.
-        return (copy, new StateSource(roster, traits, copy, next, legacy.Day), next, false);
+        return (copy, new StateSource(roster, traits, chronicle, copy, next, legacy.Day), next, false);
     }
 
     // The events after this cycle's itinerary opened: the storylets module opens it on PhaseEntered, after every module that changes
@@ -193,6 +193,18 @@ internal sealed class DryRun(ContentPack pack, Casting casting, LegacyState lega
         public Since? TraitSince(string trait, string? crewId)
         {
             return traits.TryGetValue((trait, crewId, null), out int then) && then == 0 ? null : now.TraitSince(trait, crewId);
+        }
+
+        // The chronicle as it stands: an answer given since the opening has written its entry already, and is counted. Another
+        // dev-mode approximation; only storylet entries can be written while the itinerary is open.
+        public int ChronicleCount(string kind, int days)
+        {
+            return now.ChronicleCount(kind, days);
+        }
+
+        public int ChronicleCount(string crewId, string kind, int days)
+        {
+            return now.ChronicleCount(crewId, kind, days);
         }
     }
 }

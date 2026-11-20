@@ -179,13 +179,15 @@ public class StoryletContentTests
     [InlineData("crew")]
     [InlineData("captain")]
     [InlineData("cycle")]
+    [InlineData("storylet")]
+    [InlineData("chronicle")]
     [InlineData("best")]
     [InlineData("handler")]
     public void A_reserved_slot_name_is_refused(string name)
     {
         AssertRefused(
             WithCast($"  cast:\n    {name}: \"true\"\n    subject: \"subject.trait.trait_a == 1\"\n"),
-            $"STORYLET_X: '{name}' cannot name a slot; ship, crew, captain, cycle, best, or handler each mean something already.");
+            $"STORYLET_X: '{name}' cannot name a slot; ship, crew, captain, cycle, storylet, chronicle, best, or handler each mean something already.");
     }
 
     [Fact]
@@ -206,7 +208,7 @@ public class StoryletContentTests
     {
         AssertRefused(
             WithCast("  cast:\n    subject: \"subject.trait.trait_a == 1 && subject != target\"\n    target: \"target.fit\"\n"),
-            "STORYLET_X: cast.subject, at character 42: target is not a slot this expression can read; it reads subject, ship, cycle, and storylet.");
+            "STORYLET_X: cast.subject, at character 42: target is not a slot this expression can read; it reads subject, ship, cycle, storylet, and chronicle.");
     }
 
     [Fact]
@@ -236,7 +238,7 @@ public class StoryletContentTests
     public void A_storylet_for_the_ship_cannot_read_a_slot()
     {
         AssertRefused(ShipStorylet.Replace("  requires: \"ship.trait.trait_a == 1\"\n", "  requires: \"ship.trait.trait_a == 1 && subject.morale < 25\"\n"),
-            "STORYLET_X: requires, at character 28: subject is not a slot this expression can read; it reads ship, cycle, and storylet.");
+            "STORYLET_X: requires, at character 28: subject is not a slot this expression can read; it reads ship, cycle, storylet, and chronicle.");
     }
 
     [Fact]
@@ -280,7 +282,7 @@ public class StoryletContentTests
         Assert.Equal("subject.loyalty >= 60", result.Pack!.Storylets.Single().Options[1].Requires?.Source);
 
         AssertRefused(Storylet.Replace("      label: LABEL_B\n", "      label: LABEL_B\n      requires: \"subject.loyalty >= target\"\n"),
-            "STORYLET_X: options.option_b.requires, at character 20: target is not a slot this expression can read; it reads subject, ship, cycle, and storylet.");
+            "STORYLET_X: options.option_b.requires, at character 20: target is not a slot this expression can read; it reads subject, ship, cycle, storylet, and chronicle.");
         AssertRefused(guarded.Replace("      label: LABEL_A\n", "      label: LABEL_A\n      requires: \"subject.fit\"\n"),
             "STORYLET_X: A storylet needs an option with neither requires nor check, so it can always be answered.");
     }

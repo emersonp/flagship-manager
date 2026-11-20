@@ -66,6 +66,18 @@ public class ExpressionsTests
     [InlineData("storylet.STORYLET_A.daysSince - subject.morale == -20", true)]
     [InlineData("subject.trait.shaken.cyclesSince == 2 && subject.trait.shaken.daysSince == 14", true)]
     [InlineData("ship.trait.hull_strain.daysSince > 30 && ship.trait.hull_strain.cyclesSince == 5", true)]
+    [InlineData("chronicle.count('death', 120) == 2", true)]
+    [InlineData("chronicle.count('death', 100) == 1", true)]
+    [InlineData("chronicle.count('death', 101) == 2", true)]
+    [InlineData("chronicle.count('death', 1) == 1", true)]
+    [InlineData("chronicle.count(\"death\", 131) >= 3", true)]
+    [InlineData("chronicle.count('mission', 999) > 0", false)]
+    [InlineData("chronicle.count('call', 60) == 2", true)]
+    [InlineData("subject.chronicle.count('call', 60) == 1", true)]
+    [InlineData("subject.chronicle.count('call', 71) == 2", true)]
+    [InlineData("target.chronicle.count('call', 60) == 1", true)]
+    [InlineData("subject.chronicle.count('death', 120) > 0", false)]
+    [InlineData("chronicle.count('death', 120) - subject.chronicle.count('call', 60) == 1", true)]
     public void Each_read_of_the_view_holds_or_not(string source, bool expected)
     {
         CheckedExpression expression = Checked(source, Pair);
@@ -119,7 +131,22 @@ public class ExpressionsTests
     [InlineData("subject.trait.avoids.toward(target).cyclesSince > 0", "avoids is held toward someone; cyclesSince is read only", 36)]
     [InlineData("subject.trait.came_back.daysSince == 'withdrawn'", "A quoted name is", 37)]
     [InlineData("subject.trait.avoids.toward(storylet) > 0", "toward takes a slot", 28)]
-    [InlineData("subject.fit && captain.fit", "captain is not a slot this expression can read; it reads subject, target, ship, cycle, and storylet", 15)]
+    [InlineData("subject.fit && captain.fit", "captain is not a slot this expression can read; it reads subject, target, ship, cycle, storylet, and chronicle", 15)]
+    [InlineData("chronicle.count('deaths', 120) >= 2", "No chronicle kind named deaths; the kinds are founding, death, mission, call, storylet", 16)]
+    [InlineData("subject.chronicle.count('hurt', 5) > 0", "No chronicle kind named hurt", 24)]
+    [InlineData("chronicle.count('death', subject.morale) >= 2", "a kind in quotes and a number of days", 25)]
+    [InlineData("subject.chronicle.count('call', cycle.number) > 0", "a kind in quotes and a number of days", 32)]
+    [InlineData("chronicle.count('death', 0) >= 2", "chronicle.count reads a whole number of days from 1, not 0", 25)]
+    [InlineData("chronicle.count('death', 99999999999) >= 2", "a whole number of days from 1", 25)]
+    [InlineData("chronicle.count(death, 120) >= 2", "a kind in quotes and a number of days", 16)]
+    [InlineData("chronicle.count('death') >= 2", "a kind in quotes and a number of days", 23)]
+    [InlineData("chronicle.last('death') > 0", "The chronicle is read as chronicle.count('death', 120)", 10)]
+    [InlineData("chronicle > 0", "The chronicle is read as chronicle.count", 9)]
+    [InlineData("subject.chronicle.death > 0", "The chronicle is read as subject.chronicle.count", 18)]
+    [InlineData("chronicle.count('death', 120).x > 0", "Nothing is read from chronicle.count('death', 120)", 29)]
+    [InlineData("subject.dept > 0", "dept waits for departments (Phase 5)", 8)]
+    [InlineData("dept.count > 0", "dept waits for departments (Phase 5)", 0)]
+    [InlineData("subject.trait.avoids.toward(chronicle) > 0", "toward takes a slot", 28)]
     public void A_refusal_names_its_position(string source, string message, int position)
     {
         Assert.Null(Book.Check(source, Pair, out ExpressionError? error));
@@ -146,7 +173,7 @@ public class ExpressionsTests
     public void A_later_slot_cannot_be_read()
     {
         Assert.Null(Book.Check("subject.fit && target.fit", ["subject"], out ExpressionError? error));
-        Assert.Equal(new ExpressionError("target is not a slot this expression can read; it reads subject, ship, cycle, and storylet.", 15), error);
+        Assert.Equal(new ExpressionError("target is not a slot this expression can read; it reads subject, ship, cycle, storylet, and chronicle.", 15), error);
 
         Assert.Null(Book.Check("subject.trait.avoids.toward(target) > 0", ["subject"], out error));
         Assert.Equal(28, error!.Position);
@@ -227,6 +254,20 @@ public class ExpressionsTests
         Assert.False(Book.OnTraits(both, _ => 1));
     }
 
+    // 1e part five, Task 5: the chronicle's reads turn on what has happened, so they too are unknown to the rule against hidden memory.
+    [Fact]
+    public void Chronicle_reads_are_not_trait_reads()
+    {
+        CheckedExpression reads = Checked("chronicle.count('death', 120) >= 2 && subject.chronicle.count('call', 60) > 0", Pair);
+        CheckedExpression both = Checked("subject.trait.shaken == 0 && chronicle.count('death', 120) >= 2", Pair);
+
+        Assert.Empty(reads.Traits);
+        Assert.Null(Book.OnTraits(reads, _ => 0));
+        Assert.Equal(2, reads.Clauses);
+        Assert.Null(Book.OnTraits(both, _ => 0));
+        Assert.False(Book.OnTraits(both, _ => 1));
+    }
+
     [Fact]
     public void A_ship_expression_reads_no_slot()
     {
@@ -234,7 +275,7 @@ public class ExpressionsTests
 
         Assert.True(Book.Evaluate(expression, new FakeState(), new Dictionary<string, string>()));
         Assert.Null(Book.Check("subject.fit", [], out ExpressionError? error));
-        Assert.Equal("subject is not a slot this expression can read; it reads ship, cycle, and storylet.", error!.Message);
+        Assert.Equal("subject is not a slot this expression can read; it reads ship, cycle, storylet, and chronicle.", error!.Message);
     }
 
     [Fact]
@@ -272,6 +313,9 @@ public class ExpressionsTests
     [InlineData("1 / 0 > 0")]
     [InlineData("5 % 2 == 1")]
     [InlineData("subject.history.count(\"hurt\", 5).ToString() == \"1\"")]
+    [InlineData("chronicle.count(\"death\", 120).ToString() == \"1\"")]
+    [InlineData("chronicle.count(\"death\", subject.morale) > 0")]
+    [InlineData("chronicle.GetType() != null")]
     [InlineData("subject.morale.GetType() != null")]
     [InlineData("(subject).GetType() != null")]
     [InlineData("(subject).trait.toward(\"avoids\", target) > 0")]
@@ -307,6 +351,7 @@ public class ExpressionsTests
     {
         Assert.Null(Book.ParseError("subject.trait[\"shaken\"] > 0 && subject.trait.toward(\"avoids\", target) == 1 && subject.skills[\"SKILL_A\"] > 0 && subject.history.count(\"hurt\", 5) > 0 && subject != target", Pair));
         Assert.Null(Book.ParseError("storylet.daysSince(\"STORYLET_A\") >= 40 && subject.trait.cyclesSince(\"shaken\") < 3 && ship.trait.daysSince(\"hull_strain\") > 0", Pair));
+        Assert.Null(Book.ParseError("chronicle.count(\"death\", 120) >= 2 && subject.chronicle.count(\"call\", 60) > 0", Pair));
     }
 
     [Fact]
@@ -347,7 +392,8 @@ public class ExpressionsTests
 
     // A holds shaken 2, came_back withdrawn, avoids 1 toward B; was hurt two and three cycles ago and sent last cycle. B is unfit.
     // STORYLET_A arrived 3 cycles and 20 days ago, and STORYLET_NEVER never has; A's shaken changed 2 cycles and 14 days ago, and
-    // the ship's hull_strain 5 cycles and 31 days ago.
+    // the ship's hull_strain 5 cycles and 31 days ago. The chronicle has deaths today, 100 days ago, and 130 days ago, and calls 10
+    // and 70 days ago with A as subject and 5 days ago with B.
     private sealed class FakeState : IStateSource
     {
         private readonly Dictionary<(string Trait, string? Crew, string? Target), int> traits = new()
@@ -359,6 +405,9 @@ public class ExpressionsTests
         };
 
         private readonly List<(string Crew, string Kind, int Ago)> history = [(A, "hurt", 2), (A, "hurt", 3), (A, "sent", 1), (B, "rested", 1)];
+
+        private readonly List<(string Kind, int Ago, string? Subject)> chronicle =
+            [("death", 0, null), ("death", 100, null), ("death", 130, null), ("call", 10, A), ("call", 70, A), ("call", 5, B)];
 
         public int Cycle => 12;
 
@@ -410,6 +459,17 @@ public class ExpressionsTests
                 ("hull_strain", null) => new Since(5, 31),
                 _ => null,
             };
+        }
+
+        // Today is day 0 back, so a window of n days reaches n - 1 days back.
+        public int ChronicleCount(string kind, int days)
+        {
+            return chronicle.Count(e => e.Kind == kind && e.Ago < days);
+        }
+
+        public int ChronicleCount(string crewId, string kind, int days)
+        {
+            return chronicle.Count(e => e.Kind == kind && e.Ago < days && e.Subject == crewId);
         }
     }
 }

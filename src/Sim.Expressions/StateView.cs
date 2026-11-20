@@ -29,6 +29,12 @@ public interface IStateSource
 
     // How long ago a trait last changed on a crew member, or on the ship (crewId null); null when it is not held (at 0).
     Since? TraitSince(string trait, string? crewId);
+
+    // Chronicle entries of `kind` on days within the last `days` days, today included (1e part five, design 4.6); and among
+    // those, the ones with this crew member as a subject.
+    int ChronicleCount(string kind, int days);
+
+    int ChronicleCount(string crewId, string kind, int days);
 }
 
 // Whole cycles and whole days since something happened, counted from the cycle and the day it happened on.
@@ -47,6 +53,7 @@ public sealed class CrewView
         skills = new SkillsView(state, id);
         trait = new TraitsView(state, id);
         history = new HistoryView(state, id);
+        chronicle = new ChronicleView(state, id);
         State = state;
     }
 
@@ -63,6 +70,8 @@ public sealed class CrewView
     public TraitsView trait { get; }
 
     public HistoryView history { get; }
+
+    public ChronicleView chronicle { get; }
 
     internal string Id { get; }
 
@@ -157,6 +166,25 @@ public sealed class HistoryView
     public bool last(string kind)
     {
         return state.History(id, kind, 1) > 0;
+    }
+}
+
+// chronicle.count('kind', n) and x.chronicle.count('kind', n) (1e part five, design 4.6): entries in the last n days, today
+// included; on a slot, only those with that crew member as a subject.
+public sealed class ChronicleView
+{
+    private readonly IStateSource state;
+    private readonly string? id;
+
+    internal ChronicleView(IStateSource state, string? id)
+    {
+        this.state = state;
+        this.id = id;
+    }
+
+    public int count(string kind, int days)
+    {
+        return id is null ? state.ChronicleCount(kind, days) : state.ChronicleCount(id, kind, days);
     }
 }
 

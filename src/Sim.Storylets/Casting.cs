@@ -259,8 +259,9 @@ internal sealed class Casting
 }
 
 // What an expression reads, over the views the module may use (design 4.3). Aboard: alive and not away; in Phase 1 nobody is away
-// while the itinerary is open, so it is everyone living. Cycle and day: now, which the readings of time count back from.
-internal sealed class StateSource(IRosterView roster, ITraitView traits, StoryletsState state, int cycle, int day) : IStateSource
+// while the itinerary is open, so it is everyone living. Cycle and day: now, which the readings of time count back from. The
+// chronicle (1e part five) counts its window in days from its own today, which is this day.
+internal sealed class StateSource(IRosterView roster, ITraitView traits, IChronicleView chronicle, StoryletsState state, int cycle, int day) : IStateSource
 {
     public int Cycle => cycle;
 
@@ -310,5 +311,15 @@ internal sealed class StateSource(IRosterView roster, ITraitView traits, Storyle
         return traits.Held(crewId).FirstOrDefault(t => t.Trait == trait && t.TargetId is null && t.Value > 0) is { } held
             ? new Since(cycle - held.ChangedAtCycle, day - held.ChangedAtDay)
             : null;
+    }
+
+    public int ChronicleCount(string kind, int days)
+    {
+        return chronicle.Count(kind, days);
+    }
+
+    public int ChronicleCount(string crewId, string kind, int days)
+    {
+        return chronicle.Count(crewId, kind, days);
     }
 }

@@ -21,8 +21,8 @@ public static class StoryletsModule
         var casting = new Casting(pack);
         bus.Module<StoryletsState>(Name);
         bus.Provide<IHistoryView>(state => new HistoryView(state.Module<StoryletsState>(Name), state.Cycle));
-        bus.Provide<IStoryletView>(state => new StoryletView(pack, casting, state.Module<StoryletsState>(Name), bus.View<IRosterView>(state), bus.View<ITraitView>(state), state.Cycle, state.Day));
-        bus.Provide<IStoryletDryRun>(state => new DryRun(pack, casting, state, state.Module<StoryletsState>(Name), bus.View<IRosterView>(state), bus.View<ITraitView>(state)));
+        bus.Provide<IStoryletView>(state => new StoryletView(pack, casting, state.Module<StoryletsState>(Name), bus.View<IRosterView>(state), bus.View<ITraitView>(state), bus.View<IChronicleView>(state), state.Cycle, state.Day));
+        bus.Provide<IStoryletDryRun>(state => new DryRun(pack, casting, state, state.Module<StoryletsState>(Name), bus.View<IRosterView>(state), bus.View<ITraitView>(state), bus.View<IChronicleView>(state)));
         bus.Guard<AnswerStorylet>(Order, Name, (command, context) => CheckAnswer(pack, casting, command, context));
         bus.Guard<AdvancePhase>(Order, Name, (_, context) => context.State.Phase == CyclePhase.Itinerary && Answerable(pack, context).Any() ? AnswerStorylet.WaitingReason : null);
         bus.Handle<AnswerStorylet>((command, context) => OnAnswer(pack, command, context));
@@ -73,7 +73,7 @@ public static class StoryletsModule
         }
 
         IRosterView roster = context.View<IRosterView>();
-        var source = new StateSource(roster, context.View<ITraitView>(), context.Module<StoryletsState>(), context.State.Cycle, context.State.Day);
+        var source = new StateSource(roster, context.View<ITraitView>(), context.View<IChronicleView>(), context.Module<StoryletsState>(), context.State.Cycle, context.State.Day);
         if (!casting.Open(storylet.Id, option, source, waiting.Cast))
         {
             return "That answer is not open to this storylet now.";
@@ -227,7 +227,7 @@ public static class StoryletsModule
         }
 
         ITraitView traits = context.View<ITraitView>();
-        var source = new StateSource(context.View<IRosterView>(), traits, state, cycle, context.State.Day);
+        var source = new StateSource(context.View<IRosterView>(), traits, context.View<IChronicleView>(), state, cycle, context.State.Day);
         Contest contest = Salience.Contend(pack, casting, state, source, roster, cycle, context.Rng);
         state.Opened = contest with { Cycle = cycle, Open = true };
         foreach (Contender arrived in contest.Storylets.Where(c => c.Fate == ContestFate.Arrived))

@@ -103,7 +103,7 @@ public class VignetteContentTests
     [Theory]
     [InlineData("  effects: [{ morale: 2, on: subject }]\n", "", "VIGNETTE_Y: A vignette with no choice needs at least one effect.")]
     [InlineData("  effects: [{ morale: 2, on: subject }]\n", "  effects: [{ morale: 2, on: subject }]\n  default: option_a\n", "VIGNETTE_Y: A vignette with no choice has no default.")]
-    [InlineData("  cast:\n    subject: \"subject.history.last('rested') && subject.morale >= 60\"\n", "  requires: \"subject.history.last('rested')\"\n", "VIGNETTE_Y: requires, at character 1: subject is not a slot this expression can read; it reads ship, cycle, and storylet.")]
+    [InlineData("  cast:\n    subject: \"subject.history.last('rested') && subject.morale >= 60\"\n", "  requires: \"subject.history.last('rested')\"\n", "VIGNETTE_Y: requires, at character 1: subject is not a slot this expression can read; it reads ship, cycle, storylet, and chronicle.")]
     [InlineData("subject.morale >= 60", "subject.morale >= 60 && subject.trait.nosuch > 0", "VIGNETTE_Y: cast.subject, at character 73: No trait named nosuch.")]
     public void A_malformed_vignette_with_no_choice_is_refused(string from, string to, string message)
     {

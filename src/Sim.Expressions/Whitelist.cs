@@ -9,9 +9,9 @@ namespace Sim.Expressions;
 internal sealed class Whitelist : ExpressionVisitor
 {
     private static readonly HashSet<Type> Views =
-        [typeof(CrewView), typeof(SkillsView), typeof(TraitsView), typeof(HistoryView), typeof(ShipView), typeof(ShipTraitsView), typeof(CycleView), typeof(StoryletsView)];
+        [typeof(CrewView), typeof(SkillsView), typeof(TraitsView), typeof(HistoryView), typeof(ShipView), typeof(ShipTraitsView), typeof(CycleView), typeof(StoryletsView), typeof(ChronicleView)];
 
-    // History's count and last, a pair trait's toward, and the readings of time on a trait or a storylet (slice 1e-calendar). The
+    // History's and the chronicle's count, history's last, a pair trait's toward, and the readings of time on a trait or a storylet (slice 1e-calendar). The
     // indexer (x.trait["t"], x.skills["S"]) is an Index node.
     private static readonly HashSet<string> Methods = ["count", "last", "toward", "cyclesSince", "daysSince"];
 
