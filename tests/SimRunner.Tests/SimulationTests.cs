@@ -268,12 +268,16 @@ public class SimulationTests
     // days. With the roll pinned at 6, SimRunner's 200 x 200 is exactly as before under both policies but for 6 more events a
     // turn; with the roll, the fixture moves from 38834 full, 1028 partial, 101 incomplete, 32 withdrawn, 5 lost to 38826, 1033,
     // 103, 32, 6, as injuries heal and the incapacitated return between cycles.
+    // Re-pinned: the call's answer and the cause of a death as Core contracts (1e part five, Task 2). The missions module publishes
+    // CallAnswered after each answer's beat, a mission's result names where each of the dead fell, and CrewDied is version 2 with the
+    // encounter and approach. In SimRunner's 200 x 200, both packs and both answer policies, only the event count moves (by about two
+    // CallAnswered a mission); no outcome, result count, death, storylet, vignette, morale, or trait figure moves.
     [Fact]
     public void Golden_seed_1_matches_the_accepted_log()
     {
         SimSummary summary = Simulation.Run(new SimOptions(Legacies: 1, Cycles: 10, Seed: 1), Pack);
 
-        Assert.Equal("15E7E2C9712A840B81CD02FFD22C7EE40CA4BD4089AE1A6B5CEA43E71D72C910", summary.Legacies[0].LogHash);
+        Assert.Equal("5B8BEF69E6F4867DCD6031BAA31F522F7101CC66AD1ABA4073B9274FEDA4FB7A", summary.Legacies[0].LogHash);
     }
 
     // --- The captain's policies and promises (1e part three, Task 6) ---

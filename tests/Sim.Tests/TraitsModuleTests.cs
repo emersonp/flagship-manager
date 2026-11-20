@@ -64,7 +64,7 @@ public class TraitsModuleTests
         List<IEvent> events = h.End([Raise("trait_b", 1, "CREW_02"), Raise("trait_b", 1, "CREW_03")], Died("CREW_02"));
         events.AddRange(h.To(CyclePhase.Itinerary));
 
-        Assert.Contains(new CrewDied("CREW_02", "MISSION_1"), events);
+        Assert.Contains(new CrewDied("CREW_02", "MISSION_1", null, null), events);
         Assert.Equal([new TraitChanged("trait_b", "CREW_03", null, 0, 1, TraitCauses.Mission, Encounter)], events.OfType<TraitChanged>());
         Assert.Equal(["CREW_03"], h.Traits.Traits.Select(t => t.CrewId));
         Assert.Equal(["CREW_03"], events.OfType<StoryletOffered>().Select(o => o.Cast["subject"]));

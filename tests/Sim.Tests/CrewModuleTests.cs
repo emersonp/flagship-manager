@@ -264,14 +264,14 @@ public class CrewModuleTests
     {
         var h = new Harness();
 
-        IReadOnlyList<IEvent> events = h.End(Status("CREW_03", MemberStatus.Dead));
+        IReadOnlyList<IEvent> events = h.End(Status("CREW_03", MemberStatus.Dead) with { DiedAtEncounter = "ENC_01", DiedAtApproach = "careful" });
 
         Assert.Equal(CrewStatus.Dead, h.Member("CREW_03").Status);
         Assert.Equal(8, h.Crew.Members.Count);
         Assert.DoesNotContain("CREW_03", h.View.Roster);
         Assert.Null(h.View.Member("CREW_03"));
         Assert.False(h.View.IsFit("CREW_03"));
-        Assert.Contains(new CrewDied("CREW_03", "MISSION_1"), events);
+        Assert.Contains(new CrewDied("CREW_03", "MISSION_1", "ENC_01", "careful"), events);
         Assert.DoesNotContain(events, e => e is CrewInjured);
 
         IReadOnlyList<IEvent> later = h.PassDays(Harness.Days(20));

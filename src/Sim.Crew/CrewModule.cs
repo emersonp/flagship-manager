@@ -186,7 +186,7 @@ public static class CrewModule
         {
             case MemberStatus.Dead:
                 member.Status = CrewStatus.Dead;
-                context.Publish(new CrewDied(member.Id, missionId));
+                context.Publish(new CrewDied(member.Id, missionId, result.DiedAtEncounter, result.DiedAtApproach));
                 return;
             case MemberStatus.Incapacitated:
                 member.Status = CrewStatus.Recovering;

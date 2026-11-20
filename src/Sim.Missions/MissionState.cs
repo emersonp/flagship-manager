@@ -23,6 +23,11 @@ public sealed class MemberState
     public required Dictionary<string, double> Experience { get; set; }
 
     public required int Loyalty { get; set; }
+
+    // Where the injury roll that killed them fell; the approach is null for a collapse or a decision's roll (slice 1e part five).
+    public string? DiedAtEncounter { get; set; }
+
+    public string? DiedAtApproach { get; set; }
 }
 
 // A mission in flight (GDD 4.1). Plain data: it carries its own tuning and encounters,

@@ -489,6 +489,56 @@ public class MissionsModuleTests
         Assert.Equal(CyclePhase.Aftermath, h.State.Phase);
     }
 
+    // Slice 1e part five: the answer is published as a Core contract, in words, right after the answer's beat.
+    [Fact]
+    public void An_overruling_answer_publishes_the_call_answered_after_its_beat()
+    {
+        Harness h = WaitingOnCall();
+        PendingCall call = h.Mission!.State.Pending!;
+        string encounterId = h.Mission.State.Encounters[h.Mission.State.Cursor].Encounter.Id;
+        CallAnswer overrule = call.LeadPrefers == CallAnswer.Bold ? CallAnswer.Safe : CallAnswer.Bold;
+
+        List<IEvent> sent = h.Send(new AnswerCall(h.Mission.Id, call.CallId, overrule)).Select(e => e.Event).ToList();
+
+        string word = overrule == CallAnswer.Bold ? "bold" : "safe";
+        string prefers = call.LeadPrefers == CallAnswer.Bold ? "bold" : "safe";
+        Assert.Equal(new CallAnswered(h.Mission.Id, call.DecisionId, encounterId, word, prefers, "overruled", call.LeadId), sent.OfType<CallAnswered>().Single());
+        int at = sent.FindIndex(e => e is CallAnswered);
+        Assert.IsType<AnswerBeat>(Assert.IsType<MissionBeat>(sent[at - 1]).Beat);
+    }
+
+    // A call answered and a death later in the same mission keep their true order; an initiative publishes no answer.
+    [Fact]
+    public void A_call_answered_comes_before_a_death_it_led_to()
+    {
+        for (ulong seed = 1; seed < 2000; seed++)
+        {
+            Harness h = ToBriefing(seed);
+            h.Send(h.Assign(["CREW_01", "CREW_02", "CREW_03"]));
+            h.GoTo(CyclePhase.Resolution);
+            while (h.Mission?.State.Pending is { } call)
+            {
+                h.Send(new AnswerCall(h.Mission.Id, call.CallId, CallAnswer.Bold));
+            }
+
+            List<IEvent> events = h.Events.Select(e => e.Event).ToList();
+            int died = events.FindIndex(e => e is CrewDied);
+            int answered = events.FindIndex(e => e is CallAnswered);
+            Assert.Equal(events.Count(e => e is MissionBeat { Beat: AnswerBeat }), events.Count(e => e is CallAnswered));
+            if (died >= 0 && answered >= 0)
+            {
+                Assert.True(answered < died);
+                CrewDied death = (CrewDied)events[died];
+                Assert.Equal(h.Mission!.Id, death.MissionId);
+                Assert.Equal(h.Mission.State.Result!.Crew.Single(c => c.Id == death.CrewId).DiedAtEncounter, death.EncounterId);
+                Assert.NotNull(death.EncounterId);
+                return;
+            }
+        }
+
+        Assert.Fail("No seed in range answers a call and loses someone.");
+    }
+
     [Fact]
     public void An_answer_that_is_not_an_option_is_refused_by_the_module()
     {

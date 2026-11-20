@@ -422,6 +422,63 @@ public class MissionRulesTests
         Assert.Equal(MissionOutcome.Withdrawal, neutral.Result.Outcome);
     }
 
+    // Slice 1e part five: the dead carry the encounter of the roll that killed them, and the approach when a check's outcome rolled it.
+    // A collapse or a decision's effect names the encounter and no approach; the living name neither.
+    [Fact]
+    public void A_check_that_kills_names_its_encounter_and_approach()
+    {
+        EncounterDef deadly = AOrC(difficulty: 1, outcomes: Every(new EffectDef(InjuryRoll: InjurySeverity.Severe)));
+
+        MissionStep step = Fatal(TestContent.Team(1, 1, 3), deadly);
+
+        CheckBeat check = step.Beats.OfType<CheckBeat>().Single();
+        CrewResult dead = step.Result!.Crew.Single(c => c.Id == check.ActorId);
+        CrewResult living = step.Result.Crew.Single(c => c.Id != check.ActorId);
+        Assert.Equal((MemberStatus.Dead, "ENCOUNTER_01", check.Approach), (dead.Status, dead.DiedAtEncounter, dead.DiedAtApproach));
+        Assert.Equal((MemberStatus.Active, null, null), (living.Status, living.DiedAtEncounter, living.DiedAtApproach));
+    }
+
+    [Fact]
+    public void A_collapse_that_kills_names_its_encounter_and_no_approach()
+    {
+        EncounterDef crushing = AOrC(difficulty: 1, outcomes: Every(new EffectDef(Strain: TestContent.Tuning.Cap)));
+
+        MissionStep step = Fatal(TestContent.Team(1, 1), crushing);
+
+        Assert.Single(step.Beats.OfType<CollapseBeat>());
+        CrewResult dead = step.Result!.Crew.Single();
+        Assert.Equal((MemberStatus.Dead, "ENCOUNTER_01", null), (dead.Status, dead.DiedAtEncounter, dead.DiedAtApproach));
+    }
+
+    [Fact]
+    public void A_decision_that_kills_names_its_encounter_and_no_approach()
+    {
+        var severe = new EffectDef(InjuryRoll: InjurySeverity.Severe);
+        EncounterDef deciding = Encounter(1, new DecisionDef("DECISION_PROMPT_1", 1, severe, severe));
+
+        MissionStep step = Fatal(TestContent.Team(1, 1), deciding);
+
+        CrewResult dead = step.Result!.Crew.Single();
+        Assert.Equal((MemberStatus.Dead, "ENCOUNTER_01", null), (dead.Status, dead.DiedAtEncounter, dead.DiedAtApproach));
+    }
+
+    // Plays the one encounter to the end with every severe roll fatal, answering any call bold.
+    private static MissionStep Fatal(Team team, EncounterDef encounter)
+    {
+        var objective = new ObjectiveDef("OBJECTIVE_TEMPLATE_1", [], 1, 4, 1, [new StageDef("stage", ["field"], 1, 1, false)]);
+        MissionTuning deadly = TestContent.Tuning with { DeadBelow = 1000, IncapacitatedBelow = 1000 };
+        MissionStep step = MissionResolver.Advance(MissionResolver.Start(objective, [encounter], team, TestContent.Gear, new Parameters(), deadly, 1));
+        while (step.Pending is not null)
+        {
+            step = MissionResolver.Advance(step.State, Reply(step, CallAnswer.Bold));
+        }
+
+        return step;
+    }
+
+    private static Dictionary<string, EffectDef> Every(EffectDef effect) =>
+        new() { ["critical"] = effect, ["success"] = effect, ["partial"] = effect, ["failure"] = effect, ["disaster"] = effect };
+
     [Fact]
     public void Dice_of_other_counts_and_sizes_resolve_and_roll_within_their_range()
     {

@@ -194,7 +194,10 @@ public static class MissionsModule
     private static void OnAnswer(AnswerCall command, IBusContext context)
     {
         MissionInFlight mission = context.Module<MissionsState>().Site!.Mission!;
-        Run(mission, MissionResolver.Advance(mission.State, new CallReply(command.CallId, command.Answer)), context);
+        // Read before the answer moves the state on: the call, and the encounter it was raised in.
+        PendingCall pending = mission.State.Pending!;
+        string encounterId = mission.State.Encounters[mission.State.Cursor].Encounter.Id;
+        Run(mission, MissionResolver.Advance(mission.State, new CallReply(command.CallId, command.Answer)), context, (pending, encounterId));
     }
 
     private static void OnPhase(ContentPack pack, PhaseEntered entered, IBusContext context)
@@ -296,12 +299,20 @@ public static class MissionsModule
         return own.Count == 0 ? null : own;
     }
 
-    private static void Run(MissionInFlight mission, MissionStep step, IBusContext context)
+    // answered: the call this step answers, if it answers one. Its CallAnswered follows the answer's beat, so whatever the rest of the
+    // step does (a death in the same encounter included) is published after it.
+    private static void Run(MissionInFlight mission, MissionStep step, IBusContext context, (PendingCall Call, string EncounterId)? answered = null)
     {
         mission.State = step.State;
         foreach (Beat beat in step.Beats)
         {
             context.Publish(new MissionBeat(mission.Id, mission.BeatCount++, beat));
+            if (beat is AnswerBeat answer && answered is var (call, encounterId))
+            {
+                context.Publish(new CallAnswered(
+                    mission.Id, call.DecisionId, encounterId, BeatSituations.Word(answer.Answer), BeatSituations.Word(call.LeadPrefers),
+                    BeatSituations.Word(answer.Standing), answer.LeadId));
+            }
         }
 
         if (step.Result is { } result)

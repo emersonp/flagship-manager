@@ -254,3 +254,13 @@ Changed or settled while building:
 - **New role names.** `dead`, `site`, `cycles`, `team`, `deaths`, `option`, and `handler` now name people or things in some beat, so a symbol cannot take those ids, and `#handler#` outside a check's outcomes is refused as "names 'handler', which a storylet beat does not have" rather than "names no person, thing, or symbol". Neither pack has such a symbol.
 - **The editor's beat glossary** says when each chronicle beat plays and names them "Chronicle: the founding" and so on. Until Task 7 builds samples for them, the lint lists chronicle lines as never chosen, as it does the schedule's.
 - The default founding line is in both packs: "The ship took on her first crew of #crew#." in the game's, `CHRONICLE_FOUNDING #crew#.` in the fixture's.
+
+### Task 2: the facts that live in missions (2026-11-20)
+
+As designed: `CallAnswered` (version 1) and `CrewDied` (version 2, with `EncounterId` and `ApproachId`) are in `Sim.Core/MissionContracts.cs`, and `CrewResult` gains `DiedAtEncounter` and `DiedAtApproach`. The answer, the lead's preference, and the standing travel as lower-case words (`bold`, `safe`, `withdraw`; `backed`, `overruled`, `neutral`).
+
+Changed or settled while building:
+
+- **The beats do not change.** `AnswerBeat` does not carry the decision or the encounter, so the missions module reads them from the pending call and the current encounter before the answer advances the mission, and publishes `CallAnswered` right after the answer's `MissionBeat`. Everything else the step does, a death in the same encounter included, comes after it. The golden mission's beat hash does not move.
+- **A decision's death has no approach either.** The resolver names an approach only when a check's outcome rolled the injury; a collapse and a decision's effect (an answer or an initiative) name the encounter alone. The living name neither.
+- **The golden hash** (`Golden_seed_1_matches_the_accepted_log`) moves from `15E7E2C9…D72C910` to `5B8BEF69…EDA4FB7A`. In SimRunner's 200 x 200, both packs and both answer policies, only the event count moves (by about two `CallAnswered` a mission: the game's pack under first answers from 1,812,185 to 1,899,365 events); no outcome, result count, death, storylet, vignette, morale, or trait figure moves. The CLI test's 2 x 3 run moves from 263 events to 274.

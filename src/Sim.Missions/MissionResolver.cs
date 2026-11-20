@@ -323,7 +323,7 @@ public static class MissionResolver
             // The roll falls on the actor after the check's beat, under the key the default rolls always used, so its dice do not move.
             if (outcome.InjuryRoll is { } severity)
             {
-                InjuryRoll(actor, severity, $"checkinj:{encounter.Id}");
+                InjuryRoll(actor, severity, $"checkinj:{encounter.Id}", def.Id);
             }
 
             // The chain is the encounter's, whatever the approach's disaster outcome says.
@@ -460,7 +460,8 @@ public static class MissionResolver
             Finish(MissionOutcome.Loss);
         }
 
-        private void InjuryRoll(MemberState member, InjurySeverity severity, string key)
+        // approach: the check's, when the roll is a check's outcome; null for a decision's effect or a collapse.
+        private void InjuryRoll(MemberState member, InjurySeverity severity, string key, string? approach = null)
         {
             int roll = T.InjuryDice.Roll(Dice(key)) + (State.GearTags.Contains("medical") ? T.MedicalBonus : 0);
             InjuryOutcome outcome = InjuryOutcome.Unharmed;
@@ -476,6 +477,8 @@ public static class MissionResolver
             {
                 outcome = InjuryOutcome.Dead;
                 member.Status = MemberStatus.Dead;
+                member.DiedAtEncounter = Current.Encounter.Id;
+                member.DiedAtApproach = approach;
             }
             else if (roll < T.IncapacitatedBelow)
             {
@@ -495,7 +498,7 @@ public static class MissionResolver
         {
             State.Result = new MissionResult(
                 outcome, State.Progress, State.Need, State.Calls, State.Initiatives,
-                State.Team.Select(m => new CrewResult(m.Member.Id, m.Status, m.Injury, new Dictionary<string, double>(m.Experience), m.Loyalty)).ToList(),
+                State.Team.Select(m => new CrewResult(m.Member.Id, m.Status, m.Injury, new Dictionary<string, double>(m.Experience), m.Loyalty, m.DiedAtEncounter, m.DiedAtApproach)).ToList(),
                 State.Traits.ToList());
             Beats.Add(new ResultBeat(outcome));
         }

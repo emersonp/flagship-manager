@@ -76,10 +76,10 @@ public sealed record CallAnswered(string MissionId, string DecisionId, string En
 public sealed record CrewDied(string CrewId, string MissionId, string? EncounterId, string? ApproachId) : IEvent;
 ```
 
-- [ ] **Step 1: the call.** When the missions module applies an answer (where the resolver yields its `AnswerBeat`), publish `CallAnswered` with the answer, preference, and standing as their lower-case words. Put it in the event order where the beat falls, so a death later in the same encounter is published after it. Test: answer a call that overrules the lead; the event carries `overruled`; the order with a later `CrewDied` holds.
-- [ ] **Step 2: the cause.** The resolver records, on the crew member's `CrewResult`, the encounter and approach of the check whose injury roll killed them. A collapse death names the encounter it collapsed in, with no approach. The crew module passes both onto `CrewDied` at version 2.
-- [ ] **Step 3: the golden hash.** Run the fixed seeds. The event hash moves for the new event and fields; no outcome, result count, or death count moves. Put the before and after in the commit.
-- [ ] **Step 4:** `./check.sh`; commit "Publish the call's answer and the cause of a death as Core contracts".
+- [x] **Step 1: the call.** When the missions module applies an answer (where the resolver yields its `AnswerBeat`), publish `CallAnswered` with the answer, preference, and standing as their lower-case words. Put it in the event order where the beat falls, so a death later in the same encounter is published after it. Test: answer a call that overrules the lead; the event carries `overruled`; the order with a later `CrewDied` holds.
+- [x] **Step 2: the cause.** The resolver records, on the crew member's `CrewResult`, the encounter and approach of the check whose injury roll killed them. A collapse death names the encounter it collapsed in, with no approach. The crew module passes both onto `CrewDied` at version 2.
+- [x] **Step 3: the golden hash.** Run the fixed seeds. The event hash moves for the new event and fields; no outcome, result count, or death count moves. Put the before and after in the commit.
+- [x] **Step 4:** `./check.sh`; commit "Publish the call's answer and the cause of a death as Core contracts".
 
 ### Task 3: deaths, missions, and calls in the chronicle
 
