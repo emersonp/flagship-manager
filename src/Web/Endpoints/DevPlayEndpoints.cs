@@ -15,6 +15,9 @@ public static class DevPlayEndpoints
         RouteGroupBuilder dev = app.MapGroup("/dev/legacy").AddEndpointFilter(SameOrigin.Filter).AddEndpointFilter(RequestPack.Filter);
         dev.MapGet("/{id}", Page);
         dev.MapGet("/{id}/panel", Panel);
+        // The Chronicle with each entry's kind, weight, cycle, and source sequence numbers.
+        dev.MapGet("/{id}/chronicle", (string id, HttpContext http, LegacySession sessions, Render render, CancellationToken cancellation)
+            => BridgeEndpoints.Chronicle(id, http, sessions, render, true, cancellation));
         dev.MapPost("/{id}/trait", Set);
         dev.MapPost("/{id}/why", Why);
         // The bridge's own actions, answered for Dev Play.

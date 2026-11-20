@@ -85,6 +85,28 @@ public static class BridgeReader
         }).ToList();
     }
 
+    // The Chronicle page (1e part five, design 4.7). Pure: the entries are as the chronicle module stores them, in the order written,
+    // and their text is never rendered again. Newest first: days in descending order, and within a day by the last event each entry
+    // records, newest first, so a mission's entry sits above the deaths it waited for; a tie goes to the entry written later.
+    public static ChronicleView Chronicle(LegacyRecord record, ContentPack pack, IReadOnlyList<ChronicleEntry> entries, bool notable)
+    {
+        int least = pack.Chronicle.Notable;
+        List<ChronicleDayView> days = entries
+            .Select((entry, written) => (Entry: entry, Written: written, Last: entry.SourceSeq.Count == 0 ? 0 : entry.SourceSeq.Max()))
+            .Where(e => !notable || e.Entry.Weight >= least)
+            .GroupBy(e => e.Entry.Day)
+            .OrderByDescending(g => g.Key)
+            .Select(g => new ChronicleDayView(
+                g.Key,
+                Dates.Full(pack.Calendar, g.Key),
+                Dates.FullNarrow(pack.Calendar, g.Key),
+                g.OrderByDescending(e => e.Last).ThenByDescending(e => e.Written)
+                    .Select(e => new ChronicleLineView(e.Entry.Id, e.Entry.Kind, e.Entry.Weight, e.Entry.Cycle, e.Entry.Text, e.Entry.Subjects.Select(s => s.Name).ToList(), e.Entry.SourceSeq))
+                    .ToList()))
+            .ToList();
+        return new ChronicleView(TopBar(record, pack), notable, least, days, entries.Count);
+    }
+
     private static TopBarView TopBar(LegacyRecord record, ContentPack pack)
     {
         string? warning = record.ContentPackId == pack.Id && record.ContentPackVersion == pack.Version
@@ -92,7 +114,7 @@ public static class BridgeReader
             : Inv($"Legacy uses pack {record.ContentPackId} version {record.ContentPackVersion}, and pack {pack.Id} version {pack.Version} is loaded.");
         int day = record.State.Day;
         return new TopBarView(record.Name, day, record.State.Cycle, record.State.Phase, warning,
-            Date: Dates.Short(pack.Calendar, day), FullDate: Dates.Full(pack.Calendar, day), Weekday: Sim.Core.Calendar.Weekday(pack.Calendar, day).Short);
+            Date: Dates.Short(pack.Calendar, day), FullDate: Dates.Full(pack.Calendar, day), Weekday: Sim.Core.Calendar.Weekday(pack.Calendar, day).Short, LegacyId: record.State.LegacyId);
     }
 
     private static IReadOnlyList<CrewRow> Roster(LegacyState state, ContentPack pack, Names names)

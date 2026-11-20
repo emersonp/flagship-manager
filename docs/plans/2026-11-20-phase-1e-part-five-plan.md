@@ -118,11 +118,11 @@ public sealed record CrewDied(string CrewId, string MissionId, string? Encounter
 
 **Files:** `src/Web/Bridge/BridgeReader.cs`, `src/Web/Bridge/BridgeView.cs` (a `ChronicleView` record), `src/Web/Bridge/BridgeRoutes.cs`, `src/Web/Endpoints/BridgeEndpoints.cs`, `src/Web/Components/ChroniclePage.razor` (new), `src/Web/Components/TopBar.razor`, `src/Web/Bridge/Dates.cs`, `src/Web/wwwroot/` (styles), `tests/Web.Tests/`, `tests/browser/` where the top bar is covered.
 
-- [ ] **Step 1: the route.** `GET /legacy/{id}/chronicle`, with `?show=notable`. It reads without writing (the read that creates no state) and opens in any phase, a call waiting included. Leaving it goes back to the bridge, which draws the phase as it stands.
-- [ ] **Step 2: the page** (design 4.7). Newest first, grouped under `Dates.Full`, ordered within a day by `sourceSeq`, newest first. Weight 4 and 5 are set apart, a memorial is marked and named in its head, and the All / Notable toggle is a pair of links. In dev mode each entry shows its kind, weight, cycle, and source sequence numbers. Follow `docs/design/bridge-design.md`, with no new component beyond the entry and the date heading.
-- [ ] **Step 3: the top bar** gains a Chronicle link, placed within the design system.
-- [ ] **Step 4: tests.** The page lists a fixture legacy's entries in order under their dates. Notable hides weight 1 and 2. The play-mode guard from the calendar (no week number, no `Cycle`, no bare day number) also covers this page. A reload with a call waiting returns to the call.
-- [ ] **Step 5:** `./check.sh`, including the browser tests; commit "Add the Chronicle page".
+- [x] **Step 1: the route.** `GET /legacy/{id}/chronicle`, with `?show=notable`. It reads without writing (the read that creates no state) and opens in any phase, a call waiting included. Leaving it goes back to the bridge, which draws the phase as it stands.
+- [x] **Step 2: the page** (design 4.7). Newest first, grouped under `Dates.Full`, ordered within a day by `sourceSeq`, newest first. Weight 4 and 5 are set apart, a memorial is marked and named in its head, and the All / Notable toggle is a pair of links. In dev mode each entry shows its kind, weight, cycle, and source sequence numbers. Follow `docs/design/bridge-design.md`, with no new component beyond the entry and the date heading.
+- [x] **Step 3: the top bar** gains a Chronicle link, placed within the design system.
+- [x] **Step 4: tests.** The page lists a fixture legacy's entries in order under their dates. Notable hides weight 1 and 2. The play-mode guard from the calendar (no week number, no `Cycle`, no bare day number) also covers this page. A reload with a call waiting returns to the call.
+- [x] **Step 5:** `./check.sh`, including the browser tests; commit "Add the Chronicle page".
 
 ### Task 7: chronicle lines in the editor, and the lint
 

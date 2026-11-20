@@ -19,6 +19,8 @@ public static class BridgeEndpoints
     public static void Map(IEndpointRouteBuilder app)
     {
         app.MapGet("/legacy/{id}", Page);
+        app.MapGet("/legacy/{id}/chronicle", (string id, HttpContext http, LegacySession sessions, Render render, CancellationToken cancellation)
+            => Chronicle(id, http, sessions, render, false, cancellation));
         MapActions(app.MapGroup("/legacy"), dev: false);
     }
 
@@ -54,6 +56,29 @@ public static class BridgeEndpoints
         }
 
         string html = await render.Html<BridgePage>(new Dictionary<string, object?> { ["LegacyId"] = legacyId, ["View"] = View(game, live, legacy, false) });
+        return Results.Content(html, "text/html; charset=utf-8");
+    }
+
+    // The Chronicle page (1e part five, design 4.7): ?show=notable lists Notable alone, anything else All. It reads without writing,
+    // as the bridge's page does, so it opens in any phase, a call waiting included, and changes none.
+    internal static async Task<IResult> Chronicle(string id, HttpContext http, LegacySession sessions, Render render, bool dev, CancellationToken cancellation)
+    {
+        LivePack live = RequestPack.Of(http);
+        LoadedLegacy? legacy = Guid.TryParse(id, out Guid legacyId) ? await sessions.Read(live, legacyId, cancellation) : null;
+        if (legacy is null)
+        {
+            return await NotFound(render, http);
+        }
+
+        bool notable = http.Request.Query["show"] == "notable";
+        IReadOnlyList<ChronicleEntry> entries = live.Game.Bus.View<IChronicleView>(legacy.State).Entries;
+        ChronicleView view = BridgeReader.Chronicle(legacy.Record, live.Pack, entries, notable);
+        if (dev)
+        {
+            view = view with { TopBar = view.TopBar with { Dev = true } };
+        }
+
+        string html = await render.Html<ChroniclePage>(new Dictionary<string, object?> { ["View"] = view });
         return Results.Content(html, "text/html; charset=utf-8");
     }
 

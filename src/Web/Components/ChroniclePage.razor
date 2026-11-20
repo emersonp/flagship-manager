@@ -1,0 +1,57 @@
+<Layout Title="@(View.Dev ? $"{View.TopBar.LegacyName}, Chronicle, Dev Play" : $"{View.TopBar.LegacyName}, Chronicle")">
+    <div class="page">
+        <TopBar Bar="View.TopBar" OnChronicle="true" />
+        @* The Chronicle (1e part five, design 4.7): the legacy's entries as they were written, newest first under their full dates.
+           It reads only: opening it changes no phase, and the bridge draws the phase as it stands. *@
+        <main id="main" class="chronicle-main">
+            <div class="page-col">
+                <div class="view-head">
+                    <h1>Chronicle</h1>
+                    <p>What this ship has lived through, as it was written down at the time.</p>
+                    <nav class="chronicle__show" aria-label="Entries shown">
+                        <a class="btn" href="@BridgeRoutes.Chronicle(View.TopBar)" aria-current="@(View.Notable ? null : "page")">All</a>
+                        <a class="btn" href="@BridgeRoutes.Chronicle(View.TopBar, notable: true)" aria-current="@(View.Notable ? "page" : null)">Notable</a>
+                    </nav>
+                </div>
+                @if (View.Days.Count == 0)
+                {
+                    <section class="well">
+                        <div class="well__body chronicle__none"><p class="empty">@(View.Total == 0 ? "Nothing has been written yet." : "Nothing notable has been written yet.")</p></div>
+                    </section>
+                }
+                @foreach (ChronicleDayView day in View.Days)
+                {
+                    string head = $"day-{day.Day.ToString(System.Globalization.CultureInfo.InvariantCulture)}";
+                    <section class="well chronicle-day" aria-labelledby="@head">
+                        <div class="well__head"><h2 id="@head" class="chronicle-day__date"><span class="chronicle-day__full">@day.Date</span><span class="chronicle-day__narrow" aria-hidden="true">@day.DateNarrow</span></h2></div>
+                        <ol class="entries">
+                            @foreach (ChronicleLineView entry in day.Entries)
+                            {
+                                <li class="@Classes(entry)">
+                                    @if (entry.Memorial)
+                                    {
+                                        <p class="entry__head"><span class="entry__mark">In memory</span> <span class="entry__name">@string.Join(", ", entry.Subjects)</span></p>
+                                    }
+                                    <p class="entry__text">@entry.Text</p>
+                                    @if (View.Dev)
+                                    {
+                                        <dl class="entry__dev"><div><dt>Kind</dt><dd>@entry.Kind</dd></div><div><dt>Weight</dt><dd class="m">@entry.Weight</dd></div><div><dt>Cycle</dt><dd class="m">@entry.Cycle</dd></div><div><dt>Seq</dt><dd class="m">@string.Join(", ", entry.SourceSeq)</dd></div><div><dt>Id</dt><dd class="m">@entry.Id</dd></div></dl>
+                                    }
+                                </li>
+                            }
+                        </ol>
+                    </section>
+                }
+            </div>
+        </main>
+    </div>
+</Layout>
+
+@code {
+    [Parameter, EditorRequired] public ChronicleView View { get; set; } = null!;
+
+    private static string Classes(ChronicleLineView entry)
+    {
+        return "entry" + (entry.SetApart ? " entry--apart" : "") + (entry.Memorial ? " entry--memorial" : "");
+    }
+}

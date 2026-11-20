@@ -182,7 +182,7 @@ In the game's pack, written in place for the author to rewrite:
 - **`Sim.Storylets`**: implements the `chronicle` reads over `IChronicleView`, which it reads from the bus as it reads `ITraitView` (Task 5). (The loader that reads `chronicle:` on storylets and options is `Sim.Content`'s; Task 4.)
 - **`Sim.Expressions`**: the two reads (`IStateSource.ChronicleCount`, on a new `chronicle` root and on a slot), the kind check, and the `dept` hint.
 - **`Sim.Content`**: the tuning file, `chronicle:` on storylets, options, and decisions, and the refusals in 4.4 and 4.5. The encounter form in `Web` carries a decision's weight.
-- **`Web`**: the Chronicle page, the top bar link, and the dev details.
+- **`Web`**: the Chronicle page (`GET /legacy/{id}/chronicle`, and Dev Play's under `/dev`), drawn by `BridgeReader.Chronicle` from `IChronicleView.Entries` without rendering a text again; the top bar link; and the dev details (Task 6).
 - **`SimRunner`**: the counts.
 
 ### 5.2 Contracts in `Sim.Core`
@@ -305,3 +305,15 @@ Changed or settled while building:
 - **`storylet` and `chronicle` are reserved slot names.** The loader's list of reserved slot names lacked `storylet`, so a slot so named would have failed the expression book's own check with an exception rather than a refusal; both are in the list now, beside `ship` and `cycle`.
 - **Dev Play's dry run** reads the chronicle as it stands, not as it stood when the itinerary opened: an answer given since the opening has already written its entry, and is counted. It is the same kind of dev-mode approximation as a trait's clock there; only storylet entries can be written while the itinerary is open.
 - **The tests' journey is 30 days**, five of the fixture calendar's six-day weeks: two deaths with 100 days and two ordinary cycles between them pass `chronicle.count('death', 120) >= 2` at the next itinerary; the same with the first cycle a 5-week journey, in the same number of cycles, does not.
+
+### Task 6: the Chronicle page (2026-11-20)
+
+As designed: `GET /legacy/{id}/chronicle` reads the legacy without writing, as the bridge's page does, so it opens in any phase, a call waiting included, and changes nothing; `?show=notable` lists the pack's `notable` weight and up, anything else All. Days are headed by `Dates.Full` (`Dates.FullNarrow` at 40rem or less), newest first. Weight 4 and 5 are set apart; a death carries an "In memory" mark and the subjects' frozen names in its head. All and Notable are a pair of links, not remembered. Play shows no kind, weight, cycle, or day number: the calendar's play-mode guard now reads the Chronicle, both ways, at every step it takes.
+
+Changed or settled while building:
+
+- **Within a day, by the last event an entry records.** The plan said "by `sourceSeq`, newest first", but a mission's entry lists its end's sequence number first and its deaths' after (Task 3), so sorting by the first would put the mission below the deaths it waited for. The page sorts by the largest of an entry's numbers, then by the order written, so it reads in the order the entries were written, which is the true order (5.4).
+- **Dev mode is Dev Play.** As the bridge does, the dev details follow the route, not the setting: `/dev/legacy/{id}/chronicle` shows each entry's kind, weight, cycle, source sequence numbers, and id in a dashed line under its text, and its links stay under `/dev`.
+- **The top bar link** sits in the ship cell beside "Legacies", as a quiet link of the same kind; on the Chronicle page the same place reads "Bridge", which draws the phase as it stands. `TopBarView` gains the legacy's id for it; a bar drawn without one shows neither.
+- **The marks**, within the design system: a set-apart entry has a 3px `ink-2` edge at its left (never azure) and its text in the display face at lg; the memorial's mark is a hairline chip reading "In memory", beside the name at 500. The selected toggle takes the selection fill, as a selected tab does. `bridge-design.md` lists the entry and the date heading.
+- **The browser test** (`tests/browser/play.sh`) opens the Chronicle from the top bar after the cycle it plays, checks the founding is the oldest entry and nothing scrolls sideways at 400 and 1280 pixels, follows Notable, and goes back to the itinerary by Bridge.

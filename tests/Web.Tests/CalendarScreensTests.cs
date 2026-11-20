@@ -60,6 +60,9 @@ public sealed partial class CalendarScreensTests
             LegacyState state = (await captain.Read()).State;
             string page = await client.GetStringAsync($"/legacy/{id}");
             NoNumbersEscape(page, state.Day, $"The {state.Phase} screen of cycle {state.Cycle}");
+            // The Chronicle (1e part five, Task 6) opens in any phase, and is held to the same rule.
+            NoNumbersEscape(await client.GetStringAsync($"/legacy/{id}/chronicle"), state.Day, $"The Chronicle in the {state.Phase} of cycle {state.Cycle}");
+            NoNumbersEscape(await client.GetStringAsync($"/legacy/{id}/chronicle?show=notable"), state.Day, $"The Chronicle's notable entries in the {state.Phase} of cycle {state.Cycle}");
             phases.Add(state.Phase);
             injured.UnionWith(Regex.Matches(Visible(page), @"(heals|returns) in (under a week|1 week|\d+ weeks)").Select(m => m.Value));
             await captain.Step();

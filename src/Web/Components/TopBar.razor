@@ -2,7 +2,18 @@
 <header id="topbar">
     <div class="ship">
         <span class="ship__name">SHIP_NAME</span>
-        <span class="ship__legacy">@Bar.LegacyName <a class="home" href="/">Legacies</a>@if (DeveloperMode)
+        @* Chronicle opens in any phase without changing it; on the Chronicle page the same place leads back to the bridge. *@
+        <span class="ship__legacy">@Bar.LegacyName <a class="home" href="/">Legacies</a>@if (Bar.LegacyId != Guid.Empty)
+            {
+                @if (OnChronicle)
+                {
+                    <a class="home" href="@BridgeRoutes.Bridge(Bar)">Bridge</a>
+                }
+                else
+                {
+                    <a class="home" href="@BridgeRoutes.Chronicle(Bar)">Chronicle</a>
+                }
+            }@if (DeveloperMode)
             {
                 <a class="home" href="/dev/content">Content</a>
             }</span>
@@ -46,6 +57,9 @@
     [Inject] private IServiceProvider Services { get; set; } = null!;
 
     [Parameter, EditorRequired] public TopBarView Bar { get; set; } = null!;
+
+    // Drawn on the Chronicle page, whose link leads back to the bridge.
+    [Parameter] public bool OnChronicle { get; set; }
 
     // Read from the settings the component is rendered with; a render without them shows no link.
     private bool DeveloperMode => Services.GetService<IOptions<WebSettings>>()?.Value.DeveloperMode == true;

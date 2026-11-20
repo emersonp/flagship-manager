@@ -7,8 +7,9 @@ public sealed record BridgeView(TopBarView TopBar, IReadOnlyList<CrewRow> Roster
 
 // Dev: drawn for Dev Play, so ids and links to the content editor show; never set outside developer mode. Day and Cycle are numbers
 // for Dev Play alone; play shows Date ("13 Vortun 105"), FullDate ("Stoneday, 13 Vortun 105") on hover, and Weekday ("Stone"),
-// the narrow form's, on a narrow screen (slice 1e-calendar, design 4.7).
-public sealed record TopBarView(string LegacyName, int Day, int Cycle, CyclePhase Phase, string? PackWarning, bool Dev = false, string Date = "", string FullDate = "", string Weekday = "");
+// the narrow form's, on a narrow screen (slice 1e-calendar, design 4.7). LegacyId: the legacy the bar's Chronicle and Bridge links
+// open; a bar drawn without one (a test's) shows neither.
+public sealed record TopBarView(string LegacyName, int Day, int Cycle, CyclePhase Phase, string? PackWarning, bool Dev = false, string Date = "", string FullDate = "", string Weekday = "", Guid LegacyId = default);
 
 // Traits (1e part three): a chip for each shown trait, for the roster's interim cell; the crew file (1e part five) replaces it.
 public sealed record CrewRow(string Id, int Seniority, string Status, bool Fit, IReadOnlyList<SkillCell> Skills, IReadOnlyList<int> LightInjuryHealDays, int? ReturnsAtDay, int Loyalty, int AwayMissions, bool IsAway = false, bool IsLead = false, string? Name = null, bool Disambiguate = false, string Morale = "Steady", IReadOnlyList<string>? Traits = null,
@@ -138,4 +139,24 @@ public sealed record CrewChange(string CrewId, string Kind, string Text, IReadOn
 public sealed record UnattendedView(string ObjectiveId, string TemplateId, int Roll, int Target, bool Succeeded, string? TemplateName = null)
 {
     public string TemplateShown => TemplateName ?? TemplateId;
+}
+
+// The Chronicle page (1e part five, design 4.7): the legacy's entries, newest first, under their full dates. Notable: only entries
+// of NotableWeight and up are listed. Total: how many entries the legacy has, whichever are listed. Dev: drawn for Dev Play, so
+// each entry shows its kind, weight, cycle, and source sequence numbers.
+public sealed record ChronicleView(TopBarView TopBar, bool Notable, int NotableWeight, IReadOnlyList<ChronicleDayView> Days, int Total)
+{
+    public bool Dev => TopBar.Dev;
+}
+
+// One day's heading: the full date, and its narrow form ("Stone, 13 Vortun 105") for a narrow screen.
+public sealed record ChronicleDayView(int Day, string Date, string DateNarrow, IReadOnlyList<ChronicleLineView> Entries);
+
+// One entry as written: its text and subjects' names are frozen in state, and nothing here renders them again. Memorial: a death,
+// which names the dead in its head. SetApart: weight 4 and 5.
+public sealed record ChronicleLineView(string Id, string Kind, int Weight, int Cycle, string Text, IReadOnlyList<string> Subjects, IReadOnlyList<long> SourceSeq)
+{
+    public bool Memorial => Kind == ChronicleKinds.Death;
+
+    public bool SetApart => Weight >= 4;
 }

@@ -182,10 +182,26 @@ esac
 [ "$(js "document.querySelectorAll('.clock dt').length")" = "1" ] || fail "the top bar shows more than the date in play."
 [ "$(phase)" = "Itinerary" ] || fail "a double click on Next cycle left the page in $(phase), not the itinerary."
 
+# The Chronicle, from the top bar: the founding, the mission, and its calls under their dates, nothing scrolling sideways at 400 or
+# 1280 pixels wide; Bridge goes back to the itinerary it left.
+pw click "getByRole('link', { name: 'Chronicle' })" > /dev/null
+wait_for "location.pathname.endsWith('/chronicle') && document.querySelector('.entries li') !== null" "the Chronicle"
+[ "$(js "document.querySelectorAll('.entries li').length >= 2")" = "true" ] || fail "the Chronicle lists fewer than the founding and the mission."
+[ "$(js "document.querySelector('.chronicle-day:last-of-type .entries li:last-child .entry__text').textContent.startsWith('CHRONICLE_FOUNDING')")" = "true" ] || fail "the founding is not the Chronicle's oldest entry."
+for width in 400 1280; do
+  pw resize "$width" 900 > /dev/null
+  [ "$(js "document.documentElement.scrollWidth <= document.documentElement.clientWidth")" = "true" ] || fail "the Chronicle scrolls sideways at $width pixels wide."
+done
+pw click "getByRole('link', { name: 'Notable' })" > /dev/null
+wait_for "location.search === '?show=notable'" "the Chronicle's notable entries"
+pw click "getByRole('link', { name: 'Bridge' })" > /dev/null
+wait_for "document.querySelector('[aria-current=step] .phase__name') !== null && !location.pathname.endsWith('/chronicle')" "the bridge"
+[ "$(phase)" = "Itinerary" ] || fail "leaving the Chronicle opened $(phase), not the itinerary."
+
 console=$(pw --raw console)
 case "$console" in
   *"Errors: 0,"*) ;;
   *) fail "the browser console has errors: $console" ;;
 esac
 
-echo "Browser: one cycle played, a storylet answered, double clicks held. OK."
+echo "Browser: one cycle played, a storylet answered, double clicks held, the Chronicle read. OK."
