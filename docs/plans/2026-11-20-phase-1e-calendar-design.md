@@ -109,7 +109,7 @@ When the aftermath ends and the cycle turns:
 
 The report line, in the aftermath and on the itinerary that follows (my call on where; the builder may move it): ahead of schedule (fewer days than planned), on schedule (the same), or delayed (more). Its words are lines in the game's pack, so the author writes them. For travel, the line says how many days early or late.
 
-**Travel in Dev Play.** A Dev Play button, "Travel N weeks" (N from 1 to 10), turns the cycle as a trip would: one cycle, one roll times N, and every day passed. No mission is sent. Real transit is Phase 7.
+**Travel in Dev Play.** A Dev Play button, "Travel N weeks" (N from 1 to 10), shown in the advance phase, turns the cycle as a trip would: one cycle, one roll times N, and every day passed. Real transit, a cycle with no mission, is Phase 7.
 
 ### 4.5 Effects on days
 
@@ -175,8 +175,8 @@ No crew member has an age in code or content yet; ageing is Phase 6. This slice 
 
 ### 5.1 Modules
 
-- **`Sim.Cycle`** owns the date: it rolls the length, turns the cycle, and publishes `CycleLengthRolled` and `DayReached`. It handles a new command, `Travel(weeks)`, allowed only in dev mode.
-- **`Sim.Calendar`** (my call: a small library, not a module with state): the calendar's content type, converting a day number to a date and back, the weekday, and weeks to days. `Sim.Content` loads it; `Web` formats with it.
+- **`Sim.Cycle`** owns the date: it rolls the length, turns the cycle, and publishes `CycleLengthRolled` and `DayReached`. It takes the pack at registration, for the calendar and the tuning. It handles a new command, `Travel(weeks)`, offered only by Dev Play and accepted only in the advance phase, where it turns the cycle as `AdvancePhase` would, with N weeks planned in place of one (changed while planning, 2026-11-20: turning a cycle from the orders would need a cycle with no mission, which Phase 1 does not have).
+- **The calendar's arithmetic lives in `Sim.Core`** (changed while planning, 2026-11-20, from a library of its own: it is a content type and a few pure functions, with no dependencies, which is what `Sim.Core/Content` already holds): converting a day number to a date and back, the weekday, and weeks to days. `Sim.Content` loads it; `Web` formats with it.
 - **`Sim.Crew`** and **`Sim.Traits`** move from `WeekAdvanced` to `DayReached`, with the stored fields in days.
 - **`Sim.Storylets`** records the day as well as the cycle each storylet last arrived, and serves the new readings.
 - **`Web`**: the top bar, the date and duration formatters, Dev Play's travel button, the report line.
