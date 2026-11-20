@@ -128,3 +128,14 @@ Decided by the author on 2026-11-20, in a design interview for the calendar (des
     - **Ages** count on the 360-day year, with a birth date rolled from the legacy's seed. Not built until ageing (Phase 6).
     - **No fixed-length setting:** seeded dice keep tests predictable. **Old saves are refused.**
     - **The lore is the author's:** agents read `docs/lore/` and never edit it, and commit its changes on their own (`AGENTS.md`).
+
+Decided by the author on 2026-11-20, in a design interview for the chronicle (design in `docs/plans/2026-11-20-phase-1e-part-five-design.md`):
+
+44. **The chronicle: written once, frozen, and readable.**
+    - **What goes in:** the founding, deaths (memorials), calls answered, captain storylets answered, and every mission's result. Vignettes stay out; unattended objectives wait for open question 4.
+    - **Stored, not projected.** A new `Sim.Chronicle` module writes each entry when its event happens, and its **text is rendered once and frozen**: the one stored use of the grammar engine. No backfill from the event log; **old saves are refused.**
+    - **Written in lines,** a situation per kind, with a default line for each in the pack; a storylet option's own `chronicle.text` wins.
+    - **Weight** per kind in the tuning file (founding and death 5, storylet 3, call 3 when the captain overruled the lead and 2 otherwise, mission 2 when lost and 1 when won), overridable on a storylet, an option, or a decision; `weight: 0` writes no entry.
+    - **Read in days:** `chronicle.count(kind, days)` and `x.chronicle.count(kind, days)`. `history.count` stays in cycles, because the history is stored per cycle.
+    - **The page:** newest first under full dates, weight 4 and 5 set apart, All (default) or Notable (3 and up), no pagination.
+    - **The worked example** is "The names on the wall", gated on `chronicle.count('death', 120) >= 2`.
