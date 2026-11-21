@@ -90,11 +90,11 @@ public static class Shapes
 }
 ```
 
-- [ ] **Step 1: what is read.** An expression is rows when the rewrite's top-level split gives clauses joined by `&&`, and each clause's tree matches one of the ten shapes in design 4.5. Match on the tree the rewrite produces, not on the text. Then "fits in rows" can never disagree with "is valid": an expression the rewrite refuses is not rows, and the reason given is the rewrite's error.
-- [ ] **Step 2: the reasons.** An expression that is valid but not rows gets a one-line reason: "uses `||`", "uses arithmetic", "groups with `!( )`", or "compares two readings". Give only one, the first found in reading order.
-- [ ] **Step 3: writing.** `Write` spells each row the way the pack writes it today (spaces around operators, single quotes for level names, no parentheses). A range is two rows and stays two clauses.
-- [ ] **Step 4: tests.** Every `requires`, cast condition, and option `requires` in the game's pack and the fixture reads as rows. `Write(Read(x).Rows) == x` holds for each, character for character. Where the pack's spelling varies (spaces, quote style), normalise the pack in this task and say so in the commit, rather than losing the round trip. For each shape, a row written and read back is the same row, and its string is accepted by `ExpressionBook.Check`. `a || b`, `x + 1 > 2`, and `!(a && b)` give text with their reasons. A clause naming an unknown slot gives the rewrite's error.
-- [ ] **Step 5:** `./check.sh`; commit "Read an expression into rows of known shapes, and write rows back".
+- [x] **Step 1: what is read.** An expression is rows when the rewrite's top-level split gives clauses joined by `&&`, and each clause's tree matches one of the ten shapes in design 4.5. Match on the tree the rewrite produces, not on the text. Then "fits in rows" can never disagree with "is valid": an expression the rewrite refuses is not rows, and the reason given is the rewrite's error.
+- [x] **Step 2: the reasons.** An expression that is valid but not rows gets a one-line reason: "uses `||`", "uses arithmetic", "groups with `!( )`", or "compares two readings". Give only one, the first found in reading order.
+- [x] **Step 3: writing.** `Write` spells each row the way the pack writes it today (spaces around operators, single quotes for level names, no parentheses). A range is two rows and stays two clauses.
+- [x] **Step 4: tests.** Every `requires`, cast condition, and option `requires` in the game's pack and the fixture reads as rows. `Write(Read(x).Rows) == x` holds for each, character for character. Where the pack's spelling varies (spaces, quote style), normalise the pack in this task and say so in the commit, rather than losing the round trip. For each shape, a row written and read back is the same row, and its string is accepted by `ExpressionBook.Check`. `a || b`, `x + 1 > 2`, and `!(a && b)` give text with their reasons. A clause naming an unknown slot gives the rewrite's error.
+- [x] **Step 5:** `./check.sh`; commit "Read an expression into rows of known shapes, and write rows back".
 
 ### Task 4: test ships
 

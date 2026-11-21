@@ -49,6 +49,7 @@ internal sealed class Rewrite
     private readonly List<int> map = [];
     private readonly List<TraitRead> traits = [];
     private readonly List<LastRead> lasts = [];
+    private readonly List<string> levels = [];
 
     // The trait whose read ends just before this token index, for a level compared with it.
     private (TraitDef Def, int End)? lastTrait;
@@ -66,6 +67,10 @@ internal sealed class Rewrite
     public IReadOnlyList<TraitRead> Traits => traits;
 
     public IReadOnlyList<LastRead> Lasts => lasts;
+
+    // Each level name the source compares a trait with, in reading order, as written: the tree holds only its number, and a row
+    // keeps the name (Shapes).
+    public IReadOnlyList<string> Levels => levels;
 
     // Where a position in the rewritten text came from in the source; past its end is the source's end.
     public int SourcePosition(int position)
@@ -481,6 +486,7 @@ internal sealed class Rewrite
         {
             if (named.Value == level.Text)
             {
+                levels.Add(level.Text);
                 return named.Key.ToString(CultureInfo.InvariantCulture);
             }
         }
