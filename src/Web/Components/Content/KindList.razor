@@ -7,6 +7,10 @@
         }
     </Alert>
     <ChildContent>
+        @if (Kind == ContentKind.Storylet)
+        {
+            <KindLint Lint="Web.Forms.StoryletLint.Of(Files)" />
+        }
         <section class="well" aria-labelledby="h-items">
             <div class="well__head">
                 <h2 id="h-items">Items</h2>

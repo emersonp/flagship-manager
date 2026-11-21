@@ -52,6 +52,9 @@ public sealed record TextFileView(TextFile File, string Text, IReadOnlyList<Cont
         : new Dictionary<string, object>();
 }
 
+// A trait an item requires above 0 that nothing in the pack sets, on the ship or on a crew member.
+internal sealed record UnsetTrait(string Item, string Trait, bool OnShip);
+
 // What each text file request does. A save goes through ContentEditor.Save like every other change.
 internal static class TextFileFlow
 {
@@ -66,6 +69,20 @@ internal static class TextFileFlow
     // raises that no storylet requires, and one defined that nothing uses (1e part three). A change that can only lower a trait (add
     // below 0, set 0) does not count as setting it; a definition's launch rules and onTargetDied count, as they change crew's traits.
     internal static IReadOnlyList<string> TraitWarnings(ContentPack pack)
+    {
+        return TraitReckoning(pack, []);
+    }
+
+    // A storylet or vignette that requires a trait above 0 where nothing in the pack raises it: TraitWarnings' first kind, by item, for
+    // the lint on the storylets list (1e part six, design 4.10). One reckoning serves both.
+    internal static IReadOnlyList<UnsetTrait> Unset(ContentPack pack)
+    {
+        var unset = new List<UnsetTrait>();
+        TraitReckoning(pack, unset);
+        return unset;
+    }
+
+    private static List<string> TraitReckoning(ContentPack pack, List<UnsetTrait> unset)
     {
         // A trait is on the ship or on a crew member; the two are separate values, so each place is raised and read apart.
         var raised = new HashSet<(string Trait, bool Ship)>();
@@ -111,6 +128,7 @@ internal static class TextFileFlow
             {
                 if (!raised.Contains((trait, onShip)))
                 {
+                    unset.Add(new UnsetTrait(id, trait, onShip));
                     warnings.Add($"Nothing sets {trait} on {(onShip ? "the ship" : "a crew member")}, which {id} requires.");
                 }
             }

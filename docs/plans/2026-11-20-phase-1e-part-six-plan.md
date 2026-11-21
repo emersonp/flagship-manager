@@ -206,10 +206,10 @@ public static class Preview
 
 **Files:** `src/Web/Forms/StoryletLint.cs` (new, beside `LineLint.cs`), `src/Web/Components/Content/KindPage.razor`, `tests/Web.Tests/StoryletLintTests.cs` (new).
 
-- [ ] **Step 1: the checks** (design 4.10). An item that cannot be cast on any test ship. A trait that is read but never set by anything in the pack (reuse `TextFileFlow.TraitWarnings`'s reckoning; don't write a second one). `#handler#` outside a check's outcome. A slot used in the words but not cast (a fault). A slot cast but never used in the words (advice). An option whose `requires` holds for no cast on any test ship, tried over a bounded number of samples per ship. Say the bound in the message.
-- [ ] **Step 2: shown.** Above the list, as on the Lines page. Each finding names the item and links to its form. Faults and advice look different.
-- [ ] **Step 3: tests.** The game's pack has no faults. A fixture item for each check gives its finding.
-- [ ] **Step 4:** `./check.sh`; commit "Lint the storylets list".
+- [x] **Step 1: the checks** (design 4.10). An item that cannot be cast on any test ship. A trait that is read but never set by anything in the pack (reuse `TextFileFlow.TraitWarnings`'s reckoning; don't write a second one). `#handler#` outside a check's outcome. A slot used in the words but not cast (a fault). A slot cast but never used in the words (advice). An option whose `requires` holds for no cast on any test ship, tried over a bounded number of samples per ship. Say the bound in the message.
+- [x] **Step 2: shown.** Above the list, as on the Lines page. Each finding names the item and links to its form. Faults and advice look different.
+- [x] **Step 3: tests.** The game's pack has no faults. A fixture item for each check gives its finding.
+- [x] **Step 4:** `./check.sh`; commit "Lint the storylets list".
 
 ### Task 11: the vignette form
 

@@ -1,0 +1,31 @@
+@using Web.Forms
+@* The lint above the storylets list (1e part six, design 4.10). A fault is said in harm beside its word; advice is muted. *@
+<section class="well" aria-labelledby="h-lint" id="lint">
+    <div class="well__head"><h2 id="h-lint">Lint</h2></div>
+    <div class="well__body">
+        <p class="hint">@Basis</p>
+        @if (Lint.Clean)
+        {
+            <p class="alert-ok">No faults, and no advice.</p>
+        }
+        else
+        {
+            <ul class="problems lint">
+                @foreach (LintFinding finding in Lint.Findings)
+                {
+                    <li class="@(finding.Fault ? "lint--fault" : "lint--advice")"><span class="lint__kind">@(finding.Fault ? "Fault" : "Advice")</span> <a href="@ContentKinds.Href(finding.Item)">@(finding.Item.Name is { Length: > 0 } name ? name : finding.Item.Id)</a> @finding.Message</li>
+                }
+            </ul>
+        }
+    </div>
+</section>
+
+@code {
+    [Parameter, EditorRequired] public StoryletLint Lint { get; set; } = null!;
+
+    private string Basis => !Lint.Loaded
+        ? "The pack does not load, so only the words are checked here. Once it loads, each storylet is also cast on the test ships."
+        : Lint.Ships == 0
+            ? "From the words, and the traits the pack sets. There are no test ships, so nothing is cast here."
+            : $"From the words, the traits the pack sets, and casting each storylet on the {(Lint.Ships == 1 ? "test ship" : $"{Lint.Ships} test ships")} as What plays here casts. An option is tried with up to {StoryletLint.Samples} casts on each ship.";
+}
