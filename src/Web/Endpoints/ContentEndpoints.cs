@@ -15,6 +15,7 @@ public static class ContentEndpoints
         dev.MapPost("/content/reload", Reload);
         dev.MapGet("/content/{kind}", Kind);
         ContentFormEndpoints.Map(dev);
+        TuningEndpoints.Map(dev);
     }
 
     private static async Task<IResult> Index(ContentHost host, ContentEditor editor, GameServices game, Render render)

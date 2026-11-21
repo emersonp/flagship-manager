@@ -1,0 +1,71 @@
+@using Web.Tuning
+@* The draft's head, patched on its own when a field changes: the file, the draft's line, Discard and Save, the alert, and the stale banner. *@
+<div class="draft__head" id="draft-head">
+    <div class="well__head"><h2 id="h-draft">Draft</h2><p class="note"><span class="m">@View.File</span> · <a href="@DraftView.TextHref(View.File)">Text</a><span class="to-bench"> · <a href="#bench">To the bench</a></span></p></div>
+    <div class="draft__bar">
+        @if (View.DraftLine is { } line)
+        {
+            <p class="draft__line"><span class="m">@line.Count</span> @(line.Count == 1 ? "change" : "changes"). Begun at <span class="m">@line.Time</span> @line.Day, and held in the server's memory: a restart loses it.</p>
+            <div class="draft__acts">
+                <button class="btn" type="button" id="draft-discard" data-attr:disabled="$_saving" data-on:click="@Discard">Discard</button>
+                <button class="btn" type="button" id="draft-save" data-indicator:_saving data-attr:disabled="$_saving" data-attr:aria-busy="$_saving ? 'true' : false" data-on:click="@Save">Save</button>
+            </div>
+        }
+        else
+        {
+            <p class="draft__line">No draft. Change a number to begin one; until you save it, it is held in the server's memory, and a restart loses it.</p>
+        }
+        <div class="alert draft__alert" id="draft-alert" role="alert">
+            @if (View.Saved is { Count: > 0 } saved)
+            {
+                <p class="alert-ok">Saved @View.File: @for (int i = 0; i < saved.Count; i++)
+                    {
+                        @(i == 0 ? "" : i == saved.Count - 1 ? " and " : ", ")<span class="m">@saved[i].Key</span>@(" is now ")<span class="m">@saved[i].Value</span>
+                    }. A mission in flight keeps the tuning it started with; the next one uses this.</p>
+            }
+            @if (View.Refused)
+            {
+                <p class="error">The save was refused. Nothing was written.@(View.Problems.Count == 0 ? " The reasons are beside their fields." : "")</p>
+            }
+            else if (View.Problems.Count > 0)
+            {
+                <p class="error">The draft does not load:</p>
+            }
+            @if (View.Problems.Count > 0)
+            {
+                <ul class="problems">
+                    @foreach (string problem in View.Problems)
+                    {
+                        <li>@problem</li>
+                    }
+                </ul>
+            }
+        </div>
+    </div>
+    @if (View.StaleKeys is { } keys)
+    {
+        <div class="stale" role="status">
+            <p class="stale__head">The file has changed since this draft began</p>
+            @if (keys.Count > 0)
+            {
+                <p>Saved values changed under the draft: @for (int i = 0; i < keys.Count; i++)
+                    {
+                        @(i == 0 ? "" : ", ")<span class="m">@keys[i]</span>
+                    }. Saving will be refused. Discard the draft, or copy its values over in the text view.</p>
+            }
+            else
+            {
+                <p>No saved value changed, only the file's text around them. Saving will still be refused. Discard the draft, or copy its values over in the text view.</p>
+            }
+            <div class="stale__acts"><button class="btn" type="button" data-attr:disabled="$_saving" data-on:click="@Discard">Discard the draft</button><a class="btn" href="@DraftView.TextHref(View.File)">Open the text</a></div>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public DraftView View { get; set; } = null!;
+
+    private const string Discard = "@post('/dev/tuning/discard', {contentType: 'form'})";
+
+    private const string Save = "@post('/dev/tuning/save', {contentType: 'form'})";
+}

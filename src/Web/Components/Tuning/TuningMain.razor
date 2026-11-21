@@ -1,0 +1,34 @@
+@using Web.Components.Content
+@using Web.Tuning
+@* The Tuning page (1f part one; design 4.1, mocked up in docs/screens/1f/): the draft at the left and the bench at the right from 84rem,
+   stacked below that with the draft first. *@
+<ContentShell Title="Tuning" Subtitle="@Subtitle" Wide="true">
+    <ChildContent>
+        <div class="tuning">
+            <DraftForm View="Draft" />
+            <div class="bench" id="bench">
+                <div class="bench__head">
+                    @* The mode tabs are drawn with Mission alone; part two adds Legacy beside it. *@
+                    <div class="tabs__list" role="tablist" aria-label="Mode"><button class="tab" role="tab" type="button" aria-selected="true">Mission</button></div>
+                    <nav class="tabs__list" aria-label="View">
+                        <a class="tab" href="@ViewHref("one")" aria-current="@(Query.View == "one" ? "page" : null)">One mission</a>
+                        <a class="tab" href="@ViewHref("every")" aria-current="@(Query.View == "every" ? "page" : null)">Every objective</a>
+                    </nav>
+                </div>
+                <div id="bench-body">
+                    <p class="note">The bench's inputs, Run, and figures come next (1f part one, Task 10).</p>
+                </div>
+            </div>
+        </div>
+    </ChildContent>
+</ContentShell>
+
+@code {
+    [Parameter, EditorRequired] public DraftView Draft { get; set; } = null!;
+
+    [Parameter, EditorRequired] public TuningQuery Query { get; set; } = null!;
+
+    private string ViewHref(string view) => (Query with { View = view }).Href();
+
+    private const string Subtitle = "Change the mission resolver's numbers in a draft, and bench the draft against the saved file on the same seeds. Save writes the file; a mission in flight keeps the tuning it started with.";
+}

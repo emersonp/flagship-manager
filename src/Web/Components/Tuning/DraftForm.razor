@@ -1,0 +1,104 @@
+@using Web.Tuning
+@* The draft (design 4.2): one form well, its head pinned (the draft's line, Discard and Save, the alert, the stale banner), then each section of
+   the file in file order. The sections the bench cannot see sit together in their place, folded, as text. A field posts itself when it
+   changes (DraftField); nothing else in the form is sent. *@
+<form class="well draft" id="draft" aria-labelledby="h-draft" novalidate data-signals:_saving="false">
+    <DraftHead View="View" />
+    <div class="draft__body">
+        @if (View.Unreadable is not null)
+        {
+            <p class="error">@View.Unreadable</p>
+        }
+        @for (int i = 0; i < View.Sections.Count; i++)
+        {
+            DraftSectionView section = View.Sections[i];
+            if (!section.ReadOnly)
+            {
+                <section class="tf-sec" aria-labelledby="@SectionId(section)">
+                    <h3 class="tf-sec__head" id="@SectionId(section)">@section.Name</h3>
+                    @if (section.Note is not null)
+                    {
+                        <p class="hint tf-sec__note">@section.Note</p>
+                    }
+                    @Items(section.Items)
+                </section>
+                continue;
+            }
+
+            // A run of read-only sections, under the one label.
+            int start = i;
+            while (i + 1 < View.Sections.Count && View.Sections[i + 1].ReadOnly)
+            {
+                i++;
+            }
+
+            string label = $"ro-{start}";
+            <section class="tf-ro" aria-labelledby="@label">
+                <p class="tf-ro__label" id="@label">Measured in Legacy mode (part two); <a href="@DraftView.TextHref(View.File)">edit as text</a> for now.</p>
+                @for (int r = start; r <= i; r++)
+                {
+                    DraftSectionView ro = View.Sections[r];
+                    <details class="tf-ro__sec">
+                        <summary>@ro.Name <span class="words__count">@ro.Count @(ro.Count == 1 ? "number" : "numbers")</span></summary>
+                        @if (ro.Note is not null)
+                        {
+                            <p class="hint tf-sec__note">@ro.Note</p>
+                        }
+                        <div class="tf-ro__body">@ReadOnly(ro.Items)</div>
+                    </details>
+                }
+            </section>
+        }
+    </div>
+</form>
+
+@code {
+    [Parameter, EditorRequired] public DraftView View { get; set; } = null!;
+
+    private static string SectionId(DraftSectionView section) => "s-" + section.Name;
+
+    private RenderFragment Items(IReadOnlyList<DraftItem> items) => __builder =>
+    {
+        foreach (DraftItem item in items)
+        {
+            if (item is DraftFieldItem field)
+            {
+                <DraftField Field="field.Field" />
+            }
+            else if (item is DraftGroup group)
+            {
+                string id = Web.Forms.FormValues.Slug(group.Path) + "-g";
+                <div class="tf-group" role="group" aria-labelledby="@id">
+                    <p class="tf-group__head"><span class="tf-group__key" id="@id">@group.Key</span>@if (group.Hint is not null)
+                        {
+                            @(" ")<span class="hint">@group.Hint</span>
+                        }</p>
+                    @Items(group.Items)
+                </div>
+            }
+        }
+    };
+
+    // A read-only section's values, as text in muted with their hints; a nested map's fields are named by their key inside the section.
+    private RenderFragment ReadOnly(IReadOnlyList<DraftItem> items) => __builder =>
+    {
+        foreach (DraftItem item in items)
+        {
+            if (item is DraftFieldItem { Field: var field })
+            {
+                <div class="tf tf--ro" id="@field.RowId">
+                    <span class="tf__key">@field.Field.Key</span>
+                    <span class="tf__val m">@DraftView.Shown(field.Field.Kind, field.Values)</span>
+                    @if (field.Field.Hint is not null)
+                    {
+                        <p class="hint tf__hint">@field.Field.Hint</p>
+                    }
+                </div>
+            }
+            else if (item is DraftGroup group)
+            {
+                @ReadOnly(group.Items)
+            }
+        }
+    };
+}

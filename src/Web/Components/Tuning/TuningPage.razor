@@ -1,0 +1,12 @@
+@using Web.Tuning
+<Layout Title="Tuning">
+    <div class="page">
+        <TuningMain Draft="Draft" Query="Query" />
+    </div>
+</Layout>
+
+@code {
+    [Parameter, EditorRequired] public DraftView Draft { get; set; } = null!;
+
+    [Parameter, EditorRequired] public TuningQuery Query { get; set; } = null!;
+}

@@ -1,6 +1,6 @@
 // The content editor's one script. A chip in the "What plays here" panel, in an approach's tab, or under an expression widget's text
 // inserts its text at the caret of the box the author was last in (within that chip's group), or of its first box. A stepper's buttons
-// step its box by one, and a storylet option's label fills its id box as it is typed, until the id is typed in (1e part six). Everything
+// step its box by one (an input and a change), and a storylet option's label fills its id box as it is typed, until the id is typed in (1e part six). Everything
 // else in the editor is Datastar.
 let last = null;
 
@@ -55,6 +55,8 @@ function stepBy(button) {
 
   box.value = String(next);
   box.dispatchEvent(new Event("input", { bubbles: true }));
+  // A step is a finished change, as a native number box's arrows are: the Tuning page's draft form posts a field on change (1f part one).
+  box.dispatchEvent(new Event("change", { bubbles: true }));
 }
 
 // The label names its id box with data-id-to; the box follows while its data-auto is "true", and typing in it stops that.

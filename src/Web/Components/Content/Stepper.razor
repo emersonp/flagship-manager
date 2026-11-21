@@ -2,11 +2,12 @@
 @* A whole number with a step down and a step up on either side (1e part six): the buttons step the box in the page (editor.js) and post
    nothing, so a number can be set without the keyboard. The box still takes any text, and the form's own words explain a bad one. *@
 <span class="stepper">
-    <button class="btn stepper__btn" type="button" data-step="-1" aria-label="@($"Less, {Aria}")" data-attr:disabled="@FormShell.Busy">&minus;</button><input id="@Id" name="@Name" type="text" inputmode="numeric" value="@Value" autocomplete="off" spellcheck="false" aria-label="@Aria" aria-invalid="@(Error is null ? null : "true")" aria-describedby="@(Error is null ? null : Id + "-error")" data-min="@Min" @attributes="View.FocusFor(Id)"><button class="btn stepper__btn" type="button" data-step="1" aria-label="@($"More, {Aria}")" data-attr:disabled="@FormShell.Busy">+</button>
+    <button class="btn stepper__btn" type="button" data-step="-1" aria-label="@($"Less, {Aria}")" data-attr:disabled="@Busy">&minus;</button><input id="@Id" name="@Name" type="text" inputmode="numeric" value="@Value" autocomplete="off" spellcheck="false" aria-label="@Aria" aria-invalid="@(Error is null && !Invalid ? null : "true")" aria-describedby="@(DescribedBy ?? (Error is null ? null : Id + "-error"))" data-min="@Min" @attributes="Focus"><button class="btn stepper__btn" type="button" data-step="1" aria-label="@($"More, {Aria}")" data-attr:disabled="@Busy">+</button>
 </span>
 
 @code {
-    [CascadingParameter] public ItemFormView View { get; set; } = null!;
+    // An item form's view, for the focus a response asks for; the Tuning page's draft form has none (1f part one).
+    [CascadingParameter] public ItemFormView? View { get; set; }
 
     [Parameter, EditorRequired] public string Name { get; set; } = "";
 
@@ -19,5 +20,15 @@
     // The least the buttons step down to; null for none.
     [Parameter] public int? Min { get; set; }
 
+    // The signals that disable the buttons while the form is busy.
+    [Parameter] public string Busy { get; set; } = FormShell.Busy;
+
+    // Marked invalid by an error shown elsewhere (the draft form's row), which DescribedBy names.
+    [Parameter] public bool Invalid { get; set; }
+
+    [Parameter] public string? DescribedBy { get; set; }
+
     private string Id => FormValues.Slug(Name);
+
+    private IReadOnlyDictionary<string, object> Focus => View?.FocusFor(Id) ?? new Dictionary<string, object>();
 }

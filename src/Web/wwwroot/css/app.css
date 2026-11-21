@@ -775,3 +775,168 @@ td.approaches__acts .btn + .btn { margin-top: var(--space-2xs); }
 td.traits .trait-chips { margin-left: 0; }
 .launch-list { margin: 0; list-style: none; font-size: var(--text-sm); color: var(--color-ink-2); }
 .launch-list li + li { margin-top: var(--space-2xs); }
+
+/* The Tuning page (1f part one, Task 9): the rules from its mock-up (docs/screens/1f/tuning.html, "the page"), copied as approved. */
+/* Two columns from 84rem (the deck's breakpoint), the draft first; stacked below it. On a wide screen the draft column holds still
+   beside the bench and scrolls inside itself, with its head (Save, Discard, the draft's line) pinned at its top, so a number and the
+   figures it moved are in view together. */
+.tuning { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-lg); align-items: start; }
+@media (min-width: 84rem) {
+  .tuning { grid-template-columns: minmax(28rem, 34rem) minmax(0, 1fr); }
+  .tuning > .draft { position: sticky; top: var(--space-md); max-height: calc(100dvh - 2 * var(--space-md)); overflow-y: auto; overscroll-behavior: contain; }
+  .draft__head { position: sticky; top: 0; z-index: 1; }
+  .to-bench { display: none; }
+}
+
+/* The draft: one form well. Its head carries the draft's line and its two actions; a stale banner and a refusal sit under them. */
+.draft { container-type: inline-size; padding: 0; }
+.draft__head { background: var(--color-paper-2); border-bottom: var(--rule-hair) solid var(--color-rule); border-radius: var(--radius-well) var(--radius-well) 0 0; }
+.draft__bar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-xs) var(--space-md); padding: 0 var(--space-lg) var(--space-md); }
+.draft__line { flex: 1 1 14rem; margin: 0; font-size: var(--text-sm); color: var(--color-ink-2); }
+.draft__acts { display: flex; flex-wrap: wrap; gap: var(--space-xs); }
+.draft__alert { flex-basis: 100%; }
+.draft__body { display: grid; gap: var(--space-lg); padding: var(--space-md) var(--space-lg) var(--space-lg); }
+.to-bench { font-size: var(--text-sm); }
+
+/* A section is its key as a head, its note, then its fields in file order. */
+.tf-sec { display: grid; gap: var(--space-2xs); min-width: 0; }
+.tf-sec + .tf-sec, .tf-ro + .tf-sec { padding-top: var(--space-md); border-top: var(--rule-hair) solid var(--color-rule); }
+.tf-sec__head { margin: 0 0 var(--space-2xs); font-size: var(--text-md); font-weight: 500; color: var(--color-ink); }
+.tf-sec__note { margin: 0 0 var(--space-2xs); }
+
+/* A field is a row: the key at the left; the control at the right (a box, or two steppers with their words), the saved value just
+   before it when it has changed; the file's comment and any error under the key, across the row. Rows are split by hairlines, so a
+   key and its value read across the gap. A changed row carries a 3px ink-2 edge at its left, never azure. */
+.tf { display: grid; grid-template-columns: minmax(min-content, 1fr) auto; column-gap: var(--space-md); row-gap: var(--space-3xs); align-items: center; min-width: 0; padding: var(--space-2xs) 0 var(--space-2xs) var(--space-sm); border-left: 3px solid transparent; border-top: var(--rule-hair) solid var(--color-rule); }
+.tf-sec__head + .tf, .tf-sec__note + .tf, .tf-group__head + .tf, .tf-ro__body > .tf:first-child { border-top: 0; }
+.tf__key { font-size: var(--text-sm); color: var(--color-ink-2); }
+.tf__ctl { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: var(--space-xs); min-width: 0; }
+.tf__num { width: 5.5rem; min-height: 40px; padding: 0 var(--space-sm); border: var(--rule-hair) solid var(--color-muted); border-radius: var(--radius-control); background: var(--color-paper); color: var(--color-ink); font-family: var(--font-outlier); font-variant-numeric: tabular-nums slashed-zero; font-size: var(--text-sm); text-align: right; outline: 2px solid transparent; outline-offset: -3px; }
+.tf__num:hover { background: var(--color-paper-3); }
+.tf__num:focus-visible { outline-color: var(--color-focus); border-color: var(--color-ink-2); }
+.tf__num[aria-invalid="true"] { border-color: var(--color-harm); }
+.tf .stepper input { width: 3.25rem; }
+.tf__word { font-size: var(--text-sm); color: var(--color-muted); }
+.tf__hint, .tf .error { grid-column: 1 / -1; margin: 0; min-height: 0; max-width: 60ch; }
+.tf--changed { border-left-color: var(--color-ink-2); }
+.tf--changed .tf__key { font-weight: 500; color: var(--color-ink); }
+.tf__saved { order: -1; font-size: var(--text-sm); color: var(--color-muted); white-space: nowrap; }
+.tf__saved .m { color: var(--color-ink-2); }
+.tf-group { display: grid; gap: 0; min-width: 0; margin: var(--space-2xs) 0 var(--space-2xs) var(--space-sm); padding-left: var(--space-xs); border-left: var(--rule-hair) solid var(--color-rule-2); }
+.tf-group__head { margin: 0; padding: var(--space-2xs) 0 var(--space-2xs) var(--space-sm); font-size: var(--text-sm); }
+.tf-group__key { font-weight: 500; color: var(--color-ink-2); margin-right: var(--space-xs); }
+/* A dice or range field on a narrow draft: the key above, its two steppers under it. */
+@container (max-width: 30rem) {
+  .tf--pair { grid-template-columns: minmax(0, 1fr); }
+  .tf--pair .tf__ctl { justify-content: flex-start; }
+}
+
+/* The sections the bench cannot see: one label in their place in file order, each section folded, its values as text in muted. */
+.tf-ro { display: grid; gap: var(--space-2xs); min-width: 0; padding-top: var(--space-md); border-top: var(--rule-hair) solid var(--color-rule); }
+.tf-ro__label { margin: 0 0 var(--space-2xs); font-size: var(--text-sm); color: var(--color-muted); }
+.tf-ro__sec summary::before, .enc summary::before { content: "\25B8"; color: var(--color-muted); font-weight: 400; }
+.tf-ro__sec[open] summary::before, .enc[open] summary::before { content: "\25BE"; }
+.tf-ro__sec summary { cursor: pointer; width: fit-content; min-height: 44px; display: flex; align-items: center; gap: var(--space-xs); border-radius: var(--radius-inner); font-weight: 500; color: var(--color-ink-2); }
+.tf-ro__sec summary:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }
+.tf-ro__sec[open] { padding-bottom: var(--space-xs); }
+.tf-ro__sec .tf-sec__note { margin-left: var(--space-sm); }
+.tf--ro .tf__key, .tf--ro .tf__val { color: var(--color-muted); }
+.tf--ro { min-height: 2.5rem; }
+.tf__val { text-align: right; }
+
+/* The stale banner: the file changed under the draft. Not harm: nothing has failed until Save is pressed. */
+.stale { display: grid; gap: var(--space-xs); margin: 0 var(--space-lg) var(--space-md); padding: var(--space-sm) var(--space-md); border: var(--rule-hair) solid var(--color-rule-2); border-radius: var(--radius-inner); background: var(--color-paper-3); }
+.stale__head { margin: 0; font-weight: 500; color: var(--color-ink); }
+.stale p { margin: 0; font-size: var(--text-sm); color: var(--color-ink-2); }
+.stale .problems { margin: 0; }
+.stale__acts { display: flex; flex-wrap: wrap; gap: var(--space-xs); }
+
+/* The bench: a container, so its tables and inputs answer to its own width. */
+.bench { container-type: inline-size; display: grid; gap: var(--space-lg); min-width: 0; align-content: start; }
+.bench__head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: var(--space-sm) var(--space-md); }
+.bench__head .tabs__list { flex: 0 1 auto; }
+.bench__head .tab { flex: 0 0 auto; min-width: 7.5rem; }
+.tab[aria-selected="true"] { cursor: default; }
+
+/* Inputs: one control each, in a grid that takes two columns at 40rem and three at 60rem. */
+.inputs { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-md) var(--space-lg); align-items: start; }
+.inputs .field { max-width: none; }
+.inputs .wide { grid-column: 1 / -1; }
+.inputs__pair { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm); }
+@container (min-width: 40rem) { .inputs { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@container (min-width: 60rem) { .inputs { grid-template-columns: repeat(3, minmax(0, 1fr)); } .inputs .span2 { grid-column: span 2; } }
+.inputs .gear { margin: 0; }
+@container (min-width: 40rem) { .inputs .gear { grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: var(--space-lg); } .inputs .gear li:nth-child(2) { border-top: 0; } }
+.inputs .gear label { margin-left: calc(-1 * var(--space-sm)); }
+.inputs .check { margin-left: calc(-1 * var(--space-sm)); }
+.inputs__legend { margin-bottom: var(--space-2xs); font-size: var(--text-sm); color: var(--color-muted); }
+fieldset.inputs__set { margin: 0; padding: 0; border: 0; min-width: 0; }
+/* The segmented choice with any number of parts: the hairlines are the row's own colour through a 1px gap, so it can wrap. */
+.seg__row--n { display: flex; flex-wrap: wrap; gap: var(--rule-hair); background: var(--color-rule-2); }
+.seg__row--n label { flex: 1 1 0; min-width: max-content; border-left: 0; background: var(--color-paper-2); }
+.seg__row--n input:checked + label { background: var(--color-accent-soft); }
+.run { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: var(--space-sm) var(--space-md); padding: var(--space-sm) var(--space-lg); border-top: var(--rule-hair) solid var(--color-rule); }
+.run .note { margin: 0 auto 0 0; }
+.run .error { flex-basis: 100%; order: 9; margin: 0; }
+
+/* Figures: horizontal rules only. A strength's columns start with more air; a group head is a quiet row; a change within the
+   noise is muted (greyed), and nothing is coloured good or bad. */
+.figs { font-variant-numeric: tabular-nums; }
+.figs th[scope="row"] { font-weight: 400; color: var(--color-ink-2); font-size: var(--text-sm); white-space: normal; min-width: 11rem; border-bottom: var(--rule-hair) solid var(--color-rule); vertical-align: top; }
+.figs th.grp { text-align: right; color: var(--color-ink); border-bottom-color: var(--color-rule); padding-bottom: var(--space-2xs); }
+.figs td.n, .figs th.n { padding-left: var(--space-xs); padding-right: var(--space-xs); }
+.figs .g1, .figs th.n.g1, .figs td.n.g1 { padding-left: var(--space-lg); }
+.figs .chg:last-child { padding-right: var(--space-lg); }
+.figs tbody tr:last-child th { border-bottom: 0; }
+.figs--one { width: auto; min-width: min(100%, 36rem); }
+.figs td.noise { color: var(--color-muted); }
+.figs__grp th, .figs__obj th { padding-top: var(--space-md); font-size: var(--text-sm); font-weight: 500; color: var(--color-muted); border-bottom-color: var(--color-rule); white-space: normal; }
+.figs__obj th { font-size: var(--text-md); color: var(--color-ink); }
+.figs__obj a { font-weight: 500; }
+.figs tfoot th, .figs tfoot td { border-top: var(--rule-hair) solid var(--color-rule-2); border-bottom: 0; }
+.figs tfoot a[aria-current="true"] { font-weight: 700; }
+.figs td.unharmed { font-family: var(--font-body); white-space: nowrap; color: var(--color-muted); }
+.bench .tw { position: relative; }
+.figs td.refused { font-family: var(--font-body); white-space: normal; text-align: left; color: var(--color-ink-2); }
+.figs__foot { display: grid; gap: var(--space-2xs); padding: var(--space-sm) var(--space-lg) 0; }
+.figs__foot p { margin: 0; max-width: 72ch; }
+.well__body--flush { padding-left: 0; padding-right: 0; }
+/* On a narrow bench, a table with more than one strength shows one at a time, chosen above it. */
+.str { display: none; padding: 0 var(--space-lg) var(--space-sm); }
+@container (max-width: 44rem) {
+  .str { display: block; }
+  .bench:has(#fs-rookie:checked) [data-s]:not([data-s="rookie"]),
+  .bench:has(#fs-mixed:checked) [data-s]:not([data-s="mixed"]),
+  .bench:has(#fs-veteran:checked) [data-s]:not([data-s="veteran"]),
+  .bench:has(#fe-rookie:checked) [data-e]:not([data-e="rookie"]),
+  .bench:has(#fe-mixed:checked) [data-e]:not([data-e="mixed"]),
+  .bench:has(#fe-veteran:checked) [data-e]:not([data-e="veteran"]) { display: none; }
+  .figs th.grp { display: none; }
+  .figs th[scope="row"] { min-width: 8rem; }
+  .figs .chg { padding-right: var(--space-lg); }
+}
+@container (max-width: 26rem) { .str, .figs__foot { padding-left: var(--space-md); padding-right: var(--space-md); } }
+
+/* An encounter's table, folded under its name. */
+.enc { border-top: var(--rule-hair) solid var(--color-rule); }
+.enc summary { cursor: pointer; display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-2xs) var(--space-sm); min-height: 44px; padding: var(--space-sm) var(--space-lg); }
+.enc summary:focus-visible { outline: 2px solid var(--color-focus); outline-offset: -2px; }
+.enc__name { font-weight: 500; color: var(--color-ink); }
+.enc__id { font-family: var(--font-outlier); font-size: var(--text-xs); color: var(--color-muted); }
+.enc__count { margin-left: auto; font-size: var(--text-sm); color: var(--color-muted); }
+.enc[open] { padding-bottom: var(--space-md); }
+
+/* Replay: the seed and its tuning, then the result as the aftermath gives it; the log follows as its own well, as in play. */
+.replay__ask { display: flex; flex-wrap: wrap; align-items: end; gap: var(--space-sm) var(--space-md); }
+.replay__ask .field { width: 9rem; }
+.replay__ask .seg__row--n label { min-width: 5rem; }
+.replay__team { margin: var(--space-md) 0 0; color: var(--color-ink-2); }
+.replay__verdict { margin: var(--space-md) 0 var(--space-xs); font-family: var(--font-display); font-size: var(--text-2xl); line-height: 1.1; color: var(--color-ink); }
+.fates { display: grid; }
+.fates li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--space-md); padding: var(--space-xs) 0; border-top: var(--rule-hair) solid var(--color-rule); }
+.fates .who { font-weight: 500; color: var(--color-ink); }
+@media (max-width: 40rem) { .draft__bar, .draft__body, .run, .enc summary { padding-left: var(--space-md); padding-right: var(--space-md); } .stale { margin-inline: var(--space-md); } }
+/* The view tabs are links (the view is in the query), the one shown marked as a selected tab is. */
+a.tab { display: inline-flex; align-items: center; justify-content: center; text-decoration: none; }
+.tab[aria-current="page"] { background: var(--color-accent-soft); color: var(--color-ink); box-shadow: inset 0 -2px 0 var(--color-accent); cursor: default; }
+@media (hover: hover) { a.tab:not([aria-current="page"]):hover { background: var(--color-paper-3); } }

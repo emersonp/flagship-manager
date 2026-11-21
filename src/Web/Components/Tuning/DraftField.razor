@@ -1,0 +1,80 @@
+@using Sim.Content
+@using Web.Components.Content
+@using Web.Forms
+@using Web.Tuning
+@* One field of the draft (design 4.2; the mock-up's row): the key as the file writes it, the control at the right (a text box, or two
+   steppers for a dice or a range field), the saved value just before it when the draft changed it, and the file's comment and the
+   loader's error under the key. A change posts the field alone; the answer patches this row and the draft's head. *@
+<div class="@Classes" id="@Field.RowId" role="@(Pair ? "group" : null)" aria-labelledby="@(Pair ? KeyId : null)" aria-describedby="@(Pair ? Described : null)" data-on:change="@Post">
+    @if (Pair)
+    {
+        <span class="tf__key" id="@KeyId">@Last</span>
+    }
+    else
+    {
+        <label class="tf__key" for="@FormValues.Slug(Field.Field.Path)">@Last</label>
+    }
+    <div class="tf__ctl">
+        @if (Field.Saved is { } saved)
+        {
+            <span class="tf__saved" id="@SavedId">saved <span class="m">@DraftView.Shown(Field.Field.Kind, saved)</span></span>
+        }
+        @if (Pair)
+        {
+            <Stepper Name="@Field.Names[0]" Aria="@Field.Names[0]" Value="@Field.Values[0]" Busy="$_saving" Invalid="@(Field.Error is not null)" DescribedBy="@Described" />
+            <span class="tf__word">@(Field.Field.Kind == TuningFieldKind.Dice ? "dice of" : "to")</span>
+            <Stepper Name="@Field.Names[1]" Aria="@Field.Names[1]" Value="@Field.Values[1]" Busy="$_saving" Invalid="@(Field.Error is not null)" DescribedBy="@Described" />
+            @if (Field.Field.Kind == TuningFieldKind.Dice)
+            {
+                <span class="tf__word">sides</span>
+            }
+        }
+        else
+        {
+            <input class="tf__num" id="@FormValues.Slug(Field.Field.Path)" name="@Field.Field.Path" type="text" inputmode="@(Field.Values[0].Contains('.') ? "decimal" : "numeric")" value="@Field.Values[0]" autocomplete="off" spellcheck="false" aria-label="@Field.Field.Path" aria-invalid="@(Field.Error is null ? null : "true")" aria-describedby="@Described">
+        }
+    </div>
+    @if (Hint is not null)
+    {
+        <p class="hint tf__hint" id="@HintId">@Hint</p>
+    }
+    @if (Field.Error is not null)
+    {
+        <p class="error" id="@ErrorId">@Field.Error</p>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public DraftFieldView Field { get; set; } = null!;
+
+    private bool Pair => Field.Field.Kind != TuningFieldKind.Number;
+
+    private string Slug => FormValues.Slug(Field.Field.Path);
+
+    private string KeyId => Slug + "-key";
+
+    private string HintId => Slug + "-hint";
+
+    private string SavedId => Slug + "-saved";
+
+    private string ErrorId => Slug + "-error";
+
+    // The key inside its group, as the file writes it.
+    private string Last => Field.Field.Key[(Field.Field.Key.LastIndexOf('.') + 1)..];
+
+    // Shown at the group's head instead when it is the group's comment.
+    private string? Hint => Field.HintAtHead ? null : Field.Field.Hint;
+
+    private string Classes => "tf" + (Pair ? " tf--pair" : "") + (Field.Saved is null ? "" : " tf--changed");
+
+    private string? Described
+    {
+        get
+        {
+            string text = $"{(Hint is null ? "" : HintId)} {(Field.Saved is null ? "" : SavedId)} {(Field.Error is null ? "" : ErrorId)}".Trim().Replace("  ", " ", StringComparison.Ordinal);
+            return text.Length == 0 ? null : text;
+        }
+    }
+
+    private string Post => $"@post('/dev/tuning/draft?path={Uri.EscapeDataString(Field.Field.Path)}', {{contentType: 'form'}})";
+}
