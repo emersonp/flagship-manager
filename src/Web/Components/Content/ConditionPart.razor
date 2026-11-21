@@ -1,0 +1,39 @@
+@using Web.Forms
+@* One part of an approach's trait condition (1e part six): a select, or a whole-number box when there is nothing to choose from (at
+   least or at most on a counting trait), with its error under it. A blank shows what it means, greyed. *@
+<div class="field">
+    @if (Options is not null)
+    {
+        <ExpressionSelect Name="@Name" Aria="@Aria" Options="Options" Value="@Value" Placeholder="@Placeholder" Posts="Posts" Error="@Error" />
+    }
+    else
+    {
+        <input id="@Id" name="@Name" type="text" inputmode="numeric" value="@Value" placeholder="@Placeholder" autocomplete="off" spellcheck="false" aria-label="@Aria" aria-invalid="@(Error is null ? null : "true")" aria-describedby="@(Error is null ? null : Id + "-error")" @attributes="View.FocusFor(Id)">
+    }
+    @if (Error is not null)
+    {
+        <p class="error" id="@($"{Id}-error")">@Error</p>
+    }
+</div>
+
+@code {
+    [CascadingParameter] public ItemFormView View { get; set; } = null!;
+
+    [Parameter, EditorRequired] public string Name { get; set; } = "";
+
+    [Parameter, EditorRequired] public string Aria { get; set; } = "";
+
+    // The choices; null for a whole number typed in a box.
+    [Parameter] public IReadOnlyList<Choice>? Options { get; set; }
+
+    [Parameter] public string Value { get; set; } = "";
+
+    [Parameter] public string Placeholder { get; set; } = "Choose";
+
+    // A select that changes what the condition shows posts the form as it changes.
+    [Parameter] public bool Posts { get; set; }
+
+    private string? Error => View.Error(Name);
+
+    private string Id => FormValues.Slug(Name);
+}

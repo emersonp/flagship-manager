@@ -3,9 +3,9 @@
 # member, a skill, and every encounter a first stage can draw through the forms; start a legacy and see the names; play the first
 # mission and see an encounter's new name in its log; see an encounter and a text file refused with nothing written; tick boxes in
 # rows, remove and move rows, and see the saved values match the page; add a stage to an objective and see it saved; add an encounter approach, move
-# between its tabs by keyboard, save, and see the file, the form, and the fit at 400 and 1280 pixels agree; write a storylet from rows,
-# save it, switch its slot to text and back, and see What plays here follow its words on the test ship; add a level to a trait, save,
-# and see it offered in a storylet's effect row.
+# between its tabs by keyboard, save, and see the file, the form, and the fit at 400 and 1280 pixels agree, with a new trait condition
+# on it; write a storylet from rows, save it, switch its slot to text and back, and see What plays here follow its words on the test
+# ship; add a level to a trait, save, and see it offered in a storylet's effect row.
 # Scratch database and content, a free port, and everything removed on exit. Not part of check.sh.
 set -euo pipefail
 root="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -283,6 +283,19 @@ visit "/dev/content/encounters/ENCOUNTER_01"
 form="['#f-approaches-2-id','#f-approaches-2-name','#f-approaches-2-skill','#f-approaches-2-text-attempt','#f-approaches-2-out-success-strain'].map(s => document.querySelector(s).value).join('|')"
 [ "$(js "$form")" = "third|APPROACH_C_NAME|SKILL_B|actor: Third try.|2" ] || fail "after a reload the form shows $(js "$form")."
 [ "$(js "document.querySelector('#tab-approach-2').textContent.trim()")" = "APPROACH_C_NAME" ] || fail "the third tab is not labelled with its name."
+# A new trait condition on the third approach (1e part six, Task 13): choosing Trait shows its parts and hides the level, the trait
+# chosen posts and offers its levels by name, and the save writes what the loader reads. The next unused condition still shows.
+visible="e => e !== null && e.offsetParent !== null"
+pw select "#f-approaches-2-r0-what" "trait" > /dev/null
+[ "$(js "($visible)(document.querySelector('#f-approaches-2-r0-trait')) && !($visible)(document.querySelector('#f-approaches-2-r0-level'))")" = "true" ] || fail "choosing Trait does not show the trait's parts in place of the level."
+[ "$(js "($visible)(document.querySelector('#f-approaches-2-r1-what')) && !($visible)(document.querySelector('#f-approaches-2-r2-what')) && !($visible)(document.querySelector('#f-approaches-2-r1-trait'))")" = "true" ] || fail "after a trait condition the next unused condition does not show alone."
+pw select "#f-approaches-2-r0-trait" "trait_e" > /dev/null
+wait_for "[...(document.querySelector('#f-approaches-2-r0-min')?.options ?? [])].some(o => o.textContent === 'level_b (2)')" "the condition's levels by name"
+pw select "#f-approaches-2-r0-min" "2" > /dev/null
+pw select "#f-approaches-2-r0-on" "lead" > /dev/null
+pw click "getByRole('button', { name: 'Save' })" > /dev/null
+wait_for "document.querySelector('#form-alert .alert-ok')?.textContent === 'Saved.'" "the encounter's save with a trait condition"
+grep -A20 "id: ENCOUNTER_01" "$tmp/content/encounters/base.yaml" | grep -qF "requires: [{ trait: trait_e, min: 2, on: lead }]" || fail "the encounters file does not hold the new trait condition."
 for width in 400 1280; do
   pw resize "$width" 900 > /dev/null
   [ "$(js "document.documentElement.scrollWidth <= document.documentElement.clientWidth")" = "true" ] || fail "the encounter form scrolls sideways at $width pixels."

@@ -133,24 +133,48 @@ internal sealed class EncounterKind : KindForm
     // A requirement's "what" for a gear tag; any other value is a skill id.
     public const string GearPrefix = "gear:";
 
-    // A requirement's "what" for a trait (1e part three): the form keeps one as written and can remove it, but writing a new one is
-    // the text's until the trait forms (part six). TraitWhat and ParseTrait are the one encoding.
-    public const string TraitPrefix = "trait:";
+    // A requirement's "what" for a trait (1e part three; written by the form since part six): its trait, at least and at most, and on
+    // are fields of their own. is, as the file wrote it, is kept while at least and at most both stay at the value it names, so a
+    // condition opened and saved unchanged is written as it was.
+    public const string TraitWhat = "trait";
 
-    public static string TraitWhat(RequirementModel r) =>
-        string.Join('|', TraitPrefix + r.Trait, r.On ?? "", r.Min?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "", r.Max?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "", r.Is ?? "");
+    // A requirement row's fields: what and level for a skill or gear; trait, min, max, on, and is for a trait.
+    public static readonly IReadOnlyList<string> RequirementParts = ["what", "level", "trait", "min", "max", "on", "is"];
 
-    public static RequirementModel? ParseTrait(string what)
+    // The traits a condition may read: every defined one but a pair's, which the loader refuses here.
+    public static List<Choice> ConditionTraits(FormChoices choices)
     {
-        string[] parts = what.Split('|');
-        if (!what.StartsWith(TraitPrefix, StringComparison.Ordinal) || parts.Length != 5)
+        return choices.Expressions.Traits.Where(t => !t.OnPair).Select(t => new Choice(t.Id, t.Id)).ToList();
+    }
+
+    // Whom a trait condition looks at, as the trait's place allows: the ship, the lead, or anyone standing. An unknown trait is offered all three.
+    public static List<Choice> ConditionOns(TraitChoice? trait)
+    {
+        return
+        [
+            .. trait is null || trait.OnShip ? [new Choice(TraitOn.Ship, "the ship")] : Array.Empty<Choice>(),
+            .. trait is null || trait.OnCrew ? [new Choice(TraitOn.Lead, "the lead"), new Choice(TraitOn.Anyone, "anyone")] : Array.Empty<Choice>(),
+        ];
+    }
+
+    // At least and at most by a level's name, for a trait with named levels (they are written as numbers, which is what the loader
+    // reads); null for a counting trait, which takes a number. At most also offers 0, not held.
+    public static List<Choice>? ConditionLevels(TraitChoice? trait, bool most)
+    {
+        return trait is { Levels.Count: > 0 }
+            ? [.. most ? [new Choice("0", "0, not held")] : Array.Empty<Choice>(), .. trait.Levels.OrderBy(l => l.Key).Select(l => new Choice(Checks.Text(l.Key), $"{l.Value} ({l.Key})"))]
+            : null;
+    }
+
+    // What an is names, as a number: a whole number of 0 or more, or one of the trait's level names; null when it names neither.
+    public static int? IsValue(string text, TraitChoice? trait)
+    {
+        if (int.TryParse(text, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out int value))
         {
-            return null;
+            return value;
         }
 
-        static int? Number(string text) => int.TryParse(text, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out int n) ? n : null;
-        static string? Text(string text) => text.Length == 0 ? null : text;
-        return new RequirementModel(null, null, null, parts[0][TraitPrefix.Length..], Number(parts[2]), Number(parts[3]), Text(parts[4]), Text(parts[1]));
+        return trait?.Levels.FirstOrDefault(l => l.Value == text) is { Value: not null } level ? level.Key : null;
     }
 
     // "Trait: sensors_quirk at most 1, on the ship".
@@ -186,7 +210,7 @@ internal sealed class EncounterKind : KindForm
         "approaches",
         [
             "id", "name", "skill", "difficulty", "gearTag",
-            .. Enumerable.Range(0, RequirementRows).SelectMany(r => new[] { RequirementField(r, "what"), RequirementField(r, "level") }),
+            .. Enumerable.Range(0, RequirementRows).SelectMany(r => RequirementParts.Select(p => RequirementField(r, p))),
             .. NarrativeFacts.Tiers.SelectMany(t => OutcomeFields.Select(f => OutcomeField(t, f))),
             .. NarrativeFacts.ApproachTexts.Select(TextField),
         ],
@@ -205,7 +229,8 @@ internal sealed class EncounterKind : KindForm
     // The row field that holds an approach's text for this key.
     public static string TextField(string key) => OwnedText.Field("", key);
 
-    // what is a skill id, GearPrefix and a tag, or empty; level is used only with a skill.
+    // what is a skill id, GearPrefix and a tag, TraitWhat, or empty; level is used only with a skill, and the rest of RequirementParts
+    // only with a trait.
     public static string RequirementField(int row, string field) => string.Create(System.Globalization.CultureInfo.InvariantCulture, $"r{row}.{field}");
 
     // A field of a tier's outcome: one of OutcomeFields.
@@ -233,6 +258,41 @@ internal sealed class EncounterKind : KindForm
         int shown = Tab(applied.Values, count + (applied.Verb == "remove" ? 1 : 0));
         int tab = applied.Verb != "remove" ? applied.Row : shown > applied.Row ? shown - 1 : Math.Max(0, Math.Min(shown, count - 1));
         return applied.Values.With(TabField, tab.ToString(System.Globalization.CultureInfo.InvariantCulture));
+    }
+
+    // A trait condition's trait chosen (it posts as it changes): on made to fit where the trait sits, the only choice taken when there is
+    // one, and at least, at most, and is cleared where the trait has no such level.
+    public override FormValues Settle(FormValues values, FormChoices choices, string? focus)
+    {
+        int count = FormRows.Read(values, Approaches).Count;
+        for (int i = 0; i < count; i++)
+        {
+            for (int r = 0; r < RequirementRows; r++)
+            {
+                string Field(string part) => Approaches.Name(i, RequirementField(r, part));
+                if (FormValues.Slug(Field("trait")) != focus)
+                {
+                    continue;
+                }
+
+                TraitChoice? trait = choices.Expressions.Trait(values.Get(Field("trait")));
+                List<Choice> ons = ConditionOns(trait);
+                string on = values.Get(Field("on"));
+                FormValues settled = values.With(Field("on"), ons.Count == 1 ? ons[0].Value : ons.Any(c => c.Value == on) ? on : "");
+                foreach ((string part, bool most) in new[] { ("min", false), ("max", true) })
+                {
+                    string value = settled.Get(Field(part)).Trim();
+                    if (value.Length > 0 && ConditionLevels(trait, most) is { } levels && levels.All(l => l.Value != value))
+                    {
+                        settled = settled.With(Field(part), "");
+                    }
+                }
+
+                return IsValue(settled.Get(Field("is")), trait) is null ? settled.With(Field("is"), "") : settled;
+            }
+        }
+
+        return values;
     }
 
     // For each approach, the earlier one that always takes its place, or null. The lead takes the available approach with the
@@ -292,6 +352,7 @@ internal sealed class EncounterKind : KindForm
         {
             new("name", Name(encounter.Name)),
             new("tags", string.Join(", ", encounter.Tags)),
+            new("notes", encounter.Notes ?? ""),
         };
         if (encounter.CommsBlocked)
         {
@@ -302,7 +363,7 @@ internal sealed class EncounterKind : KindForm
         OwnedText.Add(fields, "", NarrativeFacts.EncounterTexts, encounter.Text);
         for (int i = 0; i < encounter.Approaches.Count; i++)
         {
-            AddApproach(fields, i, encounter.Approaches[i]);
+            AddApproach(fields, i, encounter.Approaches[i], choices);
         }
 
         if (encounter.Decision is { } decision)
@@ -324,7 +385,7 @@ internal sealed class EncounterKind : KindForm
 
     public override FormValues Blank(FormChoices choices)
     {
-        return new FormValues([new("name", ""), new("tags", ""), new("chain", ""), new(Approaches.Name(0, "id"), ""), new(Approaches.Name(0, "name"), ""), new(Approaches.Name(0, "skill"), ""), new(Approaches.Name(0, "difficulty"), "1"), new(Approaches.Name(0, "gearTag"), "")]);
+        return new FormValues([new("name", ""), new("tags", ""), new("notes", ""), new("chain", ""), new(Approaches.Name(0, "id"), ""), new(Approaches.Name(0, "name"), ""), new(Approaches.Name(0, "skill"), ""), new(Approaches.Name(0, "difficulty"), "1"), new(Approaches.Name(0, "gearTag"), "")]);
     }
 
     public override Bound Bind(string id, FormValues values, FormChoices choices)
@@ -333,6 +394,7 @@ internal sealed class EncounterKind : KindForm
         string? name = Checks.Name(values, errors);
         List<string> tags = Checks.Tags(values, "tags", errors);
         bool commsBlocked = values.Get("commsBlocked") == "true";
+        string? notes = StoryletParts.Notes(values);
         string chain = values.Get("chain");
         if (chain.Length > 0 && choices.Encounters.All(e => e.Id != chain))
         {
@@ -393,11 +455,11 @@ internal sealed class EncounterKind : KindForm
                 decision = new DecisionModel(decisionId, decisionName, stakes, bold, safe, decisionText, labels, chronicleWeight);
             }
 
-            return new EncounterModel(id, name, tags, commsBlocked, chain.Length == 0 ? null : chain, approaches, decision, text, lines);
+            return new EncounterModel(id, name, tags, commsBlocked, chain.Length == 0 ? null : chain, approaches, decision, text, lines, notes);
         }, errors);
     }
 
-    private static void AddApproach(List<KeyValuePair<string, string>> fields, int row, ApproachModel approach)
+    private static void AddApproach(List<KeyValuePair<string, string>> fields, int row, ApproachModel approach, FormChoices choices)
     {
         fields.Add(new(Approaches.Name(row, "id"), approach.Id));
         fields.Add(new(Approaches.Name(row, "name"), Name(approach.Name)));
@@ -407,8 +469,19 @@ internal sealed class EncounterKind : KindForm
         for (int r = 0; r < Math.Min(RequirementRows, approach.Requires.Count); r++)
         {
             RequirementModel requirement = approach.Requires[r];
-            fields.Add(new(Approaches.Name(row, RequirementField(r, "what")), requirement.Trait is not null ? TraitWhat(requirement) : requirement.Skill ?? (requirement.Gear is { } gear ? GearPrefix + gear : "")));
-            fields.Add(new(Approaches.Name(row, RequirementField(r, "level")), requirement.Skill is not null && requirement.Level is { } level ? Checks.Text(level) : ""));
+            string Field(string part) => Approaches.Name(row, RequirementField(r, part));
+            fields.Add(new(Field("what"), requirement.Trait is not null ? TraitWhat : requirement.Skill ?? (requirement.Gear is { } gear ? GearPrefix + gear : "")));
+            fields.Add(new(Field("level"), requirement.Skill is not null && requirement.Level is { } level ? Checks.Text(level) : ""));
+            if (requirement.Trait is { } trait)
+            {
+                // An is shows as at least and at most both at its value, when the form can tell what that is.
+                int? exact = requirement.Is is { } named ? IsValue(named, choices.Expressions.Trait(trait)) : null;
+                fields.Add(new(Field("trait"), trait));
+                fields.Add(new(Field("min"), (exact ?? requirement.Min) is { } min ? Checks.Text(min) : ""));
+                fields.Add(new(Field("max"), (exact ?? requirement.Max) is { } max ? Checks.Text(max) : ""));
+                fields.Add(new(Field("on"), requirement.On ?? ""));
+                fields.Add(new(Field("is"), requirement.Is ?? ""));
+            }
         }
 
         // The form edits one effect a tier, so a tier written as several entries shows as their sum, as the loader adds them.
@@ -583,17 +656,9 @@ internal sealed class EncounterKind : KindForm
                 continue;
             }
 
-            if (what.StartsWith(TraitPrefix, StringComparison.Ordinal))
+            if (what == TraitWhat)
             {
-                if (ParseTrait(what) is { } trait)
-                {
-                    requires.Add(trait);
-                }
-                else
-                {
-                    errors[whatField] = "Unknown condition.";
-                }
-
+                requires.Add(BindTraitCondition(values, f => Approaches.Name(row, RequirementField(r, f)), choices, errors));
                 continue;
             }
 
@@ -618,6 +683,48 @@ internal sealed class EncounterKind : KindForm
         }
 
         return requires;
+    }
+
+    // A trait condition (1e part six): a trait the pack defines, at least and at most (blank for the loader's default: at least 1, or 0
+    // when at most is given), and on. The is it was written with is kept while both stay at its value, or while both are blank.
+    private static RequirementModel BindTraitCondition(FormValues values, Func<string, string> field, FormChoices choices, Dictionary<string, string> errors)
+    {
+        string trait = values.Get(field("trait")).Trim();
+        TraitChoice? def = choices.Expressions.Trait(trait);
+        if (trait.Length == 0)
+        {
+            errors[field("trait")] = "Choose a trait.";
+        }
+        else if (choices.Expressions.Traits.Count > 0 && def is null)
+        {
+            errors[field("trait")] = "Unknown trait.";
+        }
+        else if (def is { OnPair: true })
+        {
+            errors[field("trait")] = $"{trait} sits on a pair, so it cannot be a condition.";
+        }
+
+        string on = values.Get(field("on"));
+        if (def is not { OnPair: true } && ConditionOns(def).All(c => c.Value != on))
+        {
+            errors[field("on")] = on.Length == 0 ? "Choose who it is on." : $"{trait} cannot be on {on}.";
+        }
+
+        int? min = Checks.OptionalWhole(values, field("min"), 0, null, errors);
+        int? max = Checks.OptionalWhole(values, field("max"), 0, null, errors);
+        if (max < (min ?? (max is null ? 1 : 0)))
+        {
+            errors[field("max")] = "At most is below at least.";
+        }
+
+        string written = values.Get(field("is"));
+        string? exact = null;
+        if (written.Length > 0 && ((min is null && max is null) || (IsValue(written, def) is { } value && min == value && max == value)))
+        {
+            (exact, min, max) = (written, null, null);
+        }
+
+        return new RequirementModel(null, null, null, trait, min, max, exact, on.Length == 0 ? null : on);
     }
 
     // Each written tier as one entry per value given, in the default's order (progress, strain, momentum, injury), then its trait change;

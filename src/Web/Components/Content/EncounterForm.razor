@@ -4,6 +4,11 @@
     <TagsField Name="tags" Label="Tags" Value="@View.Values.Get("tags")" Error="@View.Error("tags")" Suggestions="View.Choices.EncounterTags" />
     <CheckField Name="commsBlocked" Label="Comms blocked" Checked="@(View.Values.Get("commsBlocked") == "true")" Hint="Without comms gear on the team, this encounter's decision is never put to the player as a call." />
     <Field Name="chain" Label="Chains to" Value="@View.Values.Get("chain")" Options="ChainOptions" Labels="ChainLabels" Placeholder="None" Hint="The encounter that follows this one. An encounter another one chains to is never drawn by a stage." Error="@View.Error("chain")" />
+    <div class="field textfield textfield--line">
+        <label for="f-notes">Author's notes</label>
+        <textarea id="f-notes" name="notes" rows="4" spellcheck="true" autocomplete="off" aria-describedby="f-notes-hint" @attributes="NotesFocus">@View.Values.Get("notes")</textarea>
+        <p class="hint" id="f-notes-hint">Why it is the way it is, for whoever writes next. Kept in the file, never shown in play.</p>
+    </div>
     @* Definitions at the top, the decision, then a tab for each approach's words and outcomes, then everything else that plays here. *@
     <ApproachTable Rows="Approaches" />
     <CheckField Name="hasDecision" Label="This encounter has a decision" Checked="HasDecision" ChangeUrl="@View.RowsUrlFocusing("f-hasDecision")" />
@@ -44,6 +49,8 @@
 
 @code {
     [Parameter, EditorRequired] public ItemFormView View { get; set; } = null!;
+
+    private IReadOnlyDictionary<string, object> NotesFocus => View.FocusFor("f-notes");
 
     private bool HasDecision => View.Values.Get("hasDecision") == "true";
 

@@ -234,9 +234,9 @@ public static class Preview
 
 **Files:** `src/Web/Forms/MissionKinds.cs` (`EncounterKind`), `src/Web/Components/Content/ApproachTable.razor` or `ApproachTabs.razor`, `tests/Web.Tests/ContentMissionFormsTests.cs`.
 
-- [ ] **Step 1:** An approach's condition select gains "Trait": a trait (from those defined), at least and at most (by level name where the trait has names), and on. It writes the `RequirementModel` the loader reads today.
-- [ ] **Step 2: tests.** A new trait condition saves and loads, and an existing one opens and saves unchanged.
-- [ ] **Step 3:** `./check.sh`; commit "Let the encounter form write a new trait condition".
+- [x] **Step 1:** An approach's condition select gains "Trait": a trait (from those defined), at least and at most (by level name where the trait has names), and on. It writes the `RequirementModel` the loader reads today.
+- [x] **Step 2: tests.** A new trait condition saves and loads, and an existing one opens and saves unchanged.
+- [x] **Step 3:** `./check.sh`; commit "Let the encounter form write a new trait condition".
 
 ### Task 14: Save as test ship
 

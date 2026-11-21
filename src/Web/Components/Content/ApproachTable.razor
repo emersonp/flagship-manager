@@ -2,11 +2,13 @@
 @using Sim.Core.Content
 @using Web.Forms
 @* The approaches' definitions, one row each; their words and outcomes are in the tabs below. The table never scrolls: its columns
-   share the width, and below 45rem each row stacks as a block with its labels. A condition's level shows only beside a skill, and
-   one unused condition at a time shows as "Add a condition" (app.css), so choosing one posts nothing. *@
+   share the width, and below 45rem each row stacks as a block with its labels. A condition's level shows only beside a skill, a
+   trait's parts only under a trait, and one unused condition at a time shows as "Add a condition" (app.css), so choosing one posts
+   nothing. A trait's parts are drawn for every condition for that reason; its trait and its at most post as they change, so its
+   levels, its on, and at least's blank are drawn to fit (EncounterKind.Settle). *@
 <div class="rowset approaches" id="f-approaches" tabindex="-1" aria-labelledby="h-approaches" @attributes="Focus">
     <h3 class="sub" id="h-approaches">Approaches</h3>
-    <p class="hint">One to @EncounterDef.MaxApproaches ways to take this encounter, in order. Id: @EncounterKind.ApproachIdRule Name: optional. Difficulty: 1 or more. Gear with the gear tag helps. Every condition given must hold for the team as it stands, and a skill needs its level. At least one approach has none.</p>
+    <p class="hint">One to @EncounterDef.MaxApproaches ways to take this encounter, in order. Id: @EncounterKind.ApproachIdRule Name: optional. Difficulty: 1 or more. Gear with the gear tag helps. Every condition given must hold for the team as it stands, and a skill needs its level. A trait's at least left blank is 1, or 0 when it has an at most. At least one approach has none.</p>
     @if (View.Error(Set.Prefix) is { } error)
     {
         <p class="error" id="f-approaches-error">@error</p>
@@ -48,13 +50,26 @@
                         <span class="approaches__label" aria-hidden="true">Available when</span>
                         @for (int r = 0; r < EncounterKind.RequirementRows; r++)
                         {
-                            string what = EncounterKind.RequirementField(r, "what");
-                            string level = EncounterKind.RequirementField(r, "level");
+                            int req = r;
+                            string Part(string part) => Set.Name(row, EncounterKind.RequirementField(req, part));
+                            string Value(string part) => values[EncounterKind.RequirementField(req, part)];
                             string condition = $"condition {r + 1}, {which}";
+                            TraitChoice? trait = View.Choices.Expressions.Trait(Value("trait"));
                             <div class="req">
-                                <Field Name="@Set.Name(row, what)" Label="@($"Condition {r + 1}")" AriaLabel="@($"Skill or gear, {condition}")" Value="@values[what]" Options="RequirementOptions" Labels="RequirementLabels" Placeholder="Add a condition" Error="@View.Error(Set.Name(row, what))" />
+                                <Field Name="@Part("what")" Label="@($"Condition {r + 1}")" AriaLabel="@($"Skill, gear, or trait, {condition}")" Value="@Value("what")" Options="RequirementOptions" Labels="RequirementLabels" Placeholder="Add a condition" Error="@View.Error(Part("what"))" />
                                 <div class="req__level">
-                                    <Field Name="@Set.Name(row, level)" Label="Level" AriaLabel="@($"Level, {condition}")" Value="@values[level]" Error="@View.Error(Set.Name(row, level))" Numeric="true" />
+                                    <Field Name="@Part("level")" Label="Level" AriaLabel="@($"Level, {condition}")" Value="@Value("level")" Error="@View.Error(Part("level"))" Numeric="true" />
+                                </div>
+                                <div class="req__trait">
+                                    <span class="req__word" aria-hidden="true">Trait</span>
+                                    <ConditionPart Name="@Part("trait")" Aria="@($"Trait, {condition}")" Options="@Keep(Traits, Value("trait"))" Value="@Value("trait")" Placeholder="Choose" Posts="true" />
+                                    <span class="req__word" aria-hidden="true">At least</span>
+                                    <ConditionPart Name="@Part("min")" Aria="@($"At least, {condition}")" Options="@Levels(trait, false, Value("min"))" Value="@Value("min")" Placeholder="@(Value("max").Trim().Length == 0 ? "1" : "0")" />
+                                    <span class="req__word" aria-hidden="true">At most</span>
+                                    <ConditionPart Name="@Part("max")" Aria="@($"At most, {condition}")" Options="@Levels(trait, true, Value("max"))" Value="@Value("max")" Placeholder="No limit" Posts="true" />
+                                    <span class="req__word" aria-hidden="true">On</span>
+                                    <ConditionPart Name="@Part("on")" Aria="@($"On, {condition}")" Options="@Keep(EncounterKind.ConditionOns(trait), Value("on"))" Value="@Value("on")" Placeholder="Choose" />
+                                    <input type="hidden" name="@Part("is")" value="@Value("is")">
                                 </div>
                             </div>
                         }
@@ -110,6 +125,8 @@
 
     private IReadOnlyDictionary<string, string> RequirementLabels = new Dictionary<string, string>();
 
+    private IReadOnlyList<Choice> Traits = [];
+
     // For each row, the earlier approach a lead always takes instead, or null.
     private IReadOnlyList<int?> Shadows = [];
 
@@ -121,13 +138,19 @@
         Shadows = EncounterKind.ShadowedBy(EncounterKind.Read(View.Values, View.Choices));
         SkillIds = View.Choices.Skills.Select(s => s.Id).ToList();
         SkillLabels = View.Choices.Skills.Where(s => s.Name is { Length: > 0 }).ToDictionary(s => s.Id, s => Checks.Choice(s.Id, s.Name!));
-        // A requirement names a skill by its id, or gear by its tag after "gear:".
-        // A trait condition already written is offered as it stands, so a save keeps it (1e part three).
-        List<RequirementModel> traits = Rows.SelectMany(r => Enumerable.Range(0, EncounterKind.RequirementRows).Select(i => r[EncounterKind.RequirementField(i, "what")]))
-            .Select(EncounterKind.ParseTrait).OfType<RequirementModel>().Distinct().ToList();
-        RequirementOptions = [.. SkillIds, .. View.Choices.GearTags.Select(t => EncounterKind.GearPrefix + t), .. traits.Select(EncounterKind.TraitWhat)];
+        // A requirement names a skill by its id, gear by its tag after "gear:", or a trait (1e part six), whose parts are fields of their own.
+        RequirementOptions = [.. SkillIds, .. View.Choices.GearTags.Select(t => EncounterKind.GearPrefix + t), EncounterKind.TraitWhat];
         RequirementLabels = new Dictionary<string, string>(SkillLabels
             .Concat(View.Choices.GearTags.Select(t => KeyValuePair.Create(EncounterKind.GearPrefix + t, $"Gear: {t}")))
-            .Concat(traits.Select(t => KeyValuePair.Create(EncounterKind.TraitWhat(t), EncounterKind.TraitLabel(t)))));
+            .Append(KeyValuePair.Create(EncounterKind.TraitWhat, "Trait")));
+        Traits = EncounterKind.ConditionTraits(View.Choices);
     }
+
+    // At least or at most: a trait's levels by name, or null for a number (a counting trait, or none chosen yet).
+    private static IReadOnlyList<Choice>? Levels(TraitChoice? trait, bool most, string value) =>
+        EncounterKind.ConditionLevels(trait, most) is { } levels ? Keep(levels, value) : null;
+
+    // The choices with the value as written added, so a condition the pack no longer fits still shows what it holds.
+    private static IReadOnlyList<Choice> Keep(IReadOnlyList<Choice> choices, string value) =>
+        value.Length == 0 || choices.Any(c => c.Value == value) ? choices : [.. choices, new Choice(value, value)];
 }

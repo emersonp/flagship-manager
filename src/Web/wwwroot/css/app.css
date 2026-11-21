@@ -668,9 +668,15 @@ td.approaches__acts .btn + .btn { margin-top: var(--space-2xs); }
 .approaches__advice .hint { margin: 0; }
 .req { display: grid; grid-template-columns: minmax(0, 1fr) 3rem; gap: var(--space-2xs); }
 .req + .req { margin-top: var(--space-2xs); }
-.req:has(option[value=""]:checked), .req:has(option[value^="gear:"]:checked) { grid-template-columns: minmax(0, 1fr); }
-.req:has(option[value=""]:checked) .req__level, .req:has(option[value^="gear:"]:checked) .req__level { display: none; }
-.req:has(option[value=""]:checked) ~ .req:has(option[value=""]:checked) { display: none; }
+/* A condition is read from its own select, the .field that is the row's child: a trait's parts below it hold selects of their own. */
+.req:has(> .field option[value=""]:checked), .req:has(> .field option[value^="gear:"]:checked), .req:has(> .field option[value="trait"]:checked) { grid-template-columns: minmax(0, 1fr); }
+.req:has(> .field option[value=""]:checked) .req__level, .req:has(> .field option[value^="gear:"]:checked) .req__level, .req:has(> .field option[value="trait"]:checked) .req__level { display: none; }
+.req:has(> .field option[value=""]:checked) ~ .req:has(> .field option[value=""]:checked) { display: none; }
+/* A trait condition's parts (1e part six): each with its word before it, under the condition's select. */
+.req__trait { display: none; grid-column: 1 / -1; grid-template-columns: auto minmax(0, 1fr); gap: var(--space-2xs) var(--space-xs); align-items: center; }
+.req:has(> .field option[value="trait"]:checked) .req__trait { display: grid; }
+.req__word { font-size: var(--text-sm); color: var(--color-muted); }
+.req__trait .field select, .req__trait .field input[type="text"] { width: 100%; }
 @media (max-width: 45rem) {
   .approaches__table, .approaches__table tbody, .approaches__table td { display: block; }
   .approaches__table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }

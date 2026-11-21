@@ -1628,16 +1628,168 @@ public sealed class ContentMissionFormsTests(RepoContentGuard guard) : IClassFix
         guard.Verify();
     }
 
-    // 1e part three: a trait condition the form cannot write is offered as it stands, so opening and saving keeps it exactly.
-    [Fact]
-    public void A_trait_condition_round_trips_through_the_forms_encoding()
-    {
-        var levelled = new RequirementModel(null, null, null, "sensors_quirk", null, 1, null, "ship");
-        var named = new RequirementModel(null, null, null, "stood_down", null, null, "broken", "lead");
+    // --- Trait conditions (1e part six, Task 13) ---
 
-        Assert.Equal(levelled, Web.Forms.EncounterKind.ParseTrait(Web.Forms.EncounterKind.TraitWhat(levelled)));
-        Assert.Equal(named, Web.Forms.EncounterKind.ParseTrait(Web.Forms.EncounterKind.TraitWhat(named)));
-        Assert.Equal("Trait: sensors_quirk at most 1, on the ship", Web.Forms.EncounterKind.TraitLabel(levelled));
-        Assert.Null(Web.Forms.EncounterKind.ParseTrait("trait:x"));
+    private static string TraitCondition(string trait, string min, string max, string on) =>
+        $"approaches[1].r0.what=trait&approaches[1].r0.trait={trait}&approaches[1].r0.min={min}&approaches[1].r0.max={max}&approaches[1].r0.on={on}";
+
+    [Fact]
+    public async Task A_new_trait_condition_saves_as_the_loader_reads_it_and_opens_again_as_written()
+    {
+        using TestApp app = NewApp();
+        HttpClient client = app.NewClient();
+
+        (HttpStatusCode status, _) = await Post(client, "/dev/content/encounters/ENCOUNTER_01", Merge(Encounter1, TraitCondition("trait_e", "2", "", "lead")));
+
+        Assert.Equal(HttpStatusCode.OK, status);
+        Assert.Contains("requires: [{ trait: trait_e, min: 2, on: lead }]", Disk(app, "encounters/base.yaml"), StringComparison.Ordinal);
+        Assert.Equal([new RequirementDef(null, 0, null, "trait_e", 2, null, "lead")], app.Live.Pack.Encounters.Single(e => e.Id == "ENCOUNTER_01").Approaches[1].Requires);
+
+        (_, string body) = await Get(client, "/dev/content/encounters/ENCOUNTER_01");
+        Assert.Equal(("trait", "trait_e", "2", "", "lead"), (Selected(body, "approaches[1].r0.what"), Selected(body, "approaches[1].r0.trait"), Selected(body, "approaches[1].r0.min"), Selected(body, "approaches[1].r0.max"), Selected(body, "approaches[1].r0.on")));
+        // A trait with named levels is chosen by name; a pair's trait is not offered, and a crew trait is not on the ship.
+        Assert.Contains(">level_b (2)</option>", Regex.Match(body, "<select\\b[^>]*name=\"approaches\\[1\\]\\.r0\\.min\".*?</select>", RegexOptions.Singleline).Value, StringComparison.Ordinal);
+        string traits = Regex.Match(body, "<select\\b[^>]*name=\"approaches\\[1\\]\\.r0\\.trait\".*?</select>", RegexOptions.Singleline).Value;
+        Assert.Contains("value=\"trait_a\"", traits, StringComparison.Ordinal);
+        Assert.DoesNotContain("value=\"trait_g\"", traits, StringComparison.Ordinal);
+        Assert.DoesNotContain("value=\"ship\"", Regex.Match(body, "<select\\b[^>]*name=\"approaches\\[1\\]\\.r0\\.on\".*?</select>", RegexOptions.Singleline).Value, StringComparison.Ordinal);
+
+        (HttpStatusCode again, _) = await Post(client, "/dev/content/encounters/ENCOUNTER_01", FormFields(body));
+        Assert.Equal(HttpStatusCode.OK, again);
+        Assert.Contains("requires: [{ trait: trait_e, min: 2, on: lead }]", Disk(app, "encounters/base.yaml"), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task A_counting_traits_condition_takes_numbers_and_a_blank_at_least_is_the_loaders_default()
+    {
+        using TestApp app = NewApp();
+
+        (HttpStatusCode status, _) = await Post(app.NewClient(), "/dev/content/encounters/ENCOUNTER_01", Merge(Encounter1, TraitCondition("trait_b", "", "2", "anyone")));
+
+        Assert.Equal(HttpStatusCode.OK, status);
+        Assert.Contains("requires: [{ trait: trait_b, max: 2, on: anyone }]", Disk(app, "encounters/base.yaml"), StringComparison.Ordinal);
+        Assert.Equal([new RequirementDef(null, 0, null, "trait_b", 0, 2, "anyone")], app.Live.Pack.Encounters.Single(e => e.Id == "ENCOUNTER_01").Approaches[1].Requires);
+        (_, string body) = await Get(app.NewClient(), "/dev/content/encounters/ENCOUNTER_01");
+        Assert.Equal(("", "2"), (Value(body, "approaches[1].r0.min"), Value(body, "approaches[1].r0.max")));
+    }
+
+    [Theory]
+    [InlineData("", "", "", "lead", "approaches[1].r0.trait", "Choose a trait.")]
+    [InlineData("trait_z", "", "", "lead", "approaches[1].r0.trait", "Unknown trait.")]
+    [InlineData("trait_g", "", "", "lead", "approaches[1].r0.trait", "trait_g sits on a pair, so it cannot be a condition.")]
+    [InlineData("trait_e", "", "", "", "approaches[1].r0.on", "Choose who it is on.")]
+    [InlineData("trait_e", "", "", "ship", "approaches[1].r0.on", "trait_e cannot be on ship.")]
+    [InlineData("trait_e", "2", "1", "lead", "approaches[1].r0.max", "At most is below at least.")]
+    [InlineData("trait_b", "-1", "", "lead", "approaches[1].r0.min", "Must be 0 or more.")]
+    [InlineData("trait_b", "lots", "", "lead", "approaches[1].r0.min", "Must be a whole number.")]
+    public async Task A_bad_trait_condition_is_refused_beside_its_part(string trait, string min, string max, string on, string field, string words)
+    {
+        using TestApp app = NewApp();
+        string file = Disk(app, "encounters/base.yaml");
+
+        (HttpStatusCode status, string body) = await Post(app.NewClient(), "/dev/content/encounters/ENCOUNTER_01", Merge(Encounter1, TraitCondition(trait, min, max, on)));
+
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, status);
+        Assert.Contains(words, ErrorFor(body, field), StringComparison.Ordinal);
+        Assert.Equal(file, Disk(app, "encounters/base.yaml"));
+    }
+
+    // Each spelling the loader takes opens into the parts and saves back as it was written.
+    [Theory]
+    [InlineData("{ trait: trait_e, is: level_b, on: lead }", "2", "2")]
+    [InlineData("{ trait: trait_e, is: 1, on: anyone }", "1", "1")]
+    [InlineData("{ trait: trait_e, min: 1, max: 2, on: lead }", "1", "2")]
+    [InlineData("{ trait: trait_a, on: ship }", "", "")]
+    [InlineData("{ trait: trait_b, min: 0, on: lead }", "0", "")]
+    public async Task An_existing_trait_condition_opens_into_its_parts_and_saving_it_unchanged_leaves_the_file_as_it_was(string written, string min, string max)
+    {
+        using TestApp app = NewApp(root => WithCondition(root, written));
+        HttpClient client = app.NewClient();
+        string file = Disk(app, "encounters/base.yaml");
+
+        (_, string body) = await Get(client, "/dev/content/encounters/ENCOUNTER_01");
+        Assert.Equal("trait", Selected(body, "approaches[1].r0.what"));
+        Assert.Equal((min, max), (Selected(body, "approaches[1].r0.min") ?? Value(body, "approaches[1].r0.min"), Selected(body, "approaches[1].r0.max") ?? Value(body, "approaches[1].r0.max")));
+        (HttpStatusCode status, _) = await Post(client, "/dev/content/encounters/ENCOUNTER_01", FormFields(body));
+
+        Assert.Equal(HttpStatusCode.OK, status);
+        Assert.Equal(file, Disk(app, "encounters/base.yaml"));
+    }
+
+    [Fact]
+    public async Task An_is_changed_in_the_form_is_written_as_at_least_and_at_most()
+    {
+        using TestApp app = NewApp(root => WithCondition(root, "{ trait: trait_e, is: level_b, on: lead }"));
+        HttpClient client = app.NewClient();
+
+        (_, string body) = await Get(client, "/dev/content/encounters/ENCOUNTER_01");
+        (HttpStatusCode status, _) = await Post(client, "/dev/content/encounters/ENCOUNTER_01", Merge(FormFields(body), "approaches[1].r0.min=1"));
+
+        Assert.Equal(HttpStatusCode.OK, status);
+        Assert.Contains("requires: [{ trait: trait_e, min: 1, max: 2, on: lead }]", Disk(app, "encounters/base.yaml"), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Choosing_a_conditions_trait_posts_and_fits_its_on_and_levels_to_it()
+    {
+        using TestApp app = NewApp();
+
+        (_, string form) = await Get(app.NewClient(), "/dev/content/encounters/ENCOUNTER_01");
+        (_, string settled) = await Post(app.NewClient(), "/dev/content/encounters/ENCOUNTER_01/rows?focus=f-approaches-1-r0-trait", Merge(Encounter1, TraitCondition("trait_e", "5", "1", "ship") + "&approaches[1].r0.is=level_z"));
+
+        Assert.Contains("data-on:change=\"@post('/dev/content/encounters/ENCOUNTER_01/rows?focus=f-approaches-1-r0-trait', {contentType: 'form'})\"", Text(form));
+        Assert.Equal(["f-approaches-1-r0-trait"], Focused(settled));
+        Assert.Equal(("trait_e", "", "1", "", ""), (Selected(settled, "approaches[1].r0.trait"), Selected(settled, "approaches[1].r0.min"), Selected(settled, "approaches[1].r0.max"), Selected(settled, "approaches[1].r0.on"), Value(settled, "approaches[1].r0.is")));
+    }
+
+    // The fixture's ENCOUNTER_01 with one requirement on its second approach, fast.
+    private static void WithCondition(string root, string written)
+    {
+        string file = Path.Combine(root, "encounters", "base.yaml");
+        string fast = "    - { id: fast, name: APPROACH_B_NAME, skill: SKILL_C, difficulty: 6, outcomes:";
+        string text = File.ReadAllText(file);
+        Assert.Contains(fast, text, StringComparison.Ordinal);
+        File.WriteAllText(file, text.Replace(fast, $"    - {{ id: fast, name: APPROACH_B_NAME, skill: SKILL_C, difficulty: 6, requires: [{written}], outcomes:", StringComparison.Ordinal));
+    }
+
+    // The game's own: Debris Shoal's careful asks that the sensors quirk be at most 1, on the ship. The game's encounters file is not
+    // in the writer's house style (a first save from any form quotes its decisions' chronicle lines), so it is put in it first.
+    [Fact]
+    public async Task The_games_trait_condition_opens_into_its_parts_and_saves_unchanged()
+    {
+        using TestApp app = ContentStoryletFormsTests.GameApp(canonical: false);
+        File.WriteAllText(Path.Combine(app.ContentPath, "encounters", "base.yaml"), ContentEdits.Canonicalize(app.Editor.Read()).Files["encounters/base.yaml"]);
+        HttpClient client = app.NewClient();
+        string before = Everything(app);
+        string encounters = Disk(app, "encounters/base.yaml");
+
+        (_, string body) = await Get(client, "/dev/content/encounters/ENCOUNTER_01");
+        Assert.Equal(("trait", "sensors_quirk", "", "1", "ship"), (Selected(body, "approaches[0].r0.what"), Selected(body, "approaches[0].r0.trait"), Selected(body, "approaches[0].r0.min"), Selected(body, "approaches[0].r0.max"), Selected(body, "approaches[0].r0.on")));
+        (HttpStatusCode status, _) = await Post(client, "/dev/content/encounters/ENCOUNTER_01", FormFields(body));
+
+        Assert.Equal(HttpStatusCode.OK, status);
+        Assert.Equal(encounters, Disk(app, "encounters/base.yaml"));
+        Assert.Equal(before, Everything(app));
+    }
+
+    // The encounter form shows the notes Task 2 moved into the encounters, so a save keeps them (1e part six).
+    [Fact]
+    public async Task An_encounters_notes_are_in_its_form_and_saved_with_it()
+    {
+        using TestApp app = NewApp();
+        HttpClient client = app.NewClient();
+
+        (HttpStatusCode status, _) = await Post(client, "/dev/content/encounters/ENCOUNTER_01", Merge(Encounter1, "notes=" + Uri.EscapeDataString("careful: why.\r\nSecond # line")));
+        (_, string body) = await Get(client, "/dev/content/encounters/ENCOUNTER_01");
+
+        Assert.Equal(HttpStatusCode.OK, status);
+        Assert.Contains("  notes: |-\n    careful: why.\n    Second # line\n", Disk(app, "encounters/base.yaml"), StringComparison.Ordinal);
+        Assert.Equal("careful: why.\nSecond # line", WebUtility.HtmlDecode(Regex.Match(body, "<textarea[^>]*name=\"notes\"[^>]*>(.*?)</textarea>", RegexOptions.Singleline).Groups[1].Value));
+    }
+
+    [Fact]
+    public void A_trait_condition_reads_as_the_author_wrote_it()
+    {
+        Assert.Equal("Trait: sensors_quirk at most 1, on the ship", Web.Forms.EncounterKind.TraitLabel(new RequirementModel(null, null, null, "sensors_quirk", null, 1, null, "ship")));
     }
 }

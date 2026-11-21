@@ -782,9 +782,10 @@ public static class ContentWriter
             entries.Add(("max", Num(max)));
         }
 
+        // A level's name, or a number as the author writes one, bare (the loader reads either as text).
         if (requirement.Is is not null)
         {
-            entries.Add(("is", Quote(requirement.Is)));
+            entries.Add(("is", requirement.Is.Length > 0 && requirement.Is.All(char.IsAsciiDigit) ? requirement.Is : Quote(requirement.Is)));
         }
 
         if (requirement.On is not null)
