@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Expression widget, mock-up</title>
+<!-- 1e part six, Task 7, Step 1: the expression widget mocked up from the editor's own stylesheet before any Razor. Screenshot with a
+     headless Chrome at 1440 and 400 wide (expression-widget-1440.png, expression-widget-400.png). The rules under "the widget" are the ones
+     that went into app.css. -->
+<link rel="stylesheet" href="../../../src/Web/wwwroot/css/app.css">
+<style>
+  /* The app serves its fonts from /fonts/; from a file they are found beside the stylesheet. */
+  @font-face { font-family: "Source Serif 4"; src: url("../../../src/Web/wwwroot/fonts/SourceSerif4-latin.woff2") format("woff2"); font-weight: 400; }
+  @font-face { font-family: "Host Grotesk"; src: url("../../../src/Web/wwwroot/fonts/HostGrotesk-latin.woff2") format("woff2"); font-weight: 300 800; }
+  @font-face { font-family: "Atkinson Hyperlegible Mono"; src: url("../../../src/Web/wwwroot/fonts/AtkinsonHyperlegibleMono-latin.woff2") format("woff2"); font-weight: 200 800; }
+  .mock-cap { margin: 0 0 var(--space-xs); font-size: var(--text-sm); color: var(--color-muted); border-bottom: var(--rule-hair) dashed var(--color-rule-2); padding-bottom: var(--space-2xs); }
+  .mock-stack { display: grid; gap: var(--space-xl); }
+</style>
+</head>
+<body>
+<div class="page">
+<div class="page-col page-col--wide">
+<form class="well">
+  <div class="well__head"><h2>Expression widget</h2></div>
+  <div class="well__body fields">
+  <div class="mock-stack">
+
+  <!-- 1. A row set in rows: three rows, each a sentence of selects and steppers with its text under it, and add. -->
+  <div>
+    <p class="mock-cap">Rows: a set of clauses, one of them a trait with named levels, one a count with its window</p>
+    <div class="expr">
+      <div class="expr__head">
+        <span class="field__label" id="h-requires">Requires</span>
+        <div class="expr__switch" role="group" aria-label="Requires, edit as">
+          <button class="tab" type="button" aria-pressed="true">Rows</button>
+          <button class="tab" type="button" aria-pressed="false">Text</button>
+        </div>
+      </div>
+      <p class="hint">Every clause must hold. No clauses: it always holds.</p>
+      <ol class="expr__rows" aria-labelledby="h-requires">
+        <li class="expr__row">
+          <div class="expr__sentence">
+            <select aria-label="What clause 1 reads"><option>Trait</option></select>
+            <select aria-label="Whose, clause 1"><option>subject</option></select>
+            <select aria-label="Trait, clause 1"><option>grieving</option></select>
+            <select aria-label="Compared, clause 1"><option>is at least</option></select>
+            <span class="stepper"><button class="btn stepper__btn" type="button" aria-label="Less">&minus;</button><input type="text" inputmode="numeric" value="1" aria-label="Value, clause 1"><button class="btn stepper__btn" type="button" aria-label="More">+</button></span>
+          </div>
+          <button class="btn expr__remove" type="button" aria-label="Remove clause 1">Remove</button>
+          <code class="expr__clause">subject.trait.grieving &gt;= 1</code>
+        </li>
+        <li class="expr__row">
+          <div class="expr__sentence">
+            <select aria-label="What clause 2 reads"><option>Trait</option></select>
+            <select aria-label="Whose, clause 2"><option>the ship</option></select>
+            <select aria-label="Trait, clause 2"><option>sensors_quirk</option></select>
+            <select aria-label="Compared, clause 2"><option>is</option></select>
+            <select aria-label="Value, clause 2"><option>let_ride (2)</option></select>
+          </div>
+          <button class="btn expr__remove" type="button" aria-label="Remove clause 2">Remove</button>
+          <code class="expr__clause">ship.trait.sensors_quirk == 'let_ride'</code>
+        </li>
+        <li class="expr__row">
+          <div class="expr__sentence">
+            <select aria-label="What clause 3 reads"><option>History count</option></select>
+            <select aria-label="Whose, clause 3"><option>subject</option></select>
+            <select aria-label="Kind, clause 3"><option>lost_mission</option></select>
+            <span class="expr__word">in the last</span>
+            <span class="stepper"><button class="btn stepper__btn" type="button" aria-label="Less">&minus;</button><input type="text" inputmode="numeric" value="2" aria-label="Cycles, clause 3"><button class="btn stepper__btn" type="button" aria-label="More">+</button></span>
+            <span class="expr__word">cycles</span>
+            <select aria-label="Compared, clause 3"><option>is more than</option></select>
+            <span class="stepper"><button class="btn stepper__btn" type="button" aria-label="Less">&minus;</button><input type="text" inputmode="numeric" value="0" aria-label="Value, clause 3"><button class="btn stepper__btn" type="button" aria-label="More">+</button></span>
+          </div>
+          <button class="btn expr__remove" type="button" aria-label="Remove clause 3">Remove</button>
+          <code class="expr__clause">subject.history.count('lost_mission', 2) &gt; 0</code>
+        </li>
+      </ol>
+      <div class="rowset__add"><button class="btn" type="button">Add a clause</button></div>
+    </div>
+  </div>
+
+  <!-- 2. A row just added, and a row missing a part, with its error. -->
+  <div>
+    <p class="mock-cap">Rows: a clause just added (what it reads is not chosen yet), and one missing a part at save</p>
+    <div class="expr">
+      <div class="expr__head">
+        <span class="field__label">Cast: target</span>
+        <div class="expr__switch" role="group" aria-label="target, edit as">
+          <button class="tab" type="button" aria-pressed="true">Rows</button>
+          <button class="tab" type="button" aria-pressed="false">Text</button>
+        </div>
+      </div>
+      <ol class="expr__rows">
+        <li class="expr__row">
+          <div class="expr__sentence">
+            <select aria-label="What clause 1 reads"><option>Trait toward</option></select>
+            <select aria-label="Whose, clause 1"><option>subject</option></select>
+            <select aria-label="Trait, clause 1" aria-invalid="true"><option>Choose</option></select>
+            <span class="expr__word">toward</span>
+            <select aria-label="Toward, clause 1"><option>target</option></select>
+            <select aria-label="Compared, clause 1"><option>is at least</option></select>
+            <span class="stepper"><button class="btn stepper__btn" type="button" aria-label="Less">&minus;</button><input type="text" inputmode="numeric" value="3" aria-label="Value, clause 1"><button class="btn stepper__btn" type="button" aria-label="More">+</button></span>
+          </div>
+          <button class="btn expr__remove" type="button">Remove</button>
+          <p class="error">Choose a trait.</p>
+        </li>
+        <li class="expr__row">
+          <div class="expr__sentence">
+            <select aria-label="What clause 2 reads"><option>Choose what it reads</option></select>
+          </div>
+          <button class="btn expr__remove" type="button">Remove</button>
+          <p class="expr__clause expr__clause--none">Choose what this clause reads.</p>
+        </li>
+      </ol>
+      <div class="rowset__add"><button class="btn" type="button">Add a clause</button></div>
+    </div>
+  </div>
+
+  <!-- 3. Text: an expression that is valid but not rows, with its reason, and the chips. -->
+  <div>
+    <p class="mock-cap">Text: valid, but not rows, so it says why; chips insert at the caret</p>
+    <div class="expr">
+      <div class="expr__head">
+        <label class="field__label" for="m-text">Requires</label>
+        <div class="expr__switch" role="group" aria-label="Requires, edit as">
+          <button class="tab" type="button" aria-pressed="false">Rows</button>
+          <button class="tab" type="button" aria-pressed="true">Text</button>
+        </div>
+      </div>
+      <textarea class="expr__box" id="m-text" rows="2" spellcheck="false">subject.trait.shaken >= 1 || subject.morale &lt; 30</textarea>
+      <p class="expr__reason">Stays as text: uses ||.</p>
+      <div class="chips" role="group" aria-label="Insert into Requires">
+        <button class="chip" type="button">subject</button><button class="chip" type="button">target</button><button class="chip" type="button">ship</button>
+        <button class="chip" type="button">trait.shaken</button><button class="chip" type="button">trait.grieving</button><button class="chip" type="button">trait.sensors_quirk</button><button class="chip" type="button">'noticed'</button><button class="chip" type="button">'let_ride'</button>
+        <button class="chip" type="button">'lost_mission'</button><button class="chip" type="button">'death'</button><button class="chip" type="button">storylet.STORYLET_01</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4. Text: an error, placed at its character. -->
+  <div>
+    <p class="mock-cap">Text: refused, with the loader's error at its character; nothing is saved</p>
+    <div class="expr">
+      <div class="expr__head">
+        <label class="field__label" for="m-bad">Cast: subject</label>
+        <div class="expr__switch" role="group" aria-label="subject, edit as">
+          <button class="tab" type="button" aria-pressed="false">Rows</button>
+          <button class="tab" type="button" aria-pressed="true">Text</button>
+        </div>
+      </div>
+      <textarea class="expr__box" id="m-bad" rows="2" spellcheck="false" aria-invalid="true">subject.aboard &amp;&amp; subject.trait.nosuch >= 1</textarea>
+      <div class="expr__check">
+        <p class="error">No trait named nosuch.</p>
+        <span class="problems__at">Character 33</span><pre class="problems__spot" aria-hidden="true">subject.aboard &amp;&amp; subject.trait.nosuch >= 1
+                                ^</pre>
+      </div>
+    </div>
+  </div>
+
+  </div>
+  </div>
+</form>
+</div>
+</div>
+</body>
+</html>

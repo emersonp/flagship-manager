@@ -1,0 +1,76 @@
+@using Web.Forms
+@* The expression widget (1e part six, design 4.5; mocked up in docs/screens/1e-6/). The YAML holds the string; this is a view of it.
+   Rows: clauses joined by &&, each a sentence of selects and steppers, added and removed through the rows route. Text: the expression in
+   a box, checked as typed (the check route patches the line under it) with the loader's error at its character, why it stays text, and
+   chips that insert at the caret (editor.js). The Rows / Text switch is always shown: to Text shows the string the rows make, and back to
+   Rows reads the text as rows, or stays in Text and says why. *@
+@{
+    ExpressionView widget = Web.Forms.ExpressionField.View(View.Values, Scope, View.Choices.Expressions);
+    string slug = FormValues.Slug(Scope.Prefix);
+    string label = $"{slug}-label";
+    string textName = Web.Forms.ExpressionField.TextField(Scope.Prefix);
+    string textId = FormValues.Slug(textName);
+    string? textError = View.Error(textName);
+}
+<div class="expr" id="@($"{slug}-expr")" role="group" aria-labelledby="@label">
+    <input type="hidden" name="@Web.Forms.ExpressionField.ModeField(Scope.Prefix)" value="@(widget.IsText ? Web.Forms.ExpressionField.TextMode : Web.Forms.ExpressionField.RowsMode)">
+    <div class="expr__head">
+        @if (widget.IsText)
+        {
+            <label class="field__label" id="@label" for="@textId">@Scope.Label</label>
+        }
+        else
+        {
+            <span class="field__label" id="@label">@Scope.Label</span>
+        }
+        <div class="expr__switch" role="group" aria-label="@($"Edit {Scope.Label} as")">
+            <RowButton Class="tab" Id="@($"{slug}-as-rows")" Value="@Web.Forms.ExpressionField.SwitchAction(Scope.Prefix, Web.Forms.ExpressionField.RowsMode)" Pressed="@(widget.IsText ? "false" : "true")">Rows</RowButton>
+            <RowButton Class="tab" Id="@($"{slug}-as-text")" Value="@Web.Forms.ExpressionField.SwitchAction(Scope.Prefix, Web.Forms.ExpressionField.TextMode)" Pressed="@(widget.IsText ? "true" : "false")">Text</RowButton>
+        </div>
+    </div>
+    @if (Hint is not null)
+    {
+        <p class="hint">@Hint</p>
+    }
+    @if (widget.IsText)
+    {
+        <textarea class="expr__box" id="@textId" name="@textName" rows="2" spellcheck="false" autocomplete="off" aria-invalid="@(widget.Check.Error is not null || textError is not null ? "true" : null)" aria-describedby="@($"{slug}-check")" data-on:input__debounce.500ms="@CheckPost" @attributes="View.FocusFor(textId)">@widget.Text</textarea>
+        <ExpressionCheckLine Scope="Scope" Check="widget.Check" Error="@textError" />
+        @if (widget.Chips.Count > 0)
+        {
+            <div class="chips" role="group" aria-label="@($"Insert into {Scope.Label}")">
+                @foreach (string chip in widget.Chips)
+                {
+                    <button class="chip" type="button" data-attr:disabled="@FormShell.Busy" data-insert="@chip">@chip</button>
+                }
+            </div>
+        }
+    }
+    else
+    {
+        @if (widget.Clauses.Count > 0)
+        {
+            <ol class="expr__rows" aria-labelledby="@label">
+                @foreach (ClauseView clause in widget.Clauses)
+                {
+                    <ExpressionRow Set="widget.Set" Clause="clause" SlotNames="Scope.Slots" Label="@Scope.Label" />
+                }
+            </ol>
+        }
+        <div class="rowset__add">
+            <RowButton Id="@widget.Set.AddId" Value="@widget.Set.AddAction" Aria="@($"Add a clause to {Scope.Label}")">Add a clause</RowButton>
+        </div>
+    }
+</div>
+
+@code {
+    [CascadingParameter] public ItemFormView View { get; set; } = null!;
+
+    [Parameter, EditorRequired] public ExpressionScope Scope { get; set; } = null!;
+
+    // The rule in words, under the label ("Every clause must hold. No clauses: it always holds.").
+    [Parameter] public string? Hint { get; set; }
+
+    // Typing posts the form to the rows route's check, which answers with the line under the box alone.
+    private string CheckPost => $"@post('{View.RowsUrl}?check={Uri.EscapeDataString(Scope.Prefix)}', {{contentType: 'form'}})";
+}

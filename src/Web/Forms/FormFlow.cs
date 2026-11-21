@@ -117,7 +117,8 @@ internal static class FormFlow
     // The row buttons say what to do; a control that only changes what the form shows (the decision's box) names the element to focus.
     public static ItemFormView? Rows(KindForm form, ContentFileSet files, string? id, FormValues posted, string? focusId = null)
     {
-        if (form.RowSets.Count == 0)
+        IReadOnlyList<RowSet> sets = form.AllRowSets(posted);
+        if (sets.Count == 0)
         {
             return null;
         }
@@ -143,12 +144,38 @@ internal static class FormFlow
             return Build(form, files, choices, isNew ? posted.Get("id") : id!, isNew, written, new Dictionary<string, string>(), [], null) with { FocusId = FormValues.Slug(OwnedText.Lines.Name(lines.Count - 1, "text")) };
         }
 
-        FormRows.Applied applied = FormRows.Apply(posted, form.RowSets);
+        // An expression widget's Rows / Text switch (1e part six).
+        IReadOnlyList<ExpressionScope> scopes = form.Expressions(posted);
+        if (ExpressionField.Switch(posted, scopes, choices.Expressions) is { } switched)
+        {
+            return Build(form, files, choices, isNew ? posted.Get("id") : id!, isNew, switched.Values, new Dictionary<string, string>(), [], null) with { FocusId = switched.Focus };
+        }
+
+        FormRows.Applied applied = FormRows.Apply(posted, sets);
         // Add: the new row's first field. Move: the moved row's first field, so the author sees where it went. Remove: that list's Add button.
         string? focus = applied.Set is not { } set
             ? SafeFocus(focusId)
             : applied.Verb == "remove" ? set.AddId : FormValues.Slug(set.Name(applied.Row, set.Fields[0]));
-        return Build(form, files, choices, isNew ? posted.Get("id") : id!, isNew, form.AfterRows(applied), new Dictionary<string, string>(), [], null) with { FocusId = focus };
+        // A select that changes what a clause row shows names itself as the focus; that row's other parts are made to fit it.
+        FormValues values = applied.Set is null ? ExpressionField.Settle(form.AfterRows(applied), scopes, choices.Expressions, focus) : form.AfterRows(applied);
+        return Build(form, files, choices, isNew ? posted.Get("id") : id!, isNew, values, new Dictionary<string, string>(), [], null) with { FocusId = focus };
+    }
+
+    // The check under an expression widget's text, for the text as posted (1e part six); null for an unknown id or a widget the form has not.
+    public static (ExpressionScope Scope, ExpressionCheck Check)? CheckExpression(KindForm form, ContentFileSet files, string? id, FormValues posted, string prefix)
+    {
+        if (form.Expressions(posted).FirstOrDefault(e => e.Prefix == prefix) is not { } scope)
+        {
+            return null;
+        }
+
+        FormChoices choices = id is null ? FormChoicesReader.Read(files) : form.Widen(FormChoicesReader.Read(files), files, id);
+        if (id is not null && form.Load(files, id, choices) is null)
+        {
+            return null;
+        }
+
+        return (scope, ExpressionField.Check(posted.Get(ExpressionField.TextField(prefix)), scope, choices.Expressions));
     }
 
     // The form as posted, for its panel's previews; sample, when given, is the sample to show. Null for an unknown id or a kind with no panel.
@@ -238,7 +265,7 @@ internal static class FormFlow
     // Rows posted with gaps in their indexes (offer[0], offer[5]) are numbered from 0 before they are bound, so an error names a field on the page.
     private static FormValues Renumbered(KindForm form, FormValues values)
     {
-        return form.RowSets.Aggregate(values, (v, rows) => FormRows.Write(v, rows, FormRows.Read(v, rows)));
+        return form.AllRowSets(values).Aggregate(values, (v, rows) => FormRows.Write(v, rows, FormRows.Read(v, rows)));
     }
 
     // A loss in the item's own file: its own (saving replaces it) or another item's (saving is refused until that is fixed).

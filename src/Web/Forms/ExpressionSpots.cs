@@ -47,6 +47,18 @@ internal static partial class ExpressionSpots
         return spots;
     }
 
+    // Where a 0-based position is within one box's text (the expression widget's, 1e part six): its line and column, counted from 1,
+    // and that line. Past the end is the end.
+    public static TextSpot InBox(string text, int position)
+    {
+        text = text.Replace("\r\n", "\n", StringComparison.Ordinal);
+        int offset = Math.Clamp(position, 0, text.Length);
+        int lineStart = offset == 0 ? 0 : text.LastIndexOf('\n', offset - 1) + 1;
+        int lineEnd = text.IndexOf('\n', offset);
+        int line = text.AsSpan(0, lineStart).Count('\n') + 1;
+        return new TextSpot(line, offset - lineStart + 1, text[lineStart..(lineEnd < 0 ? text.Length : lineEnd)]);
+    }
+
     // The file's items, or null when it does not read as a list.
     private static YamlSequenceNode? Items(string text)
     {

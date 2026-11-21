@@ -25,6 +25,9 @@ public sealed record FormChoices(IReadOnlyList<SkillChoice> Skills, IReadOnlyLis
     // The symbols lines may use, for the line form's help.
     public IReadOnlyList<string> Symbols { get; init; } = [];
 
+    // What an expression widget picks from, and the book it checks with (1e part six).
+    public ExpressionChoices Expressions { get; init; } = ExpressionChoices.None;
+
     // The id of the decision the encounter already has, which cannot change; null when it has none.
     public string? FixedDecisionId { get; init; }
 

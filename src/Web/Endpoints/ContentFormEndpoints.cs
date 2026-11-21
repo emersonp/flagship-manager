@@ -158,7 +158,19 @@ public static class ContentFormEndpoints
     {
         bool datastar = Sse.IsDatastar(http.Request);
         FormValues posted = await Read(http.Request, cancellation);
-        if (KindForm.For(kind) is { } known && FormRows.HasBadRowNumber(posted, known.RowSets))
+        // ?check=prefix: the check under an expression widget's text as typed (1e part six), patched by its id; nothing else is drawn.
+        if (http.Request.Query["check"] is [{ } prefix])
+        {
+            if (KindForm.For(kind) is not { } checking || FormFlow.CheckExpression(checking, editor.Read(), id, posted, prefix) is not { } check)
+            {
+                return await NotFound(render, datastar);
+            }
+
+            string html = await render.Html<ExpressionCheckLine>(new Dictionary<string, object?> { ["Scope"] = check.Scope, ["Check"] = check.Check });
+            return datastar ? new PatchResult(html) : Results.Content(html, "text/html; charset=utf-8");
+        }
+
+        if (KindForm.For(kind) is { } known && FormRows.HasBadRowNumber(posted, known.AllRowSets(posted)))
         {
             return Results.Text("A row number must be a whole number, 0 or more.", statusCode: StatusCodes.Status400BadRequest);
         }

@@ -1,5 +1,5 @@
 @using Web.Forms
-<button class="btn" type="button" id="@Id" name="@RowSet.ActionField" value="@Value" aria-label="@Aria" @attributes="Focus" data-indicator:_rowing data-attr:disabled="@Disabled" data-attr:aria-busy="$_rowing ? 'true' : false" data-on:click="@Post">@ChildContent</button>
+<button class="@Class" type="button" id="@Id" name="@RowSet.ActionField" value="@Value" aria-label="@Aria" aria-pressed="@Pressed" @attributes="Focus" data-indicator:_rowing data-attr:disabled="@Disabled" data-attr:aria-busy="$_rowing ? 'true' : false" data-on:click="@Post">@ChildContent</button>
 
 @code {
     [CascadingParameter] public ItemFormView View { get; set; } = null!;
@@ -15,6 +15,12 @@
     [Parameter] public bool Edge { get; set; }
 
     [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    // The button's classes; an expression widget's switch draws its two buttons as tabs.
+    [Parameter] public string Class { get; set; } = "btn";
+
+    // "true" or "false" for a button of a switch, which says which side is on; null for any other.
+    [Parameter] public string? Pressed { get; set; }
 
     private string Disabled => Edge ? "true" : FormShell.Busy;
 

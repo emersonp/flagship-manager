@@ -1,0 +1,54 @@
+@using Web.Forms
+@* One select in a clause row of the expression widget (1e part six). One that changes what the row shows (what it reads, whose, which
+   trait, the operator) posts the form to the rows route as it changes, naming itself as the focus, so the row is drawn again to fit. *@
+<select id="@Id" name="@Name" aria-label="@Aria" aria-invalid="@(Error is null ? null : "true")" aria-describedby="@(Error is null ? null : Id + "-error")" @attributes="Attributes">
+    @if (Placeholder is not null)
+    {
+        <option value="" selected="@(Value.Length == 0)">@Placeholder</option>
+    }
+    @foreach (Choice choice in Options)
+    {
+        <option value="@choice.Value" selected="@(choice.Value == Value)">@choice.Label</option>
+    }
+</select>
+
+@code {
+    [CascadingParameter] public ItemFormView View { get; set; } = null!;
+
+    [Parameter, EditorRequired] public string Name { get; set; } = "";
+
+    [Parameter, EditorRequired] public string Aria { get; set; } = "";
+
+    [Parameter, EditorRequired] public IReadOnlyList<Choice> Options { get; set; } = [];
+
+    [Parameter] public string Value { get; set; } = "";
+
+    // The empty first option's words; null for a select that always has a value.
+    [Parameter] public string? Placeholder { get; set; }
+
+    [Parameter] public bool Posts { get; set; }
+
+    [Parameter] public string? Error { get; set; }
+
+    private string Id => FormValues.Slug(Name);
+
+    private IReadOnlyDictionary<string, object> Attributes
+    {
+        get
+        {
+            var attributes = new Dictionary<string, object>();
+            if (Posts)
+            {
+                attributes["data-indicator:_rowing"] = true;
+                attributes["data-on:change"] = $"@post('{View.RowsUrlFocusing(Id)}', {{contentType: 'form'}})";
+            }
+
+            foreach ((string key, object value) in View.FocusFor(Id))
+            {
+                attributes[key] = value;
+            }
+
+            return attributes;
+        }
+    }
+}

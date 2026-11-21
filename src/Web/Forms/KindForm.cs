@@ -14,6 +14,18 @@ internal abstract class KindForm
     // The lists of rows the form has; none for most kinds.
     public virtual IReadOnlyList<RowSet> RowSets => [];
 
+    // The expression widgets the form holds as posted (1e part six): each one's prefix, label, and the slots it may read. None for most kinds.
+    public virtual IReadOnlyList<ExpressionScope> Expressions(FormValues values)
+    {
+        return [];
+    }
+
+    // Every list of rows on the form as posted: its own, then each expression widget's clauses.
+    public IReadOnlyList<RowSet> AllRowSets(FormValues values)
+    {
+        return [.. RowSets, .. Expressions(values).Select(ExpressionField.Clauses)];
+    }
+
     // The kinds that have a form yet.
     public static KindForm? For(string segment)
     {

@@ -1,0 +1,157 @@
+@using Sim.Expressions
+@using Web.Forms
+@* One clause of the expression widget as a sentence of selects and steppers (1e part six, design 4.5), with its text under it, small, so
+   the author learns the language by reading it. Only the parts its shape reads are drawn; the others are not posted, and a change of
+   what it reads fills them in again (ExpressionField.Settle). *@
+<li class="expr__row" id="@($"{FormValues.Slug(Set.Prefix)}-{Clause.Index}")">
+    <div class="expr__sentence">
+        <ExpressionSelect Name="@Name("kind")" Aria="@($"What {Which} reads")" Options="Web.Forms.ExpressionField.Kinds" Value="@Part("kind")" Placeholder="Choose what it reads" Posts="true" Error="@Error("kind")" />
+        @switch (Clause.Kind)
+        {
+            case ShapeKind.Presence:
+                @Who(false)
+                <ExpressionSelect Name="@Name("not")" Aria="@($"Is or is not, {Which}")" Options="IsOrNot" Value="@Part("not")" />
+                @NameSelect("Aboard or fit", false)
+                break;
+            case ShapeKind.Trait:
+                @Who(true)
+                <span class="expr__word">trait</span>
+                @NameSelect("Trait", true)
+                @Compared()
+                break;
+            case ShapeKind.PairTrait:
+                @Who(false)
+                <span class="expr__word">trait</span>
+                @NameSelect("Trait", true)
+                <span class="expr__word">toward</span>
+                <ExpressionSelect Name="@Name("toward")" Aria="@($"Toward, {Which}")" Options="Slots" Value="@Part("toward")" Placeholder="Choose" Error="@Error("toward")" />
+                @Compared()
+                break;
+            case ShapeKind.Stat:
+                @Who(false)
+                @NameSelect("Morale or loyalty", false)
+                @Compared()
+                break;
+            case ShapeKind.Skill:
+                @Who(false)
+                <span class="expr__word">skill</span>
+                @NameSelect("Skill", false)
+                @Compared()
+                break;
+            case ShapeKind.HistoryLast:
+                @Who(false)
+                <ExpressionSelect Name="@Name("not")" Aria="@($"Had or did not have, {Which}")" Options="HadOrNot" Value="@Part("not")" />
+                @NameSelect("Kind", false)
+                <span class="expr__word">last cycle</span>
+                break;
+            case ShapeKind.HistoryCount:
+                @Who(false)
+                <span class="expr__word">had</span>
+                @NameSelect("Kind", false)
+                <span class="expr__word">in the last</span>
+                <Stepper Name="@Name("window")" Aria="@($"Cycles, {Which}")" Value="@Part("window")" Min="1" Error="@Error("window")" />
+                <span class="expr__word">cycles</span>
+                @Compared()
+                break;
+            case ShapeKind.ChronicleCount:
+                @Who(false)
+                <span class="expr__word">chronicle</span>
+                @NameSelect("Kind", false)
+                <span class="expr__word">in the last</span>
+                <Stepper Name="@Name("window")" Aria="@($"Days, {Which}")" Value="@Part("window")" Min="1" Error="@Error("window")" />
+                <span class="expr__word">days</span>
+                @Compared()
+                break;
+            case ShapeKind.StoryletSince:
+                <span class="expr__word">storylet</span>
+                @NameSelect("Storylet", false)
+                <ExpressionSelect Name="@Name("unit")" Aria="@($"Cycles or days, {Which}")" Options="Since" Value="@Part("unit")" />
+                @Compared()
+                break;
+            case ShapeKind.TraitSince:
+                @Who(true)
+                <span class="expr__word">trait</span>
+                @NameSelect("Trait", false)
+                <ExpressionSelect Name="@Name("unit")" Aria="@($"Cycles or days, {Which}")" Options="Since" Value="@Part("unit")" />
+                @Compared()
+                break;
+        }
+    </div>
+    <RowButton Class="btn expr__remove" Id="@Set.ButtonId("remove", Clause.Index)" Value="@Set.Action("remove", Clause.Index)" Aria="@($"Remove {Which}")">Remove</RowButton>
+    @if (FirstError is { } first)
+    {
+        <p class="error" id="@($"{FormValues.Slug(Name(first.Part))}-error")">@first.Message</p>
+    }
+    @if (Clause.Text is { } text)
+    {
+        <code class="expr__clause">@text</code>
+    }
+    else if (Clause.Kind is null)
+    {
+        <p class="expr__clause expr__clause--none">Choose what this clause reads.</p>
+    }
+</li>
+
+@code {
+    [CascadingParameter] public ItemFormView View { get; set; } = null!;
+
+    [Parameter, EditorRequired] public RowSet Set { get; set; } = null!;
+
+    [Parameter, EditorRequired] public ClauseView Clause { get; set; } = null!;
+
+    // The slots in scope, for a pair trait's toward.
+    [Parameter, EditorRequired] public IReadOnlyList<string> SlotNames { get; set; } = [];
+
+    // The widget's label, so each control is read out with its clause and widget ("Trait, clause 1 of Requires").
+    [Parameter, EditorRequired] public string Label { get; set; } = "";
+
+    private static readonly IReadOnlyList<Choice> IsOrNot = [new("", "is"), new("true", "is not")];
+
+    private static readonly IReadOnlyList<Choice> HadOrNot = [new("", "had"), new("true", "did not have")];
+
+    private static readonly IReadOnlyList<Choice> Since = [new("cycles", "cycles since"), new("days", "days since")];
+
+    private string Which => $"clause {Clause.Index + 1} of {Label}";
+
+    private IReadOnlyList<Choice> Slots => SlotNames.Select(s => new Choice(s, s)).ToList();
+
+    private string Name(string part)
+    {
+        return Set.Name(Clause.Index, part);
+    }
+
+    private string Part(string part)
+    {
+        return Clause.Parts.GetValueOrDefault(part, "");
+    }
+
+    private string? Error(string part)
+    {
+        return View.Error(Name(part));
+    }
+
+    private (string Part, string Message)? FirstError => Web.Forms.ExpressionField.Parts.Select(p => (Part: p, Message: Error(p))).FirstOrDefault(e => e.Message is not null) is { Message: { } message } found ? (found.Part, message) : null;
+
+    // Whose reading it is: a slot, or the ship where the shape reads it. A trait's who posts as it changes, since the ship's traits are not a crew member's.
+    private RenderFragment Who(bool posts) =>
+        @<ExpressionSelect Name="@Name("who")" Aria="@($"Whose, {Which}")" Options="Clause.Whos" Value="@Part("who")" Placeholder="Choose" Posts="posts" Error="@Error("who")" />;
+
+    // What it reads by name: a trait posts as it changes, since its levels decide how the value is chosen.
+    private RenderFragment NameSelect(string what, bool posts) =>
+        @<ExpressionSelect Name="@Name("name")" Aria="@($"{what}, {Which}")" Options="Clause.Names" Value="@Part("name")" Placeholder="Choose" Posts="posts" Error="@Error("name")" />;
+
+    // How it compares, and with what: the operator (which posts as it changes, since a trait's levels are named only beside is and is
+    // not), then a level from a select for a trait with named levels, or a whole number on a stepper.
+    private RenderFragment Compared() =>
+        @<text>
+            <ExpressionSelect Name="@Name("op")" Aria="@($"Compared, {Which}")" Options="Web.Forms.ExpressionField.Ops" Value="@Part("op")" Placeholder="Choose" Posts="true" Error="@Error("op")" />
+            @if (Clause.Levels is { } levels)
+            {
+                <ExpressionSelect Name="@Name("value")" Aria="@($"Level, {Which}")" Options="levels" Value="@Part("value")" Placeholder="Choose" Error="@Error("value")" />
+            }
+            else
+            {
+                <Stepper Name="@Name("value")" Aria="@($"Value, {Which}")" Value="@Part("value")" Error="@Error("value")" />
+            }
+        </text>;
+}

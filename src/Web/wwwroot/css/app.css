@@ -697,6 +697,45 @@ td.approaches__acts .btn + .btn { margin-top: var(--space-2xs); }
   .tab:active { transform: none; }
 }
 
+/* The expression widget (1e part six, design 4.5; mocked up in docs/screens/1e-6/): a label with the Rows / Text switch beside it, drawn
+   with the tabs' tokens; then either the clauses as rows, each a sentence of selects and steppers in a hairline box with its text under
+   it in the mono face, or the text in a mono box with why it stays text, or its error marked at its character, and the chips. */
+.expr { display: grid; gap: var(--space-xs); min-width: 0; max-width: 60rem; }
+.expr__head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-xs) var(--space-md); }
+.expr__switch { display: flex; gap: var(--rule-hair); border: var(--rule-hair) solid var(--color-rule-2); border-radius: var(--radius-control); background: var(--color-rule-2); overflow: hidden; }
+.expr__switch .tab { flex: 0 0 auto; min-width: 4.5rem; }
+.expr__switch .tab[aria-pressed="true"] { background: var(--color-accent-soft); color: var(--color-ink); box-shadow: inset 0 -2px 0 var(--color-accent); }
+@media (hover: hover) { .expr__switch .tab[aria-pressed="false"]:not(:disabled):hover { background: var(--color-paper-3); } }
+.expr__rows { display: grid; gap: var(--space-xs); }
+.expr__row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: var(--space-2xs) var(--space-sm); min-width: 0; padding: var(--space-xs) var(--space-sm); border: var(--rule-hair) solid var(--color-rule-2); border-radius: var(--radius-inner); background: var(--color-paper); }
+.expr__sentence { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-xs); min-width: 0; }
+.expr__sentence select, .stepper input { min-height: 40px; min-width: 0; max-width: 100%; padding: 0 var(--space-sm); border: var(--rule-hair) solid var(--color-muted); border-radius: var(--radius-control); background: var(--color-paper); color: var(--color-ink); font: inherit; font-size: var(--text-sm); }
+.expr__sentence select:hover, .stepper input:hover { background: var(--color-paper-3); }
+.expr__sentence select[aria-invalid="true"], .stepper input[aria-invalid="true"] { border-color: var(--color-harm); }
+.expr__word { font-size: var(--text-sm); color: var(--color-muted); }
+.expr__row > :not(.expr__remove) { grid-column: 1; }
+.expr__remove { grid-column: 2; grid-row: 1; padding: 0 var(--space-sm); font-size: var(--text-sm); }
+.expr__clause { font-family: var(--font-outlier); font-variant-numeric: tabular-nums slashed-zero; font-size: var(--text-xs); color: var(--color-muted); overflow-wrap: anywhere; }
+.expr__clause--none { font-family: var(--font-body); }
+.expr__row .error { font-size: var(--text-sm); }
+.stepper { display: inline-flex; align-items: stretch; }
+.stepper input { width: 4.5rem; border-radius: 0; text-align: center; font-family: var(--font-outlier); font-variant-numeric: tabular-nums slashed-zero; }
+.stepper__btn { min-width: 40px; padding: 0; font-family: var(--font-outlier); }
+.stepper__btn:first-child { border-radius: var(--radius-control) 0 0 var(--radius-control); border-right: 0; }
+.stepper__btn:last-child { border-radius: 0 var(--radius-control) var(--radius-control) 0; border-left: 0; }
+.expr__box { display: block; width: 100%; min-width: 0; min-height: 3.25rem; padding: var(--space-xs) var(--space-sm); border: var(--rule-hair) solid var(--color-muted); border-radius: var(--radius-control); background: var(--color-paper); color: var(--color-ink); font-family: var(--font-outlier); font-size: var(--text-sm); line-height: 1.5; resize: vertical; }
+.expr__box:hover { background: var(--color-paper-3); }
+.expr__box[aria-invalid="true"] { border-color: var(--color-harm); }
+.expr__check { display: grid; gap: var(--space-2xs); min-width: 0; }
+.expr__check:empty { display: none; }
+.expr__reason { font-size: var(--text-sm); color: var(--color-ink-2); }
+.expr__check .problems__at, .expr__check .problems__spot { margin: 0; font-size: var(--text-xs); }
+@media (max-width: 40rem) {
+  .expr__sentence > select { flex: 1 1 9rem; }
+  .expr__row { grid-template-columns: minmax(0, 1fr); }
+  .expr__remove { grid-column: 1; grid-row: auto; order: 1; justify-self: start; }
+}
+
 /* The captain's itinerary (1e part two): the captain's time is a plain figure under the heading, and a vignette's default is a
    quiet note after its answers. */
 .itinerary__schedule { max-width: 72ch; color: var(--color-ink); }
