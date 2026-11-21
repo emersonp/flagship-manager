@@ -32,8 +32,9 @@
                                 string name = Set.Name(row, Set.Fields[f]);
                                 string? error = View.Error(name);
                                 string id = FormValues.Slug(name);
+                                bool numeric = NumericFields?.Contains(Set.Fields[f]) ?? Numeric;
                                 <td class="cell">
-                                    <input id="@id" name="@name" type="text" inputmode="@(Numeric ? "numeric" : null)" spellcheck="@(Numeric ? null : "false")" list="@(f == 0 && FirstSuggestions is not null ? $"h-{Set.Prefix}-list" : null)" value="@Rows[row][Set.Fields[f]]" autocomplete="off" aria-label="@($"{Headers[f]}, row {row + 1}")" aria-invalid="@(error is null ? null : "true")" aria-describedby="@(error is null ? null : id + "-error")" @attributes="View.FocusFor(id)">
+                                    <input id="@id" name="@name" type="text" inputmode="@(numeric ? "numeric" : null)" spellcheck="@(numeric ? null : "false")" list="@(f == 0 && FirstSuggestions is not null ? $"h-{Set.Prefix}-list" : null)" value="@Rows[row][Set.Fields[f]]" autocomplete="off" aria-label="@($"{Headers[f]}, row {row + 1}")" aria-invalid="@(error is null ? null : "true")" aria-describedby="@(error is null ? null : id + "-error")" @attributes="View.FocusFor(id)">
                                     @if (error is not null)
                                     {
                                         <p class="error" id="@id-error">@error</p>
@@ -75,6 +76,9 @@
 
     // Whole numbers by default; text fields (a line's criteria) set this false.
     [Parameter] public bool Numeric { get; set; } = true;
+
+    // The fields that are whole numbers, when only some are (a trait's level: its number, then its name); null for Numeric's answer.
+    [Parameter] public IReadOnlyList<string>? NumericFields { get; set; }
 
     // Offered as a native list in the first column, any other text still allowed.
     [Parameter] public IReadOnlyList<string>? FirstSuggestions { get; set; }

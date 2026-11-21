@@ -1,0 +1,107 @@
+@using Web.Forms
+@* A trait's rule rows (1e part six, design 4.9): a launch list, or what happens when a pair's target dies. Each row is one change as a
+   sentence of selects and steppers, drawn as a storylet's effect rows are: loyalty or morale by an amount, or a trait (this one when
+   left blank) added to or set. What, the trait, and add or set post as they change, so the row is drawn again to fit (TraitKind.Settle).
+   On is the holder when blank; a pair's rule may land on the target. *@
+@{
+    string slug = FormValues.Slug(Set.Prefix);
+}
+<div class="rowset storylet-effects" id="@($"{slug}-rows")" tabindex="-1" aria-labelledby="@($"{slug}-h")" @attributes="Focus">
+    <h4 class="sub" id="@($"{slug}-h")">@Title</h4>
+    @if (Hint is not null)
+    {
+        <p class="hint">@Hint</p>
+    }
+    @if (View.Error(Set.Prefix) is { } listError)
+    {
+        <p class="error" id="@($"{slug}-error")">@listError</p>
+    }
+    @if (Rows.Count == 0)
+    {
+        <p class="empty">No rules.</p>
+    }
+    else
+    {
+        <ol class="expr__rows" aria-labelledby="@($"{slug}-h")">
+            @for (int i = 0; i < Rows.Count; i++)
+            {
+                int row = i;
+                Dictionary<string, string> parts = Rows[row];
+                string which = $"rule {row + 1}, {Title.ToLowerInvariant()}";
+                TraitChoice? trait = TraitKind.RuleTrait(View.Values, parts["trait"], View.Choices);
+                <li class="expr__row" id="@($"{slug}-{row}")">
+                    <div class="expr__sentence">
+                        <ExpressionSelect Name="@Set.Name(row, "what")" Aria="@($"What {which} changes")" Options="@Keep(StoryletParts.Whats, parts["what"])" Value="@parts["what"]" Placeholder="Choose what it changes" Posts="true" Error="@Error(row, "what")" />
+                        @if (parts["what"] is "loyalty" or "morale")
+                        {
+                            <span class="expr__word">by</span>
+                            <Stepper Name="@Set.Name(row, "amount")" Aria="@($"Amount, {which}")" Value="@parts["amount"]" Error="@Error(row, "amount")" />
+                        }
+                        else if (parts["what"] == "trait")
+                        {
+                            <ExpressionSelect Name="@Set.Name(row, "trait")" Aria="@($"Trait, {which}")" Options="@Keep(Traits, parts["trait"])" Value="@parts["trait"]" Placeholder="this trait" Posts="true" Error="@Error(row, "trait")" />
+                            <ExpressionSelect Name="@Set.Name(row, "mode")" Aria="@($"Add or set, {which}")" Options="@Keep(StoryletParts.ModeChoices(trait), parts["mode"])" Value="@parts["mode"]" Placeholder="Choose" Posts="true" Error="@Error(row, "mode")" />
+                            @if (StoryletParts.LevelChoices(trait, parts["mode"]) is { } levels)
+                            {
+                                <ExpressionSelect Name="@Set.Name(row, "amount")" Aria="@($"Level, {which}")" Options="@Keep(levels, parts["amount"])" Value="@parts["amount"]" Placeholder="Choose" Error="@Error(row, "amount")" />
+                            }
+                            else
+                            {
+                                <Stepper Name="@Set.Name(row, "amount")" Aria="@($"Amount, {which}")" Value="@parts["amount"]" Error="@Error(row, "amount")" />
+                            }
+                        }
+                        @if (parts["what"].Length > 0)
+                        {
+                            <span class="expr__word">on</span>
+                            <ExpressionSelect Name="@Set.Name(row, "on")" Aria="@($"On, {which}")" Options="@Keep(TraitKind.OnChoices(parts["what"], Pair), parts["on"])" Value="@parts["on"]" Placeholder="the holder" Error="@Error(row, "on")" />
+                        }
+                    </div>
+                    <RowButton Class="btn expr__remove" Id="@Set.ButtonId("remove", row)" Value="@Set.Action("remove", row)" Aria="@($"Remove {which}")">Remove</RowButton>
+                    @if (FirstError(row) is { } first)
+                    {
+                        <p class="error" id="@($"{FormValues.Slug(Set.Name(row, first.Part))}-error")">@first.Message</p>
+                    }
+                </li>
+            }
+        </ol>
+    }
+    <div class="rowset__add">
+        <RowButton Id="@Set.AddId" Value="@Set.AddAction" Aria="@($"Add a rule, {Title.ToLowerInvariant()}")">Add a rule</RowButton>
+    </div>
+</div>
+
+@code {
+    private IReadOnlyDictionary<string, object> Focus => View.FocusFor(FormValues.Slug(Set.Prefix) + "-rows");
+
+    [CascadingParameter] public ItemFormView View { get; set; } = null!;
+
+    [Parameter, EditorRequired] public RowSet Set { get; set; } = null!;
+
+    [Parameter, EditorRequired] public string Title { get; set; } = "";
+
+    [Parameter] public string? Hint { get; set; }
+
+    private List<Dictionary<string, string>> Rows = [];
+
+    // The other traits the pack defines; this one is the blank choice.
+    private List<Choice> Traits = [];
+
+    private bool Pair;
+
+    protected override void OnParametersSet()
+    {
+        Rows = FormRows.Read(View.Values, Set);
+        Traits = View.Choices.Expressions.Traits.Where(t => t.Id != View.Id).Select(t => new Choice(t.Id, t.Id)).ToList();
+        Pair = TraitKind.Pair(View.Values);
+    }
+
+    private string? Error(int row, string part) => View.Error(Set.Name(row, part));
+
+    private (string Part, string Message)? FirstError(int row) => TraitKind.RuleFields.Select(p => (Part: p, Message: Error(row, p))).FirstOrDefault(e => e.Message is not null) is { Message: { } message } found ? (found.Part, message) : null;
+
+    // The choices with the posted value added at the end when they lack it, so a value the pack does not offer is shown, and refused, as it is.
+    private static IReadOnlyList<Choice> Keep(IReadOnlyList<Choice> choices, string value)
+    {
+        return value.Length == 0 || choices.Any(c => c.Value == value) ? choices : [.. choices, new Choice(value, value)];
+    }
+}

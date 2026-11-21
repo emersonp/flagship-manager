@@ -1,0 +1,55 @@
+@using Web.Forms
+@* "Where it's used" on the trait form (1e part six, design 4.9), in place of "What plays here": every storylet, vignette, encounter,
+   other trait, and test ship that reads, changes, or holds the trait, by kind, each linked to its form (a test ship to its file's text)
+   with what it does there. Above the list, a warning when it is read and never set, or set and never read with no rules of its own. A
+   warning is said in harm beside its word, as the lint's faults are. *@
+<section class="plays" id="uses" aria-labelledby="h-uses">
+    <div class="plays__head">
+        <h3 class="sub" id="h-uses">Where it's used</h3>
+    </div>
+    @if (!Uses.Loaded)
+    {
+        <p class="empty-state" role="status">The pack does not load, so where this trait is used cannot be read. Fix what the loader says, and it shows here.</p>
+    }
+    else
+    {
+        <p class="hint">From the files as saved: what reads it (each clause, as the loader checks it), what changes it, and the test ships that hold it.</p>
+        @if (Uses.Warnings.Count > 0)
+        {
+            <ul class="problems lint" id="uses-warnings">
+                @foreach (string warning in Uses.Warnings)
+                {
+                    <li class="lint--fault"><span class="lint__kind">Warning</span> @warning</li>
+                }
+            </ul>
+        }
+        @if (Uses.Groups.Count == 0)
+        {
+            <p class="empty">Nothing in the pack uses it yet.</p>
+        }
+        @foreach (TraitUseGroup group in Uses.Groups)
+        {
+            <div class="plays__group plays__group--read" id="@($"uses-{ContentKinds.Segment(group.Kind)}")">
+                <h4 class="sub">@group.Title<span class="words__count"> @group.Uses.Count</span></h4>
+                <ul class="problems">
+                    @foreach (TraitUse use in group.Uses)
+                    {
+                        <li>
+                            <a href="@ContentKinds.Href(use.Item)">@(use.Item.Name is { Length: > 0 } name ? name : use.Item.Id)</a> <span class="m">@use.Item.Id</span>
+                            <ul class="notes">
+                                @foreach (string says in use.Says)
+                                {
+                                    <li>@says</li>
+                                }
+                            </ul>
+                        </li>
+                    }
+                </ul>
+            </div>
+        }
+    }
+</section>
+
+@code {
+    [Parameter, EditorRequired] public TraitUses Uses { get; set; } = null!;
+}

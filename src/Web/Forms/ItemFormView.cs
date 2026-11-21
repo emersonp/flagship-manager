@@ -116,6 +116,9 @@ public sealed record ItemFormView(
     // The "What plays here" panel of an encounter or an objective; null for other kinds.
     public PlaysView? Plays { get; init; }
 
+    // A trait's "Where it's used" (1e part six, design 4.9); null for other kinds.
+    public TraitUses? Uses { get; init; }
+
     // The route that answers with the panel's previews for the form as posted, saving nothing.
     public string PlaysUrl => IsNew ? $"/dev/content/{Segment}/plays" : $"{Action}/plays";
 

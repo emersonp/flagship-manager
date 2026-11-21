@@ -1,0 +1,132 @@
+@using Sim.Core.Content
+@using Web.Forms
+@* The trait form (1e part six, design 4.9): every key the loader reads. Where it sits and whether it is shown; named levels or a max,
+   one or the other; how it eases or grows, and when it lets go; the briefing chip; the launch rules; a check bonus on a mission; what
+   happens when a pair's target dies; and the author's notes. On and the levels-or-max select post as they change, so the page shows what
+   fits. The way not shown keeps its fields as hidden inputs, so switching back loses nothing. A pair's parts show for a pair, or while
+   they hold something, so a rule a change of On leaves behind is shown and refused, not dropped. "Where it's used" follows. *@
+<FormShell View="View">
+    <div class="field-grid">
+        <div class="field">
+            <label for="f-on">On</label>
+            <ExpressionSelect Name="on" Aria="On" Options="@Keep(TraitKind.Places, View.Values.Get("on"))" Value="@View.Values.Get("on")" Placeholder="the ship or a crew member" Posts="true" Error="@View.Error("on")" />
+            <p class="hint">Who holds it. Blank: the ship or a crew member, whichever a use names.</p>
+            @if (View.Error("on") is { } on)
+            {
+                <p class="error" id="f-on-error">@on</p>
+            }
+        </div>
+        <div class="field">
+            <label for="f-values">Values</label>
+            <ExpressionSelect Name="@TraitKind.ModeField" Aria="Values" Options="ValueModes" Value="@Mode" Posts="true" />
+            <p class="hint">Named levels, which are set by name; or a number, added to and set, up to a max.</p>
+        </div>
+    </div>
+    <CheckField Name="shown" Label="Shown" Checked="@(View.Values.Get("shown") == "true")" Hint="Shown on the roster and the crew file. Untick for a marker only storylets read." />
+    @if (Mode == TraitKind.LevelsMode)
+    {
+        @if (View.Error(TraitKind.Levels.Prefix) is { } levelsError)
+        {
+            <p class="error" id="f-levels-error">@levelsError</p>
+        }
+        <RowTable View="View" Set="TraitKind.Levels" Headers="@(["Number", "Name"])" Title="Levels" Hint="Each a number of 1 or more and a lower-case name. A trait with levels is set, never added to." NumericFields="@(["number"])" AddLabel="Add a level" />
+        <input type="hidden" name="max" value="@View.Values.Get("max")">
+    }
+    else
+    {
+        <div class="field field--narrow">
+            <label for="f-max">Max</label>
+            <Stepper Name="max" Aria="Max" Value="@View.Values.Get("max")" Min="1" Error="@View.Error("max")" />
+            <p class="hint">1 or more. Blank: no cap.</p>
+            @if (View.Error("max") is { } max)
+            {
+                <p class="error" id="f-max-error">@max</p>
+            }
+        </div>
+        @foreach (KeyValuePair<string, string> field in View.Values.Fields.Where(f => f.Key.StartsWith(TraitKind.Levels.Prefix + "[", StringComparison.Ordinal)))
+        {
+            <input type="hidden" name="@field.Key" value="@field.Value">
+        }
+    }
+    <div class="field-grid">
+        @foreach ((string name, string label, string hint, int? min) in Numbers)
+        {
+            <div class="field field--narrow">
+                <label for="@FormValues.Slug(name)">@label</label>
+                <Stepper Name="@name" Aria="@label" Value="@View.Values.Get(name)" Min="min" Error="@View.Error(name)" />
+                <p class="hint">@hint</p>
+                @if (View.Error(name) is { } error)
+                {
+                    <p class="error" id="@($"{FormValues.Slug(name)}-error")">@error</p>
+                }
+            </div>
+        }
+    </div>
+    <Field Name="briefing" Label="Briefing" Value="@View.Values.Get("briefing")" Hint="The chip beside the holder when they are picked for a mission. 1 to 40 characters. Blank: none." Error="@View.Error("briefing")" />
+    <div class="rowset">
+        <h3 class="sub">Launch rules</h3>
+        <p class="hint">What launching a mission does to someone who holds it.</p>
+        <TraitRuleRows Set="TraitKind.Sent" Title="Sent" Hint="When the holder is on the team." />
+        <TraitRuleRows Set="TraitKind.NotSent" Title="Not sent" Hint="When the holder stays aboard." />
+        @if (Pair || FormRows.Read(View.Values, TraitKind.WithTarget).Count > 0)
+        {
+            <TraitRuleRows Set="TraitKind.WithTarget" Title="With the target" Hint="When the holder and the target are on the team together." />
+        }
+    </div>
+    <div class="field-grid">
+        <div class="field field--narrow">
+            <label for="f-missionBonus">On a mission</label>
+            <Stepper Name="missionBonus" Aria="Check bonus on a mission" Value="@View.Values.Get("missionBonus")" Error="@View.Error("missionBonus")" />
+            <p class="hint">Added to the holder's checks. Not 0. Blank: none.</p>
+            @if (View.Error("missionBonus") is { } bonus)
+            {
+                <p class="error" id="f-missionBonus-error">@bonus</p>
+            }
+        </div>
+    </div>
+    @if (Pair || View.Values.Get("missionWithTarget") == "true")
+    {
+        <CheckField Name="missionWithTarget" Label="Only with the target" Checked="@(View.Values.Get("missionWithTarget") == "true")" Hint="The bonus counts only when the target is on the team too." />
+        @if (View.Error("missionWithTarget") is { } withTarget)
+        {
+            <p class="error" id="f-missionWithTarget-error">@withTarget</p>
+        }
+    }
+    @if (Pair || FormRows.Read(View.Values, TraitKind.OnTargetDied).Count > 0)
+    {
+        <TraitRuleRows Set="TraitKind.OnTargetDied" Title="When the target dies" Hint="What the holder feels when the one they hold it toward dies." />
+    }
+    <div class="field textfield textfield--line">
+        <label for="f-notes">Author's notes</label>
+        <textarea id="f-notes" name="notes" rows="4" spellcheck="true" autocomplete="off" aria-describedby="f-notes-hint" @attributes="NotesFocus">@View.Values.Get("notes")</textarea>
+        <p class="hint" id="f-notes-hint">Why it is the way it is, for whoever writes next. Kept in the file, never shown in play.</p>
+    </div>
+    @if (View.Uses is { } uses)
+    {
+        <TraitUsesPanel Uses="uses" />
+    }
+</FormShell>
+
+@code {
+    [Parameter, EditorRequired] public ItemFormView View { get; set; } = null!;
+
+    private IReadOnlyDictionary<string, object> NotesFocus => View.FocusFor("f-notes");
+
+    private static readonly IReadOnlyList<Choice> ValueModes = [new(TraitKind.MaxMode, "a number"), new(TraitKind.LevelsMode, "named levels")];
+
+    private static readonly (string Name, string Label, string Hint, int? Min)[] Numbers =
+    [
+        ("everyWeeks", "Every (weeks)", "How often it changes on its own, after it last changed. Blank: never.", 1),
+        ("everyAdd", "By", "Below 0 to ease, above 0 to grow (which needs a max). Not for named levels.", null),
+        ("expires", "Expires (weeks)", "Back to 0 after this many weeks unchanged. Blank: never.", 1),
+    ];
+
+    private string Mode => View.Values.Get(TraitKind.ModeField) == TraitKind.LevelsMode ? TraitKind.LevelsMode : TraitKind.MaxMode;
+
+    private bool Pair => TraitKind.Pair(View.Values);
+
+    private static IReadOnlyList<Choice> Keep(IReadOnlyList<Choice> choices, string value)
+    {
+        return value.Length == 0 || choices.Any(c => c.Value == value) ? choices : [.. choices, new Choice(value, value)];
+    }
+}

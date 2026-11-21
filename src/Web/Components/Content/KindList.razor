@@ -167,9 +167,8 @@
     // The file's text view, for a kind that has one (1e part six): storylets, vignettes, traits, and test ships.
     private Web.Forms.TextFile? Text => ContentKinds.TextOf(Kind);
 
-    private string AsText => Kind == ContentKind.TestShip
-        ? "Test ships are written as text, or captured from play, and each opens in the file's text. Play never reads them."
-        : $"The {ContentKinds.Noun(Kind)} form comes later. Until then each opens in the file's text.";
+    // Test ships are the one kind with no form.
+    private const string AsText = "Test ships are written as text, or captured from play, and each opens in the file's text. Play never reads them.";
 
     // A problem with a whole file of the kind (an inner comment, a second document) belongs to no item, so it is listed here; an item's
     // own problem marks its row.

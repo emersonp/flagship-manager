@@ -239,6 +239,7 @@ internal static class FormFlow
             TextHref = lead is null ? null : TextHref(files, form.Kind, id),
             Preview = form.Kind == ContentKind.Line ? LinePreview.Of(files, id, values) : null,
             Plays = Plays.Of(form, files, id, values, choices),
+            Uses = form.Kind == ContentKind.Trait ? TraitUses.Of(files, id) : null,
         };
     }
 

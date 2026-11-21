@@ -4,7 +4,8 @@
 # mission and see an encounter's new name in its log; see an encounter and a text file refused with nothing written; tick boxes in
 # rows, remove and move rows, and see the saved values match the page; add a stage to an objective and see it saved; add an encounter approach, move
 # between its tabs by keyboard, save, and see the file, the form, and the fit at 400 and 1280 pixels agree; write a storylet from rows,
-# save it, switch its slot to text and back, and see What plays here follow its words on the test ship.
+# save it, switch its slot to text and back, and see What plays here follow its words on the test ship; add a level to a trait, save,
+# and see it offered in a storylet's effect row.
 # Scratch database and content, a free port, and everything removed on exit. Not part of check.sh.
 set -euo pipefail
 root="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -350,6 +351,26 @@ pw select "#f-ship" "test_ship_a" > /dev/null
 wait_for "new URL(location.href).searchParams.get('ship') === 'test_ship_a'" "the ship in the address"
 visit "/dev/content/storylets"
 [ "$(js "document.body.textContent.includes('NAME_PLACEHOLDER_STORYLET')")" = "true" ] || fail "the storylets list does not show the new storylet."
+
+# The trait form (Task 12): add a level to trait_e, save, and see where it is used; then see the new level offered in a storylet's
+# effect row.
+visit "/dev/content/traits/trait_e"
+pw click "[id='row-add-levels']" > /dev/null
+wait_for "document.querySelector('#f-levels-2-number') !== null" "the new level's row"
+pw fill "#f-levels-2-number" "3" > /dev/null
+pw fill "#f-levels-2-name" "level_c" > /dev/null
+pw click "getByRole('button', { name: 'Save' })" > /dev/null
+wait_for "document.querySelector('#form-alert .alert-ok')?.textContent === 'Saved.'" "the save of trait_e"
+grep -qF "levels: { 1: level_a, 2: level_b, 3: level_c }" "$tmp/content/traits/base.yaml" || fail "the traits file does not hold the new level."
+[ "$(js "document.querySelector('#uses')?.textContent.includes('Storylets') === true")" = "true" ] || fail "the trait form does not say where trait_e is used."
+for width in 400 1280; do
+  pw resize "$width" 900 > /dev/null
+  [ "$(js "document.documentElement.scrollWidth <= document.documentElement.clientWidth")" = "true" ] || fail "the trait form scrolls sideways at $width pixels."
+done
+visit "/dev/content/storylets/STORYLET_07"
+pw click "#tab-option-0" > /dev/null
+pw select "#f-options-0-effects-0-trait" "trait_e" > /dev/null
+wait_for "[...document.querySelectorAll('#f-options-0-effects-0-amount option')].some(o => o.value === 'level_c')" "the new level offered in a storylet's effect row"
 
 console=$(pw --raw console)
 case "$console" in

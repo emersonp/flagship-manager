@@ -7,7 +7,7 @@ namespace Web.Forms;
 // Fields the form does not show come from the stored model, read again when the save runs.
 internal abstract class KindForm
 {
-    private static readonly KindForm[] All = [new SkillKind(), new GearKind(), new CrewKind(), new AssignmentKind(), new ObjectiveKind(), new EncounterKind(), new LineKind(), new SymbolKind(), new PronounKind(), new StoryletKind(), new VignetteKind()];
+    private static readonly KindForm[] All = [new SkillKind(), new GearKind(), new CrewKind(), new AssignmentKind(), new ObjectiveKind(), new EncounterKind(), new LineKind(), new SymbolKind(), new PronounKind(), new StoryletKind(), new VignetteKind(), new TraitKind()];
 
     public abstract ContentKind Kind { get; }
 

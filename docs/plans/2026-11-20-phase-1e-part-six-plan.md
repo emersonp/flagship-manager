@@ -224,11 +224,11 @@ public static class Preview
 
 **Files:** `src/Web/Forms/TraitKind.cs` (new), `src/Web/Forms/TraitUses.cs` (new), `src/Web/Components/Content/TraitForm.razor` (new), `TraitUsesPanel.razor` (new), `tests/Web.Tests/ContentTraitFormsTests.cs` (new).
 
-- [ ] **Step 1: the form** (design 4.9). Every key the loader accepts: id, name, On, Shown, levels as rows (number and name) or a max (the form offers one or the other), Every, Expires, Briefing, the three lists of launch rules as rule rows, On a mission, When the target dies (pairs only), and notes.
-- [ ] **Step 2: where it's used.** Every storylet, vignette, encounter, and test ship that reads or changes the trait, grouped by kind. Each one links to its form (a test ship links to its text) and says what it does ("reads: `subject.trait.shaken >= 1`", "sets 1 on subject"). Reads come from `Casting.Reads` and the encounter requirements. Changes come from effects and rules. Above the list, a warning when the trait is read but never set, or set but never read and has no rules of its own. The traits list's "Used by" column (Task 6) counts these.
-- [ ] **Step 3: tests.** Each trait in the game's pack opens and saves byte-for-byte unchanged. `grieving` shows the storylet that sets it, and warns that nothing reads it (until Task 15). Changing a level's name that a storylet reads is refused by the loader at the storylet.
-- [ ] **Step 4: browser.** Open a trait, add a level, save, and see it offered in a storylet's row.
-- [ ] **Step 5:** `./check.sh`, including the browser tests; commit "Add the trait form, with where each trait is used".
+- [x] **Step 1: the form** (design 4.9). Every key the loader accepts: id, name, On, Shown, levels as rows (number and name) or a max (the form offers one or the other), Every, Expires, Briefing, the three lists of launch rules as rule rows, On a mission, When the target dies (pairs only), and notes.
+- [x] **Step 2: where it's used.** Every storylet, vignette, encounter, and test ship that reads or changes the trait, grouped by kind. Each one links to its form (a test ship links to its text) and says what it does ("reads: `subject.trait.shaken >= 1`", "sets 1 on subject"). Reads come from `Casting.Reads` and the encounter requirements. Changes come from effects and rules. Above the list, a warning when the trait is read but never set, or set but never read and has no rules of its own. The traits list's "Used by" column (Task 6) counts these.
+- [x] **Step 3: tests.** Each trait in the game's pack opens and saves byte-for-byte unchanged. `grieving` shows the storylet that sets it, and warns that nothing reads it (until Task 15). Changing a level's name that a storylet reads is refused by the loader at the storylet.
+- [x] **Step 4: browser.** Open a trait, add a level, save, and see it offered in a storylet's row.
+- [x] **Step 5:** `./check.sh`, including the browser tests; commit "Add the trait form, with where each trait is used".
 
 ### Task 13: a new trait condition on an approach
 

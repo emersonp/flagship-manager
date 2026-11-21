@@ -29,7 +29,7 @@ public sealed class ContentStoryletFormsTests(RepoContentGuard guard) : IClassFi
 
     // The game's own content in place of the fixture's, with its storylets and vignettes files written as the writer writes them, so a
     // save of an unchanged storylet or vignette can be compared byte for byte (a first save turns flow-style options into blocks).
-    private static TestApp GameApp(bool canonical)
+    internal static TestApp GameApp(bool canonical)
     {
         return NewApp(root =>
         {

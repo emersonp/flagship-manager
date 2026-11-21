@@ -542,8 +542,10 @@ public sealed class ContentPagesTests : IClassFixture<RepoContentGuard>
             Assert.Equal(vignette.Options.Count > 0 ? "Yes" : "No", Cells(files, ContentKind.Vignette, vignette.Id)[1]);
         }
 
-        Assert.Equal(["ship", "1 noticed, 2 let_ride", "Yes", ""], Cells(files, ContentKind.Trait, "sensors_quirk"));
-        Assert.Equal(["crew", "max 5", "Yes", ""], Cells(files, ContentKind.Trait, "shaken"));
+        // Used by counts the items the trait form's "Where it's used" lists (Task 12).
+        Assert.Equal(["ship", "1 noticed, 2 let_ride", "Yes", Text(Web.Forms.TraitUses.Of(files, "sensors_quirk").Count)], Cells(files, ContentKind.Trait, "sensors_quirk"));
+        Assert.Equal(["crew", "max 5", "Yes", Text(Web.Forms.TraitUses.Of(files, "shaken").Count)], Cells(files, ContentKind.Trait, "shaken"));
+        Assert.NotEqual("0", Cells(files, ContentKind.Trait, "shaken")[3]);
         Assert.Equal("No", Cells(files, ContentKind.Trait, "shaken_heard")[2]);
 
         TestShipModel qa = ContentEdits.Get<TestShipModel>(files, ContentKind.TestShip, "uss_quality_assurance")!;

@@ -132,8 +132,8 @@ public static class ContentKinds
             case ContentKind.Vignette when ContentEdits.Get<VignetteModel>(files, item.Kind, item.Id) is { } vignette:
                 return [Slots(vignette.Cast), vignette.Options.Count > 0 ? "Yes" : "No", CastsOn(files, item)];
             case ContentKind.Trait when ContentEdits.Get<TraitModel>(files, item.Kind, item.Id) is { } trait:
-                // Used by counts what the trait form's "Where it's used" lists, and is blank until that form comes (Task 12).
-                return [trait.On ?? "ship or crew", Levels(trait), trait.Shown == false ? "No" : "Yes", ""];
+                // Used by counts the items the trait form's "Where it's used" lists; blank while the pack does not load, as they cannot be read.
+                return [trait.On ?? "ship or crew", Levels(trait), trait.Shown == false ? "No" : "Yes", UsedBy(files, trait.Id)];
             case ContentKind.TestShip when ContentEdits.Get<TestShipModel>(files, item.Kind, item.Id) is { } ship:
                 return [ship.Date is { } date ? Date(files, date) : "", Number(ship.Crew.Count), Number(ship.Traits.Count)];
             default:
@@ -186,6 +186,12 @@ public static class ContentKinds
         }
 
         return string.Join(", ", parts);
+    }
+
+    private static string UsedBy(ContentFileSet files, string trait)
+    {
+        TraitUses uses = TraitUses.Of(files, trait);
+        return uses.Loaded ? Number(uses.Count) : "";
     }
 
     private static string Levels(TraitModel trait)
