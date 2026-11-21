@@ -46,6 +46,9 @@ public class ContentEditsTests : IClassFixture<RepoContentGuard>
         ContentKind.Line => ContentEdits.Get<LineModel>(files, item.Kind, item.Id)!,
         ContentKind.Symbol => ContentEdits.Get<SymbolModel>(files, item.Kind, item.Id)!,
         ContentKind.Pronoun => ContentEdits.Get<PronounModel>(files, item.Kind, item.Id)!,
+        ContentKind.Storylet => ContentEdits.Get<StoryletModel>(files, item.Kind, item.Id)!,
+        ContentKind.Vignette => ContentEdits.Get<VignetteModel>(files, item.Kind, item.Id)!,
+        ContentKind.Trait => ContentEdits.Get<TraitModel>(files, item.Kind, item.Id)!,
         _ => throw new ArgumentOutOfRangeException(nameof(item)),
     };
 

@@ -14,6 +14,9 @@ public static class ContentEdits
         [ContentKind.Line] = typeof(LineModel),
         [ContentKind.Symbol] = typeof(SymbolModel),
         [ContentKind.Pronoun] = typeof(PronounModel),
+        [ContentKind.Storylet] = typeof(StoryletModel),
+        [ContentKind.Vignette] = typeof(VignetteModel),
+        [ContentKind.Trait] = typeof(TraitModel),
     };
 
     // Read from the set's own parse of each file, so asking for every item of a kind parses each file once.

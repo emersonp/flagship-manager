@@ -87,7 +87,7 @@ public static class ContentWriter
         {
             List<string> fields = Fields(item);
             lines.Add("- " + fields[0]);
-            lines.AddRange(fields.Skip(1).Select(l => "  " + l));
+            lines.AddRange(fields.Skip(1).Select(l => l.Length == 0 ? "" : "  " + l));
         }
 
         return string.Join("\n", lines) + "\n";
@@ -110,6 +110,15 @@ public static class ContentWriter
         {
             f.Add($"name: {Quote(item.Name)}");
         }
+
+        f.AddRange(Notes(item switch
+        {
+            StoryletModel storylet => storylet.Notes,
+            VignetteModel vignette => vignette.Notes,
+            TraitModel trait => trait.Notes,
+            EncounterModel encounter => encounter.Notes,
+            _ => null,
+        }));
 
         switch (item)
         {
@@ -224,11 +233,297 @@ public static class ContentWriter
                 f.AddRange(OwnLines(encounter.Lines));
 
                 break;
+            case StoryletModel storylet:
+                f.Add($"stakes: {Num(storylet.Stakes)}");
+                f.AddRange(Casting(storylet.Requires, storylet.Cast, storylet.CastCooldown, storylet.GlobalCooldown));
+                if (storylet.Chronicle is { } chronicle)
+                {
+                    f.Add($"chronicle: {Chronicle(chronicle)}");
+                }
+
+                f.AddRange(Script(storylet.Script));
+                f.AddRange(Options(storylet.Options));
+                break;
+            case VignetteModel vignette:
+                f.AddRange(Casting(vignette.Requires, vignette.Cast, vignette.CastCooldown, vignette.GlobalCooldown));
+                f.AddRange(Script(vignette.Script));
+                if (vignette.Default is not null)
+                {
+                    f.Add($"default: {Quote(vignette.Default)}");
+                }
+
+                if (vignette.Options.Count > 0)
+                {
+                    f.AddRange(Options(vignette.Options));
+                }
+
+                if (vignette.Effects.Count > 0 || vignette.Options.Count == 0)
+                {
+                    f.Add($"effects: {StoryletEffects(vignette.Effects)}");
+                }
+
+                break;
+            case TraitModel trait:
+                f.AddRange(Trait(trait));
+                break;
             default:
                 throw new ArgumentException($"Unknown content model {item.GetType().Name}.", nameof(item));
         }
 
         return f;
+    }
+
+    // The author's notes, as a block so they read in the file as typed. Nothing when there are none.
+    private static List<string> Notes(string? notes)
+    {
+        if (notes is null)
+        {
+            return [];
+        }
+
+        string[] rows = notes.Split('\n');
+        bool block = rows[0].Length > 0 && rows[^1].Length > 0 && rows[0].TrimStart() == rows[0]
+            && rows.All(r => r.TrimEnd() == r && !r.Any(char.IsControl));
+        return block ? ["notes: |-", .. rows.Select(r => r.Length == 0 ? "" : "  " + r)] : [$"notes: {Quote(notes)}"];
+    }
+
+    // An expression is always double-quoted, as the author writes one, so a slot's reads the same in the file however simple it is.
+    private static string Expression(string value)
+    {
+        string quoted = Quote(value);
+        return quoted.StartsWith('"') ? quoted : $"\"{quoted}\"";
+    }
+
+    // requires, then each cast slot in its order, then the cooldown.
+    private static List<string> Casting(string? requires, IReadOnlyList<CastSlotModel> cast, int? castCooldown, int? globalCooldown)
+    {
+        var f = new List<string>();
+        if (requires is not null)
+        {
+            f.Add($"requires: {Expression(requires)}");
+        }
+
+        if (cast.Count > 0)
+        {
+            f.Add("cast:");
+            f.AddRange(cast.Select(c => $"  {Quote(c.Name)}: {Expression(c.Condition)}"));
+        }
+
+        var cooldown = new List<(string, string)>();
+        if (castCooldown is { } forCast)
+        {
+            cooldown.Add(("cast", Num(forCast)));
+        }
+
+        if (globalCooldown is { } global)
+        {
+            cooldown.Add(("global", Num(global)));
+        }
+
+        if (cooldown.Count > 0)
+        {
+            f.Add($"cooldown: {Map(cooldown)}");
+        }
+
+        return f;
+    }
+
+    private static List<string> Script(string? script) => script is null ? [] : Scalar("text:", script);
+
+    private static string Chronicle(ChronicleModel chronicle)
+    {
+        var entries = new List<(string, string)>();
+        if (chronicle.Weight is { } weight)
+        {
+            entries.Add(("weight", Num(weight)));
+        }
+
+        if (chronicle.Text is not null)
+        {
+            entries.Add(("text", Quote(chronicle.Text)));
+        }
+
+        return Map(entries);
+    }
+
+    // Each option as a block: id, label, requires, then a check with its success and failure, or the effects; then chronicle and text.
+    private static List<string> Options(IReadOnlyList<StoryletOptionModel> options)
+    {
+        if (options.Count == 0)
+        {
+            return ["options: []"];
+        }
+
+        var f = new List<string> { "options:" };
+        foreach (StoryletOptionModel option in options)
+        {
+            var o = new List<string> { $"id: {Quote(option.Id)}", $"label: {Quote(option.Label)}" };
+            if (option.Requires is not null)
+            {
+                o.Add($"requires: {Expression(option.Requires)}");
+            }
+
+            if (option.Check is { } check)
+            {
+                o.Add($"check: {{ skill: {Quote(check.Skill)}, difficulty: {Num(check.Difficulty)} }}");
+                foreach ((string key, StoryletOutcomeModel? outcome) in new[] { ("success", check.Success), ("failure", check.Failure) })
+                {
+                    if (outcome is null)
+                    {
+                        continue;
+                    }
+
+                    o.Add($"{key}:");
+                    o.Add($"  effects: {StoryletEffects(outcome.Effects)}");
+                    if (outcome.Text is not null)
+                    {
+                        o.AddRange(Scalar("  text:", outcome.Text));
+                    }
+                }
+            }
+
+            // A check's effects are in its success and failure; any beside it are kept, for the loader to refuse.
+            if (option.Check is null || option.Effects.Count > 0)
+            {
+                o.Add($"effects: {StoryletEffects(option.Effects)}");
+            }
+
+            if (option.Chronicle is { } chronicle)
+            {
+                o.Add($"chronicle: {Chronicle(chronicle)}");
+            }
+
+            if (option.Text is not null)
+            {
+                o.AddRange(Scalar("text:", option.Text));
+            }
+
+            f.Add("  - " + o[0]);
+            f.AddRange(o.Skip(1).Select(l => l.Length == 0 ? "" : "    " + l));
+        }
+
+        return f;
+    }
+
+    // In the key order of traits/base.yaml: shown, on, levels, max, briefing, launch, mission, every, expires, onTargetDied.
+    private static List<string> Trait(TraitModel trait)
+    {
+        var f = new List<string>();
+        if (trait.Shown is { } shown)
+        {
+            f.Add($"shown: {(shown ? "true" : "false")}");
+        }
+
+        if (trait.On is not null)
+        {
+            f.Add($"on: {Quote(trait.On)}");
+        }
+
+        if (trait.Levels is not null)
+        {
+            f.Add($"levels: {Map(trait.Levels.Select(l => (Num(l.Key), Quote(l.Value))))}");
+        }
+
+        if (trait.Max is { } most)
+        {
+            f.Add($"max: {Num(most)}");
+        }
+
+        if (trait.Briefing is not null)
+        {
+            f.Add($"briefing: {Quote(trait.Briefing)}");
+        }
+
+        if (trait.Launch is { } launch)
+        {
+            var rules = new List<string>();
+            foreach ((string key, IReadOnlyList<StoryletEffectModel> effects) in new[] { ("sent", launch.Sent), ("notSent", launch.NotSent), ("withTarget", launch.WithTarget) })
+            {
+                if (effects.Count > 0)
+                {
+                    rules.Add($"  {key}: {StoryletEffects(effects)}");
+                }
+            }
+
+            f.Add(rules.Count == 0 ? "launch: {}" : "launch:");
+            f.AddRange(rules);
+        }
+
+        if (trait.Mission is { } mission)
+        {
+            var bonus = new List<(string, string)>();
+            if (mission.CheckBonus != 0)
+            {
+                bonus.Add(("checkBonus", Num(mission.CheckBonus)));
+            }
+
+            if (mission.WithTarget)
+            {
+                bonus.Add(("withTarget", "true"));
+            }
+
+            f.Add($"mission: {Map(bonus)}");
+        }
+
+        if (trait.Every is { } step)
+        {
+            f.Add($"every: {{ weeks: {Num(step.Weeks)}, add: {Num(step.Add)} }}");
+        }
+
+        if (trait.ExpiresWeeks is { } weeks)
+        {
+            f.Add($"expires: {{ weeks: {Num(weeks)} }}");
+        }
+
+        if (trait.OnTargetDied.Count > 0)
+        {
+            f.Add($"onTargetDied: {StoryletEffects(trait.OnTargetDied)}");
+        }
+
+        return f;
+    }
+
+    private static string StoryletEffects(IReadOnlyList<StoryletEffectModel> effects)
+    {
+        return effects.Count == 0 ? "[]" : $"[{string.Join(", ", effects.Select(StoryletEffect))}]";
+    }
+
+    // { loyalty: n, on }, { morale: n, on }, or { trait, add | set, on, toward }, as the files write them.
+    private static string StoryletEffect(StoryletEffectModel effect)
+    {
+        var entries = new List<(string, string)>();
+        string? amount = effect.Amount is { } n ? Num(n) : effect.Level is { } level ? Quote(level) : null;
+        if (effect.What is "loyalty" or "morale")
+        {
+            if (amount is not null)
+            {
+                entries.Add((effect.What, amount));
+            }
+        }
+        else
+        {
+            if (effect.Trait is not null)
+            {
+                entries.Add(("trait", Quote(effect.Trait)));
+            }
+
+            if (amount is not null)
+            {
+                entries.Add((effect.Set ? "set" : "add", amount));
+            }
+        }
+
+        if (effect.On is not null)
+        {
+            entries.Add(("on", Quote(effect.On)));
+        }
+
+        if (effect.Toward is not null)
+        {
+            entries.Add(("toward", Quote(effect.Toward)));
+        }
+
+        return Map(entries);
     }
 
     private static string When(string beat, IReadOnlyList<CriterionModel> when)

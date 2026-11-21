@@ -213,6 +213,79 @@ public class ContentFaithfulnessTests : IClassFixture<RepoContentGuard>
         }
     }
 
+    // 1e part six: every storylet, vignette, and trait in both packs is held without loss, and the rewritten files load to the same pack.
+    [Theory]
+    [InlineData("content")]
+    [InlineData("tests/fixtures/content")]
+    public void Storylets_vignettes_and_traits_round_trip_to_the_same_definitions(string root)
+    {
+        ContentFileSet files = ContentFileSet.ReadDirectory(System.IO.Path.Combine(TestContent.Root, root));
+        foreach (ContentKind kind in new[] { ContentKind.Storylet, ContentKind.Vignette, ContentKind.Trait })
+        {
+            Assert.Contains(files.Index(), i => i.Kind == kind);
+            Assert.DoesNotContain(files.Index(), i => i.Kind == kind && i.Lossy);
+        }
+
+        ContentFileSet canonical = ContentEdits.Canonicalize(files);
+        Assert.NotEqual(files.Files["storylets/base.yaml"], canonical.Files["storylets/base.yaml"]);
+        ContentPack before = files.Validate().Pack!;
+        ContentPack after = canonical.Validate().Pack!;
+        Assert.NotNull(after);
+        Assert.Equal(JsonSerializer.Serialize(before.Storylets, SimJson.Options), JsonSerializer.Serialize(after.Storylets, SimJson.Options));
+        Assert.Equal(JsonSerializer.Serialize(before.Vignettes, SimJson.Options), JsonSerializer.Serialize(after.Vignettes, SimJson.Options));
+        Assert.Equal(JsonSerializer.Serialize(before.Traits, SimJson.Options), JsonSerializer.Serialize(after.Traits, SimJson.Options));
+        Assert.Equal(Unordered(before.Lines), Unordered(after.Lines));
+        Assert.Equal(JsonSerializer.Serialize(before with { Lines = [] }, SimJson.Options), JsonSerializer.Serialize(after with { Lines = [] }, SimJson.Options));
+    }
+
+    // The canonical layout writes an objective's own words in a fixed order, so the pack's lines may come in another order.
+    private static List<string> Unordered(IReadOnlyList<LineDef> lines) => lines.Select(l => JsonSerializer.Serialize(l, SimJson.Options)).Order(StringComparer.Ordinal).ToList();
+
+    // Notes, of several lines with a colon and a # in them, survive a rewrite on a storylet, a vignette, a trait, and an encounter.
+    [Theory]
+    [InlineData(ContentKind.Storylet, "storylets/base.yaml", "STORYLET_02")]
+    [InlineData(ContentKind.Vignette, "vignettes/base.yaml", "VIGNETTE_02")]
+    [InlineData(ContentKind.Trait, "traits/base.yaml", "trait_e")]
+    [InlineData(ContentKind.Encounter, "encounters/base.yaml", "ENCOUNTER_01")]
+    public void Notes_round_trip_on_each_kind_that_has_them(ContentKind kind, string path, string id)
+    {
+        const string note = "option_b: why it costs loyalty.\n  Indented, with # not a comment.\n\nAfter a blank line.";
+        ContentFileSet repo = Repo();
+        string text = repo.Files[path].Replace("\r\n", "\n", StringComparison.Ordinal);
+        string marker = $"- id: {id}\n";
+        Assert.Contains(marker, text, StringComparison.Ordinal);
+        string block = "  notes: |-\n" + string.Join("\n", note.Split('\n').Select(l => l.Length == 0 ? "" : "    " + l)) + "\n";
+        ContentFileSet files = ContentEdits.ReplaceText(repo, path, text.Replace(marker, marker + block, StringComparison.Ordinal));
+        Assert.Empty(ContentEdits.Losses(files, path));
+
+        ContentFileSet canonical = ContentEdits.Canonicalize(files);
+
+        string? Notes(ContentFileSet set) => ContentEdits.Get<IContentModel>(set, kind, id) switch
+        {
+            StoryletModel s => s.Notes,
+            VignetteModel v => v.Notes,
+            TraitModel t => t.Notes,
+            EncounterModel e => e.Notes,
+            _ => null,
+        };
+        Assert.Equal(note, Notes(files));
+        Assert.Equal(note, Notes(canonical));
+        Assert.Contains(block, canonical.Files[path], StringComparison.Ordinal);
+        Assert.Empty(ContentEdits.Losses(canonical, path));
+        Assert.Equal(JsonSerializer.Serialize(repo.Validate().Pack, SimJson.Options), JsonSerializer.Serialize(canonical.Validate().Pack, SimJson.Options));
+    }
+
+    // A note the editor cannot see is a loss: a changed or dropped note is refused, not repaired.
+    [Fact]
+    public void Notes_that_are_not_text_are_a_loss()
+    {
+        ContentFileSet repo = Repo();
+        string text = repo.Files["traits/base.yaml"].Replace("- id: trait_a\n", "- id: trait_a\n  notes: [a, list]\n", StringComparison.Ordinal);
+        ContentFileSet files = ContentEdits.ReplaceText(repo, "traits/base.yaml", text);
+
+        Assert.Contains(ContentEdits.Losses(files, "traits/base.yaml"), l => l.Item == "trait_a");
+    }
+
     // The things the canonical layout changes on purpose are not losses.
     [Fact]
     public void Deliberate_layout_equivalences_are_not_losses()

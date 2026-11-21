@@ -56,12 +56,13 @@ public sealed class ContentPagesTests : IClassFixture<RepoContentGuard>
         Assert.Contains("Valid", body);
         Assert.Contains("Names and gear reach games in progress at once. A legacy's crew keep the levels they started with.", WebUtility.HtmlDecode(body));
         Assert.Contains("href=\"/\"", body);
-        foreach (ContentKind kind in Enum.GetValues<ContentKind>())
+        foreach (ContentKind kind in ContentKinds.Kinds)
         {
             Assert.Contains($"href=\"/dev/content/{Segment(kind)}\"", body);
         }
 
-        foreach (ContentItemRef item in files.Index())
+        // The editor's kinds: storylets, vignettes, and traits are read as models (1e part six) before the editor lists them (Task 6).
+        foreach (ContentItemRef item in files.Index().Where(i => ContentKinds.Kinds.Contains(i.Kind)))
         {
             Assert.Contains($">{item.Id}</", body);
             Assert.Contains(item.File, body);
@@ -70,7 +71,7 @@ public sealed class ContentPagesTests : IClassFixture<RepoContentGuard>
         Assert.Contains("tuning/missions.yaml", body);
         Assert.Contains("tuning/crew.yaml", body);
         Assert.Contains("pack.yaml", body);
-        Assert.Equal(Enum.GetValues<ContentKind>().Length, Regex.Matches(body, "class=\"well kind\"").Count);
+        Assert.Equal(ContentKinds.Kinds.Count(), Regex.Matches(body, "class=\"well kind\"").Count);
     }
 
     [Fact]
@@ -95,7 +96,7 @@ public sealed class ContentPagesTests : IClassFixture<RepoContentGuard>
         HttpClient client = app.NewClient();
         ContentFileSet files = Repo();
 
-        foreach (ContentKind kind in Enum.GetValues<ContentKind>())
+        foreach (ContentKind kind in ContentKinds.Kinds)
         {
             (HttpStatusCode status, string body) = await Get(client, $"/dev/content/{Segment(kind)}");
 

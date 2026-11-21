@@ -53,12 +53,12 @@ public sealed record TraitModel(/* id, name, on, shown, levels or max, every, ex
 
 Write the exact fields from what `ContentLoader.Storylets.cs` and `ContentLoader.Traits.cs` accept today, key by key. Where the shape above is wrong, the loader wins. Say so in "As built".
 
-- [ ] **Step 1: notes in the loader.** `notes` is an optional string on a storylet, a vignette, a trait, and an encounter. The loader reads it and drops it, and no definition record carries it. An unknown key is still refused.
-- [ ] **Step 2: the models and the reader.** `ContentReader.ReadEntries` reads each kind leniently, as it does the others. `ContentEdits.Get<StoryletModel>` and the rest work.
-- [ ] **Step 3: the writer.** Write each kind in the house style of the existing files, with ids and names first, then `notes` as a block scalar (`|-`) after `name`, effects as flow maps (`{ trait: avoids, add: 2, on: subject, toward: target }`), and scripts as block scalars. Open the current files and match their key order, so a first save rewrites as little as it can.
-- [ ] **Step 4: faithfulness keys.** Add the new kinds' keys to `NullKeys`, `EmptyListKeys`, `YamlIntKeys`, `RawIntKeys`, `FlagKeys`, and the rest, as the loader reads each one (`shown` as a bool, `stakes` and `difficulty` as YAML integers, cooldowns as the loader reads them).
-- [ ] **Step 5: tests.** Every storylet, vignette, and trait in the game's pack and the fixture round-trips without loss: the trees compare equal, and the loader gives the same definitions from the rewritten file. `notes` round-trips, including a multi-line note with a colon and a `#` in it. An encounter with `notes` round-trips.
-- [ ] **Step 6:** `./check.sh`; commit "Read and write storylets, vignettes, and traits as models, with notes".
+- [x] **Step 1: notes in the loader.** `notes` is an optional string on a storylet, a vignette, a trait, and an encounter. The loader reads it and drops it, and no definition record carries it. An unknown key is still refused.
+- [x] **Step 2: the models and the reader.** `ContentReader.ReadEntries` reads each kind leniently, as it does the others. `ContentEdits.Get<StoryletModel>` and the rest work.
+- [x] **Step 3: the writer.** Write each kind in the house style of the existing files, with ids and names first, then `notes` as a block scalar (`|-`) after `name`, effects as flow maps (`{ trait: avoids, add: 2, on: subject, toward: target }`), and scripts as block scalars. Open the current files and match their key order, so a first save rewrites as little as it can.
+- [x] **Step 4: faithfulness keys.** Add the new kinds' keys to `NullKeys`, `EmptyListKeys`, `YamlIntKeys`, `RawIntKeys`, `FlagKeys`, and the rest, as the loader reads each one (`shown` as a bool, `stakes` and `difficulty` as YAML integers, cooldowns as the loader reads them).
+- [x] **Step 5: tests.** Every storylet, vignette, and trait in the game's pack and the fixture round-trips without loss: the trees compare equal, and the loader gives the same definitions from the rewritten file. `notes` round-trips, including a multi-line note with a colon and a `#` in it. An encounter with `notes` round-trips.
+- [x] **Step 6:** `./check.sh`; commit "Read and write storylets, vignettes, and traits as models, with notes".
 
 ### Task 2: the comments move into notes, and an inner comment is a loss
 

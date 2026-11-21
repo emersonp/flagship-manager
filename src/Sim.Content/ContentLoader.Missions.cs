@@ -510,6 +510,9 @@ public static partial class ContentLoader
 
         public string? Name { get; set; }
 
+        // The author's notes (1e part six): read, and dropped.
+        public string? Notes { get; set; }
+
         public List<string>? Tags { get; set; }
 
         public bool CommsBlocked { get; set; }

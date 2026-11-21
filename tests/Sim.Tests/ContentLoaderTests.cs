@@ -308,6 +308,32 @@ public class ContentLoaderTests
         Assert.Empty(result.Errors);
     }
 
+    // 1e part six: notes is the author's, on a storylet, a vignette, a trait, and an encounter. The loader reads it and drops it.
+    [Theory]
+    [InlineData("storylets/base.yaml", "- id: STORYLET_01\n")]
+    [InlineData("vignettes/base.yaml", "- id: VIGNETTE_01\n")]
+    [InlineData("traits/base.yaml", "- id: trait_a\n")]
+    [InlineData("encounters/base.yaml", "- id: ENCOUNTER_01\n")]
+    public void Notes_load_and_change_nothing(string file, string item)
+    {
+        ContentLoadResult result = LoadFixtureWith(file, item, item + "  notes: |-\n    Why: it reads # as text.\n    And a second line.\n");
+
+        Assert.Empty(result.Errors);
+        Assert.Equal(System.Text.Json.JsonSerializer.Serialize(ContentLoader.Load(TestContent.RepoFiles()).Pack, SimJson.Options), System.Text.Json.JsonSerializer.Serialize(result.Pack, SimJson.Options));
+    }
+
+    [Theory]
+    [InlineData("storylets/base.yaml", "- id: STORYLET_01\n", "StoryletDto")]
+    [InlineData("traits/base.yaml", "- id: trait_a\n", "TraitDto")]
+    [InlineData("encounters/base.yaml", "- id: ENCOUNTER_01\n", "EncounterDto")]
+    public void A_key_that_is_not_notes_is_still_refused(string file, string item, string dto)
+    {
+        ContentLoadResult result = LoadFixtureWith(file, item, item + "  remarks: A note under the wrong key.\n");
+
+        Assert.Null(result.Pack);
+        Assert.Contains(result.Errors, e => e.File == file && e.Message.Contains($"Property 'remarks' not found on type 'Sim.Content.ContentLoader+{dto}'.", StringComparison.Ordinal));
+    }
+
     private static ContentLoadResult LoadFixtureWith(string file, string from, string to)
     {
         Dictionary<string, string> files = TestContent.RepoFiles();

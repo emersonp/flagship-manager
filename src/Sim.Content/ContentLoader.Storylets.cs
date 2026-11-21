@@ -750,6 +750,9 @@ public static partial class ContentLoader
 
         public string? Name { get; set; }
 
+        // The author's notes (1e part six): read, and dropped.
+        public string? Notes { get; set; }
+
         public int Stakes { get; set; }
 
         // Gone in part four: read only to say so.

@@ -233,6 +233,9 @@ public static partial class ContentLoader
 
         public string? Name { get; set; }
 
+        // The author's notes (1e part six): read, and dropped.
+        public string? Notes { get; set; }
+
         public bool? Shown { get; set; }
 
         public string? On { get; set; }

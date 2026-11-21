@@ -1,7 +1,7 @@
 # Phase 1, slice 1e, part six: writing storylets in the editor
 
 **Spec:** `docs/gdd.md` sections 3.7, 3.8, 5.1, 6, and 7.5, and section 15, items 22, 23, 40, 41, and 45. **Builds on:** `main` at 2026-11-20 (`d22f765`): slice 1e's first five parts and the calendar.
-**Status:** designed 2026-11-20.
+**Status:** designed 2026-11-20; being built (see "As built", section 8).
 **Ends with:** the author opens the editor, taps **New storylet**, and writes one from start to finish in the form: a name, a cast slot built from rows ("subject · trait grieving · is at least · 1"), a script with chips for the speakers, three options with their words and effects. As they type, "What plays here" shows the storylet as it would read on **USS Quality Assurance**, cast for real, with "Next sample" rotating whoever fits. They save; the loader accepts it; in Dev Play on a legacy where someone is grieving, it arrives. Nothing was typed into a YAML file.
 
 This records what the author decided on 2026-11-20, in a design interview, and designs it. Items marked **(my call)** were proposed by me, not asked for by the author.
@@ -236,7 +236,7 @@ Each names the item and links to its form.
 
 - **`Sim.Expressions`** gains the reading of an expression into rows and the writing of rows back (`Clauses.cs` already splits on `&&`; the shapes go beside it).
 - **`Sim.Storylets`** gains the test ship's `IStateSource` and a preview entry point: cast this definition on this state with this sample number, and say why not.
-- **`Sim.Content`** gains the four models (storylet, vignette, trait, test ship), their writer, their faithfulness keys, `notes`, the inner-comment rule, and the test ships' loader checks.
+- **`Sim.Content`** gains the four models (storylet, vignette, trait, test ship), their writer, their faithfulness keys, `notes`, the inner-comment rule, and the test ships' loader checks. `ContentKind` gains `Storylet`, `Vignette`, and `Trait`, each read from its folder like the other list kinds; the storylet, vignette, and trait models share one effect model, `StoryletEffectModel`, which a trait's rules use too.
 - **`Web`** gains the four kinds in `ContentKinds`, the forms, the expression widget, the trait panel, the lint, and Dev Play's "Save as test ship". The 1d "What plays here" part is reused, as decision 10 intended; where it assumes a mission beat, it is generalised rather than copied.
 
 ### 5.2 Rules that hold
@@ -262,3 +262,18 @@ Applied when built: GDD 7.5's editor paragraph (the new kinds, the expression wi
 - Whether a test ship's skills can be overridden one by one or only as a whole set.
 - Whether "Save as test ship" also captures morale history and injuries' days to heal; the minimum is what `IStateSource` reads.
 - How the form says that an item is lossy (inner comment, unknown key) without hiding what it can show.
+
+## 8. As built
+
+Kept as each task of the plan (`2026-11-20-phase-1e-part-six-plan.md`) lands; differences from sections 4 and 5 are said here, and section 5 is changed to match.
+
+**Task 1, models, writer, and faithfulness (2026-11-20).**
+
+- The models are in `ContentModels.cs`, key by key from the loader. Where the plan's sketch differed, the loader won. A check's success and failure hold effects and text only, because the loader has no chronicle there: `StoryletCheckModel(Skill, Difficulty, Success, Failure)`, with `StoryletOutcomeModel(Effects, Text)` for each side. A storylet's `Script` is its `text:` key.
+- One `StoryletEffectModel(What, Amount, Trait, Set, Level, On, Toward)` serves storylets, vignettes, and a trait's rules (`launch` and `onTargetDied`), since all three read the same keys. `What` is `loyalty`, `morale`, or `trait`. A rule that changes its own trait has no `Trait`. A `set` to a level's name goes in `Level`.
+- `TraitModel` keeps `Shown` as written (null when absent, which means shown), `Levels` by value, and `Launch`, `Mission`, `Every`, and `ExpiresWeeks` as their own small records.
+- The writer follows the files' key order. A storylet is written as `id`, `name`, `notes`, `stakes`, `requires`, `cast`, `cooldown`, `chronicle`, `text`, then `options`. A vignette is written as `id`, `name`, `notes`, `requires`, `cast`, `cooldown`, `text`, `default`, `options` or `effects`. A trait is written as in `traits/base.yaml`. Every expression is double-quoted, as the author writes one. Options are written as blocks, so a first save turns the game's flow-style options (STORYLET_05 and 06) into blocks, and quotes option texts that have a comma.
+- `notes` is a `|-` block after `name`. A note the block cannot hold exactly is quoted on one line instead: one with a space at a line's end or at its start, or one that starts or ends with a blank line.
+- Faithfulness: the new keys are in its lists. One addition: `shown` is read as a bool but is not dropped when false, because absent means true. A trait's `levels` keys are read as YAML integers, as an assignment's `offer` keys are.
+- With the new kinds in `ContentKind`, `ContentFileSet.Index()` lists storylets, vignettes, and traits. The editor's pages still show its nine kinds until Task 6, so the two Web tests that went through every `ContentKind` now go through `ContentKinds.Kinds`. The id check for a new item (`Checks`) now sees storylet and vignette ids, as the loader does. Task 6 should add `Trait` to `Checks.LowerCase`.
+- Canonicalizing the game's pack gives the same storylets, vignettes, and traits. The pack's lines can come in another order, because the writer puts an objective's own words in a fixed order. That predates this part, so the test compares the lines as a set.

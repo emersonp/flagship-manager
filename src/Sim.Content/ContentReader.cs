@@ -112,7 +112,7 @@ internal static class ContentReader
                     decision = new DecisionModel(Str(Get(dm, "id")) ?? "", Str(Get(dm, "name")), Int(Get(dm, "stakes")) ?? 0, Effects(Get(dm, "bold")), Effects(Get(dm, "safe")), Texts(Get(dm, "text")), Texts(Get(dm, "labels")), Int(Get(Map(Get(dm, "chronicle")), "weight")));
                 }
 
-                return new EncounterModel(id, name, Strings(Get(m, "tags")), YamlBool(Str(Get(m, "commsBlocked"))), Str(Get(m, "chain")), Sequence(Get(m, "approaches")).Select(Approach).ToList(), decision, Texts(Get(m, "text")), OwnLines(Get(m, "lines")));
+                return new EncounterModel(id, name, Strings(Get(m, "tags")), YamlBool(Str(Get(m, "commsBlocked"))), Str(Get(m, "chain")), Sequence(Get(m, "approaches")).Select(Approach).ToList(), decision, Texts(Get(m, "text")), OwnLines(Get(m, "lines")), Str(Get(m, "notes")));
             case ContentKind.Line:
                 OwnLineModel line = OwnLine(m);
                 return new LineModel(id, name, line.Beat, line.When, line.Text);
@@ -120,9 +120,124 @@ internal static class ContentReader
                 return new SymbolModel(id, name, Sequence(Get(m, "options")).Select(o => Str(o) ?? "").ToList());
             case ContentKind.Pronoun:
                 return new PronounModel(id, name, Str(Get(m, "subject")) ?? "", Str(Get(m, "object")) ?? "", Str(Get(m, "possessive")) ?? "", Str(Get(m, "possessivePronoun")) ?? "", Str(Get(m, "reflexive")) ?? "", YamlBool(Str(Get(m, "plural"))));
+            case ContentKind.Storylet:
+                Dictionary<string, YamlNode> cooldown = Map(Get(m, "cooldown"));
+                return new StoryletModel(id, name, Int(Get(m, "stakes")) ?? 0, Str(Get(m, "requires")), Cast(Get(m, "cast")), Sequence(Get(m, "options")).Select(Option).ToList(),
+                    Int(Get(cooldown, "cast")), Int(Get(cooldown, "global")), Str(Get(m, "text")), Chronicle(Get(m, "chronicle")), Str(Get(m, "notes")));
+            case ContentKind.Vignette:
+                Dictionary<string, YamlNode> wait = Map(Get(m, "cooldown"));
+                return new VignetteModel(id, name, Str(Get(m, "requires")), Cast(Get(m, "cast")), StoryletEffects(Get(m, "effects")), Sequence(Get(m, "options")).Select(Option).ToList(), Str(Get(m, "default")),
+                    Int(Get(wait, "cast")), Int(Get(wait, "global")), Str(Get(m, "text")), Str(Get(m, "notes")));
+            case ContentKind.Trait:
+                return Trait(id, name, m);
             default:
                 return null;
         }
+    }
+
+    private static TraitModel Trait(string id, string? name, Dictionary<string, YamlNode> m)
+    {
+        Dictionary<int, string>? levels = null;
+        if (Get(m, "levels") is YamlMappingNode)
+        {
+            levels = [];
+            foreach ((string key, YamlNode value) in Map(Get(m, "levels")))
+            {
+                if (YamlInt(key) is { } level)
+                {
+                    levels[level] = Str(value) ?? "";
+                }
+            }
+        }
+
+        TraitLaunchModel? launch = null;
+        if (Get(m, "launch") is YamlMappingNode)
+        {
+            Dictionary<string, YamlNode> l = Map(Get(m, "launch"));
+            launch = new TraitLaunchModel(StoryletEffects(Get(l, "sent")), StoryletEffects(Get(l, "notSent")), StoryletEffects(Get(l, "withTarget")));
+        }
+
+        TraitMissionModel? mission = null;
+        if (Get(m, "mission") is YamlMappingNode)
+        {
+            Dictionary<string, YamlNode> b = Map(Get(m, "mission"));
+            mission = new TraitMissionModel(Int(Get(b, "checkBonus")) ?? 0, YamlBool(Str(Get(b, "withTarget"))));
+        }
+
+        TraitStepModel? every = null;
+        if (Get(m, "every") is YamlMappingNode)
+        {
+            Dictionary<string, YamlNode> e = Map(Get(m, "every"));
+            every = new TraitStepModel(Int(Get(e, "weeks")) ?? 0, Int(Get(e, "add")) ?? 0);
+        }
+
+        int? expires = Get(m, "expires") is YamlMappingNode ? Int(Get(Map(Get(m, "expires")), "weeks")) ?? 0 : null;
+        return new TraitModel(id, name, IsBool(Str(Get(m, "shown"))), Str(Get(m, "on")), levels, Int(Get(m, "max")), Str(Get(m, "briefing")), launch, mission, every, expires, StoryletEffects(Get(m, "onTargetDied")), Str(Get(m, "notes")));
+    }
+
+    // Each slot to its expression, in the order written.
+    private static List<CastSlotModel> Cast(YamlNode? node)
+    {
+        return Map(node).Select(c => new CastSlotModel(c.Key, Str(c.Value) ?? "")).ToList();
+    }
+
+    private static StoryletOptionModel Option(YamlNode node)
+    {
+        Dictionary<string, YamlNode> o = Map(node);
+        StoryletCheckModel? check = null;
+        if (Get(o, "check") is YamlMappingNode)
+        {
+            Dictionary<string, YamlNode> c = Map(Get(o, "check"));
+            check = new StoryletCheckModel(Str(Get(c, "skill")) ?? "", Int(Get(c, "difficulty")) ?? 0, Outcome(Get(o, "success")), Outcome(Get(o, "failure")));
+        }
+
+        return new StoryletOptionModel(Str(Get(o, "id")) ?? "", Str(Get(o, "label")) ?? "", Str(Get(o, "requires")), StoryletEffects(Get(o, "effects")), check, Str(Get(o, "text")), Chronicle(Get(o, "chronicle")));
+    }
+
+    private static StoryletOutcomeModel? Outcome(YamlNode? node)
+    {
+        if (node is not YamlMappingNode)
+        {
+            return null;
+        }
+
+        Dictionary<string, YamlNode> o = Map(node);
+        return new StoryletOutcomeModel(StoryletEffects(Get(o, "effects")), Str(Get(o, "text")));
+    }
+
+    private static ChronicleModel? Chronicle(YamlNode? node)
+    {
+        if (node is not YamlMappingNode)
+        {
+            return null;
+        }
+
+        Dictionary<string, YamlNode> c = Map(node);
+        return new ChronicleModel(Int(Get(c, "weight")), Str(Get(c, "text")));
+    }
+
+    // Loyalty or morale first, as the loader looks for them; a trait change is any entry with trait, add, or set.
+    private static List<StoryletEffectModel> StoryletEffects(YamlNode? node)
+    {
+        var effects = new List<StoryletEffectModel>();
+        foreach (YamlNode entry in Sequence(node))
+        {
+            Dictionary<string, YamlNode> e = Map(entry);
+            string? stat = new[] { "loyalty", "morale" }.FirstOrDefault(e.ContainsKey);
+            if (stat is not null)
+            {
+                effects.Add(new StoryletEffectModel(stat, RawInt(Get(e, stat)), On: Str(Get(e, "on")), Toward: Str(Get(e, "toward"))));
+                continue;
+            }
+
+            bool set = e.ContainsKey("set");
+            string? amount = Str(Get(e, set ? "set" : "add"));
+            int? number = RawInt(amount);
+            bool any = e.ContainsKey("trait") || set || e.ContainsKey("add");
+            effects.Add(new StoryletEffectModel(any ? "trait" : "", number, Str(Get(e, "trait")), set, number is null ? amount : null, Str(Get(e, "on")), Str(Get(e, "toward"))));
+        }
+
+        return effects;
     }
 
     private static OwnLineModel OwnLine(Dictionary<string, YamlNode> m)

@@ -241,6 +241,166 @@ public class ContentWriterTests : IClassFixture<RepoContentGuard>
         Assert.Equal(System.Text.Json.JsonSerializer.Serialize(model), System.Text.Json.JsonSerializer.Serialize(read));
     }
 
+    // 1e part six: a storylet as the files write one: notes after the name, expressions double-quoted, the script as a block, options as
+    // blocks, a check's success and failure under it, effects as flow maps. It reads back equal.
+    [Fact]
+    public void A_storylet_is_written_in_the_house_style_and_reads_back_equal()
+    {
+        var model = new StoryletModel(
+            "STORYLET_01",
+            "A storylet",
+            3,
+            "ship.trait.trait_a == 1",
+            [new CastSlotModel("subject", "subject.aboard"), new CastSlotModel("target", "subject.trait.trait_g.toward(target) >= 1")],
+            [
+                new StoryletOptionModel("talk", "Talk", null, [], new StoryletCheckModel("SKILL_A", 4, new StoryletOutcomeModel([new StoryletEffectModel("trait", null, "trait_e", true, "level_a", "subject")], "#handler# got through."), new StoryletOutcomeModel([new StoryletEffectModel("morale", -1, On: "handler")], null)), null),
+                new StoryletOptionModel("leave", "Leave it", "subject.loyalty >= 60", [new StoryletEffectModel("trait", 2, "trait_g", false, null, "subject", "target"), new StoryletEffectModel("loyalty", -1, On: "crew")], null, "Left alone.", new ChronicleModel(4, "#subject# was left.")),
+                new StoryletOptionModel("nothing", "Nothing", null, [], null, null),
+            ],
+            8,
+            2,
+            "subject: One.\n= #subject# two.",
+            new ChronicleModel(3, null),
+            "Why: the first line.\n\n# Not a comment.");
+
+        string text = Render(model);
+
+        Assert.Equal(
+            Lines(
+                "- id: STORYLET_01",
+                "  name: A storylet",
+                "  notes: |-",
+                "    Why: the first line.",
+                "",
+                "    # Not a comment.",
+                "  stakes: 3",
+                "  requires: \"ship.trait.trait_a == 1\"",
+                "  cast:",
+                "    subject: \"subject.aboard\"",
+                "    target: \"subject.trait.trait_g.toward(target) >= 1\"",
+                "  cooldown: { cast: 8, global: 2 }",
+                "  chronicle: { weight: 3 }",
+                "  text: |-",
+                "    subject: One.",
+                "    = #subject# two.",
+                "  options:",
+                "    - id: talk",
+                "      label: Talk",
+                "      check: { skill: SKILL_A, difficulty: 4 }",
+                "      success:",
+                "        effects: [{ trait: trait_e, set: level_a, on: subject }]",
+                "        text: \"#handler# got through.\"",
+                "      failure:",
+                "        effects: [{ morale: -1, on: handler }]",
+                "    - id: leave",
+                "      label: Leave it",
+                "      requires: \"subject.loyalty >= 60\"",
+                "      effects: [{ trait: trait_g, add: 2, on: subject, toward: target }, { loyalty: -1, on: crew }]",
+                "      chronicle: { weight: 4, text: \"#subject# was left.\" }",
+                "      text: Left alone.",
+                "    - id: nothing",
+                "      label: Nothing",
+                "      effects: []"),
+            text);
+        Assert.Equal(System.Text.Json.JsonSerializer.Serialize(model), System.Text.Json.JsonSerializer.Serialize(ReadBack<StoryletModel>(ContentKind.Storylet, "storylets/base.yaml", text, "STORYLET_01")));
+    }
+
+    // A vignette with no choice writes its effects last; one with a choice writes its default before its options.
+    [Fact]
+    public void A_vignette_is_written_in_the_house_style_and_reads_back_equal()
+    {
+        var plain = new VignetteModel("VIGNETTE_01", null, null, [new CastSlotModel("subject", "subject.history.last('rested')")], [new StoryletEffectModel("morale", 2, On: "subject")], [], null, null, null, "subject: Rested.", "One line.");
+        var choice = new VignetteModel("VIGNETTE_02", null, "ship.trait.trait_a == 2", [], [], [new StoryletOptionModel("option_a", "Yes", null, [new StoryletEffectModel("loyalty", 1, On: "crew")], null, "Done."), new StoryletOptionModel("option_b", "No", null, [], null, null)], "option_b", 3, null, null);
+
+        string text = Render(plain, choice);
+
+        Assert.Equal(
+            Lines(
+                "- id: VIGNETTE_01",
+                "  notes: |-",
+                "    One line.",
+                "  cast:",
+                "    subject: \"subject.history.last('rested')\"",
+                "  text: \"subject: Rested.\"",
+                "  effects: [{ morale: 2, on: subject }]",
+                "- id: VIGNETTE_02",
+                "  requires: \"ship.trait.trait_a == 2\"",
+                "  cooldown: { cast: 3 }",
+                "  default: option_b",
+                "  options:",
+                "    - id: option_a",
+                "      label: \"Yes\"",
+                "      effects: [{ loyalty: 1, on: crew }]",
+                "      text: Done.",
+                "    - id: option_b",
+                "      label: \"No\"",
+                "      effects: []"),
+            text);
+        Assert.Equal(System.Text.Json.JsonSerializer.Serialize(plain), System.Text.Json.JsonSerializer.Serialize(ReadBack<VignetteModel>(ContentKind.Vignette, "vignettes/base.yaml", text, "VIGNETTE_01")));
+        Assert.Equal(System.Text.Json.JsonSerializer.Serialize(choice), System.Text.Json.JsonSerializer.Serialize(ReadBack<VignetteModel>(ContentKind.Vignette, "vignettes/base.yaml", text, "VIGNETTE_02")));
+    }
+
+    // A trait in the key order of traits/base.yaml; a rule's change on the trait itself leaves the trait out.
+    [Fact]
+    public void A_trait_is_written_in_the_house_style_and_reads_back_equal()
+    {
+        var model = new TraitModel(
+            "trait_g",
+            "Avoids",
+            false,
+            "pair",
+            new Dictionary<int, string> { [1] = "level_a", [2] = "level_b" },
+            5,
+            "Avoids",
+            new TraitLaunchModel([new StoryletEffectModel("trait", null, null, true, "level_b"), new StoryletEffectModel("loyalty", -2)], [], [new StoryletEffectModel("morale", -3)]),
+            new TraitMissionModel(-1, true),
+            new TraitStepModel(4, -1),
+            6,
+            [new StoryletEffectModel("trait", 0, null, true), new StoryletEffectModel("trait", 1, "trait_j", false)],
+            "A pair.");
+
+        string text = Render(model);
+
+        Assert.Equal(
+            Lines(
+                "- id: trait_g",
+                "  name: Avoids",
+                "  notes: |-",
+                "    A pair.",
+                "  shown: false",
+                "  on: pair",
+                "  levels: { 1: level_a, 2: level_b }",
+                "  max: 5",
+                "  briefing: Avoids",
+                "  launch:",
+                "    sent: [{ set: level_b }, { loyalty: -2 }]",
+                "    withTarget: [{ morale: -3 }]",
+                "  mission: { checkBonus: -1, withTarget: true }",
+                "  every: { weeks: 4, add: -1 }",
+                "  expires: { weeks: 6 }",
+                "  onTargetDied: [{ set: 0 }, { trait: trait_j, add: 1 }]"),
+            text);
+        Assert.Equal(System.Text.Json.JsonSerializer.Serialize(model), System.Text.Json.JsonSerializer.Serialize(ReadBack<TraitModel>(ContentKind.Trait, "traits/base.yaml", text, "trait_g")));
+    }
+
+    // A note the block cannot hold exactly (a space at the end of a line) is quoted on one line instead, and reads back the same.
+    [Fact]
+    public void A_note_a_block_cannot_hold_is_quoted_and_reads_back_the_same()
+    {
+        var model = new TraitModel("trait_a", null, null, null, null, null, null, null, null, null, null, [], "Ends in a space: \nthen # this");
+
+        string text = Render(model);
+
+        Assert.Equal(Lines("- id: trait_a", "  notes: \"Ends in a space: \\nthen # this\""), text);
+        Assert.Equal("Ends in a space: \nthen # this", ReadBack<TraitModel>(ContentKind.Trait, "traits/base.yaml", text, "trait_a").Notes);
+    }
+
+    private static T ReadBack<T>(ContentKind kind, string path, string text, string id)
+        where T : class
+    {
+        return ContentEdits.Get<T>(ContentEdits.ReplaceText(Repo(), path, text), kind, id)!;
+    }
+
     // Slice 1e part five: a decision's chronicle weight is written after its labels, and read back the same; 0 is kept.
     [Fact]
     public void A_decisions_chronicle_weight_is_written_and_read_back()

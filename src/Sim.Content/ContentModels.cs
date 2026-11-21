@@ -11,6 +11,9 @@ public enum ContentKind
     Line,
     Symbol,
     Pronoun,
+    Storylet,
+    Vignette,
+    Trait,
 }
 
 // Lossy: this item has something the editor cannot show, so saving it replaces what it cannot show. A file-level problem (a top-level map,
@@ -95,4 +98,74 @@ public sealed record EncounterModel(
     IReadOnlyList<ApproachModel> Approaches,
     DecisionModel? Decision,
     IReadOnlyDictionary<string, string>? Text = null,
-    IReadOnlyList<OwnLineModel>? Lines = null) : IContentModel;
+    IReadOnlyList<OwnLineModel>? Lines = null,
+    string? Notes = null) : IContentModel;
+
+// Storylets, vignettes, and traits (1e part six). Notes is the author's own, read and dropped by the loader. Every expression
+// (a slot's, a requires) is kept as the string written: the builder is a view of it.
+public sealed record CastSlotModel(string Name, string Condition);
+
+// chronicle: { weight, text }. A storylet's has a weight alone; an option's a weight, a text, or both.
+public sealed record ChronicleModel(int? Weight, string? Text);
+
+// One change as a storylet, a vignette, or a trait's rule writes it. What is loyalty, morale, or trait (a trait change with add or set;
+// a trait's own rule may leave the trait out, meaning itself). Amount is the number added or set; Level is a level name set instead.
+public sealed record StoryletEffectModel(string What, int? Amount, string? Trait = null, bool Set = false, string? Level = null, string? On = null, string? Toward = null);
+
+// What a check's success or failure does: its effects and its text.
+public sealed record StoryletOutcomeModel(IReadOnlyList<StoryletEffectModel> Effects, string? Text);
+
+public sealed record StoryletCheckModel(string Skill, int Difficulty, StoryletOutcomeModel? Success, StoryletOutcomeModel? Failure);
+
+// An option settled by a check has its effects and text in the check's success and failure, not beside them.
+public sealed record StoryletOptionModel(string Id, string Label, string? Requires, IReadOnlyList<StoryletEffectModel> Effects, StoryletCheckModel? Check, string? Text, ChronicleModel? Chronicle = null);
+
+// Script is the text: key, the storylet's lines as written.
+public sealed record StoryletModel(
+    string Id,
+    string? Name,
+    int Stakes,
+    string? Requires,
+    IReadOnlyList<CastSlotModel> Cast,
+    IReadOnlyList<StoryletOptionModel> Options,
+    int? CastCooldown,
+    int? GlobalCooldown,
+    string? Script,
+    ChronicleModel? Chronicle = null,
+    string? Notes = null) : IContentModel;
+
+// A storylet's shape with no stakes and no chronicle: effects that apply when it arrives, or two options and a default.
+public sealed record VignetteModel(
+    string Id,
+    string? Name,
+    string? Requires,
+    IReadOnlyList<CastSlotModel> Cast,
+    IReadOnlyList<StoryletEffectModel> Effects,
+    IReadOnlyList<StoryletOptionModel> Options,
+    string? Default,
+    int? CastCooldown,
+    int? GlobalCooldown,
+    string? Script,
+    string? Notes = null) : IContentModel;
+
+public sealed record TraitLaunchModel(IReadOnlyList<StoryletEffectModel> Sent, IReadOnlyList<StoryletEffectModel> NotSent, IReadOnlyList<StoryletEffectModel> WithTarget);
+
+public sealed record TraitMissionModel(int CheckBonus, bool WithTarget);
+
+public sealed record TraitStepModel(int Weeks, int Add);
+
+// Shown is null when the file does not say (shown, by default). Levels are by value, as written.
+public sealed record TraitModel(
+    string Id,
+    string? Name,
+    bool? Shown,
+    string? On,
+    IReadOnlyDictionary<int, string>? Levels,
+    int? Max,
+    string? Briefing,
+    TraitLaunchModel? Launch,
+    TraitMissionModel? Mission,
+    TraitStepModel? Every,
+    int? ExpiresWeeks,
+    IReadOnlyList<StoryletEffectModel> OnTargetDied,
+    string? Notes = null) : IContentModel;

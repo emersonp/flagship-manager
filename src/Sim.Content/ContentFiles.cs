@@ -125,6 +125,9 @@ internal static class ContentFolders
         ContentKind.Line => "lines",
         ContentKind.Symbol => "symbols",
         ContentKind.Pronoun => "pronouns",
+        ContentKind.Storylet => "storylets",
+        ContentKind.Vignette => "vignettes",
+        ContentKind.Trait => "traits",
         _ => throw new ArgumentOutOfRangeException(nameof(kind)),
     };
 
