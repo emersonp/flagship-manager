@@ -201,3 +201,5 @@ Open for its own design:
 - How a long objective list reads in Every objective on a narrow screen.
 - Whether the read-only sections fold away by default.
 - Whether "Bench this" also appears in the aftermath, for the mission just played (the same team, the same objective).
+
+**Next after part one:** slice 1f-previews (GDD section 15, item 52) moves the encounter, objective, and line previews onto test ships. It starts a mission on a test ship's crew through the same launch team building as section 4.5, so part one should leave that function callable with a test ship's state, not only a legacy's.
