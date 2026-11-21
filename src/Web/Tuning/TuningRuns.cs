@@ -1,6 +1,7 @@
 using MissionBench;
 using Sim.Core;
 using Sim.Core.Content;
+using Sim.Missions;
 using Web.Bridge;
 
 namespace Web.Tuning;
@@ -24,6 +25,25 @@ public sealed record RunSnapshot(int Done, int Runs, ulong Seed, IReadOnlyList<R
     public bool Finished => Done == Runs;
 
     public bool HasDraft => Groups.Count > 0 && Groups[0].Draft is not null;
+}
+
+// One objective's row in Every objective (design 4.8): its groups as a run of that objective gives them (a strength each, or the real
+// team's), or, with no groups, the launch's refusal of the real team's size for it.
+public sealed record ObjectiveRow(string ObjectiveId, IReadOnlyList<RunGroup>? Groups, string? Refused);
+
+// Every objective's run so far (1f part one, Task 11): the rows finished, in the pack's order, of the pack's Objectives; Runs runs in
+// each cell from Seed; the groups each row has (a strength each, or one null for the real team, Team); and whether there is a draft
+// column. A row is added only once every cell of it, saved and draft, has all its runs, so a run stopped part way shows whole rows.
+public sealed record EverySnapshot(
+    IReadOnlyList<ObjectiveRow> Rows,
+    IReadOnlyList<ObjectiveDef> Objectives,
+    int Runs,
+    ulong Seed,
+    IReadOnlyList<TeamStrength?> Groups,
+    bool HasDraft,
+    Team? Team)
+{
+    public bool Finished => Rows.Count == Objectives.Count;
 }
 
 // What a run benches: the saved pack, and the pack with the draft's tuning and bench teams put in (or null with no draft); the options;
@@ -217,6 +237,53 @@ public sealed class TuningRuns : IDisposable
         {
             return new RunSnapshot(done, options.Runs, options.Seed, columns.Select(c => new RunGroup(c.Strength, c.Saved.Figures(), c.Draft?.Figures())).ToList());
         }
+    }
+
+    // Every objective in the saved pack's order (design 4.8, "Every objective"): each a run of the plan's columns as Run gives it, the
+    // saved and draft interleaved seed by seed, with the plan's objective put in. A real team whose size an objective does not take is
+    // refused there in the launch's words (LaunchTeam.SizeRefusal, as Bench.Objectives does), and nothing runs for it. Each cell is so
+    // Bench.Run for that objective and strength, and the saved cells are Bench.Objectives' own. progress is given the rows so far as
+    // each row finishes, but the last; the last (every row, or the rows finished when cancelled) is returned. A row cancelled part way
+    // is dropped, so every row shown has all its runs in every column.
+    public static EverySnapshot RunEvery(RunPlan plan, Action<EverySnapshot>? progress, CancellationToken cancellation)
+    {
+        IReadOnlyList<ObjectiveDef> objectives = plan.Saved.Objectives;
+        var rows = new List<ObjectiveRow>();
+        foreach (ObjectiveDef objective in objectives)
+        {
+            if (cancellation.IsCancellationRequested)
+            {
+                break;
+            }
+
+            if (plan.Options.Team is { } team && LaunchTeam.SizeRefusal(objective, team.Members.Count) is { } refused)
+            {
+                rows.Add(new ObjectiveRow(objective.Id, null, refused));
+            }
+            else
+            {
+                RunSnapshot row = Run(plan with { Options = plan.Options with { ObjectiveId = objective.Id } }, null, TimeProvider.System, TimeSpan.Zero, cancellation);
+                if (!row.Finished)
+                {
+                    break;
+                }
+
+                rows.Add(new ObjectiveRow(objective.Id, row.Groups, null));
+            }
+
+            if (rows.Count < objectives.Count)
+            {
+                progress?.Invoke(EveryStart(plan) with { Rows = [.. rows] });
+            }
+        }
+
+        return EveryStart(plan) with { Rows = rows };
+    }
+
+    // Every objective before its first row.
+    public static EverySnapshot EveryStart(RunPlan plan)
+    {
+        return new EverySnapshot([], plan.Saved.Objectives, plan.Options.Runs, plan.Options.Seed, plan.Groups, plan.Draft is not null, plan.Options.Team);
     }
 
     // A run before its first seed: no runs in any column.

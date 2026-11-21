@@ -15,7 +15,7 @@ namespace Web.Endpoints;
 // patches: a field's change patches the draft's head and the rows whose values or errors moved; Discard and Save patch the whole draft
 // form. Any other post gets the whole page. The draft itself is TuningDrafts, one per tuning file in the server's memory. The bench
 // (Task 10; design 4.4 to 4.8): a change of input redraws the inputs and cancels the page's run; Run streams the figures as they are
-// computed (TuningRuns), saved and draft on the same seeds.
+// computed (TuningRuns), saved and draft on the same seeds; in Every objective (Task 11), a row of every objective as each finishes.
 public static class TuningEndpoints
 {
     private const string File = TuningDrafts.Missions;
@@ -132,6 +132,11 @@ public static class TuningEndpoints
         }
 
         RunTicket ticket = runs.Begin(page, aborted);
+        if (query.View == "every")
+        {
+            return await RunEvery(http, plan, ticket, runs, drafts, editor, game, render, names, query, page);
+        }
+
         if (Sse.IsDatastar(http.Request))
         {
             return new RunStream(plan, ticket, runs, render, names, game.Clock);
@@ -149,6 +154,40 @@ public static class TuningEndpoints
 
         BenchInputsView shown = await InputsView(http, query, page, null, null);
         return await Page(http, render, DraftView.Build(drafts, editor, game.Clock, File), query, StatusCodes.Status200OK, shown, snapshot, snapshot.Finished ? null : ticket.Stop ?? RunStop.Left);
+    }
+
+    // Every objective (Task 11; design 4.8): each objective in turn, saved and draft on the same seeds, streamed a row as it finishes;
+    // or, without script, the page once every row is done.
+    private static async Task<IResult> RunEvery(
+        HttpContext http,
+        RunPlan plan,
+        RunTicket ticket,
+        TuningRuns runs,
+        TuningDrafts drafts,
+        ContentEditor editor,
+        GameServices game,
+        Render render,
+        Names names,
+        TuningQuery query,
+        string page)
+    {
+        if (Sse.IsDatastar(http.Request))
+        {
+            return new EveryStream(plan, ticket, runs, render, names, query);
+        }
+
+        EverySnapshot snapshot;
+        try
+        {
+            snapshot = TuningRuns.RunEvery(plan, null, ticket.Token);
+        }
+        finally
+        {
+            runs.End(ticket);
+        }
+
+        BenchInputsView shown = await InputsView(http, query, page, null, null);
+        return await Page(http, render, DraftView.Build(drafts, editor, game.Clock, File), query, StatusCodes.Status200OK, shown, every: snapshot, stop: snapshot.Finished ? null : ticket.Stop ?? RunStop.Left);
     }
 
     private static IEnumerable<DraftFieldView> Fields(DraftView view)
@@ -200,7 +239,8 @@ public static class TuningEndpoints
         int status,
         BenchInputsView? inputs = null,
         RunSnapshot? snapshot = null,
-        RunStop? stop = null)
+        RunStop? stop = null,
+        EverySnapshot? every = null)
     {
         LivePack? live = http.RequestServices.GetRequiredService<ContentHost>().Current;
         inputs ??= await InputsView(http, query, NewPage(), null, null);
@@ -211,6 +251,7 @@ public static class TuningEndpoints
             ["Inputs"] = inputs,
             ["Names"] = live?.Names,
             ["Snapshot"] = snapshot,
+            ["Every"] = every,
             ["Stop"] = stop,
         });
         return Results.Content(html, "text/html; charset=utf-8", statusCode: status);
@@ -376,6 +417,89 @@ public static class TuningEndpoints
         private Task<string> Whole(RunSnapshot snapshot, RunStop? stop)
         {
             return render.Html<RunFigures>(new Dictionary<string, object?> { ["Snapshot"] = snapshot, ["Stop"] = stop, ["Names"] = names });
+        }
+    }
+
+    // Every objective streamed as it goes (Task 11): the view whole at the start, with every objective's row waiting; then, as each row
+    // finishes, the progress line and that row alone, through the same channel of one as RunStream (a snapshot holds every row so far,
+    // so one dropped loses nothing). A run stopped by a change of input or of the draft says so; one stopped by a new run on the page,
+    // or by the page leaving, writes nothing more.
+    private sealed class EveryStream(RunPlan plan, RunTicket ticket, TuningRuns runs, Render render, Names names, TuningQuery query) : IResult
+    {
+        public async Task ExecuteAsync(HttpContext httpContext)
+        {
+            HttpResponse response = httpContext.Response;
+            try
+            {
+                await Sse.Start(response);
+                await Sse.PatchElements(response, await Html(TuningRuns.EveryStart(plan), null, null, 0));
+                Channel<EverySnapshot> channel = Channel.CreateBounded<EverySnapshot>(new BoundedChannelOptions(1) { FullMode = BoundedChannelFullMode.DropOldest, SingleReader = true, SingleWriter = true });
+                Task<EverySnapshot> work = Task.Run(() =>
+                {
+                    try
+                    {
+                        return TuningRuns.RunEvery(plan, s => channel.Writer.TryWrite(s), ticket.Token);
+                    }
+                    finally
+                    {
+                        channel.Writer.TryComplete();
+                    }
+                });
+                int sent = 0;
+                await foreach (EverySnapshot snapshot in channel.Reader.ReadAllAsync())
+                {
+                    if (!ticket.Token.IsCancellationRequested)
+                    {
+                        sent = await Write(response, snapshot, null, sent);
+                    }
+                }
+
+                EverySnapshot last = await work;
+                if (ticket.Stop is RunStop.NewRun || httpContext.RequestAborted.IsCancellationRequested)
+                {
+                    return;
+                }
+
+                RunStop? stop = last.Finished ? null : ticket.Stop ?? RunStop.Left;
+                await Write(response, last, stop, sent);
+                if (stop is not null)
+                {
+                    // The rows that will not run now say so.
+                    for (int i = last.Rows.Count; i < last.Objectives.Count; i++)
+                    {
+                        await Sse.PatchElements(response, await Html(last, stop, "row", i));
+                    }
+                }
+            }
+            finally
+            {
+                runs.End(ticket);
+            }
+        }
+
+        // The progress line, then each row finished since the last write.
+        private async Task<int> Write(HttpResponse response, EverySnapshot snapshot, RunStop? stop, int sent)
+        {
+            await Sse.PatchElements(response, await Html(snapshot, stop, "progress", 0));
+            for (int i = sent; i < snapshot.Rows.Count; i++)
+            {
+                await Sse.PatchElements(response, await Html(snapshot, stop, "row", i));
+            }
+
+            return Math.Max(sent, snapshot.Rows.Count);
+        }
+
+        private Task<string> Html(EverySnapshot snapshot, RunStop? stop, string? part, int index)
+        {
+            return render.Html<EveryObjective>(new Dictionary<string, object?>
+            {
+                ["Snapshot"] = snapshot,
+                ["Stop"] = stop,
+                ["Names"] = names,
+                ["Query"] = query,
+                ["Part"] = part,
+                ["Index"] = index,
+            });
         }
     }
 

@@ -13,14 +13,14 @@
                     <BenchViews Query="Query" />
                 </div>
                 <div id="bench-body">
-                    @if (Query.View == "every")
+                    <BenchInputs View="Inputs" />
+                    @if (Names is not null)
                     {
-                        <p class="note">Every objective comes next (1f part one, Task 11).</p>
-                    }
-                    else
-                    {
-                        <BenchInputs View="Inputs" />
-                        @if (Names is not null)
+                        @if (Query.View == "every")
+                        {
+                            <EveryObjective Snapshot="Every" Stop="Stop" Names="Names" Query="Query" />
+                        }
+                        else
                         {
                             <RunFigures Snapshot="Snapshot" Stop="Stop" Names="Names" />
                         }
@@ -43,6 +43,9 @@
 
     // A run's figures, when the page is the answer to a run posted without script.
     [Parameter] public RunSnapshot? Snapshot { get; set; }
+
+    // Every objective's figures, when the page is the answer to a run of that view posted without script.
+    [Parameter] public EverySnapshot? Every { get; set; }
 
     [Parameter] public RunStop? Stop { get; set; }
 

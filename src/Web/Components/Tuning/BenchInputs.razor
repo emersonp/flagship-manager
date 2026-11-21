@@ -10,16 +10,24 @@
     <div class="well__head"><h2 id="h-inputs">Inputs</h2><p class="note">As <span class="m">SimRunner bench</span> takes them</p></div>
     <div id="bench-fields" data-on:change="@ChangePost">
         <div class="well__body inputs">
-            <div class="field span2">
-                <label for="bi-objective">Objective</label>
-                <select id="bi-objective" name="objective" aria-describedby="@ErrorRef("objective")" aria-invalid="@Invalid("objective")">
-                    @foreach (BenchChoice objective in View.Objectives)
-                    {
-                        <option value="@objective.Value" selected="@(objective.Value == Objective)">@objective.Label</option>
-                    }
-                </select>
-                @Error("objective")
-            </div>
+            @if (Every)
+            {
+                @* Every objective benches each objective, a generated team at each strength; the choices are kept for One mission. *@
+                <input type="hidden" name="objective" value="@Q.Objective">
+            }
+            else
+            {
+                <div class="field span2">
+                    <label for="bi-objective">Objective</label>
+                    <select id="bi-objective" name="objective" aria-describedby="@ErrorRef("objective")" aria-invalid="@Invalid("objective")">
+                        @foreach (BenchChoice objective in View.Objectives)
+                        {
+                            <option value="@objective.Value" selected="@(objective.Value == Objective)">@objective.Label</option>
+                        }
+                    </select>
+                    @Error("objective")
+                </div>
+            }
             @Seg("Draw", "draw", Draws, Q.Draw)
             <div class="inputs__pair">
                 <div class="field">
@@ -36,7 +44,14 @@
             @Seg("Team", "team", Teams, Q.Team)
             @if (!Q.RealTeam)
             {
-                @Seg("Strength", "strength", Strengths, Q.Strength)
+                @if (Every)
+                {
+                    <input type="hidden" name="strength" value="@Q.Strength">
+                }
+                else
+                {
+                    @Seg("Strength", "strength", Strengths, Q.Strength)
+                }
                 @Seg("Lead style", "style", Styles, Q.Style)
             }
             else
@@ -119,6 +134,8 @@
     [Parameter, EditorRequired] public BenchInputsView View { get; set; } = null!;
 
     private TuningQuery Q => View.Query;
+
+    private bool Every => Q.View == "every";
 
     // The objective named, or with none named the pack's first, as TuningQuery.ObjectiveOrFirst benches it.
     private string Objective => Q.Objective.Length > 0 ? Q.Objective : View.Objectives.FirstOrDefault()?.Value ?? "";

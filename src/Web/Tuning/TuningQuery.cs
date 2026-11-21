@@ -146,6 +146,13 @@ public sealed record TuningQuery
         return Path + Query();
     }
 
+    // One mission for this objective, from a row of Every objective (design 4.8): the same inputs, with the objective named. A generated
+    // team arrives as a sweep, since the row it came from showed all three strengths (1f part one, Task 11; my call).
+    public string OneMission(string objectiveId)
+    {
+        return (this with { View = "one", Objective = objectiveId, Strength = RealTeam ? Strength : "sweep" }).Href();
+    }
+
     // The runs a view takes when none are typed (design 4.4).
     public string RunsOrDefault()
     {
@@ -179,7 +186,9 @@ public sealed record TuningQuery
     public TuningInputs Read(ContentPack pack)
     {
         var errors = new Dictionary<string, string>(StringComparer.Ordinal);
-        string objective = ObjectiveOrFirst(pack);
+        // Every objective benches each objective in turn, so the one named is not judged there (1f part one, Task 11).
+        bool every = View == "every";
+        string objective = every ? pack.Objectives.FirstOrDefault()?.Id ?? "" : ObjectiveOrFirst(pack);
         if (objective.Length == 0)
         {
             errors["objective"] = "The pack has no objective to bench.";
@@ -206,9 +215,10 @@ public sealed record TuningQuery
             errors["gear"] = $"Unknown gear tag '{unknown}'. The pack has: {string.Join(", ", known)}.";
         }
 
+        // A generated team in Every objective is benched at all three strengths (design 4.8).
         IReadOnlyList<TeamStrength> strengths = RealTeam
             ? []
-            : Strength == "sweep" ? [TeamStrength.Rookie, TeamStrength.Mixed, TeamStrength.Veteran] : [Word<TeamStrength>(Strength)];
+            : Strength == "sweep" || every ? [TeamStrength.Rookie, TeamStrength.Mixed, TeamStrength.Veteran] : [Word<TeamStrength>(Strength)];
         if (errors.Count > 0)
         {
             return new TuningInputs(null, strengths, errors);

@@ -1,0 +1,200 @@
+@using System.Globalization
+@using MissionBench
+@using Sim.Core.Content
+@using Web.Bridge
+@using Web.Tuning
+@* Every objective (1f part one, Task 11; design 4.8; the mock-up's two Every objective states): one row group per objective, its name
+   opening One mission for it with the same inputs, then full success, loss, deaths, and calls, in the columns of each strength (rookie,
+   mixed, and veteran, or the real team alone), each saved and draft when there is a draft. A row the launch refuses for the team's size
+   says so in its words. While a run streams, the progress line and each row are patched on their own (Part), a row as it finishes. On
+   a narrow bench one strength is shown at a time, chosen by the switch above the table. *@
+@if (Part is null)
+{
+    <div id="bench-every">
+        @if (Snapshot is null)
+        {
+            <p class="note">Run benches every objective, @RunsWord runs a cell, the saved tuning and the draft beside it on the same seeds when there is one.</p>
+        }
+        else
+        {
+            <section class="well" aria-labelledby="h-every">
+                <div class="well__head"><h2 id="h-every">Every objective</h2>@Progress</div>
+                <div class="well__body well__body--flush">
+                    @if (Many)
+                    {
+                        <fieldset class="seg str">
+                            <legend>Strength shown</legend>
+                            <div class="seg__row seg__row--n">
+                                @foreach ((TeamStrength? strength, int i) in Snapshot.Groups.Select((g, i) => (g, i)))
+                                {
+                                    string id = "fe-" + E(strength);
+                                    <input type="radio" id="@id" name="fe" checked="@(i == 0)"><label for="@id">@FigureTable.StrengthName(strength)</label>
+                                }
+                            </div>
+                        </fieldset>
+                    }
+                    <div class="tw">
+                        <table class="@(Many ? "figs every" : "figs every figs--one")">
+                            <caption class="visually-hidden">Every objective, @(Snapshot.Team is null ? "by strength" : "the team"), @(Snapshot.HasDraft ? "saved and draft" : "saved")</caption>
+                            <thead>
+                                @if (Many)
+                                {
+                                    <tr>
+                                        <th scope="col" rowspan="2"><span class="visually-hidden">Objective</span></th>
+                                        @foreach (TeamStrength? strength in Snapshot.Groups)
+                                        {
+                                            <th scope="colgroup" colspan="@Per" class="grp g1" data-e="@E(strength)">@FigureTable.StrengthName(strength)</th>
+                                        }
+                                    </tr>
+                                }
+                                <tr>
+                                    @if (!Many)
+                                    {
+                                        <th scope="col"><span class="visually-hidden">Objective</span></th>
+                                    }
+                                    @foreach (TeamStrength? strength in Snapshot.Groups)
+                                    {
+                                        <th scope="col" class="n g1" data-e="@E(strength)">Saved</th>
+                                        @if (Snapshot.HasDraft)
+                                        {
+                                            <th scope="col" class="n" data-e="@E(strength)">Draft</th>
+                                            <th scope="col" class="n chg" data-e="@E(strength)">Change</th>
+                                        }
+                                    }
+                                </tr>
+                            </thead>
+                            @for (int i = 0; i < Snapshot.Objectives.Count; i++)
+                            {
+                                @Row(i)
+                            }
+                        </table>
+                    </div>
+                    @if (Snapshot.HasDraft)
+                    {
+                        <div class="figs__foot"><p class="note">@BenchNoise.Rule</p></div>
+                    }
+                </div>
+            </section>
+        }
+    </div>
+}
+else if (Part == "progress")
+{
+    @Progress
+}
+else
+{
+    @Row(Index)
+}
+
+@code {
+    [Parameter] public EverySnapshot? Snapshot { get; set; }
+
+    [Parameter] public RunStop? Stop { get; set; }
+
+    [Parameter, EditorRequired] public Names Names { get; set; } = null!;
+
+    // The inputs, for each row's link to One mission.
+    [Parameter, EditorRequired] public TuningQuery Query { get; set; } = null!;
+
+    // Null for the whole view; "progress" for the progress line alone, or "row" for the row at Index alone.
+    [Parameter] public string? Part { get; set; }
+
+    [Parameter] public int Index { get; set; }
+
+    // The figures each cell shows: BenchReport.Summary's own rows (FigureRows), so their values and noise are One mission's.
+    public static readonly IReadOnlyList<FigureRow> Rows = FigureRows.Summary([])
+        .Where(r => r.Label is "Full success %" or "Loss %" or "Deaths per 100 crew-missions" or "Calls per mission")
+        .ToList();
+
+    public static string RowId(int index) => $"every-row-{index}";
+
+    private EverySnapshot S => Snapshot!;
+
+    private bool Many => S.Groups.Count > 1;
+
+    private int Per => S.HasDraft ? 3 : 1;
+
+    private int Width => 1 + S.Groups.Count * Per;
+
+    private string RunsWord => Query.RunsOrDefault() is var runs && int.TryParse(runs, CultureInfo.InvariantCulture, out int n) ? N(n) : runs;
+
+    // A strength's columns carry its name when there is more than one, so a narrow bench can show one at a time.
+    private string? E(TeamStrength? strength) => Many ? strength?.ToString().ToLowerInvariant() : null;
+
+    private static string N(int value) => value.ToString("N0", CultureInfo.InvariantCulture);
+
+    private static string Size(ObjectiveDef objective) => objective.TeamSizeMin == objective.TeamSizeMax
+        ? $"team of {objective.TeamSizeMin}"
+        : $"team {objective.TeamSizeMin} to {objective.TeamSizeMax}";
+
+    // Who is benched: a generated sweep, or the real team by name, lead first.
+    private string TeamLine => S.Team is { } team
+        ? string.Join(", ", team.Members.OrderBy(m => m.Id != team.LeadId).Select(m => Names.Crew(m.Id) + (m.Id == team.LeadId ? " (lead)" : "")))
+        : "generated sweep";
+
+    // How far the run is: the rows done, or, finished, the runs in each cell; stopped, why.
+    private RenderFragment Progress => __builder =>
+    {
+        string seed = S.Seed.ToString(CultureInfo.InvariantCulture);
+        <p class="note" id="every-progress" role="status">@if (S.Finished)
+            {
+                <text><span class="m">@N(S.Runs)</span> of <span class="m">@N(S.Runs)</span> runs in each cell, from seed <span class="m">@seed</span>; @TeamLine</text>
+            }
+            else
+            {
+                <text>@(Stop is null ? "" : "Stopped at ")<span class="m">@N(S.Rows.Count)</span> of <span class="m">@N(S.Objectives.Count)</span> objectives, <span class="m">@N(S.Runs)</span> runs in each cell, from seed <span class="m">@seed</span>@Suffix</text>
+            }</p>
+    };
+
+    private string Suffix => Stop switch
+    {
+        RunStop.Inputs => ": the inputs changed. Run again to bench them.",
+        RunStop.Draft => ": the draft changed. Run again to bench it.",
+        RunStop.NewRun or RunStop.Left => ".",
+        _ => $"; {TeamLine}; running",
+    };
+
+    // An objective's row group: its name linking to One mission, its id, and the team it takes; then its figures once it has run, the
+    // launch's refusal, or a line saying it has not run yet.
+    private RenderFragment Row(int index) => __builder =>
+    {
+        ObjectiveDef objective = S.Objectives[index];
+        ObjectiveRow? row = index < S.Rows.Count ? S.Rows[index] : null;
+        <tbody id="@RowId(index)">
+            <tr class="figs__obj"><th scope="rowgroup" colspan="@Width"><a href="@Query.OneMission(objective.Id)">@Names.Objective(objective.Id)</a> <span class="enc__id">@objective.Id</span> <span class="note">@Size(objective)</span></th></tr>
+            @if (row is null)
+            {
+                <tr><th scope="row" class="note">@(Stop is null && !S.Finished ? "Not run yet" : "Not run")</th><td colspan="@(Width - 1)"></td></tr>
+            }
+            else if (row.Groups is not { } groups)
+            {
+                <tr><th scope="row">Refused</th><td class="n refused" colspan="@(Width - 1)">@row.Refused</td></tr>
+            }
+            else
+            {
+                @foreach (FigureRow figure in Rows)
+                {
+                    <tr>
+                        <th scope="row">@figure.Label</th>
+                        @foreach (RunGroup group in groups)
+                        {
+                            double? saved = figure.Value(group.Saved);
+                            <td class="n g1" data-e="@E(group.Strength)">@FigureRows.Number(saved, figure.Format)</td>
+                            @if (group.Draft is { } draft)
+                            {
+                                double? after = figure.Value(draft);
+                                bool within = FigureRows.Within(figure, group.Saved, draft);
+                                <td class="n" data-e="@E(group.Strength)">@FigureRows.Number(after, figure.Format)</td>
+                                <td class="@(within ? "n noise chg" : "n chg")" data-e="@E(group.Strength)">@FigureRows.Change(saved, after, figure.Format)@if (within)
+                                    {
+                                        <span class="visually-hidden">, within the noise</span>
+                                    }</td>
+                            }
+                        }
+                    </tr>
+                }
+            }
+        </tbody>
+    };
+}

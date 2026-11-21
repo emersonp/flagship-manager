@@ -235,10 +235,10 @@ Route: `POST /dev/tuning/run`, a Datastar stream.
 
 **Files:** `src/Web/Components/Tuning/EveryObjective.razor` (new), `TuningRuns.cs`, `TuningQuery.cs`, `tests/Web.Tests/TuningRunsTests.cs`.
 
-- [ ] **Step 1:** The view's runs default to 1,000. One row per objective, columns rookie, mixed, and veteran (or the real team alone), each saved and draft when there is a draft; cells full success %, loss %, deaths per 100, and calls per mission, greyed as in Task 10. Run through `Bench.Objectives`, interleaved saved and draft as in Task 10, a row patched as each finishes. A refused cell shows its refusal.
-- [ ] **Step 2:** A row opens One mission for that objective with the same inputs (a link from `TuningQuery`).
-- [ ] **Step 3: tests.** Each cell equals `Bench.Run` for that objective and strength at 1,000 runs. A real team too large for an objective shows the refusal there. A row's link carries the inputs.
-- [ ] **Step 4:** `./check.sh`; commit "Add the every-objective view to the Tuning page".
+- [x] **Step 1:** The view's runs default to 1,000. One row per objective, columns rookie, mixed, and veteran (or the real team alone), each saved and draft when there is a draft; cells full success %, loss %, deaths per 100, and calls per mission, greyed as in Task 10. Run through `Bench.Objectives`, interleaved saved and draft as in Task 10, a row patched as each finishes. A refused cell shows its refusal.
+- [x] **Step 2:** A row opens One mission for that objective with the same inputs (a link from `TuningQuery`).
+- [x] **Step 3: tests.** Each cell equals `Bench.Run` for that objective and strength at 1,000 runs. A real team too large for an objective shows the refusal there. A row's link carries the inputs.
+- [x] **Step 4:** `./check.sh`; commit "Add the every-objective view to the Tuning page".
 
 ### Task 12: replay as the report
 

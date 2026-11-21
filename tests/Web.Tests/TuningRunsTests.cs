@@ -308,4 +308,112 @@ public sealed class TuningRunsTests(RepoContentGuard guard) : IClassFixture<Repo
         Assert.Equal(figures.Encounters[0].Checks.ToString("#,0", CultureInfo.InvariantCulture), FigureRows.Number(rows[0].Value(figures), rows[0].Format));
         Assert.Equal((figures.Encounters[0].Checks, (double)figures.Encounters[0].ChecksSquares, 50), rows[0].Noise(figures));
     }
+
+    // Every objective (Task 11; design 4.8): each cell, saved and draft, is Bench.Run for that objective and strength at the view's
+    // default of 1,000 runs, and the saved cells are Bench.Objectives' own.
+    [Fact]
+    public async Task Each_cell_of_every_objective_equals_Bench_Run_for_its_objective_and_strength()
+    {
+        using TestApp app = NewApp();
+        ContentPack pack = app.Live.Pack;
+        Drafts(app).Set(TuningDrafts.Missions, "check.target", ["9"]);
+        RunPlan plan = await Plan(app, "view=every&seed=3&objective=NOPE");
+        Assert.Equal(1000, plan.Options.Runs);
+        Assert.Equal([TeamStrength.Rookie, TeamStrength.Mixed, TeamStrength.Veteran], plan.Groups.Select(g => g!.Value));
+
+        var seen = new List<int>();
+        EverySnapshot every = TuningRuns.RunEvery(plan, s => seen.Add(s.Rows.Count), CancellationToken.None);
+
+        Assert.True(every.Finished);
+        Assert.Equal(pack.Objectives.Select(o => o.Id), every.Rows.Select(r => r.ObjectiveId));
+        Assert.Equal(Enumerable.Range(1, pack.Objectives.Count - 1), seen);
+        var options = new BenchOptions(Objective) { Runs = 1000, Seed = 3 };
+        IReadOnlyList<ObjectiveCell> cells = Bench.Objectives(pack, pack.Tuning, options, [TeamStrength.Rookie, TeamStrength.Mixed, TeamStrength.Veteran]);
+        foreach (ObjectiveRow row in every.Rows)
+        {
+            Assert.Null(row.Refused);
+            foreach (RunGroup group in row.Groups!)
+            {
+                BenchOptions cell = options with { ObjectiveId = row.ObjectiveId, Strength = group.Strength!.Value };
+                Assert.Equal(Json(Bench.Run(pack, pack.Tuning, cell)), Json(group.Saved));
+                Assert.Equal(Json(Bench.Run(plan.Draft!, plan.Draft!.Tuning, cell)), Json(group.Draft!));
+                Assert.Equal(Json(cells.Single(c => c.ObjectiveId == row.ObjectiveId && c.Strength == group.Strength).Figures!), Json(group.Saved));
+            }
+        }
+    }
+
+    // A run stopped part way shows only whole rows: every cell of each has all its runs.
+    [Fact]
+    public async Task Every_objective_stopped_part_way_keeps_whole_rows()
+    {
+        using TestApp app = NewApp();
+        Drafts(app).Set(TuningDrafts.Missions, "check.target", ["9"]);
+        RunPlan plan = await Plan(app, "view=every&runs=200");
+
+        using var cancel = new CancellationTokenSource();
+        EverySnapshot stopped = TuningRuns.RunEvery(plan, _ => cancel.Cancel(), cancel.Token);
+
+        Assert.False(stopped.Finished);
+        ObjectiveRow row = Assert.Single(stopped.Rows);
+        Assert.All(row.Groups!, g =>
+        {
+            Assert.Equal(200, g.Saved.Runs);
+            Assert.Equal(200, g.Draft!.Runs);
+        });
+    }
+
+    // A real team of 4 runs where the objective takes 4 and is refused, in the launch's words, where it does not; through the real app's
+    // stream too, a row as it finishes.
+    [Fact]
+    public async Task A_real_team_too_large_for_an_objective_shows_the_refusal_there()
+    {
+        using TestApp app = NewApp();
+        ContentPack pack = app.Live.Pack;
+        const string Team = "view=every&runs=100&team=testship&source=test_ship_a&crew=CREW_01&crew=CREW_02&crew=CREW_05&crew=CREW_06&lead=CREW_02";
+        RunPlan plan = await Plan(app, Team);
+        Assert.Equal([null], plan.Groups);
+
+        EverySnapshot every = TuningRuns.RunEvery(plan, null, CancellationToken.None);
+
+        const string Refusal = "A team of 4 is outside the 2 to 3 this objective takes.";
+        Assert.Equal(["OBJECTIVE_TEMPLATE_1", "OBJECTIVE_TEMPLATE_2"], every.Rows.Select(r => r.ObjectiveId));
+        IReadOnlyList<ObjectiveCell> cells = Bench.Objectives(pack, pack.Tuning, plan.Options, []);
+        Assert.Equal(Refusal, cells[1].Refused);
+        Assert.Equal(Refusal, every.Rows[1].Refused);
+        Assert.Null(every.Rows[1].Groups);
+        RunGroup group = Assert.Single(every.Rows[0].Groups!);
+        Assert.Equal(Json(cells[0].Figures!), Json(group.Saved));
+
+        (HttpStatusCode status, string body) = await Post(app.NewClient(), "/dev/tuning/run?page=p1", Team, datastar: true);
+        Assert.Equal(HttpStatusCode.OK, status);
+        Assert.Contains("<td class=\"n refused\" colspan=\"1\">" + Refusal + "</td>", body);
+        Assert.Contains("id=\"every-row-0\"", body);
+        Assert.Contains("Full success %", body);
+        Assert.Matches("<span class=\"m\">100</span> of <span class=\"m\">100</span> runs in each cell, from seed <span class=\"m\">1</span>; [^<]+ \\(lead\\), ", body);
+        Assert.False(Runs(app).Running("p1"));
+        guard.Verify();
+    }
+
+    // A row's name opens One mission for that objective with the same inputs, a generated team as a sweep of the three strengths the
+    // row showed; runs left at Every objective's default take One mission's.
+    [Fact]
+    public async Task A_rows_link_opens_One_mission_with_the_same_inputs()
+    {
+        using TestApp app = NewApp();
+        const string Words = "view=every&runs=40&seed=7&style=reckless&priority=1&autonomy=-1&develop=true&gear=scanner&policy=bold&draw=fixed";
+        const string Link = "/dev/tuning?objective=OBJECTIVE_TEMPLATE_2&draw=fixed&runs=40&seed=7&strength=sweep&style=reckless&priority=1&autonomy=-1&develop=true&gear=scanner&policy=bold";
+
+        Assert.Equal(Link, Query(Words).OneMission("OBJECTIVE_TEMPLATE_2"));
+        Assert.Equal("/dev/tuning?objective=OBJECTIVE_TEMPLATE_1&seed=9&strength=sweep", Query("view=every&seed=9").OneMission("OBJECTIVE_TEMPLATE_1"));
+        const string Real = "team=legacy&source=x&crew=CREW_01&lead=CREW_01";
+        Assert.Equal($"/dev/tuning?objective=OBJECTIVE_TEMPLATE_1&{Real}", Query($"view=every&{Real}").OneMission("OBJECTIVE_TEMPLATE_1"));
+
+        // On the page, without script: the finished view, each row's name its link.
+        (HttpStatusCode status, string body) = await Post(app.NewClient(), "/dev/tuning/run", Words);
+        Assert.Equal(HttpStatusCode.OK, status);
+        Assert.Contains($"<a href=\"{Link.Replace("&", "&amp;", StringComparison.Ordinal)}\">", body);
+        Assert.Contains("<span class=\"m\">40</span> of <span class=\"m\">40</span> runs in each cell, from seed <span class=\"m\">7</span>; generated sweep", body);
+        Assert.Contains("<legend>Strength shown</legend>", body);
+        Assert.DoesNotContain("id=\"bi-objective\"", body);
+    }
 }
