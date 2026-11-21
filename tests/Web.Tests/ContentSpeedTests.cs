@@ -5,7 +5,15 @@ using static Web.Tests.ContentFormsTests;
 
 namespace Web.Tests;
 
+// Wall-clock tests run alone, after the rest of the assembly: the bench tests (TuningRunsTests and others) take every core while they run, and a page timed beside them is timed against them.
+[CollectionDefinition(Name, DisableParallelization = true)]
+public sealed class SpeedCollection
+{
+    public const string Name = "Speed";
+}
+
 // A pack the size an author may reach: each page reads every file once, so it stays quick as the pack grows.
+[Collection(SpeedCollection.Name)]
 public sealed class ContentSpeedTests : IClassFixture<RepoContentGuard>
 {
     private const int Count = 300;
@@ -34,7 +42,7 @@ public sealed class ContentSpeedTests : IClassFixture<RepoContentGuard>
         HttpClient client = app.NewClient();
         Assert.Equal(HttpStatusCode.OK, (await Get(client, url)).Status);
 
-        // The best of three, so other test assemblies running beside this one do not decide it. About 2,100 ms before one parse per file; about 120 ms after.
+        // The best of three, so other test assemblies running beside this one do not decide it (the tests in this one are kept off by the Speed collection). About 2,100 ms before one parse per file; about 120 ms after.
         long best = long.MaxValue;
         for (int i = 0; i < 3; i++)
         {
