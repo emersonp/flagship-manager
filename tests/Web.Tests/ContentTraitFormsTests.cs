@@ -156,7 +156,7 @@ public sealed class ContentTraitFormsTests(RepoContentGuard guard) : IClassFixtu
     // --- Where it's used ---
 
     [Fact]
-    public async Task Grieving_shows_the_storylet_that_sets_it_and_warns_that_nothing_reads_it()
+    public async Task Grieving_shows_the_storylet_that_sets_it_and_the_one_that_reads_it()
     {
         using TestApp app = ContentStoryletFormsTests.GameApp(canonical: false);
 
@@ -166,7 +166,11 @@ public sealed class ContentTraitFormsTests(RepoContentGuard guard) : IClassFixtu
         Assert.Contains("Where it's used", uses);
         Assert.Contains("href=\"/dev/content/storylets/STORYLET_08\">The names on the wall</a>", uses);
         Assert.Contains("Not now: sets 1 on voice", uses);
-        Assert.Contains("grieving is set, but nothing reads it", uses);
+        // Part six's worked example reads it, so the warning that nothing does is gone.
+        Assert.Contains("href=\"/dev/content/storylets/STORYLET_09\">Time for it later</a>", uses);
+        Assert.Contains("reads: subject.trait.grieving >= 1", uses);
+        Assert.Contains("Hear the names now: sets 0 on subject", uses);
+        Assert.DoesNotContain("nothing reads it", uses);
         Assert.DoesNotContain("id=\"uses-vignettes\"", uses);
     }
 

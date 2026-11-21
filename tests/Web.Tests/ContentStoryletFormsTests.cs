@@ -80,7 +80,7 @@ public sealed class ContentStoryletFormsTests(RepoContentGuard guard) : IClassFi
         Assert.Equal(pack, PackJson(app));
         string before = Everything(app);
         var items = app.Editor.Read().Index().Where(i => i.Kind == ContentKind.Storylet).ToList();
-        Assert.Equal(8, items.Count);
+        Assert.Equal(9, items.Count);
 
         foreach (ContentItemRef item in items)
         {

@@ -151,6 +151,41 @@ public sealed class WorkedExampleTests
         Assert.Equal(0, legacy.Trait("sensors_quirk", null));
     }
 
+    // 1e part six's worked example (design 4.11), from the storylets file as the editor's form saved it: "Time for it later" casts
+    // someone grieving, which "Not now" in "The names on the wall" leaves them; Dev Play's SetTrait does what that answer would.
+    // Giving it time lets grieving run its four weeks, and the cast cooldown keeps the storylet from coming back to them meanwhile.
+    [Fact]
+    public void A_grieving_crew_member_is_met_by_the_storylet_written_in_the_editor()
+    {
+        var legacy = new Legacy();
+        legacy.Send(new FoundLegacy());
+        string subject = legacy.Game.Bus.View<IRosterView>(legacy.State).Roster[4];
+        legacy.Send(new SetTrait("grieving", subject, null, 1));
+        legacy.To(CyclePhase.Itinerary, 2);
+
+        WaitingStorylet later = legacy.Waiting("STORYLET_09");
+        Assert.Equal(subject, later.Cast["subject"]);
+        legacy.Send(new AnswerStorylet(later.OfferId, "give_it_time"));
+        Assert.Equal(1, legacy.Trait("grieving", subject));
+
+        int cycle = 2;
+        while (legacy.Trait("grieving", subject) > 0)
+        {
+            cycle++;
+            Assert.True(cycle <= 8, "grieving outlasted its four weeks.");
+            legacy.To(CyclePhase.Itinerary, cycle);
+            Assert.DoesNotContain(legacy.State.Module<StoryletsState>(StoryletsModule.Name).Waiting, w => w.StoryletId == "STORYLET_09");
+        }
+
+        // The other way: hearing the names clears it at once.
+        var heard = new Legacy();
+        heard.Send(new FoundLegacy());
+        heard.Send(new SetTrait("grieving", subject, null, 1));
+        heard.To(CyclePhase.Itinerary, 2);
+        heard.Send(new AnswerStorylet(heard.Waiting("STORYLET_09").OfferId, "hear_names_now"));
+        Assert.Equal(0, heard.Trait("grieving", subject));
+    }
+
     // 1e part five's worked example (design 4.8), in the fixture's short version, through the web. With 1d20 dice and deadly injuries
     // the captain plays until two crew have died within 120 days and STORYLET_06 ("The names on the wall") waits; the service, its
     // first option, is held through the bridge, and the Chronicle page shows the weight-4 entry in the option's own words, set apart.

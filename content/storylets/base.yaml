@@ -20,11 +20,11 @@
     - id: recalibrate
       label: Recalibrate tonight
       effects: [{ trait: sensors_quirk, set: 0 }, { loyalty: -1, on: crew }]
-      text: The off-duty watch spent their rest in the sensor bay, and the forward array reads true again.
+      text: "The off-duty watch spent their rest in the sensor bay, and the forward array reads true again."
     - id: fly_on
       label: Fly on it
       effects: [{ trait: sensors_quirk, set: 2 }]
-      text: The forward array stays as it is. Every reading from it now carries a margin, and the bridge knows it.
+      text: "The forward array stays as it is. Every reading from it now carries a margin, and the bridge knows it."
 - id: STORYLET_02
   name: Someone shaken
   notes: |-
@@ -113,11 +113,24 @@
     subject: You weren't down there. Leave it.
     = #subject# has kept apart since the mission was lost, and walked away from #target# in the mess.
   options:
-    - { id: talk, label: Have someone talk to them, check: { skill: SKILL_D, difficulty: 4 },
-        success: { effects: [{ trait: came_back, set: settled, on: subject }, { morale: 3, on: subject }], text: "#handler# found #subject# in the observation lounge and stayed until the talking started. By the next watch #subject# was back at the mess table." },
-        failure: { effects: [{ trait: came_back, set: withdrawn, on: subject }, { trait: avoids, add: 2, on: subject, toward: target }], text: "#handler# tried. #subject# heard them out, said nothing, and now keeps clear of #target# as well." } }
-    - { id: leave_it, label: Leave them be, effects: [{ trait: came_back, set: withdrawn, on: subject }, { trait: avoids, add: 2, on: subject, toward: target }], text: "#subject# was left to it. They eat alone now, and take the long way round when #target# is in the corridor." }
-    - { id: back_on_watch, label: Put them back on the watch bill, requires: "subject.loyalty >= 60", effects: [{ trait: came_back, set: settled, on: subject }, { loyalty: -1, on: subject }], text: "#subject# was told the mission was over and the watch was not. They took it as an order, and went back to work." }
+    - id: talk
+      label: Have someone talk to them
+      check: { skill: SKILL_D, difficulty: 4 }
+      success:
+        effects: [{ trait: came_back, set: settled, on: subject }, { morale: 3, on: subject }]
+        text: "#handler# found #subject# in the observation lounge and stayed until the talking started. By the next watch #subject# was back at the mess table."
+      failure:
+        effects: [{ trait: came_back, set: withdrawn, on: subject }, { trait: avoids, add: 2, on: subject, toward: target }]
+        text: "#handler# tried. #subject# heard them out, said nothing, and now keeps clear of #target# as well."
+    - id: leave_it
+      label: Leave them be
+      effects: [{ trait: came_back, set: withdrawn, on: subject }, { trait: avoids, add: 2, on: subject, toward: target }]
+      text: "#subject# was left to it. They eat alone now, and take the long way round when #target# is in the corridor."
+    - id: back_on_watch
+      label: Put them back on the watch bill
+      requires: "subject.loyalty >= 60"
+      effects: [{ trait: came_back, set: settled, on: subject }, { loyalty: -1, on: subject }]
+      text: "#subject# was told the mission was over and the watch was not. They took it as an order, and went back to work."
 - id: STORYLET_06
   name: Still not talking
   notes: |-
@@ -133,10 +146,19 @@
     target: I don't know what I did, Captain. They won't say.
     = #subject# still isn't talking to #target#.
   options:
-    - { id: try_again, label: Send someone to try again, check: { skill: SKILL_D, difficulty: 5 },
-        success: { effects: [{ trait: came_back, set: 0, on: subject }, { trait: avoids, set: 0, on: subject, toward: target }, { morale: 2, on: subject }], text: "#handler# sat #subject# and #target# down in the same room and did not let either leave. It came out at last: #subject# blamed #target# for not being there, and knew it was not fair." },
-        failure: { effects: [{ morale: -1, on: handler }], text: "#handler# got as far as the door of #subject#'s quarters, and no further." } }
-    - { id: let_it_lie, label: Let it lie, effects: [], text: "Nobody pushed it. The roster kept #subject# and #target# on different watches." }
+    - id: try_again
+      label: Send someone to try again
+      check: { skill: SKILL_D, difficulty: 5 }
+      success:
+        effects: [{ trait: came_back, set: 0, on: subject }, { trait: avoids, set: 0, on: subject, toward: target }, { morale: 2, on: subject }]
+        text: "#handler# sat #subject# and #target# down in the same room and did not let either leave. It came out at last: #subject# blamed #target# for not being there, and knew it was not fair."
+      failure:
+        effects: [{ morale: -1, on: handler }]
+        text: "#handler# got as far as the door of #subject#'s quarters, and no further."
+    - id: let_it_lie
+      label: Let it lie
+      effects: []
+      text: "Nobody pushed it. The roster kept #subject# and #target# on different watches."
 - id: STORYLET_07
   name: The ghosts have names now
   notes: |-
@@ -158,11 +180,11 @@
     - id: strip_down
       label: Strip it to the frame
       effects: [{ trait: sensors_quirk, set: 0 }, { morale: -1, on: crew }]
-      text: The ship flew two days with the forward array dark and every watch on edge. It came back reading true, and the ghosts stopped.
+      text: "The ship flew two days with the forward array dark and every watch on edge. It came back reading true, and the ghosts stopped."
     - id: live_with_it
       label: Keep flying on it
       effects: [{ loyalty: -1, on: crew }]
-      text: The array stays as it is. The night watch keeps its list of names, and fewer of them laugh about it.
+      text: "The array stays as it is. The night watch keeps its list of names, and fewer of them laugh about it."
 - id: STORYLET_08
   name: The names on the wall
   notes: |-
@@ -196,3 +218,39 @@
       label: Not now
       effects: [{ trait: grieving, set: 1, on: voice }]
       text: "The captain said there would be time for it later. #voice# nodded, and did not ask again."
+- id: STORYLET_09
+  name: Time for it later
+  notes: |-
+    Time for it later (1e part six, design 4.11): the worked example of a storylet written in the editor's form, and the first to
+    read grieving, which "Not now" in "The names on the wall" sets. Hearing the names, or a talk that gets through, clears it; giving
+    it time lets it run its four weeks, and the cast cooldown of 6 keeps it from coming back to the same crew member before then.
+    Generated words, in place, for the author to rewrite.
+  stakes: 2
+  cast:
+    subject: "subject.trait.grieving >= 1"
+  cooldown: { cast: 6 }
+  text: |-
+    > Night log: #subject# signed out the observation lounge again, alone, at the end of the watch.
+    subject: You said there'd be time for it later, Captain. I've been waiting for later.
+    subject: I've written their names down. I don't know what else to do with them.
+    captain: What do you need?
+    subject: Someone to hear them. That's all.
+    = #subject# has carried the names of the dead since the captain said there would be time for it later.
+  options:
+    - id: hear_names_now
+      label: Hear the names now
+      effects: [{ trait: grieving, set: 0 }, { morale: 1, on: subject }]
+      text: "The captain sat with #subject# in the observation lounge and heard every name on the list. By the next watch they were back at the mess table."
+    - id: sit_with_them
+      label: Send someone to sit with them
+      check: { skill: SKILL_D, difficulty: 3 }
+      success:
+        effects: [{ trait: grieving, set: 0 }, { morale: 2, on: subject }]
+        text: "#handler# sat up through the night watch while #subject# read the names aloud, one by one, and stayed until the last of them."
+      failure:
+        effects: []
+        text: "#handler# sat with #subject# for an hour. Neither of them found much to say, and the lounge is still signed out in one name at the end of every watch."
+    - id: give_it_time
+      label: Give it time
+      effects: []
+      text: "The captain told #subject# it would pass in time. It may yet. The lounge stays signed out in their name at the end of every watch."

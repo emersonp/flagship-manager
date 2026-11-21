@@ -12,7 +12,8 @@
     65 opens "Put them back on the watch bill"), and "The medical bay".
     CREW_03: promised a rest and sent anyway, for "You gave your word".
     CREW_04: avoids CREW_06 at 3, for "Clear the air" and "Not that shuttle", and lost crewmates last cycle and fourteen ago, for "The
-    names on the wall" (as voice) and "An empty station".
+    names on the wall" (as voice) and "An empty station", and grieving these four days, as "Not now" there would leave them, for "Time
+    for it later".
     CREW_05: came back withdrawn from an earlier lost mission, and keeps clear of CREW_02, for "Still not talking".
     CREW_06: rested last cycle, for "A week aboard".
     CREW_07 and CREW_08: dead, 6 and 90 days ago, so the chronicle holds two deaths within 120 days.
@@ -29,6 +30,7 @@
     - { trait: shaken, on: CREW_02, value: 2, daysAgo: 6, cyclesAgo: 1 }
     - { trait: stood_down, on: CREW_03, value: broken, daysAgo: 6, cyclesAgo: 1 }
     - { trait: avoids, on: CREW_04, toward: CREW_06, value: 3, daysAgo: 12, cyclesAgo: 2 }
+    - { trait: grieving, on: CREW_04, value: 1, daysAgo: 4, cyclesAgo: 1 }
     - { trait: came_back, on: CREW_05, value: withdrawn, daysAgo: 18, cyclesAgo: 3 }
     - { trait: avoids, on: CREW_05, toward: CREW_02, value: 2, daysAgo: 18, cyclesAgo: 3 }
   history:

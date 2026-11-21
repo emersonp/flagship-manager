@@ -278,6 +278,10 @@ A unit of narrative content with requirements, a cast, and mechanical effects.
 A condition in the expression language, read through the state view, true or false: `subject.trait.shaken >= 1 && subject.history.last('hurt')`. Storylets, vignettes, and options are written with them; encounter approaches are not.
 _Avoid_: Formula, script (a script is a storylet's text)
 
+**Row**:
+One clause of an expression, shown in the editor as a sentence of selects and steppers: "subject · trait grieving · is at least · 1", which is `subject.trait.grieving >= 1`. An expression is rows when it is clauses joined by `&&` in the shapes the editor knows, and text otherwise. A view of the string, never stored apart from it.
+_Avoid_: Condition (an approach's requirement), rule (a trait's launch rule), clause builder
+
 **Slot**:
 A named place in a storylet's or vignette's cast, filled by one crew member: `subject`, `target`, or any lower-case name not reserved. At most three, read in order.
 _Avoid_: Role, scope (its forerunner, until slice 1e, part four)
@@ -332,3 +336,11 @@ _Avoid_: Label, title
 
 **Content pack**:
 The author-written data: names, species, templates, storylet text, and grammars. Separate from systems.
+
+**Notes**:
+An item's `notes:`, plain text for the author, shown in the editor as "Author's notes" and never in play. On storylets, vignettes, traits, and encounters, in place of the comments inside a file, which a save from a form would drop.
+_Avoid_: Comment (only a file's leading comment is kept), description
+
+**Test ship**:
+A ship's state described in content (`content/testships/`): crew changes, traits held, history, chronicle entries, and arrivals, in days and cycles ago. The editor casts storylets and vignettes on it for real. Developer-only: play never reads one. USS Quality Assurance is the first.
+_Avoid_: Sample, fixture (the tests' placeholder pack), save

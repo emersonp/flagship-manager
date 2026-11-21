@@ -602,7 +602,7 @@ public sealed class ContentPagesTests : IClassFixture<RepoContentGuard>
     public void A_new_storylets_suggested_id_is_free_and_follows_the_packs_pattern()
     {
         ContentFileSet game = Game();
-        Assert.Equal("STORYLET_09", Web.Forms.NewIds.Next(game, ContentKind.Storylet));
+        Assert.Equal("STORYLET_10", Web.Forms.NewIds.Next(game, ContentKind.Storylet));
         Assert.Equal("VIGNETTE_07", Web.Forms.NewIds.Next(game, ContentKind.Vignette));
         Assert.Null(Web.Forms.NewIds.Next(game, ContentKind.Trait));
 

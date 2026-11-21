@@ -227,7 +227,16 @@ public class ContentFaithfulnessTests : IClassFixture<RepoContentGuard>
         }
 
         ContentFileSet canonical = ContentEdits.Canonicalize(files);
-        Assert.NotEqual(files.Files["storylets/base.yaml"], canonical.Files["storylets/base.yaml"]);
+        // The game's storylets file was last saved from the form (part six's worked example), so it is already as the writer writes it.
+        if (root == "content")
+        {
+            Assert.Equal(files.Files["storylets/base.yaml"], canonical.Files["storylets/base.yaml"]);
+        }
+        else
+        {
+            Assert.NotEqual(files.Files["storylets/base.yaml"], canonical.Files["storylets/base.yaml"]);
+        }
+
         ContentPack before = files.Validate().Pack!;
         ContentPack after = canonical.Validate().Pack!;
         Assert.NotNull(after);

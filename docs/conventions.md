@@ -13,7 +13,7 @@ Every id starts with a letter, holds only letters, digits, and underscores, and 
 
 The split is deliberate: an upper-case id in a file or a log is a reference to another item; a lower-case one belongs to the item it sits in, or is a word of the text.
 
-**One exception: traits.** A trait defined in `content/traits/` will have its own editor page (slice 1e, part six), but every trait id stays lower case: traits are typed into text and requirements far more often than they are opened as pages, and `subject.trait.SHAKEN` reads badly. Decided by the author on 2026-11-17 (GDD section 15, item 40).
+**One exception: traits.** A trait defined in `content/traits/` has its own editor page (since slice 1e, part six), but every trait id stays lower case: traits are typed into text and requirements far more often than they are opened as pages, and `subject.trait.SHAKEN` reads badly. Decided by the author on 2026-11-17 (GDD section 15, item 40).
 
 ## Reserved characters
 
@@ -55,6 +55,23 @@ The calendar is content (slice 1e-calendar, design 4.2): `content/calendars/<fil
 - The week is as many days as the calendar has weekdays. A month need not be whole weeks.
 - `start` is the date a new legacy begins on: `{ day: 13, month: vortun, year: 105 }`, a day of that month, in year 1 or later.
 - **Durations are written in weeks, never in days**, in content and tuning alike: `weeks:`, `lightWeeks:`. The engine keeps time in days and converts with the calendar's week. The one number in days is a cycle's length, in `tuning/calendar.yaml`, because it is the roll that moves the calendar, not a duration an effect sets.
+
+## Notes
+
+`notes:` holds what an author would once have written as a comment inside a file (slice 1e, part six, design 4.1), because a save from a form keeps only a file's leading comment and refuses to rewrite a file with any other.
+
+- It goes on the item it explains: a storylet, a vignette, a trait, or an encounter. The writer puts it after `name`, as a `|-` block.
+- It is plain sentences, wrapped as the file's other text is. A note that begins with the item's name and where it was designed says why the item exists: `The names on the wall (1e part five, design 4.8): ...`.
+- A note about one option, approach, or key starts with its id or key and a colon, on a line of its own: `make_time: Everyone's loyalty dips but the subject's ...`, `expires: ...`.
+- What explains the whole file goes in its leading comment, not in an item's notes. Lines and assignments have no `notes`, so theirs go there too.
+
+## Test ships
+
+A test ship (`content/testships/<file>.yaml`) is dev-only: play never reads it (slice 1e, part six, design 4.6).
+
+- Its name reads as a ship's: `USS Quality Assurance`. Its id is made from the name, lower case, words joined by `_`, articles dropped: `uss_quality_assurance`. A ship saved from Dev Play is named "<legacy> on <date>" and takes its id the same way, with `_2`, `_3` when one is taken.
+- Its `notes` say what each listed crew member is there for, naming the storylets and vignettes they cast in.
+- Every time is written as days and cycles ago (`daysAgo`, `cyclesAgo`), and history as the cycles ago it happened (1 is last cycle), so a ship never goes stale.
 
 ## YAML keys
 

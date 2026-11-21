@@ -598,7 +598,7 @@ public class StoryletContentTests
         ContentLoadResult result = ContentLoader.LoadDirectory(Path.Combine(TestContent.Root, "content"));
 
         Assert.Empty(result.Errors);
-        Assert.Equal(["STORYLET_01", "STORYLET_02", "STORYLET_03", "STORYLET_04", "STORYLET_05", "STORYLET_06", "STORYLET_07", "STORYLET_08"], result.Pack!.Storylets.Select(s => s.Id));
+        Assert.Equal(["STORYLET_01", "STORYLET_02", "STORYLET_03", "STORYLET_04", "STORYLET_05", "STORYLET_06", "STORYLET_07", "STORYLET_08", "STORYLET_09"], result.Pack!.Storylets.Select(s => s.Id));
         Assert.Equal(["rested", "hurt", "lost_crewmate", "sent", null, null], result.Pack.Vignettes.Select(v => v.Fact));
     }
 
