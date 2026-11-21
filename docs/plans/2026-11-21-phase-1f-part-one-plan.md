@@ -203,8 +203,8 @@ public sealed class TuningDrafts(ContentEditor editor, GameServices services)
 
 **Files:** `docs/screens/1f/tuning.html` (new), `docs/screens/1f/README.md` (new), following `docs/screens/1e-6/`'s form.
 
-- [ ] **Step 1:** Mock up the page from `docs/design/bridge-design.md`'s recipes, wide and narrow: the draft column (sections, a changed field showing its saved value, a dice field, a range field, a read-only section greyed with its label and link, Save and Discard with the "began at ... lost on restart" line, the stale banner), and the bench column (Mission tab, One mission and Every objective views, inputs, Run, the progress line, a summary table with saved, draft, and change columns with one change greyed and the rule under it, an encounter table, the worst seed links, a replay). Decide here the open items in design 8: how Every objective reads on a narrow screen, and whether the read-only sections fold away by default. Write the choices in the README.
-- [ ] **Step 2:** Show the author before Task 9 and take their changes. Commit "Mock up the Tuning page".
+- [x] **Step 1:** Mock up the page from `docs/design/bridge-design.md`'s recipes, wide and narrow: the draft column (sections, a changed field showing its saved value, a dice field, a range field, a read-only section greyed with its label and link, Save and Discard with the "began at ... lost on restart" line, the stale banner), and the bench column (Mission tab, One mission and Every objective views, inputs, Run, the progress line, a summary table with saved, draft, and change columns with one change greyed and the rule under it, an encounter table, the worst seed links, a replay). Decide here the open items in design 8: how Every objective reads on a narrow screen, and whether the read-only sections fold away by default. Write the choices in the README.
+- [x] **Step 2:** Show the author before Task 9 and take their changes. Commit "Mock up the Tuning page".
 
 ### Task 9: the page and the draft form
 
