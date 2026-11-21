@@ -247,6 +247,14 @@ _Avoid_: Config, settings, balance file
 The developer tool that runs one mission many times and reports how it tends to go. It never touches a legacy.
 _Avoid_: Simulator (that plays whole cycles), test harness
 
+**Draft** (of a tuning file):
+The changed numbers of a tuning file, held in the server's memory on the Tuning page until they are saved into the file or discarded. One per tuning file, shared by every tab, lost on a restart. The bench runs it beside the saved file on the same seeds.
+_Avoid_: Override, scratch tuning, preview
+
+**Within the noise**:
+Said of a change between the saved and the draft columns that is smaller than twice the standard error of the difference, as if the two columns were independent samples. Such a change is greyed, never coloured good or bad.
+_Avoid_: Insignificant, not significant
+
 ### Life aboard
 
 **Quality**:

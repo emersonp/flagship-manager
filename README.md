@@ -14,6 +14,8 @@ A starship captain management sim, played in the browser, with a headless simula
 
 `tests/browser/edit.sh` drives the content editor in a real browser on a scratch copy of `tests/fixtures/content/`: it renames content through the forms, plays until a renamed encounter appears, and checks that refused saves write nothing. It is not part of the gate either.
 
+`tests/browser/tuning.sh` drives the Tuning page in a real browser on a scratch copy of `tests/fixtures/content/`: from "Bench this" in Dev Play it changes one number in the draft, runs, replays the worst run, saves, and checks that the legacy's next mission starts on the new number. It is not part of the gate either.
+
 ## Run the game
 
 `./run.sh` (or `./run.ps1` in PowerShell) starts the game and prints its address, `http://127.0.0.1:5080` by default. Set `ASPNETCORE_URLS` to use another address. The database is `starship-sim.db` in the repository root, and git ignores it.

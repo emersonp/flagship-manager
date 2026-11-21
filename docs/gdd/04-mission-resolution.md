@@ -79,7 +79,7 @@ A tactical grid resolver would implement the same two operations. `pending` woul
 The numbers in this section were set on the throwaway prototype's bench (2,000 missions per briefing) and are starting values, to be tuned in play.
 
 - Every number the resolver uses (tier margins, strain and momentum effects, the reach margin, assist values, call-rule weights, experience by margin, and injury targets) lives in one tuning file in the content pack, not in code.
-- In developer mode the file reloads without a restart, and a tuning page edits it and re-runs the mission bench on the same seeds, showing before and after side by side.
+- In developer mode the file reloads without a restart, and the Tuning page (`/dev/tuning`, slice 1f part one) edits it and re-runs the mission bench on the same seeds, showing before and after side by side. Its draft is a form read from the file itself, each number under its section with the file's own comment as its hint, held in the server's memory until it is saved or discarded; Save writes only the changed numbers into the file's text, comments and layout kept, through the editor's validated path, and is refused if the file changed since the draft began. Run benches the saved file and the draft on the same seeds, interleaved and streamed, with a change column that has no good or bad colour and greys a change within the noise (under twice the standard error of the difference). The sections the mission bench cannot measure (`storylets`, `salience`, `vignettes`, `captainsTime`, `history`) are read-only until legacy mode (1f part two).
 - A running mission keeps the tuning it started with, so a legacy stays deterministic.
 
 Before the 1d review:
@@ -97,3 +97,13 @@ After the 1d review (authored approaches), fixture content, 2000 runs, rookie / 
 - Deaths per 100 crew-missions: 3.1 / 0.1 / 0.0.
 - Calls per mission: 1.36 / 1.29 / 1.22.
 - Initiatives per mission: 1.89 / 2.46 / 2.44.
+
+The worked example of slice 1f, part one (2026-11-21), on the game's own pack, Waystation survey, 10,000 runs from seed 1, an average lead backed on every call, rookie / mixed / veteran. On the Tuning page, opened from "Bench this" in Orders, one number was changed: **`compounding.strain.failure` from 2 to 1**, so a failed check adds one strain instead of two. Saved, then draft:
+
+- Loss %: 34.7 / 1.0 / 0.0, then 18.1 / 0.1 / 0.0.
+- Full success %: 1.8 / 69.7 / 95.8, then 2.0 / 70.0 / 95.9 (every change within the noise).
+- Withdrawal %: 47.8 / 3.7 / 0.2, then 35.2 / 1.7 / 0.1; incomplete %: 4.3 / 1.9 / 0.2, then 25.3 / 3.1 / 0.2; partial success %: 11.5 / 23.6 / 3.8, then 19.5 / 25.1 / 3.8.
+- Deaths per 100 crew-missions: 3.3 / 0.1 / 0.0, then 2.7 / 0.0 / 0.0.
+- Rookies reaching the fifth encounter: 30.6%, then 68.8%.
+
+Why this number: rookies lost by collapsing, not by failing to finish. Their strain entering encounters 3 to 5 was about 1.6, against 0.3 for the mixed team, and a failure, about two in five of their checks, was worth two strain, so three failures without a success between them ended the mission at the cap of 5. Halving it brought rookie loss back to about the 21% the prototype had before the 1d review, and veterans did not move outside the noise. Of the numbers benched against it, `check.target` 7 to 6 gave rookies 21.6% but moved the mixed team's full success by 19 points; `compounding.abortCallAt` 4 to 3 gave 6.9% but only by turning losses into withdrawals (81.4%); `compounding.strain.partial` 1 to 0 gave 24.7%; the tier margins and the disaster strain gave 30 to 32%. Rookies still almost never succeed in full: what they lost to collapse now ends as partial success or incomplete. Whether that is the shape wanted is the author's to judge.

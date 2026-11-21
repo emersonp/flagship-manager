@@ -15,7 +15,7 @@ compounding:
     critical: 1
   strain:
     partial: 1
-    failure: 2
+    failure: 1
     disaster: 3
     reliefOnSuccess: 1
   skipAtMomentum: 4

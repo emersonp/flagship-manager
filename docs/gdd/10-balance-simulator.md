@@ -32,10 +32,10 @@ Built in Phase 0 and run on every change.
 
 A second simulator mode that answers one question: is this mission balanced? It runs one mission many times (10,000 by default) and never runs cycles.
 
-- **Where**: the `SimRunner` command line, and a developer-mode page reachable from the legacy selection screen and from any objective inside a legacy. Both call the same code.
+- **Where**: the `SimRunner` command line, and the Tuning page (`/dev/tuning`, developer mode only, slice 1f part one), beside the draft of the tuning file. Both call the same code, and the page's run under the saved tuning gives the command line's figures on the same inputs and seed. The page is reached from the editor's index (Mission tuning), the legacy selection screen (Tuning), Dev Play's panel (Tuning, with that legacy as the team source), and "Bench this" on each objective in Orders and the briefing (that objective and legacy, and the team as picked so far) and in the aftermath (the mission just finished, its team, and its lead). Its views are One mission and Every objective (each objective's full success, loss, deaths, and calls for each strength, 1,000 runs a cell).
 - **Inputs**:
   - The mission: an objective template (encounters redrawn each run), or one fixed drawn mission (same encounters each run). The first tests the template; the second tests a specific offer.
-  - The team, from one of three sources: a real team from a legacy, generated teams at a named strength (rookie, mixed, or veteran), or a sweep across all three.
+  - The team, from one of three sources: a real team from a legacy or a test ship, generated teams at a named strength (rookie, mixed, or veteran), or a sweep across all three.
   - Loadout and operational parameters (priority, how readily to call in, and develop juniors), or a sweep across them.
   - A policy to answer calls, and the run count and base seed.
 - **Isolation**: a bench run works on an in-memory copy. It never writes to a legacy, its event log, or its chronicle.
@@ -48,5 +48,5 @@ A second simulator mode that answers one question: is this mission balanced? It 
   - Momentum and strain at each encounter, to show where runs are won or lost.
   - The same alarms as the full simulator, applied to this one mission.
   - With a sweep: the results side by side, so the gap between rookie and veteran teams is visible.
-- **Reproducing a run**: every run is identified by its seed. Any single run, such as the worst one, can be replayed to read its full report.
-- **Speed**: 10,000 runs of one mission is a few seconds of pure computation, so the page can show results as they arrive.
+- **Reproducing a run**: every run is identified by its seed. Any single run, such as the worst one, can be replayed to read its full report; on the Tuning page the worst run's seed is a link, and a replay shows the mission log as the bridge draws it, under the saved tuning or the draft.
+- **Speed**: 10,000 runs of one mission is a few seconds of pure computation, so the page can show results as they arrive. On the Tuning page a sweep of 10,000 runs a strength takes about 7 seconds, and with a draft (saved and draft, 60,000 runs) about 11.
