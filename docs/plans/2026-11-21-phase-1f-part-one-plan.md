@@ -90,10 +90,10 @@ public static class BenchNoise
 }
 ```
 
-- [ ] **Step 1:** Implement the three standard errors: a share's `p(1-p)/n` per column, a rate's `count/n²`, a mean's sample variance over `n`. A column with `n` of 0 is never within the noise (nothing to compare).
-- [ ] **Step 2: which rows are which.** Results % and reached % are shares of runs. Deaths and incapacitations per 100 crew-missions are rates. Calls, initiatives, experience, momentum, and strain are means. In the encounter tables, tier %, position %, and narrowed % are shares of checks; deaths are rates of crew-missions. Put this list in one place (`BenchNoise` or the figures' row list in Task 10), not in the components.
-- [ ] **Step 3: tests.** A known pair of shares either side of the threshold (for example 34.0% against 33.0% and 35.5% at 10,000 runs each: compute the threshold in the test from the formula, and pick one pair under and one over) greys one and not the other. The same for a rate and a mean. Zero runs is not within.
-- [ ] **Step 4:** `./check.sh`; commit "Decide which bench changes are within the noise".
+- [x] **Step 1:** Implement the three standard errors: a share's `p(1-p)/n` per column, a rate's `count/n²`, a mean's sample variance over `n`. A column with `n` of 0 is never within the noise (nothing to compare).
+- [x] **Step 2: which rows are which.** Results % and reached % are shares of runs. Deaths and incapacitations per 100 crew-missions are rates. Calls, initiatives, experience, momentum, and strain are means. In the encounter tables, tier %, position %, and narrowed % are shares of checks; deaths are rates of crew-missions. Put this list in one place (`BenchNoise` or the figures' row list in Task 10), not in the components.
+- [x] **Step 3: tests.** A known pair of shares either side of the threshold (for example 34.0% against 33.0% and 35.5% at 10,000 runs each: compute the threshold in the test from the formula, and pick one pair under and one over) greys one and not the other. The same for a rate and a mean. Zero runs is not within.
+- [x] **Step 4:** `./check.sh`; commit "Decide which bench changes are within the noise".
 
 ### Task 3: a tuning file's fields, and saving them in place
 

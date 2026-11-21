@@ -154,7 +154,7 @@ On the game's own pack, rookies lose about 34% of missions (GDD 4.7, after the 1
 
 ### 5.1 Modules
 
-- **`MissionBench`** gains `BenchTally`, fed one run at a time and readable at any point, which `Bench.Run` is now a loop over; cancellation and progress on `Bench.Run`; the figures needed for the noise test (each mean's sum of squares); an every-objective run over the same options (`Bench.Objectives`); and the mission's last state on each trace. It stays free of the web and of any legacy.
+- **`MissionBench`** gains `BenchTally`, fed one run at a time and readable at any point, which `Bench.Run` is now a loop over; cancellation and progress on `Bench.Run`; the figures needed for the noise test (each mean's sum of squares); an every-objective run over the same options (`Bench.Objectives`); the mission's last state on each trace; and `BenchNoise`, the noise rule (section 4.8) and the one list of which rows are shares, rates, and means. It stays free of the web and of any legacy.
 - **`Sim.Content`** gains reading a tuning file's leaves with their key paths and comments, and replacing scalars in place in the text (the tuning files only; the list kinds keep the writer).
 - **`Sim.Crew` and `Sim.Traits`**: the launch's team building is reachable as one function, if it is not already, so the bench and the launch share it.
 - **`Web`** gains the Tuning page, the draft singleton, the form, the streamed runs, replay through `Sim.Narrative`, the entry links, and the editor index's link.
@@ -215,3 +215,9 @@ Open for its own design:
 - **Every objective**: `Bench.Objectives` returns `ObjectiveCell`s in the pack's order, one per strength asked for, or one per objective for a real team, refused in `MissionsModule`'s words ("A team of 4 is outside the 2 to 3 this objective takes.") when its size does not fit. Progress there is the runs done across every cell. The sentence is written out again rather than shared with `MissionsModule`; Task 4 is where the launch's checks are lifted out.
 - **Generated teams follow `pack.Bench`**, as they did; a test now says so, since the draft column will pass `pack with { Bench = draftBench }` (Task 10).
 - `MissionTrace` gains `State`, the mission's last `MissionState`.
+
+### Task 2: the noise rule
+
+- `BenchNoise` (new, `src/MissionBench/BenchNoise.cs`) is design 4.8's test: `Within(kind, a, b)` is true when the change is under twice the standard error of the difference, each column's variance a share's `p(1-p)/n`, a rate's `count/n²`, or a mean's sample variance over `n`. A column of no runs is never within. `BenchNoise.Rule` is the sentence said once under each table.
+- **Which rows are which** is one list, `BenchNoise.KindOf(BenchRow)`, so Task 10's tables ask it rather than decide in a component: results and reached are shares of runs; deaths and incapacitations rates of crew-missions; calls, initiatives, experience, momentum, and strain means; an encounter's tier, position, and narrowed shares of its checks, and its deaths and incapacitations rates of crew-missions. The encounter's incapacitations are not in the plan's list; they are rates, as the summary's are.
+- **Two edges (my call):** a change of exactly nothing is within the noise, even where neither column has any spread (0 deaths against 0), so an unchanged row is greyed rather than shown as a change; and a mean over a single run has no sample variance, so it is taken as 0.
