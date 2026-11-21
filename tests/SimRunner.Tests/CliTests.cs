@@ -203,6 +203,49 @@ public class CliTests
         Assert.Contains("Result:", output, StringComparison.Ordinal);
     }
 
+    // The bench's full text, pinned before slice 1f part one moved its loop into a tally (Task 1), so the command line prints byte
+    // for byte what it printed: a single team, a sweep, --compare, and --replay, in tests/SimRunner.Tests/golden-bench.txt. If a
+    // change is intended, accept it in the same commit: the test writes what it found beside the file, as golden-bench.received.txt.
+    [Fact]
+    public void Golden_bench_output_matches_the_accepted_text()
+    {
+        string file = Path.Combine(Path.GetTempPath(), $"tuning-{Guid.NewGuid():N}.yaml");
+        try
+        {
+            File.WriteAllText(file, File.ReadAllText(Path.Combine(Content, "tuning", "missions.yaml")).Replace("  target: 7 ", "  target: 9 ", StringComparison.Ordinal));
+            string[][] cases =
+            [
+                ["bench", "--objective", "OBJECTIVE_TEMPLATE_1", "--runs", "300", "--seed", "4", "--team", "rookie", "--lead", "reckless", "--gear", "scanner", "--content", Content],
+                ["bench", "--objective", "OBJECTIVE_TEMPLATE_1", "--runs", "200", "--team", "sweep", "--policy", "safe", "--fixed-draw", "--content", Content],
+                ["bench", "--objective", "OBJECTIVE_TEMPLATE_1", "--runs", "250", "--compare", file, "--content", Content],
+                ["bench", "--objective", "OBJECTIVE_TEMPLATE_1", "--team", "veteran", "--replay", "11", "--content", Content],
+                ["bench", "--objective", "OBJECTIVE_TEMPLATE_1", "--replay", "5", "--compare", file, "--content", Content],
+            ];
+            string actual = string.Concat(cases.Select(args =>
+            {
+                (int exit, string output, string error) = Run(args);
+                return $"$ {string.Join(' ', args.Where(a => a != Content && a != file))} -> {exit}{error}\n{output.ReplaceLineEndings("\n")}\n";
+            }));
+            string path = Path.Combine(FindRoot(), "tests", "SimRunner.Tests", "golden-bench.txt");
+            string received = Path.ChangeExtension(path, ".received.txt");
+            string expected = File.Exists(path) ? File.ReadAllText(path).ReplaceLineEndings("\n") : "";
+            if (actual == expected)
+            {
+                File.Delete(received);
+            }
+            else
+            {
+                File.WriteAllText(received, actual);
+            }
+
+            Assert.Equal(expected, actual);
+        }
+        finally
+        {
+            File.Delete(file);
+        }
+    }
+
     private static (int Exit, string Output, string Error) Run(params string[] args)
     {
         var output = new StringWriter();

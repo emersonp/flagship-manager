@@ -154,7 +154,7 @@ On the game's own pack, rookies lose about 34% of missions (GDD 4.7, after the 1
 
 ### 5.1 Modules
 
-- **`MissionBench`** gains cancellation and progress on `Bench.Run`, the figures needed for the noise test (each mean's sum of squares), and an every-objective run over the same options. It stays free of the web and of any legacy.
+- **`MissionBench`** gains `BenchTally`, fed one run at a time and readable at any point, which `Bench.Run` is now a loop over; cancellation and progress on `Bench.Run`; the figures needed for the noise test (each mean's sum of squares); an every-objective run over the same options (`Bench.Objectives`); and the mission's last state on each trace. It stays free of the web and of any legacy.
 - **`Sim.Content`** gains reading a tuning file's leaves with their key paths and comments, and replacing scalars in place in the text (the tuning files only; the list kinds keep the writer).
 - **`Sim.Crew` and `Sim.Traits`**: the launch's team building is reachable as one function, if it is not already, so the bench and the launch share it.
 - **`Web`** gains the Tuning page, the draft singleton, the form, the streamed runs, replay through `Sim.Narrative`, the entry links, and the editor index's link.
@@ -203,3 +203,15 @@ Open for its own design:
 - Whether "Bench this" also appears in the aftermath, for the mission just played (the same team, the same objective).
 
 **Next after part one:** slice 1f-previews (GDD section 15, item 52) moves the encounter, objective, and line previews onto test ships. It starts a mission on a test ship's crew through the same launch team building as section 4.5, so part one should leave that function callable with a test ship's state, not only a legacy's.
+
+## 9. As built
+
+### Task 1: the bench as a tally, with cancellation, progress, and spread
+
+- `BenchTally` (new, `src/MissionBench/BenchTally.cs`) holds the loop body that was in `Bench.Run`; `Figures()` copies its counts, so a snapshot read part way does not move as more runs are added. `Bench.Run` is a loop of `Replay` and `Add`. Its figures are unchanged, field for field: `tests/MissionBench.Tests/golden-figures.txt` pins them on the fixture and the game's pack (generated teams of each strength, a real team, fixed draw, gear, every call policy but one), captured before the change. Since Task 14 saves a number into `content/tuning/missions.yaml`, its game-pack lines will move then, as any golden on the game's pack does.
+- **The worst seed** is the run with the most harm, the lowest seed among equals. Fed in seed order that is today's rule (the first run with the most harm); it also makes the seed the same in whatever order a tally is fed **(my call, reading the plan's "whatever order")**.
+- **Cancellation** throws `OperationCanceledException`, checked before the first run and every 100 runs (`Bench.ProgressEvery`); progress reports the runs done at each 100 and at the end. A token cancelled before the run starts runs nothing.
+- **The spread**: `BenchFigures` gains `CallsSquares`, `InitiativesSquares` (as `long`), and `ExperienceSquaresByMember`; `StageFigures` gains `MomentumSquares` and `StrainSquares`. Each is a sum of squares, one term a run. The command line's printed text is unchanged (`tests/SimRunner.Tests/golden-bench.txt` pins a single team, a sweep, `--compare`, and `--replay`, captured before the change). **`--out`'s JSON gains these fields**, since it serializes `BenchFigures` whole; it is a file, not printed output, and nothing reads it back.
+- **Every objective**: `Bench.Objectives` returns `ObjectiveCell`s in the pack's order, one per strength asked for, or one per objective for a real team, refused in `MissionsModule`'s words ("A team of 4 is outside the 2 to 3 this objective takes.") when its size does not fit. Progress there is the runs done across every cell. The sentence is written out again rather than shared with `MissionsModule`; Task 4 is where the launch's checks are lifted out.
+- **Generated teams follow `pack.Bench`**, as they did; a test now says so, since the draft column will pass `pack with { Bench = draftBench }` (Task 10).
+- `MissionTrace` gains `State`, the mission's last `MissionState`.

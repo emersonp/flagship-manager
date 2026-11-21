@@ -7,84 +7,68 @@ namespace MissionBench;
 // Runs one mission many times in memory. It holds no legacy and writes nothing.
 public static class Bench
 {
-    public static BenchFigures Run(ContentPack pack, MissionTuning tuning, BenchOptions options)
-    {
-        var outcomes = Enum.GetValues<MissionOutcome>().ToDictionary(o => o, _ => 0);
-        var experience = new SortedDictionary<string, double>(StringComparer.Ordinal);
-        var encounters = new SortedDictionary<string, EncounterTally>(StringComparer.Ordinal);
-        var stages = new List<StageTally>();
-        Dictionary<string, List<string>> positions = pack.Encounters.ToDictionary(e => e.Id, e => e.Approaches.Select(a => a.Id).ToList());
-        int crewMissions = 0, deaths = 0, incapacitated = 0, calls = 0, initiatives = 0, worst = -1;
-        ulong worstSeed = options.Seed;
+    // How often Run reports progress and checks for cancellation, in runs.
+    public const int ProgressEvery = 100;
 
+    // Runs options.Runs missions from options.Seed through a tally. Progress is the runs done, every ProgressEvery runs and at the end;
+    // a cancellation is honoured within ProgressEvery runs, by throwing OperationCanceledException.
+    public static BenchFigures Run(ContentPack pack, MissionTuning tuning, BenchOptions options,
+        IProgress<int>? progress = null, CancellationToken cancellation = default)
+    {
+        var tally = new BenchTally(pack);
         for (int i = 0; i < options.Runs; i++)
         {
-            MissionTrace trace = Replay(pack, tuning, options, options.Seed + (ulong)i);
-            outcomes[trace.Result.Outcome]++;
-            calls += trace.Result.Calls;
-            initiatives += trace.Result.Initiatives;
-            crewMissions += trace.Result.Crew.Count;
-            int harm = 0;
-            foreach (CrewResult crew in trace.Result.Crew)
+            if (i % ProgressEvery == 0)
             {
-                experience[crew.Id] = experience.GetValueOrDefault(crew.Id) + crew.Experience.Values.Sum();
-                deaths += crew.Status == MemberStatus.Dead ? 1 : 0;
-                incapacitated += crew.Status == MemberStatus.Incapacitated ? 1 : 0;
-                harm += crew.Status == MemberStatus.Dead ? 10 : crew.Status == MemberStatus.Incapacitated ? 1 : 0;
-            }
-
-            if (harm > worst)
-            {
-                worst = harm;
-                worstSeed = trace.Seed;
-            }
-
-            foreach (Beat beat in trace.Beats)
-            {
-                switch (beat)
+                if (i > 0)
                 {
-                    case StageBeat stage:
-                        while (stages.Count <= stage.Cursor)
-                        {
-                            stages.Add(new StageTally());
-                        }
-
-                        stages[stage.Cursor].Reached++;
-                        stages[stage.Cursor].Momentum += stage.Momentum;
-                        stages[stage.Cursor].Strain += stage.Strain;
-                        break;
-                    case CheckBeat check:
-                        EncounterTally tally = Tally(encounters, check.EncounterId);
-                        tally.Checks++;
-                        int position = positions[check.EncounterId].IndexOf(check.Approach);
-                        tally.ByPosition[position]++;
-                        tally.Narrowed += check.Offered < positions[check.EncounterId].Count ? 1 : 0;
-                        tally.Tiers[check.Tier]++;
-                        break;
-                    case InjuryBeat { Outcome: InjuryOutcome.Dead } injury:
-                        Tally(encounters, injury.EncounterId).Deaths++;
-                        break;
-                    case InjuryBeat { Outcome: InjuryOutcome.Incapacitated } injury:
-                        Tally(encounters, injury.EncounterId).Incapacitated++;
-                        break;
-                    default:
-                        break;
+                    progress?.Report(i);
                 }
+
+                cancellation.ThrowIfCancellationRequested();
+            }
+
+            tally.Add(Replay(pack, tuning, options, options.Seed + (ulong)i));
+        }
+
+        progress?.Report(options.Runs);
+        return tally.Figures();
+    }
+
+    // Every objective in the pack, in the pack's order, options.Runs runs a cell (design 4.8, "Every objective"): one cell for each
+    // strength asked for, or, for a real team, one cell with Strength null, refused when the team's size is outside what the objective
+    // takes. Progress is the runs done across every cell.
+    public static IReadOnlyList<ObjectiveCell> Objectives(ContentPack pack, MissionTuning tuning, BenchOptions options,
+        IReadOnlyList<TeamStrength> strengths, IProgress<int>? progress = null, CancellationToken cancellation = default)
+    {
+        var cells = new List<ObjectiveCell>();
+        int done = 0;
+        foreach (ObjectiveDef objective in pack.Objectives)
+        {
+            if (options.Team is { } team)
+            {
+                int size = team.Members.Count;
+                if (size < objective.TeamSizeMin || size > objective.TeamSizeMax)
+                {
+                    // The words MissionsModule's launch check uses.
+                    cells.Add(new ObjectiveCell(objective.Id, null, null, $"A team of {size} is outside the {objective.TeamSizeMin} to {objective.TeamSizeMax} this objective takes."));
+                    continue;
+                }
+
+                cells.Add(new ObjectiveCell(objective.Id, null, Run(pack, tuning, options with { ObjectiveId = objective.Id }, Offset(progress, done), cancellation), null));
+                done += options.Runs;
+                continue;
+            }
+
+            foreach (TeamStrength strength in strengths)
+            {
+                BenchOptions cell = options with { ObjectiveId = objective.Id, Strength = strength };
+                cells.Add(new ObjectiveCell(objective.Id, strength, Run(pack, tuning, cell, Offset(progress, done), cancellation), null));
+                done += options.Runs;
             }
         }
 
-        return new BenchFigures(
-            options.Runs,
-            crewMissions,
-            outcomes,
-            deaths,
-            incapacitated,
-            calls,
-            initiatives,
-            experience.ToDictionary(e => e.Key, e => e.Value / options.Runs),
-            encounters.Select(e => new EncounterFigures(e.Key, e.Value.Checks, e.Value.ByPosition, e.Value.Narrowed, e.Value.Tiers, e.Value.Deaths, e.Value.Incapacitated)).ToList(),
-            stages.Select((s, i) => new StageFigures(i + 1, s.Reached, s.Momentum / s.Reached, s.Strain / s.Reached)).ToList(),
-            worstSeed);
+        return cells;
     }
 
     // One run, named by its seed, with every beat kept.
@@ -103,7 +87,7 @@ public static class Bench
             beats.AddRange(step.Beats);
         }
 
-        return new MissionTrace(seed, team, beats, step.Result!);
+        return new MissionTrace(seed, team, beats, step.Result!, step.State);
     }
 
     public static CallAnswer Answer(CallPolicy policy, PendingCall call)
@@ -117,38 +101,16 @@ public static class Bench
         };
     }
 
-    private static EncounterTally Tally(SortedDictionary<string, EncounterTally> encounters, string id)
+    private static IProgress<int>? Offset(IProgress<int>? progress, int done)
     {
-        if (!encounters.TryGetValue(id, out EncounterTally? tally))
+        return progress is null ? null : new OffsetProgress(progress, done);
+    }
+
+    private sealed class OffsetProgress(IProgress<int> inner, int done) : IProgress<int>
+    {
+        public void Report(int value)
         {
-            tally = new EncounterTally();
-            encounters[id] = tally;
+            inner.Report(done + value);
         }
-
-        return tally;
-    }
-
-    private sealed class EncounterTally
-    {
-        public int Checks { get; set; }
-
-        public int[] ByPosition { get; } = new int[EncounterDef.MaxApproaches];
-
-        public int Narrowed { get; set; }
-
-        public int Deaths { get; set; }
-
-        public int Incapacitated { get; set; }
-
-        public Dictionary<Tier, int> Tiers { get; } = Enum.GetValues<Tier>().ToDictionary(t => t, _ => 0);
-    }
-
-    private sealed class StageTally
-    {
-        public int Reached { get; set; }
-
-        public double Momentum { get; set; }
-
-        public double Strain { get; set; }
     }
 }

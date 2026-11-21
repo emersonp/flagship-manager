@@ -36,7 +36,8 @@ internal static class PrototypeCrew
         return new TeamMember($"CREW_{n:00}", seniority, levels, caution, discipline);
     }
 
-    private static ContentPack LoadPack()
+    // The repository's root, found by its Directory.Build.props.
+    public static string Root()
     {
         DirectoryInfo? directory = new(AppContext.BaseDirectory);
         while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "Directory.Build.props")))
@@ -44,7 +45,12 @@ internal static class PrototypeCrew
             directory = directory.Parent;
         }
 
-        ContentLoadResult result = ContentLoader.LoadDirectory(Path.Combine(directory!.FullName, "tests", "fixtures", "content"));
+        return directory?.FullName ?? throw new InvalidOperationException("Repository root not found.");
+    }
+
+    private static ContentPack LoadPack()
+    {
+        ContentLoadResult result = ContentLoader.LoadDirectory(Path.Combine(Root(), "tests", "fixtures", "content"));
         return result.Pack ?? throw new InvalidOperationException(string.Join("; ", result.Errors.Select(e => $"{e.File}: {e.Message}")));
     }
 }

@@ -28,6 +28,7 @@ public enum CallPolicy
 
 public sealed record BenchOptions(string ObjectiveId)
 {
+    // Runs in Bench.Run; in Bench.Objectives, runs in each cell.
     public int Runs { get; init; } = 10000;
 
     public ulong Seed { get; init; } = 1;

@@ -1,0 +1,211 @@
+$ bench --objective OBJECTIVE_TEMPLATE_1 --runs 300 --seed 4 --team rookie --lead reckless --gear scanner --content -> 0
+OBJECTIVE_TEMPLATE_1: 300 missions from seed 4. Team rookie, lead Reckless, policy BackLead. Priority 0, autonomy 0, develop juniors off. Gear: scanner. Draw: fresh each run.
+
+                                     rookie
+Full success %                         10.0
+Partial success %                       0.7
+Withdrawal %                           41.3
+Incomplete %                            0.0
+Loss %                                 48.0
+Deaths per 100 crew-missions            5.7
+Incapacitated per 100 crew-missions    15.0
+Calls per mission                      0.43
+Initiatives per mission                2.28
+Experience, CREW_01                     5.3
+Experience, CREW_02                     3.5
+Experience, CREW_03                     2.4
+Reached encounter 1 %                 100.0
+Momentum entering encounter 1          0.00
+Strain entering encounter 1            0.00
+Reached encounter 2 %                  94.7
+Momentum entering encounter 2          0.43
+Strain entering encounter 2            1.35
+Reached encounter 3 %                  61.7
+Momentum entering encounter 3          0.95
+Strain entering encounter 3            1.98
+Reached encounter 4 %                  29.3
+Momentum entering encounter 4          1.77
+Strain entering encounter 4            1.78
+Reached encounter 5 %                  15.3
+Momentum entering encounter 5          2.50
+Strain entering encounter 5            1.67
+Means are over the missions that reached each encounter. A chained encounter shifts later positions.
+
+Encounters (rookie); worst run: seed 14
+Encounter        checks  1st %  2nd %  3rd %  4th %  narrowed %  crit %  succ %  part %  fail %  dis %  deaths  incap.
+ENCOUNTER_01        113     66     34      0      0           0       5      34      37      19      4       6      13
+ENCOUNTER_02         97     74     26      0      0           0       0      29      39      28      4       3       3
+ENCOUNTER_03        107     67     33      0      0           0       1      13      42      36      7       6      18
+ENCOUNTER_04        110    100      0      0      0           0       0      24      42      33      2       2       3
+ENCOUNTER_05        129     68     32      0      0           0       2      30      40      26      2      26      62
+ENCOUNTER_06        121     64     36      0      0           0       0      18      34      39      9       4      16
+ENCOUNTER_07        110    100      0      0      0           0       0      19      34      41      6       2      14
+ENCOUNTER_08        101     63     37      0      0           0       0      27      40      31      3       1       4
+ENCOUNTER_CHAIN       5     80     20      0      0           0       0       0      20      40     40       1       2
+
+$ bench --objective OBJECTIVE_TEMPLATE_1 --runs 200 --team sweep --policy safe --fixed-draw --content -> 0
+OBJECTIVE_TEMPLATE_1: 200 missions from seed 1. Team sweep, lead Average, policy Safe. Priority 0, autonomy 0, develop juniors off. Gear: none. Draw: fixed.
+
+                                     rookie  mixed  veteran
+Full success %                          1.5   74.0     95.0
+Partial success %                      15.5   21.5      5.0
+Withdrawal %                           57.5    2.5      0.0
+Incomplete %                            1.5    2.0      0.0
+Loss %                                 24.0    0.0      0.0
+Deaths per 100 crew-missions            1.5    0.0      0.0
+Incapacitated per 100 crew-missions     6.8    0.0      0.0
+Calls per mission                      1.00   1.01     1.00
+Initiatives per mission                2.07   2.98     3.00
+Experience, CREW_01                     6.4   12.9      7.3
+Experience, CREW_02                     3.8    4.3      4.1
+Experience, CREW_03                     2.8    2.2      2.7
+Reached encounter 1 %                 100.0  100.0    100.0
+Momentum entering encounter 1          0.00   0.00     0.00
+Strain entering encounter 1            0.00   0.00     0.00
+Reached encounter 2 %                 100.0  100.0    100.0
+Momentum entering encounter 2          0.06   0.26     0.53
+Strain entering encounter 2            1.20   0.30     0.13
+Reached encounter 3 %                  76.5   99.0    100.0
+Momentum entering encounter 3          0.07   0.49     1.05
+Strain entering encounter 3            1.63   0.21     0.06
+Reached encounter 4 %                  42.5   98.5    100.0
+Momentum entering encounter 4          0.26   0.93     1.98
+Strain entering encounter 4            1.54   0.25     0.07
+Reached encounter 5 %                  30.0   98.5    100.0
+Momentum entering encounter 5          0.00   0.27     1.13
+Strain entering encounter 5            1.37   0.13     0.01
+Means are over the missions that reached each encounter. A chained encounter shifts later positions.
+
+Encounters (rookie); worst run: seed 14
+Encounter        checks  1st %  2nd %  3rd %  4th %  narrowed %  crit %  succ %  part %  fail %  dis %  deaths  incap.
+ENCOUNTER_01         59     59     41      0      0           0       0      15      42      36      7       1       7
+ENCOUNTER_04        197    100      0      0      0           0       0      25      37      37      2       0       4
+ENCOUNTER_05         85     62     38      0      0           0       0       9      34      45     12       2       3
+ENCOUNTER_06        200     68     32      0      0           0       0      22      38      39      2       2       1
+ENCOUNTER_08        153     60     40      0      0           0       0      18      36      39      7       3      25
+ENCOUNTER_CHAIN       4    100      0      0      0           0       0       0       0      50     50       1       1
+
+Encounters (mixed); worst run: seed 1
+Encounter     checks  1st %  2nd %  3rd %  4th %  narrowed %  crit %  succ %  part %  fail %  dis %  deaths  incap.
+ENCOUNTER_01     197     73     27      0      0           0      21      58      20       1      0       0       0
+ENCOUNTER_04     200    100      0      0      0           0      23      63      14       1      0       0       0
+ENCOUNTER_05     197     76     24      0      0           0      19      61      16       3      0       0       0
+ENCOUNTER_06     200     80     20      0      0           0      12      60      27       2      0       0       0
+ENCOUNTER_08     198     72     28      0      0           0      21      63      16       0      0       0       0
+
+Encounters (veteran); worst run: seed 1
+Encounter     checks  1st %  2nd %  3rd %  4th %  narrowed %  crit %  succ %  part %  fail %  dis %  deaths  incap.
+ENCOUNTER_01     200     63     37      0      0           0      57      41       3       0      0       0       0
+ENCOUNTER_04     200    100      0      0      0           0      52      46       3       0      0       0       0
+ENCOUNTER_05     200     66     34      0      0           0      57      41       3       0      0       0       0
+ENCOUNTER_06     200     67     33      0      0           0      27      60      13       0      0       0       0
+ENCOUNTER_08     200     61     39      0      0           0      57      40       4       0      0       0       0
+
+$ bench --objective OBJECTIVE_TEMPLATE_1 --runs 250 --compare --content -> 0
+OBJECTIVE_TEMPLATE_1: 250 missions from seed 1. Team mixed, lead Average, policy BackLead. Priority 0, autonomy 0, develop juniors off. Gear: none. Draw: fresh each run.
+
+                                     before  after  change
+Full success %                         71.6   16.8   -54.8
+Partial success %                      24.0   34.4   +10.4
+Withdrawal %                            2.0   30.0   +28.0
+Incomplete %                            1.6    6.4    +4.8
+Loss %                                  0.8   12.4   +11.6
+Deaths per 100 crew-missions            0.0    0.9    +0.9
+Incapacitated per 100 crew-missions     0.0    2.7    +2.7
+Calls per mission                      1.28   1.35   +0.07
+Initiatives per mission                2.49   2.30   -0.18
+Experience, CREW_01                    13.2   12.1    -1.2
+Experience, CREW_02                     4.4    3.9    -0.5
+Experience, CREW_03                     2.2    2.2    -0.0
+Reached encounter 1 %                 100.0  100.0    +0.0
+Momentum entering encounter 1          0.00   0.00   +0.00
+Strain entering encounter 1            0.00   0.00   +0.00
+Reached encounter 2 %                 100.0  100.0    +0.0
+Momentum entering encounter 2          0.22   0.10   -0.13
+Strain entering encounter 2            0.23   0.54   +0.31
+Reached encounter 3 %                 100.0   95.2    -4.8
+Momentum entering encounter 3          0.39   0.14   -0.25
+Strain entering encounter 3            0.26   0.87   +0.61
+Reached encounter 4 %                  98.8   82.4   -16.4
+Momentum entering encounter 4          0.51   0.17   -0.34
+Strain entering encounter 4            0.29   0.91   +0.62
+Reached encounter 5 %                  98.0   68.4   -29.6
+Momentum entering encounter 5          0.65   0.18   -0.47
+Strain entering encounter 5            0.31   0.96   +0.66
+Means are over the missions that reached each encounter. A chained encounter shifts later positions.
+
+Encounters (before); worst run: seed 1
+Encounter     checks  1st %  2nd %  3rd %  4th %  narrowed %  crit %  succ %  part %  fail %  dis %  deaths  incap.
+ENCOUNTER_01     160     74     26      0      0           0      21      59      18       2      0       0       0
+ENCOUNTER_02     153     77     23      0      0           0      19      61      18       2      0       0       0
+ENCOUNTER_03     140     74     26      0      0           0      10      59      29       2      0       0       0
+ENCOUNTER_04     150    100      0      0      0           0      25      58      17       0      0       0       0
+ENCOUNTER_05     175     77     23      0      0           0      13      65      20       2      0       0       0
+ENCOUNTER_06     151     77     23      0      0           0      13      62      22       3      0       0       0
+ENCOUNTER_07     152    100      0      0      0           0      11      61      24       5      0       0       0
+ENCOUNTER_08     158     72     28      0      0           0      22      63      16       0      0       0       0
+
+Encounters (after); worst run: seed 14
+Encounter     checks  1st %  2nd %  3rd %  4th %  narrowed %  crit %  succ %  part %  fail %  dis %  deaths  incap.
+ENCOUNTER_01     148     74     26      0      0           0       6      41      34      18      1       1       1
+ENCOUNTER_02     136     76     24      0      0           0       4      44      32      18      2       0       1
+ENCOUNTER_03     117     74     26      0      0           0       1      35      40      24      0       1       3
+ENCOUNTER_04     139    100      0      0      0           0       6      42      35      17      1       2       2
+ENCOUNTER_05     155     77     23      0      0           0       1      38      45      16      1       0       1
+ENCOUNTER_06     144     77     23      0      0           0       1      34      39      25      1       2       5
+ENCOUNTER_07     138    100      0      0      0           0       1      33      36      29      1       0       4
+ENCOUNTER_08     138     72     28      0      0           0       2      48      37      12      1       1       3
+
+$ bench --objective OBJECTIVE_TEMPLATE_1 --team veteran --replay 11 --content -> 0
+Seed 11. Lead CREW_01.
+  CREW_01: SKILL_A 6, SKILL_B 6, SKILL_C 5, SKILL_D 5; caution 0, discipline 0
+  CREW_02: SKILL_A 7, SKILL_B 5, SKILL_C 5, SKILL_D 4; caution -1, discipline -1
+  CREW_03: SKILL_A 5, SKILL_B 4, SKILL_C 6, SKILL_D 7; caution 0, discipline -1
+Stage 1 (approach): ENCOUNTER_07. Momentum 0, strain 0.
+  careful SKILL_D: CREW_03 7 + CREW_01 2 + gear 0 + momentum 0 - strain 0 = 9; rolled 3 against 13: margin -1, Partial. Experience 3.0, helper 1.5.
+Stage 2 (complication): ENCOUNTER_04. Momentum 0, strain 1.
+  careful SKILL_C: CREW_03 6 + CREW_01 2 + gear 0 + momentum 0 - strain 1 = 7; rolled 8 against 12: margin 3, Success. Experience 3.0, helper 1.5.
+Stage 3 (complication): ENCOUNTER_02. Momentum 0, strain 0.
+  fast SKILL_B: CREW_01 6 + CREW_02 2 + gear 0 + momentum 0 - strain 0 = 8; rolled 2 against 13: margin -3, Partial. Experience 3.0, helper 1.5.
+  Initiative DECISION_PROMPT_2 (stakes 2, threshold 3.00): CREW_01 chose Safe.
+  Effects: momentum 0, strain -1, progress 0.
+Stage 4 (objective): ENCOUNTER_08. Momentum 0, strain 0.
+  careful SKILL_B: CREW_01 6 + CREW_02 2 + gear 0 + momentum 0 - strain 0 = 8; rolled 6 against 12: margin 2, Success. Experience 3.0, helper 1.5.
+  Initiative DECISION_PROMPT_6 (stakes 2, threshold 3.00): CREW_01 chose Safe.
+  Effects: momentum 0, strain 0, progress 0.
+Stage 5 (extraction): ENCOUNTER_05. Momentum 0, strain 0.
+  careful SKILL_A: CREW_02 7 + CREW_01 3 + gear 0 + momentum 0 - strain 0 = 10; rolled 8 against 13: margin 5, Critical. Experience 2.0, helper 1.0.
+  CALL DECISION_PROMPT_4 (stakes 4, threshold 3.00): CREW_01 prefers Safe.
+  The captain answers Safe, backing the lead.
+  Effects: momentum -2, strain -1, progress 0.
+Result: PartialSuccess.
+
+$ bench --objective OBJECTIVE_TEMPLATE_1 --replay 5 --compare --content -> 0
+Seed 5. Lead CREW_01.
+  CREW_01: SKILL_A 5, SKILL_B 6, SKILL_C 5, SKILL_D 6; caution 0, discipline 0
+  CREW_02: SKILL_A 2, SKILL_B 3, SKILL_C 4, SKILL_D 2; caution 1, discipline -1
+  CREW_03: SKILL_A 4, SKILL_B 2, SKILL_C 4, SKILL_D 2; caution 1, discipline 0
+Stage 1 (approach): ENCOUNTER_07. Momentum 0, strain 0.
+  careful SKILL_D: CREW_01 6 + CREW_02 1 + gear 0 + momentum 0 - strain 0 = 7; rolled 5 against 15: margin -3, Partial. Experience 3.0, helper 1.5.
+Stage 2 (complication): ENCOUNTER_08. Momentum 0, strain 1.
+  careful SKILL_B: CREW_01 6 + CREW_02 1 + gear 0 + momentum 0 - strain 1 = 6; rolled 7 against 14: margin -1, Partial. Experience 3.0, helper 1.5.
+  Initiative DECISION_PROMPT_6 (stakes 2, threshold 3.00): CREW_01 chose Safe.
+  Effects: momentum 0, strain 0, progress 0.
+Stage 3 (complication): ENCOUNTER_05. Momentum 0, strain 2.
+  fast SKILL_B: CREW_01 6 + CREW_02 1 + gear 0 + momentum 0 - strain 2 = 5; rolled 4 against 16: margin -7, Failure. Experience 1.0, helper 0.5.
+  Light injury roll for CREW_01: 8, Unharmed.
+  CALL DECISION_PROMPT_4 (stakes 4, threshold 3.00): CREW_01 prefers Safe.
+  The captain answers Safe, backing the lead.
+  Effects: momentum -2, strain -1, progress 0.
+Stage 4 (objective): ENCOUNTER_03. Momentum 0, strain 3.
+  careful SKILL_B: CREW_01 6 + CREW_02 1 + gear 0 + momentum 0 - strain 3 = 4; rolled 5 against 15: margin -6, Failure. Experience 2.0, helper 1.0.
+  Light injury roll for CREW_01: 7, Unharmed.
+  CALL DECISION_PROMPT_3 (stakes 3, threshold 3.00): CREW_01 prefers Safe.
+  The captain answers Safe, backing the lead.
+  Effects: momentum -1, strain 0, progress 0.
+  The mission collapses under strain.
+  Severe injury roll for CREW_03: 6, Incapacitated.
+  Light injury roll for CREW_01: 9, Unharmed.
+  Light injury roll for CREW_02: 10, Unharmed.
+Result: Loss.
+
