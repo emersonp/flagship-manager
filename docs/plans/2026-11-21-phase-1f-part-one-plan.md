@@ -244,10 +244,10 @@ Route: `POST /dev/tuning/run`, a Datastar stream.
 
 **Files:** `src/Web/Tuning/BenchReplay.cs` (new), `src/Web/Bridge/BridgeReader.cs` (lift the log's lines and prose into a function both call), `src/Web/Components/Tuning/ReplayPanel.razor` (new), `TuningEndpoints.cs` (`POST /dev/tuning/replay`), `tests/Web.Tests/BenchReplayTests.cs` (new).
 
-- [ ] **Step 1: the links** (design 4.9). Under each column, its `WorstSeed` as a link, and a seed box with a saved or draft choice beside it.
-- [ ] **Step 2: the report.** `BenchReplay` calls `Bench.Replay` on the run's inputs and the seed, under the chosen tuning, then renders the mission as play does: the beats wrapped as `MissionBeat`s, `Prose` over them with the trace's final state and the bench's seed in place of the legacy's, and the bridge's `Lines` (lifted from `BridgeReader` so both call it, not copied), shown with `MissionLog` with the rolls on request (its `Dev` detail), and the result's outcome and each member's status as the aftermath shows them. Names come from the live pack's `Names`.
-- [ ] **Step 3: tests.** A replay's beats equal the run's `Replay` beats at that seed, so it is that run of the figures. The worst seed under the draft gives the worst harm among the draft's runs. The report's prose equals the bridge's for the same beats (feed both one test mission). Nothing is written to any legacy.
-- [ ] **Step 4:** `./check.sh`; commit "Replay a bench run as the narrated report".
+- [x] **Step 1: the links** (design 4.9). Under each column, its `WorstSeed` as a link, and a seed box with a saved or draft choice beside it.
+- [x] **Step 2: the report.** `BenchReplay` calls `Bench.Replay` on the run's inputs and the seed, under the chosen tuning, then renders the mission as play does: the beats wrapped as `MissionBeat`s, `Prose` over them with the trace's final state and the bench's seed in place of the legacy's, and the bridge's `Lines` (lifted from `BridgeReader` so both call it, not copied), shown with `MissionLog` with the rolls on request (its `Dev` detail), and the result's outcome and each member's status as the aftermath shows them. Names come from the live pack's `Names`.
+- [x] **Step 3: tests.** A replay's beats equal the run's `Replay` beats at that seed, so it is that run of the figures. The worst seed under the draft gives the worst harm among the draft's runs. The report's prose equals the bridge's for the same beats (feed both one test mission). Nothing is written to any legacy.
+- [x] **Step 4:** `./check.sh`; commit "Replay a bench run as the narrated report".
 
 ### Task 13: the entry points
 

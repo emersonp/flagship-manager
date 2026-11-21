@@ -22,7 +22,8 @@
                         }
                         else
                         {
-                            <RunFigures Snapshot="Snapshot" Stop="Stop" Names="Names" />
+                            <RunFigures Snapshot="Snapshot" Stop="Stop" Names="Names" Query="Query" />
+                            <ReplayPanel View="Replay" />
                         }
                     }
                 </div>
@@ -48,6 +49,9 @@
     [Parameter] public EverySnapshot? Every { get; set; }
 
     [Parameter] public RunStop? Stop { get; set; }
+
+    // The Replay well: a run replayed, or the ask before one.
+    [Parameter, EditorRequired] public ReplayView Replay { get; set; } = null!;
 
     // The page's id, the run it owns: a signal, so every post of the bench names it, and a quoted string in Datastar's terms.
     private string PageSignal => $"'{Inputs.Page}'";

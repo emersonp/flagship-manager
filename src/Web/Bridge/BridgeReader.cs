@@ -267,8 +267,9 @@ public static class BridgeReader
     }
 
     // The log's stage beats are numbered from 1 in order; the beat's own cursor also counts skipped slots. Each line carries its
-    // prose and tags beside the structural text, which stays the line's detail.
-    private static List<LogLine> Lines(ContentPack pack, IReadOnlyList<MissionBeat> beats, Names names, Prose prose)
+    // prose and tags beside the structural text, which stays the line's detail. The Tuning page's replay (1f part one, Task 12) calls
+    // this too, on a bench run's beats, so its log is the bridge's own.
+    public static List<LogLine> Lines(ContentPack pack, IReadOnlyList<MissionBeat> beats, Names names, Prose prose)
     {
         int stage = 0;
         var lines = new List<LogLine>();

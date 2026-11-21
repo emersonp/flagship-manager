@@ -16,6 +16,7 @@ namespace Web.Endpoints;
 // form. Any other post gets the whole page. The draft itself is TuningDrafts, one per tuning file in the server's memory. The bench
 // (Task 10; design 4.4 to 4.8): a change of input redraws the inputs and cancels the page's run; Run streams the figures as they are
 // computed (TuningRuns), saved and draft on the same seeds; in Every objective (Task 11), a row of every objective as each finishes.
+// Replay (Task 12; design 4.9) draws one run of the inputs as play draws a mission, under the saved or the draft tuning.
 public static class TuningEndpoints
 {
     private const string File = TuningDrafts.Missions;
@@ -28,11 +29,15 @@ public static class TuningEndpoints
         dev.MapPost("/tuning/save", Save);
         dev.MapPost("/tuning/inputs", Inputs);
         dev.MapPost("/tuning/run", Run);
+        dev.MapPost("/tuning/replay", Replay);
     }
 
-    private static async Task<IResult> Open(HttpContext http, TuningDrafts drafts, ContentEditor editor, GameServices game, Render render)
+    // A worst seed's link without script lands here with the ask in the address, and the page shows that replay.
+    private static async Task<IResult> Open(HttpContext http, TuningDrafts drafts, TuningRuns runs, ContentEditor editor, GameServices game, Render render)
     {
-        return await Page(http, render, DraftView.Build(drafts, editor, game.Clock, File), TuningQuery.From(http.Request.Query), StatusCodes.Status200OK);
+        TuningQuery query = TuningQuery.From(http.Request.Query);
+        ReplayView? replay = ReplayAsk.From(http.Request.Query) is { } ask ? await BenchReplay.Ask(runs, drafts, query, ask, http.RequestAborted) : null;
+        return await Page(http, render, DraftView.Build(drafts, editor, game.Clock, File), query, StatusCodes.Status200OK, replay: replay);
     }
 
     // One field: its values as posted (a number's under its path, a dice field's and a range's under the loader's two names).
@@ -139,7 +144,7 @@ public static class TuningEndpoints
 
         if (Sse.IsDatastar(http.Request))
         {
-            return new RunStream(plan, ticket, runs, render, names, game.Clock);
+            return new RunStream(plan, ticket, runs, render, names, game.Clock, query);
         }
 
         RunSnapshot snapshot;
@@ -154,6 +159,25 @@ public static class TuningEndpoints
 
         BenchInputsView shown = await InputsView(http, query, page, null, null);
         return await Page(http, render, DraftView.Build(drafts, editor, game.Clock, File), query, StatusCodes.Status200OK, shown, snapshot, snapshot.Finished ? null : ticket.Stop ?? RunStop.Left);
+    }
+
+    // Replay (Task 12; design 4.9): one run of the inputs, named by its seed, under the saved or the draft tuning, drawn as play draws a
+    // mission. A worst seed's link names the run's inputs and the ask in its address; the Replay well's own ask posts the inputs form as
+    // it stands, with the ask in the address; without script, its form carries both. Nothing is written, and the page's run goes on.
+    private static async Task<IResult> Replay(HttpContext http, TuningRuns runs, TuningDrafts drafts, ContentEditor editor, GameServices game, Render render)
+    {
+        IFormCollection form = await ReadForm(http.Request, http.RequestAborted);
+        IQueryCollection address = http.Request.Query;
+        TuningQuery query = form.Count > 0 ? TuningQuery.From(form) : TuningQuery.From(address);
+        ReplayAsk ask = ReplayAsk.From(address) ?? ReplayAsk.From(form) ?? BenchReplay.Empty(query, drafts.Current(File) is not null).Ask;
+        ReplayView view = await BenchReplay.Ask(runs, drafts, query, ask, http.RequestAborted);
+        if (Sse.IsDatastar(http.Request))
+        {
+            return new PatchesResult([await render.Html<ReplayPanel>(new Dictionary<string, object?> { ["View"] = view })]);
+        }
+
+        int status = view.Run is null ? StatusCodes.Status422UnprocessableEntity : StatusCodes.Status200OK;
+        return await Page(http, render, DraftView.Build(drafts, editor, game.Clock, File), query with { View = "one" }, status, replay: view);
     }
 
     // Every objective (Task 11; design 4.8): each objective in turn, saved and draft on the same seeds, streamed a row as it finishes;
@@ -240,10 +264,12 @@ public static class TuningEndpoints
         BenchInputsView? inputs = null,
         RunSnapshot? snapshot = null,
         RunStop? stop = null,
-        EverySnapshot? every = null)
+        EverySnapshot? every = null,
+        ReplayView? replay = null)
     {
         LivePack? live = http.RequestServices.GetRequiredService<ContentHost>().Current;
         inputs ??= await InputsView(http, query, NewPage(), null, null);
+        replay ??= BenchReplay.Empty(query, http.RequestServices.GetRequiredService<TuningDrafts>().Current(File) is not null);
         string html = await render.Html<TuningPage>(new Dictionary<string, object?>
         {
             ["Draft"] = view,
@@ -253,6 +279,7 @@ public static class TuningEndpoints
             ["Snapshot"] = snapshot,
             ["Every"] = every,
             ["Stop"] = stop,
+            ["Replay"] = replay,
         });
         return Results.Content(html, "text/html; charset=utf-8", statusCode: status);
     }
@@ -316,7 +343,7 @@ public static class TuningEndpoints
     // whole; after that the progress line, the summary, and each encounter's summary and table are patched on their own (so a fold the
     // author opened stays open), and the list of encounters whole only when one is first reached. A run stopped by a change of input or
     // of the draft says so; one stopped by a new run on the page, or by the page leaving, writes nothing more.
-    private sealed class RunStream(RunPlan plan, RunTicket ticket, TuningRuns runs, Render render, Names names, TimeProvider clock) : IResult
+    private sealed class RunStream(RunPlan plan, RunTicket ticket, TuningRuns runs, Render render, Names names, TimeProvider clock, TuningQuery query) : IResult
     {
         public async Task ExecuteAsync(HttpContext httpContext)
         {
@@ -389,7 +416,7 @@ public static class TuningEndpoints
                 ["Caption"] = RunFigures.Caption("Summary", snapshot),
                 ["Snapshot"] = snapshot,
                 ["Rows"] = FigureRows.Summary(RunFigures.AllColumns(snapshot)),
-                ["Foot"] = RunFigures.WorstRow(snapshot),
+                ["Foot"] = RunFigures.WorstRow(snapshot, query),
             }));
             if (!now.SequenceEqual(sent))
             {
@@ -416,7 +443,7 @@ public static class TuningEndpoints
 
         private Task<string> Whole(RunSnapshot snapshot, RunStop? stop)
         {
-            return render.Html<RunFigures>(new Dictionary<string, object?> { ["Snapshot"] = snapshot, ["Stop"] = stop, ["Names"] = names });
+            return render.Html<RunFigures>(new Dictionary<string, object?> { ["Snapshot"] = snapshot, ["Stop"] = stop, ["Names"] = names, ["Query"] = query });
         }
     }
 

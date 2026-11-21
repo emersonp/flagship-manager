@@ -28,9 +28,19 @@ public sealed class Names(ContentPack pack)
         return Of(skills, id);
     }
 
+    // Crew names shown in place of the pack's, by id: a generated bench team's members, named by their place on the team (1f part one,
+    // Task 12), since their ids would otherwise name the game's crew.
+    private IReadOnlyDictionary<string, string>? crewShown;
+
     public string Crew(string id)
     {
-        return Of(crew, id);
+        return crewShown is not null && crewShown.TryGetValue(id, out string? shown) ? shown : Of(crew, id);
+    }
+
+    // These names, with these crew ids shown as given.
+    public Names WithCrew(IReadOnlyDictionary<string, string> shown)
+    {
+        return new Names(pack) { crewShown = shown };
     }
 
     public string Gear(string id)

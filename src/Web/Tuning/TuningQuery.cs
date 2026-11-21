@@ -105,6 +105,18 @@ public sealed record TuningQuery
     // The query as it is written into a link: each input that is not its default, in a fixed order, escaped.
     public string Query()
     {
+        var text = new StringBuilder();
+        foreach ((string name, string value) in Pairs())
+        {
+            text.Append(text.Length == 0 ? '?' : '&').Append(name).Append('=').Append(Uri.EscapeDataString(value));
+        }
+
+        return text.ToString();
+    }
+
+    // Each input that is not its default, in a fixed order, unescaped: the query's parts, or a form's hidden fields.
+    public IReadOnlyList<(string Name, string Value)> Pairs()
+    {
         var parts = new List<(string Name, string Value)>();
         void Add(string name, string value, string fallback)
         {
@@ -131,13 +143,7 @@ public sealed record TuningQuery
         Add("develop", Develop ? "true" : "false", "false");
         parts.AddRange(Gear.Select(g => ("gear", g)));
         Add("policy", Policy, d.Policy);
-        var text = new StringBuilder();
-        foreach ((string name, string value) in parts)
-        {
-            text.Append(text.Length == 0 ? '?' : '&').Append(name).Append('=').Append(Uri.EscapeDataString(value));
-        }
-
-        return text.ToString();
+        return parts;
     }
 
     // The page's address with these inputs.

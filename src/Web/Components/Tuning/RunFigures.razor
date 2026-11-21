@@ -31,7 +31,7 @@
                             </div>
                         </fieldset>
                     }
-                    <FigureTable Id="@SummaryId" Caption="@Caption("Summary", Snapshot)" Snapshot="Snapshot" Rows="FigureRows.Summary(AllColumns(Snapshot))" Foot="WorstRow(Snapshot)" />
+                    <FigureTable Id="@SummaryId" Caption="@Caption("Summary", Snapshot)" Snapshot="Snapshot" Rows="FigureRows.Summary(AllColumns(Snapshot))" Foot="WorstRow(Snapshot, Query)" />
                     <div class="figs__foot">
                         @if (Snapshot.HasDraft)
                         {
@@ -68,6 +68,9 @@
 
     [Parameter, EditorRequired] public Names Names { get; set; } = null!;
 
+    // The inputs the run benched, which a worst seed's link replays.
+    [Parameter, EditorRequired] public TuningQuery Query { get; set; } = null!;
+
     public const string SummaryId = "figs-summary";
 
     private int Columns => Snapshot is null ? 0 : ColumnCount(Snapshot);
@@ -82,8 +85,10 @@
 
     public static string Caption(string what, RunSnapshot snapshot) => $"{what}{(snapshot.HasDraft ? ", saved and draft" : ", saved")}{(snapshot.Groups.Count > 1 ? ", by strength" : "")}";
 
-    // The worst run of each column: the one with the most harm, by its seed. Task 12 makes each a link that replays it.
-    public static RenderFragment WorstRow(RunSnapshot snapshot) => __builder =>
+    // The worst run of each column (design 4.9): the one with the most harm, its seed a link that replays it in the Replay well below,
+    // with the run's own inputs in its address (so it is that run, whatever the inputs say now); or "No run was harmed" where no run in
+    // the column was, in place of a seed that would fall to the first (the author's answer 2 to the mock-up).
+    public static RenderFragment WorstRow(RunSnapshot snapshot, TuningQuery query) => __builder =>
     {
         bool many = snapshot.Groups.Count > 1;
         <tr class="worst">
@@ -91,13 +96,39 @@
             @foreach (RunGroup group in snapshot.Groups)
             {
                 string? s = many ? group.Strength?.ToString().ToLowerInvariant() : null;
-                <td class="n g1" data-s="@s">@group.Saved.WorstSeed.ToString(CultureInfo.InvariantCulture)</td>
+                @if (Harmed(group.Saved))
+                {
+                    <td class="n g1" data-s="@s">@Worst(query, group.Saved, group.Strength, many, false)</td>
+                }
+                else
+                {
+                    <td class="n g1 unharmed" data-s="@s">No run was harmed</td>
+                }
                 @if (group.Draft is { } draft)
                 {
-                    <td class="n" data-s="@s">@draft.WorstSeed.ToString(CultureInfo.InvariantCulture)</td>
-                    <td class="n chg" data-s="@s"></td>
+                    @if (Harmed(draft))
+                    {
+                        <td class="n" data-s="@s">@Worst(query, draft, group.Strength, many, true)</td>
+                        <td class="n chg" data-s="@s"></td>
+                    }
+                    else
+                    {
+                        <td class="n unharmed" colspan="2" data-s="@s">No run was harmed</td>
+                    }
                 }
             }
         </tr>
+    };
+
+    // A run was harmed when a member died or was incapacitated, the harm BenchTally ranks the worst run by.
+    public static bool Harmed(BenchFigures figures) => figures.Deaths + figures.Incapacitated > 0;
+
+    // The seed's link: posted with script, so the replay is patched in; the page with the replay shown without.
+    private static RenderFragment Worst(TuningQuery query, BenchFigures figures, TeamStrength? strength, bool sweep, bool draft) => __builder =>
+    {
+        string seed = figures.WorstSeed.ToString(CultureInfo.InvariantCulture);
+        var ask = new ReplayAsk(seed, draft, sweep ? strength?.ToString().ToLowerInvariant() ?? "" : "");
+        string label = $"Replay seed {seed}{(strength is { } st ? ", " + st.ToString().ToLowerInvariant() : "")}, {(draft ? "draft" : "saved")}";
+        <a href="@BenchReplay.Page(query, ask)" data-on:click__prevent="@($"@post('{BenchReplay.Post(query, ask)}')")" aria-label="@label">@seed</a>
     };
 }

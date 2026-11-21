@@ -1,7 +1,7 @@
 @using Web.Tuning
 <Layout Title="Tuning">
     <div class="page">
-        <TuningMain Draft="Draft" Query="Query" Inputs="Inputs" Names="Names" Snapshot="Snapshot" Every="Every" Stop="Stop" />
+        <TuningMain Draft="Draft" Query="Query" Inputs="Inputs" Names="Names" Snapshot="Snapshot" Every="Every" Stop="Stop" Replay="Replay" />
     </div>
 </Layout>
 
@@ -19,4 +19,6 @@
     [Parameter] public EverySnapshot? Every { get; set; }
 
     [Parameter] public RunStop? Stop { get; set; }
+
+    [Parameter, EditorRequired] public ReplayView Replay { get; set; } = null!;
 }

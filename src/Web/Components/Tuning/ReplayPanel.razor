@@ -1,0 +1,137 @@
+@using System.Globalization
+@using Web.Tuning
+@* Replay as the report (1f part one, Task 12; design 4.9; the mock-up's Replay well): a seed, which strength's team for a sweep, and the
+   saved or the draft tuning, then the run as play draws it: the team, the result as the aftermath gives it (the verdict and each
+   member's fate), and the Mission log as its own well, the rolls under each line. A worst seed in the figures replays its run here. *@
+<div id="bench-replay">
+    <section class="well" id="replay" aria-labelledby="h-replay">
+        <div class="well__head"><h2 id="h-replay">Replay</h2><p class="note">@Head</p></div>
+        <div class="well__body">
+            <form class="replay__ask" id="replay-ask" method="post" action="/dev/tuning/replay" novalidate data-on:submit__prevent="@Post">
+                @* Without script, the inputs travel with the ask; with it, the inputs form is posted as it stands. *@
+                @foreach ((string name, string value) in View.Query.Pairs())
+                {
+                    <input type="hidden" name="@name" value="@value">
+                }
+                <div class="field">
+                    <label for="replay-seed">Seed</label>
+                    <input id="replay-seed" name="@ReplayAsk.SeedName" type="text" inputmode="numeric" value="@View.Ask.Seed" autocomplete="off" spellcheck="false" aria-describedby="@ErrorRef(ReplayAsk.SeedName)" aria-invalid="@Invalid(ReplayAsk.SeedName)">
+                    @Error(ReplayAsk.SeedName)
+                </div>
+                @if (View.Sweep)
+                {
+                    <fieldset class="seg">
+                        <legend>Team</legend>
+                        <div class="seg__row seg__row--n">
+                            @foreach (string strength in ReplayAsk.Strengths)
+                            {
+                                string id = "rp-strength-" + strength;
+                                <input type="radio" id="@id" name="@ReplayAsk.StrengthName" value="@strength" checked="@(strength == View.Ask.Strength)"><label for="@id">@Title(strength)</label>
+                            }
+                        </div>
+                    </fieldset>
+                }
+                <fieldset class="seg" aria-describedby="@ErrorRef(ReplayAsk.TuningName)">
+                    <legend>Tuning</legend>
+                    <div class="seg__row seg__row--n">
+                        <input type="radio" id="rp-tuning-saved" name="@ReplayAsk.TuningName" value="saved" checked="@(!View.Ask.Draft)"><label for="rp-tuning-saved">Saved</label>
+                        <input type="radio" id="rp-tuning-draft" name="@ReplayAsk.TuningName" value="draft" checked="@View.Ask.Draft"><label for="rp-tuning-draft">Draft</label>
+                    </div>
+                </fieldset>
+                <button class="btn" type="submit">Replay</button>
+            </form>
+            @Error(ReplayAsk.TuningName)
+            @if (Inputs.Count > 0)
+            {
+                <div class="error" role="alert">
+                    <p>The inputs cannot be benched:</p>
+                    <ul>
+                        @foreach (string error in Inputs)
+                        {
+                            <li>@error</li>
+                        }
+                    </ul>
+                </div>
+            }
+            @if (View.Refused is not null)
+            {
+                <p class="error" role="alert">@View.Refused</p>
+            }
+            @if (View.Run is { } run)
+            {
+                @* A generated team is named by place, with its ids beside, so nobody takes it for a legacy's crew; a real team by its names. *@
+                @if (run.Skills is (int low, int high))
+                {
+                    <p class="replay__team">@(Figures.List(run.Fates.Select(f => f.Name).ToList())): a generated @(run.Strength!.Value.ToString().ToLowerInvariant()) team, skills <span class="m">@low</span> to <span class="m">@high</span>, named by their place on the team (<span class="m">@run.Fates[0].Id</span>@if (run.Fates.Count > 1)
+                        {
+                            <text> to </text><span class="m">@run.Fates[^1].Id</span>
+                        }), so nobody takes them for a legacy's crew.</p>
+                }
+                else
+                {
+                    <p class="replay__team">@(Figures.List(run.Fates.Select(f => f.Id == run.Trace.Team.LeadId ? $"{f.Name} (lead)" : f.Name).ToList())), as the launch would send them.</p>
+                }
+                <p class="replay__verdict">@Figures.Words(run.Trace.Result.Outcome.ToString())</p>
+                <ul class="fates">
+                    @foreach (ReplayFate fate in run.Fates)
+                    {
+                        <li><span class="who">@fate.Name</span>@Fate(fate)</li>
+                    }
+                </ul>
+            }
+        </div>
+    </section>
+    @if (View.Run is { } shown)
+    {
+        <MissionLog Lines="shown.Log" Dev="true" />
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public ReplayView View { get; set; } = null!;
+
+    // The inputs form is posted as it stands, with the ask in the address, read from this form's own controls.
+    private const string Post = "@post('/dev/tuning/replay?replay-seed=' + encodeURIComponent(el.elements['replay-seed'].value) + '&replay-tuning=' + el.elements['replay-tuning'].value + '&replay-strength=' + (el.elements['replay-strength'] ? el.elements['replay-strength'].value : ''), {contentType: 'form', selector: '#bench-inputs'})";
+
+    private string Head => View.Run is { } run
+        ? $"Seed {run.Trace.Seed.ToString(CultureInfo.InvariantCulture)}{(run.Strength is { } s ? ", " + s.ToString().ToLowerInvariant() : "")}, under the {(run.Draft ? "draft" : "saved tuning")}"
+        : "A worst run's seed in the figures replays that run here; or give any seed.";
+
+    // The errors of the inputs themselves (not the ask's), which the inputs well shows beside each input once Run is pressed.
+    private IReadOnlyList<string> Inputs => View.Errors.Where(e => e.Key is not ReplayAsk.SeedName and not ReplayAsk.TuningName).Select(e => e.Value).ToList();
+
+    private static string Title(string word) => char.ToUpperInvariant(word[0]) + word[1..];
+
+    // The member's fate: harm beside its word.
+    private static RenderFragment Fate(ReplayFate fate) => __builder =>
+    {
+        if (fate.Status == MemberStatus.Dead)
+        {
+            <span class="harm">Dead</span>
+        }
+        else if (fate.Status == MemberStatus.Incapacitated)
+        {
+            <span class="harm">Incapacitated</span>
+        }
+        else if (fate.Injuries > 0)
+        {
+            <span class="harm">@(fate.Injuries == 1 ? "1 light injury" : $"{fate.Injuries} light injuries")</span>
+        }
+        else
+        {
+            <span>Unhurt</span>
+        }
+    };
+
+    private string? ErrorRef(string name) => View.Errors.ContainsKey(name) ? $"{name}-error" : null;
+
+    private string? Invalid(string name) => View.Errors.ContainsKey(name) ? "true" : null;
+
+    private RenderFragment Error(string name) => __builder =>
+    {
+        if (View.Errors.TryGetValue(name, out string? error))
+        {
+            <p class="error" id="@name-error">@error</p>
+        }
+    };
+}
