@@ -81,7 +81,9 @@ public static class ContentEndpoints
             }
         }
 
-        var view = new ContentIndexView(live?.Pack.Id, live?.Pack.Version, disk.Pack?.Id, disk.Pack?.Version, disk.Errors, Directory.Exists(editor.Folder), editor.Folder, game.Store.ListLegacies().Count, files, items, problems);
+        // The test ships are shown with the pack's errors: read against it, they can only be judged once it loads (1e part six).
+        IReadOnlyList<ContentError> errors = [.. disk.Errors, .. files.TestShips().Errors];
+        var view = new ContentIndexView(live?.Pack.Id, live?.Pack.Version, disk.Pack?.Id, disk.Pack?.Version, errors, Directory.Exists(editor.Folder), editor.Folder, game.Store.ListLegacies().Count, files, items, problems);
         return new Dictionary<string, object?> { ["View"] = view, ["Alert"] = alert };
     }
 

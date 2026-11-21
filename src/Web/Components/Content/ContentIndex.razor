@@ -23,6 +23,11 @@
                         @if (View.DiskId is not null)
                         {
                             <span class="res">Valid</span> <span class="m">@View.DiskId</span> <span>version </span><span class="m">@View.DiskVersion</span>
+                            @if (View.DiskErrors.Count > 0)
+                            {
+                                <p class="note">The test ships need fixing by hand. Play never reads them, but the editor casts on them.</p>
+                                <ContentProblems Errors="View.DiskErrors" />
+                            }
                         }
                         else
                         {
@@ -91,6 +96,7 @@
                     <li><a href="/dev/content/files/storylets">storylets/base.yaml</a> <span class="note">storylets, edited as text until their form comes</span></li>
                     <li><a href="/dev/content/files/vignettes">vignettes/base.yaml</a> <span class="note">vignettes, edited as text until their form comes</span></li>
                     <li><a href="/dev/content/files/traits">traits/base.yaml</a> <span class="note">traits and their rules, edited as text until their form comes</span></li>
+                    <li><a href="/dev/content/files/testships">testships/base.yaml</a> <span class="note">the ships storylets are cast on in the editor, edited as text; play never reads them</span></li>
                 </ul>
                 @if (View.FileProblems.Count > 0)
                 {

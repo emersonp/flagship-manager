@@ -14,6 +14,7 @@ public enum ContentKind
     Storylet,
     Vignette,
     Trait,
+    TestShip,
 }
 
 // Lossy: this item has something the editor cannot show, so saving it replaces what it cannot show. A file-level problem (a top-level map,
@@ -168,4 +169,26 @@ public sealed record TraitModel(
     TraitStepModel? Every,
     int? ExpiresWeeks,
     IReadOnlyList<StoryletEffectModel> OnTargetDied,
+    string? Notes = null) : IContentModel;
+
+// A test ship (design 4.6), dev-only, as written. Value is a held trait's number or level name, as written. History is by crew member,
+// then kind, the cycles ago it happened, in the order written.
+public sealed record TestShipCrewModel(string Id, int? Morale = null, int? Loyalty = null, IReadOnlyDictionary<string, int>? Skills = null, bool? Fit = null, bool? Aboard = null, bool? Alive = null);
+
+public sealed record TestShipTraitModel(string Trait, string? On, string? Toward, string? Value, int? DaysAgo, int? CyclesAgo);
+
+public sealed record TestShipEntryModel(string Kind, int? DaysAgo, IReadOnlyList<string> Subjects);
+
+public sealed record TestShipArrivalModel(string Id, int? DaysAgo, int? CyclesAgo);
+
+public sealed record TestShipModel(
+    string Id,
+    string? Name,
+    int? Date,
+    int? Cycle,
+    IReadOnlyList<TestShipCrewModel> Crew,
+    IReadOnlyList<TestShipTraitModel> Traits,
+    IReadOnlyDictionary<string, IReadOnlyDictionary<string, IReadOnlyList<int>>> History,
+    IReadOnlyList<TestShipEntryModel> Chronicle,
+    IReadOnlyList<TestShipArrivalModel> Storylets,
     string? Notes = null) : IContentModel;

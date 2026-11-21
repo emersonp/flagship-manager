@@ -1,0 +1,54 @@
+# Test ships (slice 1e, part six, design 4.6): ships described in content, which the editor casts storylets and vignettes on for real.
+# Dev-only: play never reads this file, and the loader checks it against the rest of the pack only when the editor reads the pack.
+# Every time is written as days and cycles ago from the ship's today, so a ship never goes stale as the calendar changes. Anyone not
+# listed under crew is as crew/starting.yaml has them, at tuning/crew.yaml's starting morale and loyalty, fit and aboard. Every
+# storylet and vignette in the pack must cast on at least one ship here; a test checks it.
+- id: uss_quality_assurance
+  name: USS Quality Assurance
+  notes: |-
+    Every storylet and vignette in the pack but "A quirk in the sensors" can be cast here. Twenty cycles out, 120 days past the start.
+    CREW_01: low morale after being sent last cycle, for "Overheard in a corridor".
+    CREW_02: back from last cycle's lost mission, hurt and shaken, for "Someone shaken", "The one who came back" (as subject; loyalty
+    65 opens "Put them back on the watch bill"), and "The medical bay".
+    CREW_03: promised a rest and sent anyway, for "You gave your word".
+    CREW_04: avoids CREW_06 at 3, for "Clear the air" and "Not that shuttle", and lost crewmates last cycle and fourteen ago, for "The
+    names on the wall" (as voice) and "An empty station".
+    CREW_05: came back withdrawn from an earlier lost mission, and keeps clear of CREW_02, for "Still not talking".
+    CREW_06: rested last cycle, for "A week aboard".
+    CREW_07 and CREW_08: dead, 6 and 90 days ago, so the chronicle holds two deaths within 120 days.
+    The ship flew on with the sensor quirk 45 days and 7 cycles ago, for "The ghosts have names now" and "A ghost on the night watch".
+  date: 37602
+  cycle: 20
+  crew:
+    - { id: CREW_01, morale: 20 }
+    - { id: CREW_02, loyalty: 65 }
+    - { id: CREW_07, alive: false }
+    - { id: CREW_08, alive: false }
+  traits:
+    - { trait: sensors_quirk, value: let_ride, daysAgo: 45, cyclesAgo: 7 }
+    - { trait: shaken, on: CREW_02, value: 2, daysAgo: 6, cyclesAgo: 1 }
+    - { trait: stood_down, on: CREW_03, value: broken, daysAgo: 6, cyclesAgo: 1 }
+    - { trait: avoids, on: CREW_04, toward: CREW_06, value: 3, daysAgo: 12, cyclesAgo: 2 }
+    - { trait: came_back, on: CREW_05, value: withdrawn, daysAgo: 18, cyclesAgo: 3 }
+    - { trait: avoids, on: CREW_05, toward: CREW_02, value: 2, daysAgo: 18, cyclesAgo: 3 }
+  history:
+    CREW_01: { sent: [1] }
+    CREW_02: { sent: [1], hurt: [1], lost_mission: [1] }
+    CREW_03: { sent: [1] }
+    CREW_04: { lost_crewmate: [1, 14] }
+    CREW_05: { sent: [3], lost_mission: [3] }
+    CREW_06: { rested: [1] }
+  chronicle:
+    - { kind: death, daysAgo: 6, subjects: [CREW_07] }
+    - { kind: death, daysAgo: 90, subjects: [CREW_08] }
+  storylets:
+    - { id: STORYLET_01, daysAgo: 45, cyclesAgo: 7 }
+- id: uss_quality_control
+  name: USS Quality Control
+  notes: |-
+    The sensor quirk only just noticed, for "A quirk in the sensors", which USS Quality Assurance cannot cast: there the quirk has
+    been let ride. Four cycles out, the Debris Shoal last cycle; the crew are as they started.
+  date: 37502
+  cycle: 4
+  traits:
+    - { trait: sensors_quirk, value: noticed, daysAgo: 5, cyclesAgo: 1 }

@@ -114,6 +114,9 @@ public static partial class ContentLoader
                 case "calendars":
                     calendars.AddRange(Items<CalendarDto>(yaml, path, text, d => d.Id, calendarsSeenIn, errors, CheckLowerId).Select(d => (path, d)));
                     break;
+                case TestShipsFolder:
+                    // Test ships are dev-only (1e part six, design 4.6): LoadTestShips reads them against a pack that has loaded.
+                    break;
                 case "tuning":
                     errors.Add(new ContentError(path, $"Unknown tuning file. The only tuning files are {TuningFile}, {CrewTuningFile}, {CalendarTuningFile}, and {ChronicleTuningFile}."));
                     break;

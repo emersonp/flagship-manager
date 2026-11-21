@@ -17,6 +17,7 @@ public sealed class ContentTextFilesTests(RepoContentGuard guard) : IClassFixtur
         { "pack", "pack.yaml" },
         { "storylets", "storylets/base.yaml" },
         { "vignettes", "vignettes/base.yaml" },
+        { "testships", "testships/base.yaml" },
     };
 
     // The text area's text as the browser sees it: decoded. A literal line break straight after the tag would be dropped, so none may be there.
@@ -600,5 +601,41 @@ public sealed class ContentTextFilesTests(RepoContentGuard guard) : IClassFixtur
         await Post(app.NewClient(), "/dev/content/files/pack", Body("id: CORE\nversion: 5\ncalendar: calendar_a\n"));
 
         guard.Verify();
+    }
+    // Test ships (1e part six, design 4.6): a save of their file is judged with them, so a ship naming someone the pack lacks is
+    // refused in the loader's words, and nothing is written.
+    [Fact]
+    public async Task A_test_ship_naming_a_crew_member_the_pack_lacks_is_refused()
+    {
+        using TestApp app = NewApp();
+        HttpClient client = app.NewClient();
+        string before = Everything(app);
+        string typed = Disk(app, "testships/base.yaml").Replace("{ id: CREW_03, fit: false }", "{ id: CREW_99, fit: false }", StringComparison.Ordinal);
+
+        (HttpStatusCode status, string body) = await Post(client, "/dev/content/files/testships", Body(typed));
+
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, status);
+        Assert.Contains("test_ship_a: crew[1].id: no crew member CREW_99 in the starting crew.", WebUtility.HtmlDecode(body));
+        Assert.Equal(before, Everything(app));
+    }
+
+    // Any other save is judged by the pack alone: one that leaves a ship naming a storylet that is gone saves, and the index lists
+    // the ship's problem beside a valid pack.
+    [Fact]
+    public async Task A_save_that_leaves_a_test_ship_stale_saves_and_the_index_says_so()
+    {
+        using TestApp app = NewApp();
+        HttpClient client = app.NewClient();
+        string typed = Disk(app, "testships/base.yaml").Replace("{ id: STORYLET_01, daysAgo: 40, cyclesAgo: 7 }", "{ id: STORYLET_01, daysAgo: 40, cyclesAgo: 7 }\n    - { id: STORYLET_06, daysAgo: 50, cyclesAgo: 8 }", StringComparison.Ordinal);
+        Assert.Equal(HttpStatusCode.OK, (await Post(client, "/dev/content/files/testships", Body(typed))).Status);
+        string storylets = Disk(app, "storylets/base.yaml");
+        string without = storylets[..storylets.IndexOf("- id: STORYLET_06", StringComparison.Ordinal)];
+
+        (HttpStatusCode status, _) = await Post(client, "/dev/content/files/storylets", Body(without));
+        (_, string index) = await Get(client, "/dev/content");
+
+        Assert.Equal(HttpStatusCode.OK, status);
+        Assert.Contains("<span class=\"res\">Valid</span>", index);
+        Assert.Contains("test_ship_a: storylets[1].id: no storylet or vignette STORYLET_06.", WebUtility.HtmlDecode(index));
     }
 }

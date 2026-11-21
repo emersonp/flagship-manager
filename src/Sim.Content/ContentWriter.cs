@@ -117,6 +117,7 @@ public static class ContentWriter
             VignetteModel vignette => vignette.Notes,
             TraitModel trait => trait.Notes,
             EncounterModel encounter => encounter.Notes,
+            TestShipModel ship => ship.Notes,
             _ => null,
         }));
 
@@ -265,6 +266,9 @@ public static class ContentWriter
                 break;
             case TraitModel trait:
                 f.AddRange(Trait(trait));
+                break;
+            case TestShipModel ship:
+                f.AddRange(TestShip(ship));
                 break;
             default:
                 throw new ArgumentException($"Unknown content model {item.GetType().Name}.", nameof(item));
@@ -480,6 +484,103 @@ public static class ContentWriter
             f.Add($"onTargetDied: {StoryletEffects(trait.OnTargetDied)}");
         }
 
+        return f;
+    }
+
+    // In the key order of testships/base.yaml: date, cycle, crew, traits, history, chronicle, storylets. Each entry on one line; a list
+    // with none is left out.
+    private static List<string> TestShip(TestShipModel ship)
+    {
+        var f = new List<string>();
+        if (ship.Date is { } date)
+        {
+            f.Add($"date: {Num(date)}");
+        }
+
+        if (ship.Cycle is { } cycle)
+        {
+            f.Add($"cycle: {Num(cycle)}");
+        }
+
+        void Entries<T>(string key, IReadOnlyList<T> items, Func<T, IEnumerable<(string, string)>> entry)
+        {
+            if (items.Count > 0)
+            {
+                f.Add($"{key}:");
+                f.AddRange(items.Select(i => $"  - {Map(entry(i))}"));
+            }
+        }
+
+        static IEnumerable<(string, string)> Ages(int? daysAgo, int? cyclesAgo)
+        {
+            if (daysAgo is { } days)
+            {
+                yield return ("daysAgo", Num(days));
+            }
+
+            if (cyclesAgo is { } cycles)
+            {
+                yield return ("cyclesAgo", Num(cycles));
+            }
+        }
+
+        Entries("crew", ship.Crew, c =>
+        {
+            var e = new List<(string, string)> { ("id", Quote(c.Id)) };
+            if (c.Morale is { } morale)
+            {
+                e.Add(("morale", Num(morale)));
+            }
+
+            if (c.Loyalty is { } loyalty)
+            {
+                e.Add(("loyalty", Num(loyalty)));
+            }
+
+            if (c.Skills is not null)
+            {
+                e.Add(("skills", Map(c.Skills.Select(s => (Quote(s.Key), Num(s.Value))))));
+            }
+
+            foreach ((string key, bool? flag) in new[] { ("fit", c.Fit), ("aboard", c.Aboard), ("alive", c.Alive) })
+            {
+                if (flag is { } value)
+                {
+                    e.Add((key, value ? "true" : "false"));
+                }
+            }
+
+            return e;
+        });
+        Entries("traits", ship.Traits, t =>
+        {
+            var e = new List<(string, string)> { ("trait", Quote(t.Trait)) };
+            if (t.On is not null)
+            {
+                e.Add(("on", Quote(t.On)));
+            }
+
+            if (t.Toward is not null)
+            {
+                e.Add(("toward", Quote(t.Toward)));
+            }
+
+            if (t.Value is not null)
+            {
+                // A number is written bare, a level's name as any string.
+                e.Add(("value", System.Text.RegularExpressions.Regex.IsMatch(t.Value, "^[0-9]+$") ? t.Value : Quote(t.Value)));
+            }
+
+            return e.Concat(Ages(t.DaysAgo, t.CyclesAgo));
+        });
+        if (ship.History.Count > 0)
+        {
+            f.Add("history:");
+            f.AddRange(ship.History.Select(h => $"  {Quote(h.Key)}: {Map(h.Value.Select(k => (Quote(k.Key), k.Value.Count == 0 ? "[]" : $"[{string.Join(", ", k.Value.Select(Num))}]")))}"));
+        }
+
+        Entries("chronicle", ship.Chronicle, c => new[] { ("kind", Quote(c.Kind)) }.Concat(Ages(c.DaysAgo, null)).Append(("subjects", List(c.Subjects))));
+        Entries("storylets", ship.Storylets, a => new[] { ("id", Quote(a.Id)) }.Concat(Ages(a.DaysAgo, a.CyclesAgo)));
         return f;
     }
 

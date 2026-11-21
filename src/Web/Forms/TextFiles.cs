@@ -4,7 +4,7 @@ using YamlDotNet.RepresentationModel;
 
 namespace Web.Forms;
 
-// The files edited as text: the pack file, the tuning files, the calendar, and the storylets, vignettes, and traits until their forms exist. The path comes from this
+// The files edited as text: the pack file, the tuning files, the calendar, the test ships, and the storylets, vignettes, and traits until their forms exist. The path comes from this
 // list, never from a request.
 public sealed record TextFile(string Name, string Path, string Title, IReadOnlyList<string> Notes)
 {
@@ -21,6 +21,7 @@ public sealed record TextFile(string Name, string Path, string Title, IReadOnlyL
         new("storylets", "storylets/base.yaml", "Storylets", ["The storylet form comes later.", "Saving checks this file with the rest of the pack."]),
         new("vignettes", "vignettes/base.yaml", "Vignettes", ["The vignette form comes later.", "Saving checks this file with the rest of the pack."]),
         new("traits", "traits/base.yaml", "Traits", ["The trait form comes later.", "Saving checks this file with the rest of the pack, and every use of a trait against its definition here."]),
+        new("testships", "testships/base.yaml", "Test ships", ["Ships the editor casts storylets and vignettes on. Play never reads them.", "Saving checks every crew member, trait, and storylet named here against the rest of the pack."]),
     ];
 
     // Exact names only: anything else is not a text file.

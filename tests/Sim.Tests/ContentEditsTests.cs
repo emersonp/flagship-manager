@@ -49,6 +49,7 @@ public class ContentEditsTests : IClassFixture<RepoContentGuard>
         ContentKind.Storylet => ContentEdits.Get<StoryletModel>(files, item.Kind, item.Id)!,
         ContentKind.Vignette => ContentEdits.Get<VignetteModel>(files, item.Kind, item.Id)!,
         ContentKind.Trait => ContentEdits.Get<TraitModel>(files, item.Kind, item.Id)!,
+        ContentKind.TestShip => ContentEdits.Get<TestShipModel>(files, item.Kind, item.Id)!,
         _ => throw new ArgumentOutOfRangeException(nameof(item)),
     };
 
@@ -379,7 +380,7 @@ public class ContentEditsTests : IClassFixture<RepoContentGuard>
     {
         ContentFileSet files = Repo();
         Assert.Equal(
-            new[] { "assignments/base.yaml", "calendars/base.yaml", "crew/starting.yaml", "encounters/base.yaml", "gear/base.yaml", "lines/base.yaml", "objectives/base.yaml", "pack.yaml", "pronouns/base.yaml", "skills/base.yaml", "storylets/base.yaml", "traits/base.yaml", "tuning/calendar.yaml", "tuning/chronicle.yaml", "tuning/crew.yaml", "tuning/missions.yaml", "vignettes/base.yaml" },
+            new[] { "assignments/base.yaml", "calendars/base.yaml", "crew/starting.yaml", "encounters/base.yaml", "gear/base.yaml", "lines/base.yaml", "objectives/base.yaml", "pack.yaml", "pronouns/base.yaml", "skills/base.yaml", "storylets/base.yaml", "testships/base.yaml", "traits/base.yaml", "tuning/calendar.yaml", "tuning/chronicle.yaml", "tuning/crew.yaml", "tuning/missions.yaml", "vignettes/base.yaml" },
             files.Files.Keys.OrderBy(k => k, StringComparer.Ordinal));
         Assert.Equal(File.ReadAllText(Path.Combine(ContentRoot, "pack.yaml")), files.Files["pack.yaml"]);
     }

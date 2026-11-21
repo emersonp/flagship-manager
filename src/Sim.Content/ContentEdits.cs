@@ -17,6 +17,7 @@ public static class ContentEdits
         [ContentKind.Storylet] = typeof(StoryletModel),
         [ContentKind.Vignette] = typeof(VignetteModel),
         [ContentKind.Trait] = typeof(TraitModel),
+        [ContentKind.TestShip] = typeof(TestShipModel),
     };
 
     // Read from the set's own parse of each file, so asking for every item of a kind parses each file once.

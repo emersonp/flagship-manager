@@ -130,6 +130,8 @@ internal static class ContentReader
                     Int(Get(wait, "cast")), Int(Get(wait, "global")), Str(Get(m, "text")), Str(Get(m, "notes")));
             case ContentKind.Trait:
                 return Trait(id, name, m);
+            case ContentKind.TestShip:
+                return TestShip(id, name, m);
             default:
                 return null;
         }
@@ -173,6 +175,26 @@ internal static class ContentReader
 
         int? expires = Get(m, "expires") is YamlMappingNode ? Int(Get(Map(Get(m, "expires")), "weeks")) ?? 0 : null;
         return new TraitModel(id, name, IsBool(Str(Get(m, "shown"))), Str(Get(m, "on")), levels, Int(Get(m, "max")), Str(Get(m, "briefing")), launch, mission, every, expires, StoryletEffects(Get(m, "onTargetDied")), Str(Get(m, "notes")));
+    }
+
+    private static TestShipModel TestShip(string id, string? name, Dictionary<string, YamlNode> m)
+    {
+        var crew = Sequence(Get(m, "crew")).Select(Map).Select(c =>
+        {
+            Dictionary<string, int>? skills = Get(c, "skills") is YamlMappingNode ? Map(Get(c, "skills")).ToDictionary(s => s.Key, s => Int(s.Value) ?? 0) : null;
+            return new TestShipCrewModel(Str(Get(c, "id")) ?? "", Int(Get(c, "morale")), Int(Get(c, "loyalty")), skills, IsBool(Str(Get(c, "fit"))), IsBool(Str(Get(c, "aboard"))), IsBool(Str(Get(c, "alive"))));
+        }).ToList();
+        var traits = Sequence(Get(m, "traits")).Select(Map)
+            .Select(t => new TestShipTraitModel(Str(Get(t, "trait")) ?? "", Str(Get(t, "on")), Str(Get(t, "toward")), Str(Get(t, "value")), Int(Get(t, "daysAgo")), Int(Get(t, "cyclesAgo")))).ToList();
+        var history = new Dictionary<string, IReadOnlyDictionary<string, IReadOnlyList<int>>>();
+        foreach ((string crewId, YamlNode kinds) in Map(Get(m, "history")))
+        {
+            history[crewId] = Map(kinds).ToDictionary(k => k.Key, k => (IReadOnlyList<int>)Sequence(k.Value).Select(a => Int(a) ?? 0).ToList());
+        }
+
+        var chronicle = Sequence(Get(m, "chronicle")).Select(Map).Select(e => new TestShipEntryModel(Str(Get(e, "kind")) ?? "", Int(Get(e, "daysAgo")), Strings(Get(e, "subjects")))).ToList();
+        var storylets = Sequence(Get(m, "storylets")).Select(Map).Select(a => new TestShipArrivalModel(Str(Get(a, "id")) ?? "", Int(Get(a, "daysAgo")), Int(Get(a, "cyclesAgo")))).ToList();
+        return new TestShipModel(id, name, Int(Get(m, "date")), Int(Get(m, "cycle")), crew, traits, history, chronicle, storylets, Str(Get(m, "notes")));
     }
 
     // Each slot to its expression, in the order written.

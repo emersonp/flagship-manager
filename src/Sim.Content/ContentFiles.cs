@@ -24,6 +24,10 @@ public sealed record ContentFileSet(IReadOnlyDictionary<string, string> Files)
     // Worked out once per set: a request reads the disk once and asks it many questions.
     public ContentLoadResult Validate() => ContentFileCache.Of(this).Validation;
 
+    // The test ships, read against the pack Validate built (1e part six, design 4.6); none, and no errors, when the pack does not load.
+    // Validate never reads them, as play never does: the editor asks for them apart.
+    public TestShipsLoadResult TestShips() => ContentFileCache.Of(this).TestShips;
+
     // Every item the files hold, leniently read: an item with no id is skipped and a file that does not parse lists nothing (Validate reports it).
     public IReadOnlyList<ContentItemRef> Index() => ContentFileCache.Of(this).Index;
 }
@@ -39,18 +43,22 @@ internal sealed class ContentFileCache
     private readonly ConcurrentDictionary<string, Lazy<List<(int Index, ContentLoss Loss)>?>> analyses = new();
     private readonly ConcurrentDictionary<ContentKind, Lazy<Dictionary<string, IContentModel>>> byId = new();
     private readonly Lazy<ContentLoadResult> validation;
+    private readonly Lazy<TestShipsLoadResult> testShips;
     private readonly Lazy<IReadOnlyList<ContentItemRef>> index;
 
     private ContentFileCache(ContentFileSet files)
     {
         this.files = files;
         validation = new Lazy<ContentLoadResult>(() => ContentLoader.Load(files.Files));
+        testShips = new Lazy<TestShipsLoadResult>(() => validation.Value.Pack is { } pack ? ContentLoader.LoadTestShips(files.Files, pack) : new TestShipsLoadResult([], []));
         index = new Lazy<IReadOnlyList<ContentItemRef>>(BuildIndex);
     }
 
     public static ContentFileCache Of(ContentFileSet files) => Caches.GetValue(files, f => new ContentFileCache(f));
 
     public ContentLoadResult Validation => validation.Value;
+
+    public TestShipsLoadResult TestShips => testShips.Value;
 
     public IReadOnlyList<ContentItemRef> Index => index.Value;
 
@@ -128,6 +136,7 @@ internal static class ContentFolders
         ContentKind.Storylet => "storylets",
         ContentKind.Vignette => "vignettes",
         ContentKind.Trait => "traits",
+        ContentKind.TestShip => "testships",
         _ => throw new ArgumentOutOfRangeException(nameof(kind)),
     };
 

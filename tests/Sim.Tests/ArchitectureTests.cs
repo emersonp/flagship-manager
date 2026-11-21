@@ -95,6 +95,29 @@ public class ArchitectureTests
         Assert.Equal(["src/Sim.Core/Content/MissionContent.cs"], holders);
     }
 
+    // Review focus 4, as the plan asks: nothing that plays reads a test ship. GameHost, SimRunner, and the bridge are not referenced
+    // by this project, so their source is read, as the abort id's test reads it (1e part six, design 4.6).
+    [Fact]
+    public void Nothing_that_plays_reads_a_test_ship()
+    {
+        string[] words = ["LoadTestShips", "TestShipDef", "TestShipSource", "TestShipsLoadResult", "testships"];
+        string[] roots = [Path.Combine("src", "GameHost"), Path.Combine("src", "SimRunner"), Path.Combine("src", "Web", "Bridge")];
+        foreach (string root in roots)
+        {
+            string folder = Path.Combine(Root, root);
+            Assert.True(Directory.Exists(folder), folder);
+            IEnumerable<string> sources = Directory.EnumerateFiles(folder, "*.*", SearchOption.AllDirectories)
+                .Where(f => (f.EndsWith(".cs", StringComparison.Ordinal) || f.EndsWith(".razor", StringComparison.Ordinal))
+                    && !f.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}", StringComparison.Ordinal)
+                    && !f.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}", StringComparison.Ordinal));
+            foreach (string file in sources)
+            {
+                string text = File.ReadAllText(file);
+                Assert.All(words, word => Assert.False(text.Contains(word, StringComparison.Ordinal), $"{Path.GetRelativePath(Root, file)} names {word}."));
+            }
+        }
+    }
+
     private static IEnumerable<string> References(string project)
     {
         XDocument csproj = XDocument.Load(Path.Combine(Root, "src", project, project + ".csproj"));

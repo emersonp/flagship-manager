@@ -33,18 +33,19 @@ internal static class ContentFaithfulness
     // Storylets, vignettes, and traits (1e part six) add notes, cast, cooldown, effects, default, check, success, failure, and a trait's
     // shown, on, levels, max, briefing, launch and its lists, mission, every, expires, and onTargetDied.
     private static readonly HashSet<string> NullKeys = ["name", "chain", "gearTag", "ifUnattended", "decision", "tags", "bold", "safe", "stages", "objectives", "skills", "offer", "draw", "pronouns", "text", "lines", "labels", "approaches", "requires", "outcomes", "chronicle",
-        "notes", "cast", "cooldown", "global", "effects", "default", "check", "success", "failure", "toward", "on", "shown", "levels", "max", "briefing", "launch", "sent", "notSent", "withTarget", "mission", "every", "expires", "onTargetDied"];
-    private static readonly HashSet<string> EmptyListKeys = ["tags", "bold", "safe", "stages", "lines", "approaches", "requires", "effects", "sent", "notSent", "withTarget", "onTargetDied"];
-    private static readonly HashSet<string> EmptyMapKeys = ["skills", "offer", "objectives", "draw", "text", "labels", "outcomes", "cast"];
+        "notes", "cast", "cooldown", "global", "effects", "default", "check", "success", "failure", "toward", "on", "shown", "levels", "max", "briefing", "launch", "sent", "notSent", "withTarget", "mission", "every", "expires", "onTargetDied",
+        "traits", "history", "storylets", "subjects", "date", "cycle", "daysAgo", "cyclesAgo", "value", "fit", "aboard", "alive"];
+    private static readonly HashSet<string> EmptyListKeys = ["tags", "bold", "safe", "stages", "lines", "approaches", "requires", "effects", "sent", "notSent", "withTarget", "onTargetDied", "traits", "storylets", "subjects"];
+    private static readonly HashSet<string> EmptyMapKeys = ["skills", "offer", "objectives", "draw", "text", "labels", "outcomes", "cast", "history"];
 
     // Properties the loader deserialises as bool: any case of true and false.
     private static readonly HashSet<string> FlagKeys = ["skippable", "commsBlocked", "plural", "withTarget"];
 
     // Read as a bool like FlagKeys, but true when absent, so false is kept (a trait's shown).
-    private static readonly HashSet<string> TrueFlagKeys = ["shown"];
+    private static readonly HashSet<string> TrueFlagKeys = ["shown", "fit", "aboard", "alive"];
 
     // Properties the loader deserialises as int (YAML integers: 0x10, 1_0, 0010 as octal).
-    private static readonly HashSet<string> YamlIntKeys = ["seniority", "caution", "discipline", "loadoutLimit", "need", "stakes", "difficulty", "level", "weight", "cast", "global", "weeks", "checkBonus"];
+    private static readonly HashSet<string> YamlIntKeys = ["seniority", "caution", "discipline", "loadoutLimit", "need", "stakes", "difficulty", "level", "weight", "cast", "global", "weeks", "checkBonus", "date", "cycle", "daysAgo", "cyclesAgo"];
 
     // Values the loader reads from the raw text with int.TryParse (effects, teamSize, a stage's count).
     private static readonly HashSet<string> RawIntKeys = ["progress", "momentum", "strain", "add", "set", "teamSize", "count", "min", "max", "loyalty", "morale"];

@@ -1,0 +1,31 @@
+# Placeholders. The author replaces these. A small test ship for the fixture's own storylets and vignettes (1e part six): STORYLET_01
+# (trait_a at 1), STORYLET_02, STORYLET_03, STORYLET_04, and STORYLET_06, and VIGNETTE_01, VIGNETTE_02, and VIGNETTE_04. STORYLET_05
+# never casts, and VIGNETTE_03 needs trait_a at 2.
+- id: test_ship_a
+  name: TEST_SHIP_A
+  notes: |-
+    CREW_02 holds trait_b; CREW_01 holds trait_g toward CREW_03 and trait_h toward CREW_04; CREW_05 lost a crewmate last cycle and
+    CREW_06 rested; CREW_07 and CREW_08 are dead, within 120 days.
+  date: 37602
+  cycle: 20
+  crew:
+    - { id: CREW_01, morale: 40, loyalty: 60, skills: { SKILL_A: 7 } }
+    - { id: CREW_03, fit: false }
+    - { id: CREW_04, aboard: false }
+    - { id: CREW_07, alive: false }
+    - { id: CREW_08, alive: false }
+  traits:
+    - { trait: trait_a, value: 1, daysAgo: 10, cyclesAgo: 2 }
+    - { trait: trait_b, on: CREW_02, value: 1, daysAgo: 6, cyclesAgo: 1 }
+    - { trait: trait_g, on: CREW_01, toward: CREW_03, value: 3, daysAgo: 12, cyclesAgo: 2 }
+    - { trait: trait_h, on: CREW_01, toward: CREW_04, value: 1, daysAgo: 30, cyclesAgo: 5 }
+    - { trait: trait_e, on: CREW_06, value: level_b, daysAgo: 0, cyclesAgo: 0 }
+  history:
+    CREW_05: { lost_crewmate: [1, 4] }
+    CREW_06: { rested: [1, 2] }
+  chronicle:
+    - { kind: death, daysAgo: 6, subjects: [CREW_07] }
+    - { kind: death, daysAgo: 90, subjects: [CREW_08] }
+    - { kind: founding, daysAgo: 120, subjects: [] }
+  storylets:
+    - { id: STORYLET_01, daysAgo: 40, cyclesAgo: 7 }

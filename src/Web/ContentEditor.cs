@@ -16,6 +16,9 @@ public sealed record ContentFolder(string Path);
 // runs may be overwritten; a hand edit to another file is never touched.
 public sealed class ContentEditor
 {
+    // Where the test ships live; they are dev-only, and the pack's loader skips them.
+    private const string TestShipsFolder = "testships/";
+
     private readonly SemaphoreSlim gate = new(1, 1);
     private readonly ContentHost host;
     private readonly string directory;
@@ -105,6 +108,13 @@ public sealed class ContentEditor
             try
             {
                 result = after.Validate();
+                // A save that changes a test ships file is judged with its ships too (1e part six, design 4.6). Any other save is
+                // judged by the pack alone: a ship it leaves naming something gone is listed on the index, not a reason to refuse.
+                if (result.Pack is not null && changed.Any(p => p.StartsWith(TestShipsFolder, StringComparison.Ordinal)) && after.TestShips().Errors is { Count: > 0 } ships)
+                {
+                    result = new ContentLoadResult(null, ships);
+                }
+
                 if (result.Pack is { } pack)
                 {
                     prepared = host.Prepare(pack);
