@@ -1,0 +1,15 @@
+@using Web.Bridge
+@using Web.Tuning
+@* The encounters any column reached, each folded under its name (EncounterTable). Patched whole only when that list changes. *@
+<div id="figs-encounters">
+    @foreach (string id in FigureRows.Encounters(RunFigures.AllColumns(Snapshot)))
+    {
+        <EncounterTable EncounterId="@id" Name="@Names.Encounter(id)" Snapshot="Snapshot" />
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public RunSnapshot Snapshot { get; set; } = null!;
+
+    [Parameter, EditorRequired] public Names Names { get; set; } = null!;
+}

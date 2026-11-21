@@ -34,6 +34,7 @@ builder.Services.AddSingleton(provider =>
 });
 builder.Services.AddSingleton(provider => new ContentEditor(provider.GetRequiredService<ContentHost>(), provider.GetRequiredService<StartUp>().Folder));
 builder.Services.AddSingleton<TuningDrafts>();
+builder.Services.AddSingleton<TuningRuns>();
 builder.Services.AddSingleton(provider => new GameServices(new SqliteLegacyStore($"Data Source={provider.GetRequiredService<StartUp>().DatabasePath}"), provider.GetRequiredService<TimeProvider>()));
 builder.Services.AddSingleton<LegacySession>();
 builder.Services.AddSingleton<BenchTeams>();

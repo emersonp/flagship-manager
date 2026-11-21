@@ -1,0 +1,90 @@
+@using MissionBench
+@using Web.Tuning
+@* A table of figures (1f part one, Task 10; design 4.8; the mock-up's Figures): a row per FigureRow, with a quiet head where a group
+   starts, and the columns of each strength (Saved; or Saved, Draft, and Change with a draft), grouped under the strength's name when
+   there is more than one. The change has no good or bad colour; within the noise it is muted and read out so. *@
+<div class="tw" id="@Id">
+    <table class="@(Snapshot.Groups.Count == 1 && !Snapshot.HasDraft ? "figs figs--one" : "figs")">
+        <caption class="visually-hidden">@Caption</caption>
+        <thead>
+            @if (Many)
+            {
+                <tr>
+                    <th scope="col" rowspan="2"><span class="visually-hidden">Figure</span></th>
+                    @foreach (RunGroup group in Snapshot.Groups)
+                    {
+                        <th scope="colgroup" colspan="@(Snapshot.HasDraft ? 3 : 1)" class="grp g1" data-s="@S(group)">@StrengthName(group.Strength)</th>
+                    }
+                </tr>
+            }
+            <tr>
+                @if (!Many)
+                {
+                    <th scope="col"><span class="visually-hidden">Figure</span></th>
+                }
+                @foreach (RunGroup group in Snapshot.Groups)
+                {
+                    <th scope="col" class="n g1" data-s="@S(group)">Saved</th>
+                    @if (Snapshot.HasDraft)
+                    {
+                        <th scope="col" class="n" data-s="@S(group)">Draft</th>
+                        <th scope="col" class="n chg" data-s="@S(group)">Change</th>
+                    }
+                }
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (FigureRow row in Rows)
+            {
+                @if (row.Group is { } head)
+                {
+                    <tr class="figs__grp"><th scope="rowgroup" colspan="@Width">@head</th></tr>
+                }
+                <tr>
+                    <th scope="row">@row.Label</th>
+                    @foreach (RunGroup group in Snapshot.Groups)
+                    {
+                        double? saved = row.Value(group.Saved);
+                        <td class="n g1" data-s="@S(group)">@FigureRows.Number(saved, row.Format)</td>
+                        @if (group.Draft is { } draft)
+                        {
+                            double? after = row.Value(draft);
+                            bool within = FigureRows.Within(row, group.Saved, draft);
+                            <td class="n" data-s="@S(group)">@FigureRows.Number(after, row.Format)</td>
+                            <td class="@(within ? "n noise chg" : "n chg")" data-s="@S(group)">@FigureRows.Change(saved, after, row.Format)@if (within)
+                                {
+                                    <span class="visually-hidden">, within the noise</span>
+                                }</td>
+                        }
+                    }
+                </tr>
+            }
+        </tbody>
+        @if (Foot is not null)
+        {
+            <tfoot>@Foot</tfoot>
+        }
+    </table>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public string Id { get; set; } = "";
+
+    [Parameter, EditorRequired] public string Caption { get; set; } = "";
+
+    [Parameter, EditorRequired] public RunSnapshot Snapshot { get; set; } = null!;
+
+    [Parameter, EditorRequired] public IReadOnlyList<FigureRow> Rows { get; set; } = [];
+
+    // Rows under the body (the worst runs), in the same columns.
+    [Parameter] public RenderFragment? Foot { get; set; }
+
+    private bool Many => Snapshot.Groups.Count > 1;
+
+    private int Width => 1 + Snapshot.Groups.Count * (Snapshot.HasDraft ? 3 : 1);
+
+    // A strength's columns carry its name when there is more than one, so a narrow bench can show one at a time.
+    private string? S(RunGroup group) => Many ? group.Strength?.ToString().ToLowerInvariant() : null;
+
+    public static string StrengthName(TeamStrength? strength) => strength?.ToString() ?? "The team";
+}

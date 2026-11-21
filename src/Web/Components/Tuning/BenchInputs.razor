@@ -1,0 +1,179 @@
+@using Web.Tuning
+@* The bench's inputs (1f part one, Task 10; design 4.4; the mock-up's Inputs well): one control each, in the command line's terms. A
+   change posts the inputs, which cancels the page's run, redraws them (a real team's source and roster, the lead from the picked),
+   and puts them in the address. Run posts them too, and its answer streams the figures (RunFigures). Without script, Run posts the
+   form and the answer is the whole page with the figures. *@
+<form class="well" id="bench-inputs" method="post" action="/dev/tuning/run" novalidate aria-labelledby="h-inputs" data-indicator:_running data-on:submit="@RunActs.Run">
+    <span id="bench-href" hidden data-init="@Href"></span>
+    <input type="hidden" name="view" value="@Q.View">
+    <input type="hidden" name="page" value="@View.Page">
+    <div class="well__head"><h2 id="h-inputs">Inputs</h2><p class="note">As <span class="m">SimRunner bench</span> takes them</p></div>
+    <div id="bench-fields" data-on:change="@ChangePost">
+        <div class="well__body inputs">
+            <div class="field span2">
+                <label for="bi-objective">Objective</label>
+                <select id="bi-objective" name="objective" aria-describedby="@ErrorRef("objective")" aria-invalid="@Invalid("objective")">
+                    @foreach (BenchChoice objective in View.Objectives)
+                    {
+                        <option value="@objective.Value" selected="@(objective.Value == Objective)">@objective.Label</option>
+                    }
+                </select>
+                @Error("objective")
+            </div>
+            @Seg("Draw", "draw", Draws, Q.Draw)
+            <div class="inputs__pair">
+                <div class="field">
+                    <label for="bi-runs">Runs</label>
+                    <input id="bi-runs" name="runs" type="text" inputmode="numeric" value="@Q.RunsOrDefault()" autocomplete="off" spellcheck="false" aria-describedby="@ErrorRef("runs")" aria-invalid="@Invalid("runs")">
+                    @Error("runs")
+                </div>
+                <div class="field">
+                    <label for="bi-seed">Seed</label>
+                    <input id="bi-seed" name="seed" type="text" inputmode="numeric" value="@Q.Seed" autocomplete="off" spellcheck="false" aria-describedby="@ErrorRef("seed")" aria-invalid="@Invalid("seed")">
+                    @Error("seed")
+                </div>
+            </div>
+            @Seg("Team", "team", Teams, Q.Team)
+            @if (!Q.RealTeam)
+            {
+                @Seg("Strength", "strength", Strengths, Q.Strength)
+                @Seg("Lead style", "style", Styles, Q.Style)
+            }
+            else
+            {
+                string noun = Q.Team == BenchTeams.LegacyKind ? "Legacy" : "Test ship";
+                <div class="field">
+                    <label for="bi-source">@noun</label>
+                    <select id="bi-source" name="source" aria-describedby="@ErrorRef("source")" aria-invalid="@Invalid("source")">
+                        <option value="" selected="@(Q.Source.Length == 0)">@(View.Sources.Count == 0 ? $"No {noun.ToLowerInvariant()} to choose" : $"Choose a {noun.ToLowerInvariant()}")</option>
+                        @foreach (BenchChoice source in View.Sources)
+                        {
+                            <option value="@source.Value" selected="@(source.Value == Q.Source)">@source.Label</option>
+                        }
+                    </select>
+                    @Error("source")
+                </div>
+                <div class="field">
+                    <label for="bi-lead">Lead</label>
+                    <select id="bi-lead" name="lead" disabled="@(Picked.Count == 0)">
+                        @if (Picked.Count == 0)
+                        {
+                            <option value="">Nobody is picked</option>
+                        }
+                        @foreach (BenchCandidate member in Picked)
+                        {
+                            <option value="@member.Id" selected="@(member.Id == Q.LeadOrFirst())">@member.Name</option>
+                        }
+                    </select>
+                </div>
+            }
+            @Seg("Priority", "priority", Priorities, Q.Priority)
+            @Seg("Autonomy", "autonomy", Autonomies, Q.Autonomy)
+            <div class="field"><span class="field__label">Juniors</span><label class="check" for="bi-develop"><span class="hit"><input type="checkbox" id="bi-develop" name="develop" value="true" checked="@Q.Develop"></span>Develop juniors</label></div>
+            @Seg("Call policy", "policy", Policies, Q.Policy)
+            <fieldset class="inputs__set wide" aria-describedby="@ErrorRef("gear")">
+                <legend class="inputs__legend">Gear, by tag</legend>
+                <ul class="gear">
+                    @foreach (BenchChoice tag in View.Gear)
+                    {
+                        <li><label for="bi-gear-@tag.Value"><span class="hit"><input type="checkbox" id="bi-gear-@tag.Value" name="gear" value="@tag.Value" checked="@Q.Gear.Contains(tag.Value)"></span><span class="gear__id">@tag.Value</span><span class="gear__kind">@tag.Label</span></label></li>
+                    }
+                </ul>
+                @Error("gear")
+            </fieldset>
+        </div>
+        @if (Q.RealTeam && View.Source is { } roster)
+        {
+            <div class="tw">
+                <table class="pick">
+                    <caption class="visually-hidden">@roster.Name's roster: who is on the benched team</caption>
+                    <thead><tr><th scope="col">Crew</th><th scope="col">As the launch takes them</th><th scope="col" class="c">Team</th></tr></thead>
+                    <tbody>
+                        @foreach (BenchCandidate member in roster.Candidates)
+                        {
+                            <tr class="@(member.Refused is null ? null : "is-off")">
+                                <td class="who">@member.Name</td>
+                                <td>@(member.Refused ?? "Fit")</td>
+                                <td class="c"><label class="hit"><input type="checkbox" name="crew" value="@member.Id" checked="@(member.Refused is null && Q.Crew.Contains(member.Id))" disabled="@(member.Refused is not null)" aria-label="@(member.Refused is null ? $"Team, {member.Name}" : $"Team, {member.Name}: {member.Refused}")"></label></td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+    <div class="run">
+        @if (Q.RealTeam)
+        {
+            <p class="note">Team <span class="m">@Picked.Count</span>. Built once, by the launch's own code, and used for every run. Any change to the inputs or the draft stops a run in progress.</p>
+        }
+        else
+        {
+            <p class="note">Any change to the inputs or the draft stops a run in progress.</p>
+        }
+        <RunActs DraftBroken="View.DraftBroken" Refused="@View.Refused" />
+    </div>
+</form>
+
+@code {
+    [Parameter, EditorRequired] public BenchInputsView View { get; set; } = null!;
+
+    private TuningQuery Q => View.Query;
+
+    // The objective named, or with none named the pack's first, as TuningQuery.ObjectiveOrFirst benches it.
+    private string Objective => Q.Objective.Length > 0 ? Q.Objective : View.Objectives.FirstOrDefault()?.Value ?? "";
+
+    // The picked members the roster can send, in the order picked: the lead is chosen from these.
+    private IReadOnlyList<BenchCandidate> Picked => View.Source is { } source
+        ? Q.Crew.Select(id => source.Candidates.FirstOrDefault(c => c.Id == id && c.Refused is null)).OfType<BenchCandidate>().ToList()
+        : [];
+
+    // Each input's change posts the inputs; the page's run is cancelled by it.
+    private const string ChangePost = "@post('/dev/tuning/inputs?page=' + encodeURIComponent($_page), {contentType: 'form'})";
+
+    // The address follows the inputs; a nonce makes Datastar run it again when a patch brings it back unchanged.
+    private string Href => $"history.replaceState(null, '', '{Q.Href()}'); void {Interlocked.Increment(ref nonce)}";
+
+    private static long nonce;
+
+    private string? ErrorRef(string name) => View.Errors.ContainsKey(name) ? $"bi-{name}-error" : null;
+
+    private string? Invalid(string name) => View.Errors.ContainsKey(name) ? "true" : null;
+
+    private RenderFragment Error(string name) => __builder =>
+    {
+        if (View.Errors.TryGetValue(name, out string? error))
+        {
+            <p class="error" id="bi-@name-error">@error</p>
+        }
+    };
+
+    private static RenderFragment Seg(string legend, string name, IReadOnlyList<(string Value, string Label)> options, string value) => __builder =>
+    {
+        <fieldset class="seg">
+            <legend>@legend</legend>
+            <div class="seg__row seg__row--n">
+                @foreach ((string option, string label) in options)
+                {
+                    string id = $"bi-{name}-{option}";
+                    <input type="radio" id="@id" name="@name" value="@option" checked="@(option == value)"><label for="@id">@label</label>
+                }
+            </div>
+        </fieldset>
+    };
+
+    private static readonly IReadOnlyList<(string, string)> Draws = [("redrawn", "Redrawn each run"), ("fixed", "Fixed")];
+
+    private static readonly IReadOnlyList<(string, string)> Teams = [("generated", "Generated"), (BenchTeams.LegacyKind, "Legacy"), (BenchTeams.TestShipKind, "Test ship")];
+
+    private static readonly IReadOnlyList<(string, string)> Strengths = [("rookie", "Rookie"), ("mixed", "Mixed"), ("veteran", "Veteran"), ("sweep", "Sweep")];
+
+    private static readonly IReadOnlyList<(string, string)> Styles = [("cautious", "Cautious"), ("average", "Average"), ("reckless", "Reckless")];
+
+    // The briefing's words for the operational parameters (BriefingScreen).
+    private static readonly IReadOnlyList<(string, string)> Priorities = [("-1", "Thorough"), ("0", "Balanced"), ("1", "Fast")];
+
+    private static readonly IReadOnlyList<(string, string)> Autonomies = [("-1", "Ask often"), ("0", "Balanced"), ("1", "Act alone")];
+
+    private static readonly IReadOnlyList<(string, string)> Policies = [("back-lead", "Back the lead"), ("bold", "Bold"), ("safe", "Safe"), ("withdraw", "Withdraw")];
+}

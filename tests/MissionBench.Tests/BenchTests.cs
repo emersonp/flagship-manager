@@ -154,6 +154,15 @@ public class BenchTests
             Assert.Equal(reached.Sum(b => (double)b.Momentum * b.Momentum), stage.MomentumSquares, 1e-9);
             Assert.Equal(reached.Sum(b => (double)b.Strain * b.Strain), stage.StrainSquares, 1e-9);
         }
+
+        // An encounter's checks, one term a run: the square of that run's checks there, 0 where it was never reached (Task 10).
+        Assert.NotEmpty(figures.Encounters);
+        foreach (EncounterFigures encounter in figures.Encounters)
+        {
+            long checks = traces.Sum(t => (long)Math.Pow(t.Beats.OfType<CheckBeat>().Count(b => b.EncounterId == encounter.EncounterId), 2));
+            Assert.Equal(checks, encounter.ChecksSquares);
+            Assert.True(encounter.ChecksSquares >= encounter.Checks);
+        }
     }
 
     // The draft column benches pack with { Bench = draft's bench } (Task 10), so an edit to bench.teams is measured: generated teams
@@ -409,6 +418,11 @@ public class BenchTests
         {
             stage!.AsObject().Remove("MomentumSquares");
             stage.AsObject().Remove("StrainSquares");
+        }
+
+        foreach (JsonNode? encounter in json["Encounters"]!.AsArray())
+        {
+            encounter!.AsObject().Remove("ChecksSquares");
         }
 
         return json.ToJsonString();

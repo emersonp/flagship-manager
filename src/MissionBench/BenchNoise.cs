@@ -23,7 +23,9 @@ public enum BenchRow
     Momentum,
     Strain,
 
-    // An encounter's table: shares of its checks, and rates per crew-mission.
+    // An encounter's table: its checks a mean per run (the author's answer to the 1f mock-up), shares of its checks, and rates per
+    // crew-mission.
+    EncounterChecks,
     EncounterTier,
     EncounterPosition,
     EncounterNarrowed,
@@ -43,7 +45,8 @@ public static class BenchNoise
             or BenchRow.EncounterTier or BenchRow.EncounterPosition or BenchRow.EncounterNarrowed => FigureKind.Share,
         BenchRow.Deaths or BenchRow.Incapacitated
             or BenchRow.EncounterDeaths or BenchRow.EncounterIncapacitated => FigureKind.Rate,
-        BenchRow.Calls or BenchRow.Initiatives or BenchRow.Experience or BenchRow.Momentum or BenchRow.Strain => FigureKind.Mean,
+        BenchRow.Calls or BenchRow.Initiatives or BenchRow.Experience or BenchRow.Momentum or BenchRow.Strain
+            or BenchRow.EncounterChecks => FigureKind.Mean,
         _ => throw new ArgumentOutOfRangeException(nameof(row), row, null),
     };
 

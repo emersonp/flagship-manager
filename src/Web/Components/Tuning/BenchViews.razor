@@ -1,0 +1,12 @@
+@using Web.Tuning
+@* The bench's two views, as links that keep every other input (the view is in the query); patched when the inputs change. *@
+<nav class="tabs__list" id="bench-views" aria-label="View">
+    <a class="tab" href="@ViewHref("one")" aria-current="@(Query.View == "one" ? "page" : null)">One mission</a>
+    <a class="tab" href="@ViewHref("every")" aria-current="@(Query.View == "every" ? "page" : null)">Every objective</a>
+</nav>
+
+@code {
+    [Parameter, EditorRequired] public TuningQuery Query { get; set; } = null!;
+
+    private string ViewHref(string view) => (Query with { View = view }).Href();
+}

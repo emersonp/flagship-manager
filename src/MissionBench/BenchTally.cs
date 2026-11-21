@@ -54,6 +54,8 @@ public sealed class BenchTally(ContentPack pack)
             worstSeed = trace.Seed;
         }
 
+        // This run's checks in each encounter, for the checks' sum of squares.
+        var checks = new Dictionary<string, int>(StringComparer.Ordinal);
         foreach (Beat beat in trace.Beats)
         {
             switch (beat)
@@ -74,6 +76,7 @@ public sealed class BenchTally(ContentPack pack)
                 case CheckBeat check:
                     EncounterTally tally = Tally(check.EncounterId);
                     tally.Checks++;
+                    checks[check.EncounterId] = checks.GetValueOrDefault(check.EncounterId) + 1;
                     int position = positions[check.EncounterId].IndexOf(check.Approach);
                     tally.ByPosition[position]++;
                     tally.Narrowed += check.Offered < positions[check.EncounterId].Count ? 1 : 0;
@@ -88,6 +91,11 @@ public sealed class BenchTally(ContentPack pack)
                 default:
                     break;
             }
+        }
+
+        foreach ((string id, int count) in checks)
+        {
+            Tally(id).ChecksSquares += (long)count * count;
         }
     }
 
@@ -106,7 +114,7 @@ public sealed class BenchTally(ContentPack pack)
             initiativesSquares,
             experience.ToDictionary(e => e.Key, e => e.Value / Runs),
             experienceSquares.ToDictionary(e => e.Key, e => e.Value),
-            encounters.Select(e => new EncounterFigures(e.Key, e.Value.Checks, [.. e.Value.ByPosition], e.Value.Narrowed, new Dictionary<Tier, int>(e.Value.Tiers), e.Value.Deaths, e.Value.Incapacitated)).ToList(),
+            encounters.Select(e => new EncounterFigures(e.Key, e.Value.Checks, [.. e.Value.ByPosition], e.Value.Narrowed, new Dictionary<Tier, int>(e.Value.Tiers), e.Value.Deaths, e.Value.Incapacitated, e.Value.ChecksSquares)).ToList(),
             stages.Select((s, i) => new StageFigures(i + 1, s.Reached, s.Momentum / s.Reached, s.Strain / s.Reached, s.MomentumSquares, s.StrainSquares)).ToList(),
             worstSeed);
     }
@@ -125,6 +133,8 @@ public sealed class BenchTally(ContentPack pack)
     private sealed class EncounterTally
     {
         public int Checks { get; set; }
+
+        public long ChecksSquares { get; set; }
 
         public int[] ByPosition { get; } = new int[EncounterDef.MaxApproaches];
 

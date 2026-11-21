@@ -6,17 +6,25 @@
     <ChildContent>
         <div class="tuning">
             <DraftForm View="Draft" />
-            <div class="bench" id="bench">
+            <div class="bench" id="bench" data-signals:_page="@PageSignal">
                 <div class="bench__head">
                     @* The mode tabs are drawn with Mission alone; part two adds Legacy beside it. *@
                     <div class="tabs__list" role="tablist" aria-label="Mode"><button class="tab" role="tab" type="button" aria-selected="true">Mission</button></div>
-                    <nav class="tabs__list" aria-label="View">
-                        <a class="tab" href="@ViewHref("one")" aria-current="@(Query.View == "one" ? "page" : null)">One mission</a>
-                        <a class="tab" href="@ViewHref("every")" aria-current="@(Query.View == "every" ? "page" : null)">Every objective</a>
-                    </nav>
+                    <BenchViews Query="Query" />
                 </div>
                 <div id="bench-body">
-                    <p class="note">The bench's inputs, Run, and figures come next (1f part one, Task 10).</p>
+                    @if (Query.View == "every")
+                    {
+                        <p class="note">Every objective comes next (1f part one, Task 11).</p>
+                    }
+                    else
+                    {
+                        <BenchInputs View="Inputs" />
+                        @if (Names is not null)
+                        {
+                            <RunFigures Snapshot="Snapshot" Stop="Stop" Names="Names" />
+                        }
+                    }
                 </div>
             </div>
         </div>
@@ -28,7 +36,18 @@
 
     [Parameter, EditorRequired] public TuningQuery Query { get; set; } = null!;
 
-    private string ViewHref(string view) => (Query with { View = view }).Href();
+    [Parameter, EditorRequired] public BenchInputsView Inputs { get; set; } = null!;
+
+    // The live pack's names, for the figures; null with no live pack.
+    [Parameter] public Web.Bridge.Names? Names { get; set; }
+
+    // A run's figures, when the page is the answer to a run posted without script.
+    [Parameter] public RunSnapshot? Snapshot { get; set; }
+
+    [Parameter] public RunStop? Stop { get; set; }
+
+    // The page's id, the run it owns: a signal, so every post of the bench names it, and a quoted string in Datastar's terms.
+    private string PageSignal => $"'{Inputs.Page}'";
 
     private const string Subtitle = "Change the mission resolver's numbers in a draft, and bench the draft against the saved file on the same seeds. Save writes the file; a mission in flight keeps the tuning it started with.";
 }

@@ -1,6 +1,9 @@
 using System.Globalization;
 using System.Text;
+using MissionBench;
 using Microsoft.AspNetCore.Http;
+using Sim.Core.Content;
+using Sim.Missions;
 
 namespace Web.Tuning;
 
@@ -63,6 +66,14 @@ public sealed record TuningQuery
 
     // One mission, or every objective.
     public string View { get; init; } = "one";
+
+    // The bench's inputs as its form posts them, under the same names as the query. The runs box shows the view's default when none
+    // were typed, so that default is read back as none, and a link to the other view takes that view's own.
+    public static TuningQuery From(IFormCollection form)
+    {
+        TuningQuery query = From(new QueryCollection(form.ToDictionary(f => f.Key, f => f.Value)));
+        return query.Runs == (query with { Runs = "" }).RunsOrDefault() ? query with { Runs = "" } : query;
+    }
 
     public static TuningQuery From(IQueryCollection query)
     {
@@ -140,4 +151,93 @@ public sealed record TuningQuery
     {
         return Runs.Length > 0 ? Runs : (View == "every" ? 1000 : 10000).ToString(CultureInfo.InvariantCulture);
     }
+
+    // The objective benched: the one named, or with none named the pack's first (1f part one, Task 10; my call, so a fresh page can run).
+    public string ObjectiveOrFirst(ContentPack pack)
+    {
+        return Objective.Length > 0 ? Objective : pack.Objectives.FirstOrDefault()?.Id ?? "";
+    }
+
+    public bool RealTeam => Team != "generated";
+
+    // A real team's lead: the one named when they are picked, or else the first picked (the lead select shows the same).
+    public string LeadOrFirst()
+    {
+        return Crew.Contains(Lead) ? Lead : Crew.FirstOrDefault() ?? "";
+    }
+
+    // The gear tags the pack knows, as the command line lists them: comms and medical, and every approach's gear tag.
+    public static IReadOnlyList<string> GearTags(ContentPack pack)
+    {
+        string[] tags = ["comms", "medical", .. pack.Encounters.SelectMany(e => e.Approaches.Select(a => a.GearTag)).OfType<string>()];
+        return tags.Distinct().Order(StringComparer.Ordinal).ToList();
+    }
+
+    // The inputs as the command line's bench takes them (SimRunner/Cli.cs), each judged in its words: the options for Bench.Run, the
+    // strengths a generated team runs under (three for a sweep; none for a real team, which the run adds as BenchOptions.Team), and an
+    // error by input for each the bench cannot take. Options is null when there is any error.
+    public TuningInputs Read(ContentPack pack)
+    {
+        var errors = new Dictionary<string, string>(StringComparer.Ordinal);
+        string objective = ObjectiveOrFirst(pack);
+        if (objective.Length == 0)
+        {
+            errors["objective"] = "The pack has no objective to bench.";
+        }
+        else if (pack.Objectives.All(o => o.Id != objective))
+        {
+            errors["objective"] = $"Unknown objective '{objective}'. The pack has: {string.Join(", ", pack.Objectives.Select(o => o.Id))}.";
+        }
+
+        string runsText = RunsOrDefault();
+        if (!int.TryParse(runsText, NumberStyles.None, CultureInfo.InvariantCulture, out int runs) || runs < 1 || runs > MaxRuns)
+        {
+            errors["runs"] = $"Runs must be a whole number from 1 to {MaxRuns.ToString("N0", CultureInfo.InvariantCulture)}, not '{runsText}'.";
+        }
+
+        if (!ulong.TryParse(Seed, NumberStyles.None, CultureInfo.InvariantCulture, out ulong seed))
+        {
+            errors["seed"] = $"Seed must be a whole number of 0 or more, not '{Seed}'.";
+        }
+
+        IReadOnlyList<string> known = GearTags(pack);
+        if (Gear.FirstOrDefault(t => !known.Contains(t)) is { } unknown)
+        {
+            errors["gear"] = $"Unknown gear tag '{unknown}'. The pack has: {string.Join(", ", known)}.";
+        }
+
+        IReadOnlyList<TeamStrength> strengths = RealTeam
+            ? []
+            : Strength == "sweep" ? [TeamStrength.Rookie, TeamStrength.Mixed, TeamStrength.Veteran] : [Word<TeamStrength>(Strength)];
+        if (errors.Count > 0)
+        {
+            return new TuningInputs(null, strengths, errors);
+        }
+
+        var options = new BenchOptions(objective)
+        {
+            Runs = runs,
+            Seed = seed,
+            Strength = strengths.FirstOrDefault(TeamStrength.Mixed),
+            Lead = Word<LeadStyle>(Style),
+            Parameters = new Parameters(int.Parse(Priority, CultureInfo.InvariantCulture), int.Parse(Autonomy, CultureInfo.InvariantCulture), Develop),
+            GearTags = Gear,
+            Policy = Word<CallPolicy>(Policy),
+            FixedDraw = Draw == "fixed",
+        };
+        return new TuningInputs(options, strengths, errors);
+    }
+
+    // The command line's most runs.
+    public const int MaxRuns = 10_000_000;
+
+    // The value whose kebab-case name is this word ("back-lead" is BackLead), as the command line's Choice reads it.
+    private static T Word<T>(string word)
+        where T : struct, Enum
+    {
+        return Enum.GetValues<T>().First(v => string.Concat(v.ToString().Select((c, i) => char.IsUpper(c) ? (i > 0 ? "-" : "") + char.ToLowerInvariant(c) : c.ToString())) == word);
+    }
 }
+
+// The page's inputs read for the bench (TuningQuery.Read).
+public sealed record TuningInputs(BenchOptions? Options, IReadOnlyList<TeamStrength> Strengths, IReadOnlyDictionary<string, string> Errors);

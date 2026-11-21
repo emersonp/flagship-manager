@@ -1,0 +1,27 @@
+@using System.Globalization
+@using Web.Tuning
+@* The progress line at the Figures' head (1f part one, Task 10; design 4.7): how many runs each column has, of how many, from which seed,
+   and whether the run goes on, finished, or stopped and why. *@
+<p class="note" id="bench-progress" role="status">@(Stop is null ? "" : "Stopped at ")<span class="m">@N(Done)</span> of <span class="m">@N(Runs)</span> runs@(Columns > 1 ? " in each column" : ""), from seed <span class="m">@Seed.ToString(CultureInfo.InvariantCulture)</span>@Suffix</p>
+
+@code {
+    [Parameter, EditorRequired] public int Done { get; set; }
+
+    [Parameter, EditorRequired] public int Runs { get; set; }
+
+    [Parameter, EditorRequired] public ulong Seed { get; set; }
+
+    [Parameter, EditorRequired] public int Columns { get; set; }
+
+    [Parameter] public RunStop? Stop { get; set; }
+
+    private static string N(int value) => value.ToString("N0", CultureInfo.InvariantCulture);
+
+    private string Suffix => Stop switch
+    {
+        RunStop.Inputs => ": the inputs changed. Run again to bench them.",
+        RunStop.Draft => ": the draft changed. Run again to bench it.",
+        RunStop.NewRun or RunStop.Left => ".",
+        _ => Done < Runs ? "; running" : "",
+    };
+}

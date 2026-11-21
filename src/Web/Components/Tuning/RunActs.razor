@@ -1,0 +1,30 @@
+@* Run, and what refuses it (1f part one, Task 10; the mock-up's run bar): the page's one primary, busy while its run streams. A draft that
+   does not load refuses Run and offers "Run saved only"; the draft's own posts patch this too, so it follows the draft as it changes. A
+   refused real team says the launch's words here. The page's id is the _page signal, so every post names the run it starts. *@
+<div class="run__acts" id="bench-run-acts">
+    @if (DraftBroken)
+    {
+        <button class="btn" type="submit" formaction="/dev/tuning/run?saved=only" data-indicator:_running data-attr:disabled="$_running" data-on:click__prevent="@SavedOnly">Run saved only</button>
+    }
+    <button class="btn btn--primary" type="submit" id="bench-run" disabled="@DraftBroken" data-attr:disabled="@Disabled" data-attr:aria-busy="$_running ? 'true' : false">Run</button>
+    @if (DraftBroken)
+    {
+        <p class="error">The draft does not load, so it cannot run. Fix the field marked in the draft, or run the saved tuning alone.</p>
+    }
+    @if (Refused is not null)
+    {
+        <p class="error" id="bench-refused" role="alert">@Refused</p>
+    }
+</div>
+
+@code {
+    [Parameter] public bool DraftBroken { get; set; }
+
+    [Parameter] public string? Refused { get; set; }
+
+    public const string Run = "@post('/dev/tuning/run?page=' + encodeURIComponent($_page), {contentType: 'form'})";
+
+    private const string SavedOnly = "@post('/dev/tuning/run?saved=only&page=' + encodeURIComponent($_page), {contentType: 'form'})";
+
+    private string Disabled => DraftBroken ? "true" : "$_running";
+}

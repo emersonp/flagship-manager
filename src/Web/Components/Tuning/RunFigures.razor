@@ -1,0 +1,103 @@
+@using System.Globalization
+@using MissionBench
+@using Web.Bridge
+@using Web.Tuning
+@* The bench's figures (1f part one, Task 10; design 4.8; the mock-up's Figures and Encounters wells): the progress line, then the summary
+   as BenchReport.Summary has it, with the worst runs as its last row, and a folded table per encounter. With more than one strength a
+   narrow bench shows one at a time, chosen by the switch above the summary, which the encounters follow. BenchNoise.Rule is said once
+   under each table that has a change column. *@
+<div id="bench-figures">
+    @if (Snapshot is null)
+    {
+        <p class="note">Run benches the saved tuning on these inputs, and the draft beside it on the same seeds when there is one.</p>
+    }
+    else
+    {
+        <section class="well" aria-labelledby="h-figs">
+            <div class="well__head"><h2 id="h-figs">Figures</h2><RunProgress Done="Snapshot.Done" Runs="Snapshot.Runs" Seed="Snapshot.Seed" Columns="Columns" Stop="Stop" /></div>
+            @if (Snapshot.Done > 0)
+            {
+                <div class="well__body well__body--flush">
+                    @if (Snapshot.Groups.Count > 1)
+                    {
+                        <fieldset class="seg str">
+                            <legend>Strength shown</legend>
+                            <div class="seg__row seg__row--n">
+                                @foreach ((RunGroup group, int i) in Snapshot.Groups.Select((g, i) => (g, i)))
+                                {
+                                    string id = "fs-" + group.Strength.ToString()!.ToLowerInvariant();
+                                    <input type="radio" id="@id" name="fs" checked="@(i == 0)"><label for="@id">@group.Strength</label>
+                                }
+                            </div>
+                        </fieldset>
+                    }
+                    <FigureTable Id="@SummaryId" Caption="@Caption("Summary", Snapshot)" Snapshot="Snapshot" Rows="FigureRows.Summary(AllColumns(Snapshot))" Foot="WorstRow(Snapshot)" />
+                    <div class="figs__foot">
+                        @if (Snapshot.HasDraft)
+                        {
+                            <p class="note">@BenchNoise.Rule</p>
+                        }
+                        @if (Snapshot.Groups.Any(g => g.Saved.Stages.Count > 0))
+                        {
+                            <p class="note">@FigureRows.MeansNote</p>
+                        }
+                    </div>
+                </div>
+            }
+        </section>
+        @if (Snapshot.Done > 0)
+        {
+            <section class="well" aria-labelledby="h-enc">
+                <div class="well__head"><h2 id="h-enc">Encounters</h2><p class="note">Checks, approach taken, narrowed, tiers, and harm@(Snapshot.Groups.Count > 1 ? "; the strength shown above" : "")</p></div>
+                <div class="well__body well__body--flush">
+                    <EncounterList Snapshot="Snapshot" Names="Names" />
+                    @if (Snapshot.HasDraft)
+                    {
+                        <div class="figs__foot"><p class="note">@BenchNoise.Rule</p></div>
+                    }
+                </div>
+            </section>
+        }
+    }
+</div>
+
+@code {
+    [Parameter] public RunSnapshot? Snapshot { get; set; }
+
+    [Parameter] public RunStop? Stop { get; set; }
+
+    [Parameter, EditorRequired] public Names Names { get; set; } = null!;
+
+    public const string SummaryId = "figs-summary";
+
+    private int Columns => Snapshot is null ? 0 : ColumnCount(Snapshot);
+
+    public static int ColumnCount(RunSnapshot snapshot) => snapshot.Groups.Count * (snapshot.HasDraft ? 2 : 1);
+
+    // Every column's figures, saved and draft, in table order.
+    public static IReadOnlyCollection<BenchFigures> AllColumns(RunSnapshot snapshot)
+    {
+        return snapshot.Groups.SelectMany(g => g.Draft is null ? new[] { g.Saved } : new[] { g.Saved, g.Draft }).ToList();
+    }
+
+    public static string Caption(string what, RunSnapshot snapshot) => $"{what}{(snapshot.HasDraft ? ", saved and draft" : ", saved")}{(snapshot.Groups.Count > 1 ? ", by strength" : "")}";
+
+    // The worst run of each column: the one with the most harm, by its seed. Task 12 makes each a link that replays it.
+    public static RenderFragment WorstRow(RunSnapshot snapshot) => __builder =>
+    {
+        bool many = snapshot.Groups.Count > 1;
+        <tr class="worst">
+            <th scope="row">Worst run</th>
+            @foreach (RunGroup group in snapshot.Groups)
+            {
+                string? s = many ? group.Strength?.ToString().ToLowerInvariant() : null;
+                <td class="n g1" data-s="@s">@group.Saved.WorstSeed.ToString(CultureInfo.InvariantCulture)</td>
+                @if (group.Draft is { } draft)
+                {
+                    <td class="n" data-s="@s">@draft.WorstSeed.ToString(CultureInfo.InvariantCulture)</td>
+                    <td class="n chg" data-s="@s"></td>
+                }
+            }
+        </tr>
+    };
+}

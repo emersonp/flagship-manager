@@ -1,7 +1,7 @@
 @using Web.Tuning
 <Layout Title="Tuning">
     <div class="page">
-        <TuningMain Draft="Draft" Query="Query" />
+        <TuningMain Draft="Draft" Query="Query" Inputs="Inputs" Names="Names" Snapshot="Snapshot" Stop="Stop" />
     </div>
 </Layout>
 
@@ -9,4 +9,12 @@
     [Parameter, EditorRequired] public DraftView Draft { get; set; } = null!;
 
     [Parameter, EditorRequired] public TuningQuery Query { get; set; } = null!;
+
+    [Parameter, EditorRequired] public BenchInputsView Inputs { get; set; } = null!;
+
+    [Parameter] public Web.Bridge.Names? Names { get; set; }
+
+    [Parameter] public RunSnapshot? Snapshot { get; set; }
+
+    [Parameter] public RunStop? Stop { get; set; }
 }

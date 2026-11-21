@@ -1,0 +1,54 @@
+@using System.Globalization
+@using Web.Tuning
+@* One encounter's figures (1f part one, Task 10; design 4.8), folded under its name: its checks, the approach taken by position, narrowed,
+   the five tiers, deaths, and incapacitations, each with its change. While a run streams, its summary and table are patched on their own
+   (Part), so an encounter the author has opened stays open. *@
+@if (Part is null)
+{
+    <details class="enc" id="@Slug">
+        @Summary
+        @Table
+    </details>
+}
+else if (Part == "summary")
+{
+    @Summary
+}
+else
+{
+    @Table
+}
+
+@code {
+    [Parameter, EditorRequired] public string EncounterId { get; set; } = "";
+
+    [Parameter, EditorRequired] public string Name { get; set; } = "";
+
+    [Parameter, EditorRequired] public RunSnapshot Snapshot { get; set; } = null!;
+
+    // Null for the whole fold; "summary" or "table" for that part alone.
+    [Parameter] public string? Part { get; set; }
+
+    // An id is letters, digits, and underscores (docs/conventions.md), so it is an element id as it stands.
+    public static string SlugOf(string encounterId) => "enc-" + encounterId;
+
+    private string Slug => SlugOf(EncounterId);
+
+    private RunGroup First => Snapshot.Groups[0];
+
+    // The first strength's checks, saved and draft, as the fold's summary gives them.
+    private RenderFragment Summary => __builder =>
+    {
+        string Count(MissionBench.BenchFigures f) => FigureRows.Checks(f, EncounterId).ToString("N0", CultureInfo.InvariantCulture);
+        string who = Snapshot.Groups.Count > 1 ? First.Strength.ToString()!.ToLowerInvariant() + " checks" : "checks";
+        <summary id="@(Slug)-summary"><span class="enc__name">@Name</span> <span class="enc__id">@EncounterId</span><span class="enc__count">@who <span class="m">@Count(First.Saved)</span>@if (First.Draft is { } draft)
+            {
+                @(" saved, ")<span class="m">@Count(draft)</span>@(" draft")
+            }</span></summary>
+    };
+
+    private RenderFragment Table => __builder =>
+    {
+        <FigureTable Id="@(Slug + "-table")" Caption="@($"{Name}{(Snapshot.HasDraft ? ", saved and draft" : ", saved")}{(Snapshot.Groups.Count > 1 ? ", by strength" : "")}")" Snapshot="Snapshot" Rows="FigureRows.Encounter(EncounterId)" />
+    };
+}

@@ -4,8 +4,10 @@ using Sim.Missions;
 namespace MissionBench;
 
 // ByPosition counts the checks taken by each approach in the order the encounter lists them; it is always four long.
-// Narrowed counts the checks where a requirement left fewer approaches on offer than the encounter has.
-public sealed record EncounterFigures(string EncounterId, int Checks, IReadOnlyList<int> ByPosition, int Narrowed, IReadOnlyDictionary<Tier, int> Tiers, int Deaths, int Incapacitated);
+// Narrowed counts the checks where a requirement left fewer approaches on offer than the encounter has. ChecksSquares is the sum over
+// the runs of the square of each run's checks here (0 for a run that never reached it), so the checks per run can be judged as a mean
+// (slice 1f part one, design 4.8; Task 10); the command line ignores it.
+public sealed record EncounterFigures(string EncounterId, int Checks, IReadOnlyList<int> ByPosition, int Narrowed, IReadOnlyDictionary<Tier, int> Tiers, int Deaths, int Incapacitated, long ChecksSquares);
 
 // Momentum and Strain are means over the runs that reached the stage; MomentumSquares and StrainSquares are the sums of their squares
 // over the same runs, for the noise test (slice 1f part one, design 4.8).

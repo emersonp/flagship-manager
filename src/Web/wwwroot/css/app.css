@@ -940,3 +940,5 @@ fieldset.inputs__set { margin: 0; padding: 0; border: 0; min-width: 0; }
 a.tab { display: inline-flex; align-items: center; justify-content: center; text-decoration: none; }
 .tab[aria-current="page"] { background: var(--color-accent-soft); color: var(--color-ink); box-shadow: inset 0 -2px 0 var(--color-accent); cursor: default; }
 @media (hover: hover) { a.tab:not([aria-current="page"]):hover { background: var(--color-paper-3); } }
+/* The run bar's actions (1f part one, Task 10): one element so the draft's posts can patch them, laid out as the bar's own children. */
+.run__acts { display: contents; }

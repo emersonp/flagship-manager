@@ -81,5 +81,6 @@ public class BenchNoiseTests
         Assert.Equal(FigureKind.Rate, BenchNoise.KindOf(BenchRow.Deaths));
         Assert.Equal(FigureKind.Rate, BenchNoise.KindOf(BenchRow.EncounterDeaths));
         Assert.Equal(FigureKind.Mean, BenchNoise.KindOf(BenchRow.Strain));
+        Assert.Equal(FigureKind.Mean, BenchNoise.KindOf(BenchRow.EncounterChecks));
     }
 }

@@ -44,6 +44,12 @@ public sealed class BenchTeams(LegacySession sessions, ContentHost host, Content
         return Source(live, TestShipKind, ship.Id, ship.Name, TestShipLegacy.Found(live, ship));
     }
 
+    // The test ships a team can come from, as the editor's previews read them: each one's id and name.
+    public IReadOnlyList<(string Id, string Name)> TestShips()
+    {
+        return host.Current is not { } live ? [] : ContentLoader.LoadTestShips(editor.Read().Files, live.Pack).Ships.Select(s => (s.Id, s.Name)).ToList();
+    }
+
     // The team the launch would send for these picks, built once for a run (every seed uses the same team). Null with the refusal
     // when the source is not found, the team is empty, or the launch would refuse the picks (a member listed twice, not on the roster,
     // or not fit, or a lead not picked), in the launch's words.
