@@ -192,6 +192,36 @@ public static class ExpressionField
         return failed || rows.Count == 0 ? null : Shapes.Write(rows);
     }
 
+    // Where the loader's refusal of the string the fields made belongs, for its character (counted from 0): beside the text, with the
+    // character; or beside the first select of the clause that holds it, since the rows were written joined by " && ". A widget with no
+    // clauses takes it beside itself.
+    public static (string Field, string Message) Place(FormValues values, ExpressionScope scope, ExpressionChoices choices, int position, string message)
+    {
+        if (IsText(values, scope))
+        {
+            return (TextField(scope.Prefix), $"{message} (character {position + 1})");
+        }
+
+        RowSet set = Clauses(scope);
+        List<Dictionary<string, string>> posted = FormRows.Read(values, set);
+        int at = 0;
+        for (int i = 0; i < posted.Count; i++)
+        {
+            if (RowOf(posted[i], choices, out _) is not { } row)
+            {
+                continue;
+            }
+
+            at += Shapes.Write([row]).Length + 4;
+            if (position < at || i == posted.Count - 1)
+            {
+                return (set.Name(i, "kind"), message);
+            }
+        }
+
+        return (scope.Prefix, message);
+    }
+
     // The widget as drawn from the posted fields.
     public static ExpressionView View(FormValues values, ExpressionScope scope, ExpressionChoices choices)
     {

@@ -64,7 +64,8 @@ internal static class FormFlow
         }, cancellation);
         if (!result.Saved)
         {
-            return (Build(form, files, choices, id, true, values, new Dictionary<string, string>(), Reasons(result.Errors), null), false);
+            (Dictionary<string, string> placed, List<ContentError> rest) = Placed(form, id, values, choices, result.Errors);
+            return (Build(form, files, choices, id, true, values, placed, rest, null), false);
         }
 
         return (Open(form, editor.Read(), id, "Saved.") ?? Build(form, files, choices, id, false, values, new Dictionary<string, string>(), [], "Saved."), true);
@@ -104,7 +105,8 @@ internal static class FormFlow
         }, cancellation);
         if (!result.Saved)
         {
-            return (Build(form, files, choices, id, false, values, new Dictionary<string, string>(), Reasons(result.Errors), null), false);
+            (Dictionary<string, string> placed, List<ContentError> rest) = Placed(form, id, values, choices, result.Errors);
+            return (Build(form, files, choices, id, false, values, placed, rest, null), false);
         }
 
         ContentFileSet saved = editor.Read();
@@ -157,7 +159,7 @@ internal static class FormFlow
             ? SafeFocus(focusId)
             : applied.Verb == "remove" ? set.AddId : FormValues.Slug(set.Name(applied.Row, set.Fields[0]));
         // A select that changes what a clause row shows names itself as the focus; that row's other parts are made to fit it.
-        FormValues values = applied.Set is null ? ExpressionField.Settle(form.AfterRows(applied), scopes, choices.Expressions, focus) : form.AfterRows(applied);
+        FormValues values = applied.Set is null ? form.Settle(ExpressionField.Settle(form.AfterRows(applied), scopes, choices.Expressions, focus), choices, focus) : form.AfterRows(applied);
         return Build(form, files, choices, isNew ? posted.Get("id") : id!, isNew, values, new Dictionary<string, string>(), [], null) with { FocusId = focus };
     }
 
@@ -292,6 +294,27 @@ internal static class FormFlow
             ? "This file has content the editor cannot keep, so a save here is refused until it is fixed by hand."
             : "Another item in this file has content the editor cannot keep, so a save here is refused until it is fixed by hand.";
         return (lead, losses.Select(l => l.ToString()).ToList());
+    }
+
+    // The loader's refusals of a save, each beside the field it belongs to where the form can say which (1e part six), the rest for the
+    // alert. A field keeps the first refusal placed there.
+    private static (Dictionary<string, string> Fields, List<ContentError> Others) Placed(KindForm form, string id, FormValues values, FormChoices choices, IReadOnlyList<ContentError> errors)
+    {
+        var placed = new Dictionary<string, string>();
+        var rest = new List<ContentError>();
+        foreach (ContentError error in Reasons(errors))
+        {
+            if (form.Place(id, error, values, choices) is { } spot && !placed.ContainsKey(spot.Field))
+            {
+                placed[spot.Field] = spot.Message;
+            }
+            else
+            {
+                rest.Add(error);
+            }
+        }
+
+        return (placed, rest);
     }
 
     // A loss message already starts with its file; the list shows the file once.

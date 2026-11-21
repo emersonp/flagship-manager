@@ -7,7 +7,9 @@ namespace Web.Forms;
 // Add, Remove, and Move post the whole form to a rows route, which answers with the form drawn again from the posted fields and saves nothing.
 // A form with several lists qualifies each action with its list's prefix; a form with one keeps the short actions.
 // MultiFields are fields that post several values for one row (ticked boxes); a row holds them joined by Separator.
-public sealed record RowSet(string Prefix, IReadOnlyList<string> Fields, bool Qualified = false, IReadOnlyList<string>? MultiFields = null, string Noun = "row", IReadOnlyDictionary<string, string>? Defaults = null)
+// Carry: a row also holds every other field posted under it (prefix[N].anything), so the lists and widgets nested in a row (an option's
+// effects, its requires) move and go with it (1e part six). A carried field is kept under its name after the row's prefix.
+public sealed record RowSet(string Prefix, IReadOnlyList<string> Fields, bool Qualified = false, IReadOnlyList<string>? MultiFields = null, string Noun = "row", IReadOnlyDictionary<string, string>? Defaults = null, bool Carry = false)
 {
     // The posted field that says what to do: "add", "remove:N", "up:N", or "down:N" (with the prefix before N when qualified).
     public const string ActionField = "row";
@@ -64,7 +66,7 @@ public static class FormRows
         foreach (KeyValuePair<string, string> field in values.Fields)
         {
             Match match = pattern.Match(field.Key);
-            if (match.Success && set.Fields.Contains(match.Groups[2].Value) && int.TryParse(match.Groups[1].Value, NumberStyles.None, CultureInfo.InvariantCulture, out int index))
+            if (match.Success && (set.Carry || set.Fields.Contains(match.Groups[2].Value)) && int.TryParse(match.Groups[1].Value, NumberStyles.None, CultureInfo.InvariantCulture, out int index))
             {
                 if (!byIndex.TryGetValue(index, out Dictionary<string, string>? row))
                 {
@@ -99,6 +101,11 @@ public static class FormRows
                 {
                     fields.Add(new KeyValuePair<string, string>(set.Name(i, field), value));
                 }
+            }
+
+            if (set.Carry)
+            {
+                fields.AddRange(rows[i].Where(f => !set.Fields.Contains(f.Key)).Select(f => new KeyValuePair<string, string>(set.Name(i, f.Key), f.Value)));
             }
         }
 

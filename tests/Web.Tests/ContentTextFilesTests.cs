@@ -409,14 +409,14 @@ public sealed class ContentTextFilesTests(RepoContentGuard guard) : IClassFixtur
     }
 
     [Fact]
-    public async Task The_storylets_page_says_the_form_comes_later_and_the_file_is_checked_on_save()
+    public async Task The_storylets_page_points_to_the_form_and_says_the_file_is_checked_on_save()
     {
         using TestApp app = NewApp();
 
         (_, string body) = await Get(app.NewClient(), "/dev/content/files/storylets");
 
         string text = WebUtility.HtmlDecode(body);
-        Assert.Contains("The storylet form comes later.", text);
+        Assert.Contains("Each storylet also opens in its form, from the Storylets list.", text);
         Assert.Contains("Saving checks this file with the rest of the pack.", text);
     }
 

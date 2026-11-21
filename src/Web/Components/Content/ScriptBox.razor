@@ -1,0 +1,46 @@
+@using Web.Forms
+@* A box of a storylet's words (1e part six, design 4.3): a script, an answer's text, or a chronicle line, with the chips that insert at
+   its caret (editor.js takes the box as the chips' group). *@
+<div class="field textfield textfield--line textfield--short chipbox">
+    <label for="@Id">@Label</label>
+    <textarea id="@Id" name="@Name" rows="@Rows" spellcheck="true" autocomplete="off" aria-label="@Aria" aria-describedby="@Described" aria-invalid="@(Error is null ? null : "true")" @attributes="View.FocusFor(Id)">@View.Values.Get(Name)</textarea>
+    @if (Hint is not null)
+    {
+        <p class="hint" id="@($"{Id}-hint")">@Hint</p>
+    }
+    @if (Error is not null)
+    {
+        <p class="error" id="@($"{Id}-error")">@Error</p>
+    }
+    <PlaysChips Chips="Chips" Group="@(Aria ?? Label)" />
+</div>
+
+@code {
+    [CascadingParameter] public ItemFormView View { get; set; } = null!;
+
+    [Parameter, EditorRequired] public string Name { get; set; } = "";
+
+    [Parameter, EditorRequired] public string Label { get; set; } = "";
+
+    // The name the box is read out with, when its label repeats on the page (one in each option).
+    [Parameter] public string? Aria { get; set; }
+
+    [Parameter] public string? Hint { get; set; }
+
+    [Parameter] public IReadOnlyList<string> Chips { get; set; } = [];
+
+    [Parameter] public int Rows { get; set; } = 2;
+
+    private string Id => FormValues.Slug(Name);
+
+    private string? Error => View.Error(Name);
+
+    private string? Described
+    {
+        get
+        {
+            string text = $"{(Hint is null ? "" : Id + "-hint")} {(Error is null ? "" : Id + "-error")}".Trim();
+            return text.Length == 0 ? null : text;
+        }
+    }
+}

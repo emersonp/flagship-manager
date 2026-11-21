@@ -1,0 +1,64 @@
+@using Sim.Core.Content
+@using Web.Forms
+@* A storylet's cast (1e part six, design 4.3): up to three slots, each a name and an expression widget whose clauses may read the slots
+   before it and itself. A slot's clauses post under its row (cast[0].when), so they move and go with it. *@
+<div class="rowset" id="f-cast" tabindex="-1" aria-labelledby="h-cast" @attributes="Focus">
+    <h3 class="sub" id="h-cast">Cast</h3>
+    <p class="hint">Up to @StoryletScopes.MaxSlots slots, each filled with one crew member for whom its clauses hold, tried in order. A slot's clauses may read the slots before it and itself. No slots: the storylet is about the ship.</p>
+    @if (View.Error(StoryletParts.Cast.Prefix) is { } error)
+    {
+        <p class="error" id="f-cast-error">@error</p>
+    }
+    @if (Rows.Count == 0)
+    {
+        <p class="empty">No slots.</p>
+    }
+    else
+    {
+        <ol class="blocks" aria-labelledby="h-cast">
+            @for (int i = 0; i < Rows.Count; i++)
+            {
+                int row = i;
+                string which = $"slot {row + 1}";
+                <li class="block" id="@($"slot-{row}")">
+                    <div class="block__head">
+                        <span class="block__no">Slot @(row + 1)</span>
+                        <div class="block__acts">
+                            <RowButton Id="@Set.ButtonId("remove", row)" Value="@Set.Action("remove", row)" Aria="@($"Remove {which}")">Remove</RowButton>
+                        </div>
+                    </div>
+                    <div class="block__body">
+                        <Field Name="@Set.Name(row, "name")" Label="Name" AriaLabel="@($"Name, {which}")" Value="@Rows[row]["name"]" Hint="@NameHint" Error="@View.Error(Set.Name(row, "name"))" Required="true" Narrow="true" />
+                        <Web.Components.Content.ExpressionField Scope="Scopes[row]" Hint="Every clause must hold for the one who fills it." />
+                    </div>
+                </li>
+            }
+        </ol>
+    }
+    @if (Rows.Count < StoryletScopes.MaxSlots)
+    {
+        <div class="rowset__add">
+            <RowButton Id="@Set.AddId" Value="@Set.AddAction">Add a slot</RowButton>
+        </div>
+    }
+</div>
+
+@code {
+    private IReadOnlyDictionary<string, object> Focus => View.FocusFor("f-cast");
+
+    [CascadingParameter] public ItemFormView View { get; set; } = null!;
+
+    private static RowSet Set => StoryletParts.Cast;
+
+    private static readonly string NameHint = $"{Ids.InnerRule} Used in the words as #name#, and as a speaker.";
+
+    private List<Dictionary<string, string>> Rows = [];
+
+    private List<ExpressionScope> Scopes = [];
+
+    protected override void OnParametersSet()
+    {
+        Rows = FormRows.Read(View.Values, Set);
+        Scopes = StoryletParts.CastScopes(View.Values);
+    }
+}

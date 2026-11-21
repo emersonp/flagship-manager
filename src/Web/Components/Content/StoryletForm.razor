@@ -1,0 +1,64 @@
+@using Sim.Core
+@using Web.Forms
+@* The storylet form (1e part six, design 4.3), on the encounter form's pattern: the definitions (stakes, requires, the cast, the
+   cooldowns and chronicle weight, the script, and the author's notes), then a tab for each option. Every expression is a widget whose
+   rows or text are a view of the string the file holds. "What plays here" follows (Task 9). *@
+<FormShell View="View">
+    <div class="field-grid">
+        <div class="field field--narrow">
+            <label for="f-stakes">Stakes</label>
+            <Stepper Name="stakes" Aria="Stakes" Value="@View.Values.Get("stakes")" Min="1" Error="@View.Error("stakes")" />
+            <p class="hint">1 to 5.</p>
+            @if (View.Error("stakes") is { } stakes)
+            {
+                <p class="error" id="f-stakes-error">@stakes</p>
+            }
+        </div>
+    </div>
+    <Web.Components.Content.ExpressionField Scope="StoryletKind.Requires(Slots)" Hint="Every clause must hold, read with the cast once it is chosen. No clauses: it always holds." />
+    <CastSlots />
+    <div class="field-grid">
+        @foreach ((string name, string label) in Cooldowns)
+        {
+            <div class="field field--narrow">
+                <label for="@FormValues.Slug(name)">@label</label>
+                <Stepper Name="@name" Aria="@label" Value="@View.Values.Get(name)" Min="0" Error="@View.Error(name)" />
+                <p class="hint">Cycles, 0 or more. Blank: none.</p>
+                @if (View.Error(name) is { } error)
+                {
+                    <p class="error" id="@($"{FormValues.Slug(name)}-error")">@error</p>
+                }
+            </div>
+        }
+        <Field Name="chronicleWeight" Label="Chronicle weight" Value="@View.Values.Get("chronicleWeight")" Options="Weights" Labels="WeightLabels" Placeholder="The tuning file's" Hint="The weight of the entry an answer writes, unless the option says its own." Error="@View.Error("chronicleWeight")" Narrow="true" />
+    </div>
+    <ScriptBox Name="script" Label="Script" Rows="5" Hint="What arrives, one entry to a line: speaker: words, > a note, narration, and last = the sentence the itinerary shows." Chips="Chips" />
+    <div class="field textfield textfield--line">
+        <label for="f-notes">Author's notes</label>
+        <textarea id="f-notes" name="notes" rows="4" spellcheck="true" autocomplete="off" aria-describedby="f-notes-hint" @attributes="NotesFocus">@View.Values.Get("notes")</textarea>
+        <p class="hint" id="f-notes-hint">Why it is the way it is, for whoever writes next. Kept in the file, never shown in play.</p>
+    </div>
+    <OptionTabs />
+</FormShell>
+
+@code {
+    private IReadOnlyDictionary<string, object> NotesFocus => View.FocusFor("f-notes");
+
+    [Parameter, EditorRequired] public ItemFormView View { get; set; } = null!;
+
+    private static readonly (string Name, string Label)[] Cooldowns = [("cooldownCast", "Cast cooldown"), ("cooldownGlobal", "Global cooldown")];
+
+    private static readonly IReadOnlyList<string> Weights = Enumerable.Range(0, ChronicleTuning.Most + 1).Select(n => n.ToString(System.Globalization.CultureInfo.InvariantCulture)).ToList();
+
+    private static readonly IReadOnlyDictionary<string, string> WeightLabels = new Dictionary<string, string> { ["0"] = "0, writes none" };
+
+    private List<string> Slots = [];
+
+    private List<string> Chips = [];
+
+    protected override void OnParametersSet()
+    {
+        Slots = StoryletParts.SlotNames(View.Values);
+        Chips = StoryletParts.Chips(Slots, View.Choices, handler: false);
+    }
+}

@@ -30,7 +30,7 @@ public sealed class ContentMissionFormsTests(RepoContentGuard guard) : IClassFix
         + "&approaches[1].id=fast&approaches[1].skill=SKILL_B&approaches[1].difficulty=6&approaches[1].gearTag=";
 
     // The posted fields with the overrides replacing every field of the same name.
-    private static string Merge(string baseFields, string overrides)
+    internal static string Merge(string baseFields, string overrides)
     {
         List<KeyValuePair<string, string>> fields = Fields(baseFields);
         List<KeyValuePair<string, string>> over = Fields(overrides);
@@ -49,7 +49,7 @@ public sealed class ContentMissionFormsTests(RepoContentGuard guard) : IClassFix
     }
 
     // Every named field a browser would post from the item form: text and hidden inputs, ticked boxes, the chosen option, and text areas.
-    private static string FormFields(string body)
+    internal static string FormFields(string body)
     {
         string form = Regex.Match(body, "<form id=\"item-form\".*?</form>", RegexOptions.Singleline).Value;
         var fields = new List<string>();
@@ -81,7 +81,7 @@ public sealed class ContentMissionFormsTests(RepoContentGuard guard) : IClassFix
         return string.Join("&", fields);
     }
 
-    private static string PackJson(TestApp app)
+    internal static string PackJson(TestApp app)
     {
         return JsonSerializer.Serialize(app.Live.Pack, SimJson.Options);
     }

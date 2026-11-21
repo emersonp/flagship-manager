@@ -31,6 +31,9 @@ public sealed record FormChoices(IReadOnlyList<SkillChoice> Skills, IReadOnlyLis
     // The id of the decision the encounter already has, which cannot change; null when it has none.
     public string? FixedDecisionId { get; init; }
 
+    // The ids of the stored storylet's options, which cannot change once saved (1e part six, design 4.2); none for a new one.
+    public IReadOnlyList<string> FixedOptionIds { get; init; } = [];
+
     // How many encounters a stage drawing by these tags can draw, as the game draws: a chain target is never drawn.
     public int Matches(IEnumerable<string> tags)
     {

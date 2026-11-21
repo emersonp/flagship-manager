@@ -32,6 +32,10 @@
     {
         <p class="hint">@Hint</p>
     }
+    @if (View.Error(Scope.Prefix) is { } whole)
+    {
+        <p class="error" id="@slug" tabindex="-1" @attributes="View.FocusFor(slug)">@whole</p>
+    }
     @if (widget.IsText)
     {
         <textarea class="expr__box" id="@textId" name="@textName" rows="2" spellcheck="false" autocomplete="off" aria-invalid="@(widget.Check.Error is not null || textError is not null ? "true" : null)" aria-describedby="@($"{slug}-check")" data-on:input__debounce.500ms="@CheckPost" @attributes="View.FocusFor(textId)">@widget.Text</textarea>

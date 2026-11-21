@@ -13,7 +13,7 @@
     }
     else
     {
-        <input id="@Id" name="@Name" type="text" inputmode="@(Numeric ? "numeric" : null)" value="@Value" autocomplete="off" spellcheck="false" list="@(Suggestions is null ? null : Id + "-list")" aria-label="@AriaLabel" aria-describedby="@Described" aria-invalid="@Invalid" aria-required="@(Required ? "true" : null)" @attributes="Focus">
+        <input id="@Id" name="@Name" type="text" inputmode="@(Numeric ? "numeric" : null)" value="@Value" autocomplete="off" spellcheck="false" list="@(Suggestions is null ? null : Id + "-list")" aria-label="@AriaLabel" aria-describedby="@Described" aria-invalid="@Invalid" aria-required="@(Required ? "true" : null)" @attributes="InputFocus">
         @if (Suggestions is not null)
         {
             <datalist id="@Id-list">
@@ -71,7 +71,12 @@
     // The name the control is read out with, when the visible label repeats on the page (one control per row).
     [Parameter] public string? AriaLabel { get; set; }
 
+    // More attributes for a text box (1e part six: an option's label names the id box it fills as it is typed).
+    [Parameter] public IReadOnlyDictionary<string, object>? InputAttributes { get; set; }
+
     private IReadOnlyDictionary<string, object> Focus => View?.FocusFor(Id) ?? new Dictionary<string, object>();
+
+    private IReadOnlyDictionary<string, object> InputFocus => InputAttributes is null ? Focus : new Dictionary<string, object>(InputAttributes.Concat(Focus));
 
     private string Id => FormValues.Slug(Name);
 

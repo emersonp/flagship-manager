@@ -1,0 +1,210 @@
+@using Sim.Core
+@using Web.Forms
+@* One tab for each of a storylet's options (1e part six, design 4.3), on the pattern of ApproachTabs: the tab shown is a local signal, so
+   switching posts nothing, and every panel stays in the form, so one save sends them all. Left, Right, Home, and End move between tabs.
+   Each panel holds the option's id and label, its requires, how it is settled (its effects, or a check with a success and a failure),
+   its words, and its chronicle. An option's requires and effects post under its row, so adding, removing, or moving one keeps what is
+   in it. A new option's id is made from its label as it is typed (editor.js) until the id is typed in; a saved one's is fixed. *@
+<div class="rowset" id="f-options" tabindex="-1" aria-labelledby="h-option-tabs" @attributes="Focus">
+    <div class="tabs" id="option-tabs" data-signals:_tab="@Shown" data-init="@View.Fresh($"$_tab = {Shown}")">
+        <input type="hidden" name="@StoryletParts.TabField" value="@Shown" data-attr:value="$_tab">
+        <h3 class="sub" id="h-option-tabs">Options</h3>
+        <p class="hint">@Hint</p>
+        @if (View.Error(Set.Prefix) is { } error)
+        {
+            <p class="error" id="f-options-error">@error</p>
+        }
+        <div class="tabs__list" role="tablist" aria-labelledby="h-option-tabs" data-on:keydown="@Keys">
+            @for (int i = 0; i < Rows.Count; i++)
+            {
+                int row = i;
+                bool problem = Problem(row);
+                <button class="tab" type="button" role="tab" id="@TabId(row)" aria-controls="@PanelId(row)" aria-selected="@(row == Shown ? "true" : "false")" tabindex="@(row == Shown ? "0" : "-1")" aria-invalid="@(problem ? "true" : null)" data-attr:aria-selected="@($"$_tab === {row} ? 'true' : 'false'")" data-attr:tabindex="@($"$_tab === {row} ? '0' : '-1'")" data-attr:disabled="@FormShell.Busy" data-on:click="@($"$_tab = {row}")">
+                    @StoryletParts.OptionTitle(Rows[row], row)
+                    @if (problem)
+                    {
+                        <span class="tab__problem">(problems)</span>
+                    }
+                </button>
+            }
+        </div>
+        @if (Rows.Count < Max)
+        {
+            <div class="rowset__add">
+                <RowButton Id="@Set.AddId" Value="@Set.AddAction">Add an option</RowButton>
+            </div>
+        }
+        @for (int i = 0; i < Rows.Count; i++)
+        {
+            int row = i;
+            Dictionary<string, string> values = Rows[row];
+            string title = StoryletParts.OptionTitle(values, row);
+            string which = $"option {row + 1}";
+            bool saved = values["saved"] == "true";
+            bool check = values["settled"] == StoryletParts.ByCheck;
+            string Name(string field) => Set.Name(row, field);
+            <div class="tabs__panel" role="tabpanel" id="@PanelId(row)" aria-labelledby="@TabId(row)" tabindex="0" hidden="@(row != Shown)" data-attr:hidden="@($"$_tab !== {row}")">
+                <div class="block__head">
+                    <span class="block__no">Option @(row + 1)</span>
+                    <div class="block__acts">
+                        @if (row > 0)
+                        {
+                            <RowButton Id="@Set.ButtonId("up", row)" Value="@Set.Action("up", row)" Aria="@($"Move {which} earlier")">Move earlier</RowButton>
+                        }
+                        @if (row < Rows.Count - 1)
+                        {
+                            <RowButton Id="@Set.ButtonId("down", row)" Value="@Set.Action("down", row)" Aria="@($"Move {which} later")">Move later</RowButton>
+                        }
+                        <RowButton Id="@Set.ButtonId("remove", row)" Value="@Set.Action("remove", row)" Aria="@($"Remove {which}")">Remove</RowButton>
+                    </div>
+                </div>
+                <div class="field-grid">
+                    <Field Name="@Name("label")" Label="Label" AriaLabel="@($"Label, {which}")" Value="@values["label"]" Hint="The words on the answer's button. 1 to 40 characters." Error="@View.Error(Name("label"))" Required="true" InputAttributes="@(saved ? null : LabelAttributes(row))" />
+                    @if (saved)
+                    {
+                        <div class="field">
+                            <span class="field__label" id="@($"{FormValues.Slug(Name("id"))}-label")">Id</span>
+                            <span class="m" aria-labelledby="@($"{FormValues.Slug(Name("id"))}-label")">@values["id"]</span>
+                            <input type="hidden" name="@Name("id")" value="@values["id"]">
+                            <input type="hidden" name="@Name("saved")" value="true">
+                            <p class="hint">Fixed once saved: saves, events, and the chronicle name it.</p>
+                            @if (View.Error(Name("id")) is { } idError)
+                            {
+                                <p class="error" id="@($"{FormValues.Slug(Name("id"))}-error")">@idError</p>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <Field Name="@Name("id")" Label="Id" AriaLabel="@($"Id, {which}")" Value="@values["id"]" Hint="Made from the label as you type it; it can be changed until it is saved." Error="@View.Error(Name("id"))" InputAttributes="@IdAttributes(values)" />
+                    }
+                </div>
+                <Web.Components.Content.ExpressionField Scope="Scopes[row]" Hint="Offered only when every clause holds for the cast. No clauses: always offered." />
+                <div class="field field--narrow">
+                    <label for="@FormValues.Slug(Name("settled"))">Settled by</label>
+                    <ExpressionSelect Name="@Name("settled")" Aria="@($"Settled by, {which}")" Options="Settled" Value="@values["settled"]" Posts="true" />
+                </div>
+                @if (check)
+                {
+                    <div class="field-grid">
+                        <Field Name="@Name("skill")" Label="Skill" AriaLabel="@($"Skill, {which}")" Value="@values["skill"]" Options="SkillIds" Labels="SkillLabels" Hint="The one sent is the fit crew member, not in the cast, the captain names." Error="@View.Error(Name("skill"))" Required="true" />
+                        <div class="field field--narrow">
+                            <label for="@FormValues.Slug(Name("difficulty"))">Difficulty</label>
+                            <Stepper Name="@Name("difficulty")" Aria="@($"Difficulty, {which}")" Value="@values["difficulty"]" Min="1" Error="@View.Error(Name("difficulty"))" />
+                            <p class="hint">1 or more.</p>
+                            @if (View.Error(Name("difficulty")) is { } difficultyError)
+                            {
+                                <p class="error" id="@($"{FormValues.Slug(Name("difficulty"))}-error")">@difficultyError</p>
+                            }
+                        </div>
+                    </div>
+                    @foreach (string outcome in StoryletParts.Outcomes)
+                    {
+                        string said = outcome == "success" ? "Success" : "Failure";
+                        <fieldset class="decision">
+                            <legend class="sub">@said</legend>
+                            <StoryletEffectRows Set="StoryletParts.OutcomeEffects(row, outcome)" Title="Effects" Owner="@($"{said.ToLowerInvariant()}, {title}")" Slots="Slots" Handler="true" />
+                            <ScriptBox Name="@Name($"{outcome}.text")" Label="Text" Aria="@($"Text, {said.ToLowerInvariant()}, {title}")" Hint="@($"What the log says on a {outcome}. {StoryletParts.TextRule}")" Chips="HandlerChips" />
+                        </fieldset>
+                    }
+                    @foreach (KeyValuePair<string, string> field in Hidden(row, check))
+                    {
+                        <input type="hidden" name="@field.Key" value="@field.Value">
+                    }
+                }
+                else
+                {
+                    <StoryletEffectRows Set="StoryletParts.OptionEffects(row)" Title="Effects" Owner="@title" Slots="Slots" Hint="What happens when this is chosen. No effects: nothing changes." />
+                    <ScriptBox Name="@Name("text")" Label="Text" Aria="@($"Text, {title}")" Hint="@($"What the log says when this is chosen. {StoryletParts.TextRule}")" Chips="Chips" />
+                    @foreach (KeyValuePair<string, string> field in Hidden(row, check))
+                    {
+                        <input type="hidden" name="@field.Key" value="@field.Value">
+                    }
+                }
+                <div class="field-grid">
+                    <Field Name="@Name("chronicleWeight")" Label="Chronicle weight" AriaLabel="@($"Chronicle weight, {title}")" Value="@values["chronicleWeight"]" Options="Weights" Labels="WeightLabels" Placeholder="The tuning file's" Error="@View.Error(Name("chronicleWeight"))" Narrow="true" />
+                </div>
+                <ScriptBox Name="@Name("chronicleText")" Label="Chronicle text" Aria="@($"Chronicle text, {title}")" Hint="Optional: what the chronicle says when this is chosen. Blank: the shared storylet line." Chips="@(check ? HandlerChips : Chips)" />
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    private IReadOnlyDictionary<string, object> Focus => View.FocusFor("f-options");
+
+    [CascadingParameter] public ItemFormView View { get; set; } = null!;
+
+    [Parameter] public int Max { get; set; } = 4;
+
+    [Parameter] public string Hint { get; set; } = "Two to four answers, in the order the captain sees them. At least one has neither requires nor a check, so the storylet can always be answered.";
+
+    private static RowSet Set => StoryletParts.Options;
+
+    private static readonly IReadOnlyList<Choice> Settled = [new(StoryletParts.ByEffects, "Its effects"), new(StoryletParts.ByCheck, "A check")];
+
+    private static readonly IReadOnlyList<string> Weights = Enumerable.Range(0, ChronicleTuning.Most + 1).Select(n => n.ToString(System.Globalization.CultureInfo.InvariantCulture)).ToList();
+
+    private static readonly IReadOnlyDictionary<string, string> WeightLabels = new Dictionary<string, string> { ["0"] = "0, writes none" };
+
+    private List<Dictionary<string, string>> Rows = [];
+
+    private List<string> Slots = [];
+
+    private List<ExpressionScope> Scopes = [];
+
+    private List<string> Chips = [];
+
+    private List<string> HandlerChips = [];
+
+    private IReadOnlyList<string> SkillIds = [];
+
+    private IReadOnlyDictionary<string, string> SkillLabels = new Dictionary<string, string>();
+
+    // After a refused save, the first tab holding a problem; otherwise the one posted.
+    private int Shown;
+
+    protected override void OnParametersSet()
+    {
+        Rows = FormRows.Read(View.Values, Set);
+        Slots = StoryletParts.SlotNames(View.Values);
+        Scopes = StoryletParts.OptionScopes(View.Values, Slots);
+        Chips = StoryletParts.Chips(Slots, View.Choices, handler: false);
+        HandlerChips = StoryletParts.Chips(Slots, View.Choices, handler: true);
+        SkillIds = View.Choices.Skills.Select(s => s.Id).ToList();
+        SkillLabels = View.Choices.Skills.Where(s => s.Name is { Length: > 0 }).ToDictionary(s => s.Id, s => Checks.Choice(s.Id, s.Name!));
+        int? problem = Enumerable.Range(0, Rows.Count).Cast<int?>().FirstOrDefault(r => Problem(r!.Value));
+        Shown = problem ?? StoryletParts.Tab(View.Values, Rows.Count);
+    }
+
+    private static string TabId(int row) => $"tab-option-{row}";
+
+    private static string PanelId(int row) => $"panel-option-{row}";
+
+    private bool Problem(int row)
+    {
+        string under = Set.Name(row, "");
+        return View.Errors.Keys.Any(k => k.StartsWith(under, StringComparison.Ordinal));
+    }
+
+    // The label fills the id box it names as it is typed (editor.js), until the id is typed in.
+    private static IReadOnlyDictionary<string, object> LabelAttributes(int row) => new Dictionary<string, object> { ["data-id-to"] = FormValues.Slug(Set.Name(row, "id")) };
+
+    // The id box follows the label while it is blank or what the label makes.
+    private static IReadOnlyDictionary<string, object> IdAttributes(IReadOnlyDictionary<string, string> values)
+    {
+        string id = values["id"].Trim();
+        return new Dictionary<string, object> { ["data-auto"] = id.Length == 0 || id == NewIds.FromName(values["label"]) ? "true" : "false" };
+    }
+
+    // The fields of the way of settling not shown, kept for switching back; nothing here is saved.
+    private IEnumerable<KeyValuePair<string, string>> Hidden(int row, bool check)
+    {
+        string under = Set.Name(row, "");
+        string[] hidden = check ? ["effects[", "text"] : ["success.", "failure.", "skill", "difficulty"];
+        return View.Values.Fields.Where(f => f.Key.StartsWith(under, StringComparison.Ordinal) && hidden.Any(h => h.EndsWith('[') || h.EndsWith('.') ? f.Key[under.Length..].StartsWith(h, StringComparison.Ordinal) : f.Key[under.Length..] == h));
+    }
+
+    // Left and Right step round the tabs, Home and End go to the ends; the tab shown takes focus.
+    private string Keys => $"const n = {Rows.Count}; const to = {{ArrowRight: $_tab + 1, ArrowLeft: $_tab + n - 1, Home: 0, End: n - 1}}[evt.key]; if (to !== undefined) {{ evt.preventDefault(); $_tab = to % n; el.querySelectorAll('[role=tab]')[$_tab].focus() }}";
+}

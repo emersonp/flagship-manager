@@ -3,7 +3,8 @@
 # member, a skill, and every encounter a first stage can draw through the forms; start a legacy and see the names; play the first
 # mission and see an encounter's new name in its log; see an encounter and a text file refused with nothing written; tick boxes in
 # rows, remove and move rows, and see the saved values match the page; add a stage to an objective and see it saved; add an encounter approach, move
-# between its tabs by keyboard, save, and see the file, the form, and the fit at 400 and 1280 pixels agree.
+# between its tabs by keyboard, save, and see the file, the form, and the fit at 400 and 1280 pixels agree; write a storylet from rows,
+# save it, and switch its slot to text and back.
 # Scratch database and content, a free port, and everything removed on exit. Not part of check.sh.
 set -euo pipefail
 root="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -286,6 +287,59 @@ for width in 400 1280; do
   [ "$(js "document.documentElement.scrollWidth <= document.documentElement.clientWidth")" = "true" ] || fail "the encounter form scrolls sideways at $width pixels."
   [ "$(js "[...document.querySelectorAll('#item-form *')].every(e => e.getBoundingClientRect().right <= document.documentElement.clientWidth + 0.5)")" = "true" ] || fail "something in the encounter form is wider than the page at $width pixels."
 done
+
+# The storylet form (1e part six): write a new storylet with one slot from rows and the two options the loader asks for at least, each
+# with an effect from rows; the first option's id comes from its label as it is typed. Save, and see it on the list and in the file.
+# Then switch the slot to text and back, and see the same row.
+visit "/dev/content/storylets/new"
+pw fill "#f-name" "NAME_PLACEHOLDER_STORYLET" > /dev/null
+pw click "[id='row-add-cast[0].when']" > /dev/null
+wait_for "document.querySelector('#f-cast-0-when-0-kind') !== null" "the slot's first clause"
+pw select "#f-cast-0-when-0-kind" "Trait" > /dev/null
+wait_for "document.querySelector('#f-cast-0-when-0-name') !== null" "the clause's trait select"
+pw select "#f-cast-0-when-0-name" "trait_b" > /dev/null
+wait_for "document.querySelector('#f-cast-0-when-0-op')?.value === '>='" "the clause's operator"
+pw fill "#f-cast-0-when-0-value" "1" > /dev/null
+pw fill "#f-script" "$(printf 'subject: STORYLET_BROWSER_LINE\n= #subject# STORYLET_BROWSER_REPORT')" > /dev/null
+pw fill "#f-options-0-label" "Hold a service" > /dev/null
+[ "$(js "document.querySelector('#f-options-0-id').value")" = "hold_service" ] || fail "the first option's id was not made from its label ($(js "document.querySelector('#f-options-0-id').value"))."
+pw click "[id='row-add-options[0].effects']" > /dev/null
+wait_for "document.querySelector('#f-options-0-effects-0-what') !== null" "the first option's effect"
+pw select "#f-options-0-effects-0-what" "trait" > /dev/null
+wait_for "document.querySelector('#f-options-0-effects-0-trait') !== null" "the effect's trait select"
+pw select "#f-options-0-effects-0-trait" "trait_b" > /dev/null
+wait_for "document.querySelector('#f-options-0-effects-0-mode')?.value === 'add'" "the effect's add or set"
+pw select "#f-options-0-effects-0-mode" "set" > /dev/null
+wait_for "document.querySelector('#f-options-0-effects-0-mode')?.value === 'set' && document.activeElement?.id === 'f-options-0-effects-0-mode'" "the effect's set"
+pw fill "#f-options-0-effects-0-amount" "0" > /dev/null
+pw click "#tab-option-1" > /dev/null
+pw fill "#f-options-1-label" "Let it be" > /dev/null
+pw click "[id='row-add-options[1].effects']" > /dev/null
+wait_for "document.querySelector('#f-options-1-effects-0-what') !== null" "the second option's effect"
+shown="[...document.querySelectorAll('[role=tabpanel]')].filter(p => !p.hidden).map(p => p.id).join(',')"
+[ "$(js "$shown")" = "panel-option-1" ] || fail "adding an effect to the second option did not keep its tab ($(js "$shown"))."
+pw select "#f-options-1-effects-0-what" "trait" > /dev/null
+wait_for "document.querySelector('#f-options-1-effects-0-trait') !== null" "the second effect's trait select"
+pw select "#f-options-1-effects-0-trait" "trait_b" > /dev/null
+wait_for "document.querySelector('#f-options-1-effects-0-mode')?.value === 'add'" "the second effect's add"
+pw fill "#f-options-1-effects-0-amount" "-1" > /dev/null
+[ "$(js "document.querySelector('#f-options-0-id').value + '|' + document.querySelector('#f-script').value.length")" != "|0" ] || fail "the first option's id or the script was lost on the way."
+pw click "getByRole('button', { name: 'Save' })" > /dev/null
+wait_for "location.pathname === '/dev/content/storylets/STORYLET_07'" "the new storylet's page"
+wait_for "document.querySelector('#f-cast-0-when-0-kind') !== null" "the saved storylet's form"
+grep -A6 "id: STORYLET_07" "$tmp/content/storylets/base.yaml" | grep -qF 'subject: "subject.trait.trait_b >= 1"' || fail "the storylets file does not hold the new slot."
+grep -qF "effects: [{ trait: trait_b, set: 0 }]" "$tmp/content/storylets/base.yaml" || fail "the storylets file does not hold the first option's effect."
+grep -qF "id: hold_service" "$tmp/content/storylets/base.yaml" || fail "the storylets file does not hold the option id made from its label."
+for width in 400 1280; do
+  pw resize "$width" 900 > /dev/null
+  [ "$(js "document.documentElement.scrollWidth <= document.documentElement.clientWidth")" = "true" ] || fail "the storylet form scrolls sideways at $width pixels."
+done
+pw click "#f-cast-0-when-as-text" > /dev/null
+wait_for "document.querySelector('#f-cast-0-when-text')?.value === 'subject.trait.trait_b >= 1'" "the slot as text"
+pw click "#f-cast-0-when-as-rows" > /dev/null
+wait_for "document.querySelector('#f-cast-0-when-0-kind')?.value === 'Trait' && document.querySelector('#f-cast-0-when-0-name')?.value === 'trait_b'" "the slot back as rows"
+visit "/dev/content/storylets"
+[ "$(js "document.body.textContent.includes('NAME_PLACEHOLDER_STORYLET')")" = "true" ] || fail "the storylets list does not show the new storylet."
 
 console=$(pw --raw console)
 case "$console" in

@@ -7,7 +7,7 @@ namespace Web.Forms;
 // Fields the form does not show come from the stored model, read again when the save runs.
 internal abstract class KindForm
 {
-    private static readonly KindForm[] All = [new SkillKind(), new GearKind(), new CrewKind(), new AssignmentKind(), new ObjectiveKind(), new EncounterKind(), new LineKind(), new SymbolKind(), new PronounKind()];
+    private static readonly KindForm[] All = [new SkillKind(), new GearKind(), new CrewKind(), new AssignmentKind(), new ObjectiveKind(), new EncounterKind(), new LineKind(), new SymbolKind(), new PronounKind(), new StoryletKind()];
 
     public abstract ContentKind Kind { get; }
 
@@ -20,10 +20,30 @@ internal abstract class KindForm
         return [];
     }
 
-    // Every list of rows on the form as posted: its own, then each expression widget's clauses.
+    // The lists of rows nested in other rows, for the fields as posted (an option's effects, 1e part six). None for most kinds.
+    public virtual IReadOnlyList<RowSet> NestedRowSets(FormValues values)
+    {
+        return [];
+    }
+
+    // Every list of rows on the form as posted: its own, the nested ones, then each expression widget's clauses. A list that carries the
+    // rows nested in it comes before them, so a renumbering moves the nested fields first.
     public IReadOnlyList<RowSet> AllRowSets(FormValues values)
     {
-        return [.. RowSets, .. Expressions(values).Select(ExpressionField.Clauses)];
+        return [.. RowSets, .. NestedRowSets(values), .. Expressions(values).Select(ExpressionField.Clauses)];
+    }
+
+    // After a select that changes what a row shows posts the form (it names itself as the focus), that row's other fields made to fit.
+    // The expression widget's clauses are settled apart (ExpressionField.Settle); this is for a kind's own rows.
+    public virtual FormValues Settle(FormValues values, FormChoices choices, string? focus)
+    {
+        return values;
+    }
+
+    // The field a loader's refusal of a save belongs beside, and what it says there; null to leave it in the alert (1e part six).
+    public virtual (string Field, string Message)? Place(string id, ContentError error, FormValues values, FormChoices choices)
+    {
+        return null;
     }
 
     // The kinds that have a form yet.
