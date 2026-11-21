@@ -726,6 +726,29 @@ public sealed class ContentFormsTests(RepoContentGuard guard) : IClassFixture<Re
         Assert.Equal(before, Everything(app));
     }
 
+    // 1e part six: an inner comment belongs to no item, so every item's form says the file is refused and why, and a save leaves it as it was.
+    [Fact]
+    public async Task A_file_with_an_inner_comment_is_refused_by_its_forms_and_the_comment_kept()
+    {
+        using TestApp app = NewApp(root =>
+        {
+            string gear = Path.Combine(root, "gear", "base.yaml");
+            File.WriteAllText(gear, File.ReadAllText(gear).Replace("- { id: GEAR_02, tag: tools }", "- { id: GEAR_02, tag: tools }  # kept for the vault", StringComparison.Ordinal));
+        });
+        HttpClient client = app.NewClient();
+        string before = Everything(app);
+
+        string page = (await Get(client, "/dev/content/gear/GEAR_02")).Body;
+        (HttpStatusCode status, string body) = await Post(client, "/dev/content/gear/GEAR_01", "name=NAME_PLACEHOLDER&tag=scanner");
+
+        Assert.Contains("This file has content the editor cannot keep, so a save here is refused until it is fixed by hand.", page);
+        Assert.Contains("has a comment on line 3 that saving from a form would drop", page);
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, status);
+        Assert.Contains("has a comment on line 3 that saving from a form would drop", body);
+        Assert.Equal(before, Everything(app));
+        Assert.Contains("# kept for the vault", Disk(app, "gear/base.yaml"));
+    }
+
     [Fact]
     public async Task Saving_the_lossy_item_itself_replaces_it_and_the_file_is_clean()
     {

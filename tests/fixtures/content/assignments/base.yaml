@@ -1,5 +1,7 @@
 # Placeholders. The author replaces these.
+# objectives: every objective template whose tags include all of these. offer: how many objectives a site offers, by
+# weight. One is the rule.
 - id: ASSIGNMENT_TEMPLATE_1
-  objectives: { tags: [] }        # every objective template whose tags include all of these
-  offer: { 1: 6, 2: 3 }           # how many objectives a site offers, by weight. One is the rule
+  objectives: { tags: [] }
+  offer: { 1: 6, 2: 3 }
   loadoutLimit: 2

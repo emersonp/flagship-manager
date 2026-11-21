@@ -242,6 +242,7 @@ Each names the item and links to its form.
 ### 5.2 Rules that hold
 
 - The YAML is the stored form; the loader is the judge of a save, as since 1c-editor.
+- A list file keeps only its leading comment. Any comment after it makes the whole file lossy, so the editor refuses to rewrite it rather than drop the comment.
 - The builder never writes a string the loader would not accept, and never stores anything but the string.
 - Test ships never reach play: the bridge and the simulator never read them.
 - No event, state, or golden changes.
@@ -277,3 +278,14 @@ Kept as each task of the plan (`2026-11-20-phase-1e-part-six-plan.md`) lands; di
 - Faithfulness: the new keys are in its lists. One addition: `shown` is read as a bool but is not dropped when false, because absent means true. A trait's `levels` keys are read as YAML integers, as an assignment's `offer` keys are.
 - With the new kinds in `ContentKind`, `ContentFileSet.Index()` lists storylets, vignettes, and traits. The editor's pages still show its nine kinds until Task 6, so the two Web tests that went through every `ContentKind` now go through `ContentKinds.Kinds`. The id check for a new item (`Checks`) now sees storylet and vignette ids, as the loader does. Task 6 should add `Trait` to `Checks.LowerCase`.
 - Canonicalizing the game's pack gives the same storylets, vignettes, and traits. The pack's lines can come in another order, because the writer puts an objective's own words in a fixed order. That predates this part, so the test compares the lines as a set.
+
+**Task 2, the comments move into notes (2026-11-20).**
+
+- The count before the migration: storylets 19 comment lines, traits 7, encounters 2, lines 9, and assignments 2, as the plan said. The game's vignettes file had none, and neither did the fixture's storylets and vignettes: the fixture's only inner comments were the two in `assignments/`. A tuning file or the calendar is not a list kind, so the rule does not look at them, and they keep their comments.
+- A comment that sat on an option, an approach, or a key went into its item's notes, prefixed with that option's or approach's id (`make_time:`, `careful:`), or with the key's name when it sat on a trait's key (`expires:` on `shaken_heard`). A comment above an item went into that item's notes with its line breaks as written.
+- Lines and assignments have no `notes`, as the plan chose. Their comments joined each file's leading comment: in the lines file each names the lines it heads ("Schedule lines (LINE_SCHEDULE_*)", "Chronicle lines for a death"), and in both assignments files the two trailing comments became one sentence each about `objectives` and `offer`.
+- The rule is one file-level loss for a file, however many comments it has: "has a comment on line N (and M more) that saving from a form would drop; move it into notes, or edit the file as text". For a kind with no `notes` it says "move it into the comment at the top of the file" instead. The comments come from YamlDotNet's scanner with comments kept, and any on a line after the leading block counts, which is the block `ContentWriter.LeadingComment` keeps. So a comment after a blank line at the top is an inner comment, which the writer always dropped; that test now expects a refusal.
+- A form beside a file-level loss used to say "Another item in this file has content the editor cannot keep". When every loss is the file's own, it now says "This file has content the editor cannot keep, so a save here is refused until it is fixed by hand."
+- The storylets have no form until Task 8, so the Web test puts a comment in the gear file. The refusal of a storylets file is tested in `Sim.Content`: an upsert, a delete, and a canonicalize are all refused, and nothing is rewritten.
+- `ContentOracleTests` finds its keys with a regex over the text, so it now skips text before the first item, where the assignments file's leading comment names `objectives:` and `offer:`.
+- The loader gives the same pack before and after the migration, for both packs. This was checked once against the previous commit's files and not kept as a test. No golden moved.

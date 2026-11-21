@@ -463,14 +463,18 @@ public class ContentFaithfulnessTests : IClassFixture<RepoContentGuard>
         Assert.Empty(edited.Validate().Errors);
     }
 
-    // The leading block ends at the first blank line; a comment after one is an inner comment and is dropped.
+    // The leading block ends at the first blank line; a comment after one is an inner comment, which a rewrite would drop, so since
+    // 1e part six the file is refused instead.
     [Fact]
     public void The_leading_comment_ends_at_the_first_blank_line()
     {
         Assert.Equal("# One.\n# Two.", ContentWriter.LeadingComment("\n\n# One.\n# Two.\n\n# Later.\n- id: X\n"));
         Assert.Null(ContentWriter.LeadingComment("- id: X\n# Later.\n"));
         ContentFileSet files = new(new Dictionary<string, string> { ["gear/base.yaml"] = "# One.\n\n# Later.\n- id: GEAR_01\n  tag: scanner\n" });
-        Assert.Equal("# One.\n- id: GEAR_01\n  tag: scanner\n", ContentEdits.Canonicalize(files).Files["gear/base.yaml"]);
+        ContentLossException e = Assert.Throws<ContentLossException>(() => ContentEdits.Canonicalize(files));
+        Assert.Contains("comment on line 3", e.Message, StringComparison.Ordinal);
+        ContentFileSet kept = new(new Dictionary<string, string> { ["gear/base.yaml"] = "\n\n# One.\n# Two.\n- id: GEAR_01\n  tag: scanner\n" });
+        Assert.Equal("# One.\n# Two.\n- id: GEAR_01\n  tag: scanner\n", ContentEdits.Canonicalize(kept).Files["gear/base.yaml"]);
     }
 
     // A missing folder is an empty set; Validate then gives the loader's own errors.
@@ -640,6 +644,86 @@ public class ContentFaithfulnessTests : IClassFixture<RepoContentGuard>
         Assert.Contains("second document", loss.Problem);
         Assert.Throws<ContentLossException>(() => ContentEdits.Upsert(files, ContentKind.Gear, ModelOf(files, ContentKind.Gear, "GEAR_01")));
         Assert.DoesNotContain(files.Index(), i => i.Lossy);
+    }
+
+    // 1e part six: the writer keeps only the leading comment, so after the migration into notes no list file in either pack has another,
+    // and every one can be rewritten.
+    [Theory]
+    [InlineData("content")]
+    [InlineData("tests/fixtures/content")]
+    public void No_list_file_in_either_pack_has_an_inner_comment_and_every_one_is_rewritable(string root)
+    {
+        ContentFileSet files = ContentFileSet.ReadDirectory(System.IO.Path.Combine(TestContent.Root, root));
+        List<string> lists = files.Index().Select(i => i.File).Distinct().ToList();
+        Assert.Contains("lines/base.yaml", lists);
+        Assert.Contains("assignments/base.yaml", lists);
+        foreach (string path in lists)
+        {
+            Assert.Empty(ContentEdits.Losses(files, path));
+        }
+
+        ContentFileSet canonical = ContentEdits.Canonicalize(files);
+        Assert.Equal(JsonSerializer.Serialize(files.Validate().Pack! with { Lines = [] }, SimJson.Options), JsonSerializer.Serialize(canonical.Validate().Pack! with { Lines = [] }, SimJson.Options));
+    }
+
+    // A comment after an option would be dropped by a save, so the file is refused as a whole, and nothing is rewritten.
+    [Fact]
+    public void A_comment_after_an_option_is_a_file_level_loss_and_the_file_is_not_rewritten()
+    {
+        ContentFileSet repo = Repo();
+        const string option = "    - { id: option_a, label: STORYLET_01_OPTION_A_LABEL,";
+        string text = repo.Files["storylets/base.yaml"];
+        int at = text.IndexOf(option, StringComparison.Ordinal);
+        Assert.True(at >= 0);
+        int end = text.IndexOf('\n', at) + 1;
+        ContentFileSet files = ContentEdits.ReplaceText(repo, "storylets/base.yaml", text.Insert(end, "    # Why option_a costs loyalty.\n"));
+        int line = files.Files["storylets/base.yaml"][..end].Count(c => c == '\n') + 1;
+
+        ContentLoss loss = Assert.Single(ContentEdits.Losses(files, "storylets/base.yaml"));
+        Assert.Null(loss.Item);
+        Assert.Equal($"has a comment on line {line} that saving from a form would drop; move it into notes, or edit the file as text.", loss.Problem);
+        Assert.Throws<ContentLossException>(() => ContentEdits.Upsert(files, ContentKind.Storylet, ContentEdits.Get<StoryletModel>(files, ContentKind.Storylet, "STORYLET_02")!));
+        Assert.Throws<ContentLossException>(() => ContentEdits.Delete(files, ContentKind.Storylet, "STORYLET_02"));
+        Assert.Throws<ContentLossException>(() => ContentEdits.Canonicalize(files));
+        Assert.DoesNotContain(files.Index(), i => i.Lossy);
+    }
+
+    // The rule reads the scanner's comments: a # in a quoted, block, or plain scalar is text, and a comment anywhere after the leading
+    // block is one, including after a blank line at the top and at the end of a line. A kind with no notes is told where else it goes.
+    [Theory]
+    [InlineData("- { id: GEAR_01, tag: scanner }", "- { id: GEAR_01, name: \"Probe # 1\", tag: scanner }", null)]
+    [InlineData("- { id: GEAR_01, tag: scanner }", "- { id: GEAR_01, name: Probe#1, tag: scanner }", null)]
+    [InlineData("- { id: GEAR_01, tag: scanner }", "- id: GEAR_01\n  name: |-\n    # not a comment\n  tag: scanner", null)]
+    [InlineData("- { id: GEAR_01, tag: scanner }", "- { id: GEAR_01, tag: scanner }   # a note", 2)]
+    [InlineData("# Placeholders. The author replaces these.", "# Placeholders. The author replaces these.\n\n# After a blank line.", 3)]
+    public void A_comment_is_what_the_scanner_says_is_one(string find, string replace, int? line)
+    {
+        ContentFileSet repo = Repo();
+        ContentFileSet files = ContentEdits.ReplaceText(repo, "gear/base.yaml", repo.Files["gear/base.yaml"].Replace(find, replace, StringComparison.Ordinal));
+
+        IReadOnlyList<ContentLoss> losses = ContentEdits.Losses(files, "gear/base.yaml");
+
+        if (line is null)
+        {
+            Assert.Empty(losses);
+        }
+        else
+        {
+            ContentLoss loss = Assert.Single(losses);
+            Assert.Equal($"has a comment on line {line} that saving from a form would drop; move it into the comment at the top of the file, or edit the file as text.", loss.Problem);
+        }
+    }
+
+    // Several comments are one loss, which names the first and counts the rest.
+    [Fact]
+    public void Several_inner_comments_are_one_loss_naming_the_first()
+    {
+        ContentFileSet repo = Repo();
+        string text = repo.Files["gear/base.yaml"].Replace("- { id: GEAR_02, tag: tools }", "# one\n- { id: GEAR_02, tag: tools }  # two\n# three", StringComparison.Ordinal);
+        ContentFileSet files = ContentEdits.ReplaceText(repo, "gear/base.yaml", text);
+
+        ContentLoss loss = Assert.Single(ContentEdits.Losses(files, "gear/base.yaml"));
+        Assert.StartsWith("has a comment on line 3 (and 2 more) that saving", loss.Problem, StringComparison.Ordinal);
     }
 
     // The loader reports a pair of nulls as it reports a non-number, instead of crashing.

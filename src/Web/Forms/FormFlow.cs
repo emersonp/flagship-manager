@@ -228,9 +228,16 @@ internal static class FormFlow
             return ("This item has content the editor cannot keep. Saving replaces it with what the form shows.", losses.Select(l => l.ToString()).ToList());
         }
 
-        return losses.Count > 0
-            ? ("Another item in this file has content the editor cannot keep, so a save here is refused until it is fixed by hand.", losses.Select(l => l.ToString()).ToList())
-            : (null, []);
+        if (losses.Count == 0)
+        {
+            return (null, []);
+        }
+
+        // A file-level loss (an inner comment, a second document) belongs to no item, so the lead names the file.
+        string lead = losses.All(l => l.Item is null)
+            ? "This file has content the editor cannot keep, so a save here is refused until it is fixed by hand."
+            : "Another item in this file has content the editor cannot keep, so a save here is refused until it is fixed by hand.";
+        return (lead, losses.Select(l => l.ToString()).ToList());
     }
 
     // A loss message already starts with its file; the list shows the file once.

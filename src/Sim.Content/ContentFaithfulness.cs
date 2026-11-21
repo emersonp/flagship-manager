@@ -73,6 +73,11 @@ internal static class ContentFaithfulness
             losses.Add((-1, new ContentLoss(path, null, "has a second document, which the editor cannot keep.")));
         }
 
+        if (InnerComment(kind, text) is { } comment)
+        {
+            losses.Add((-1, new ContentLoss(path, null, comment)));
+        }
+
         bool excluded = false;
         for (int i = 0; i < entries.Count; i++)
         {
@@ -100,6 +105,64 @@ internal static class ContentFaithfulness
         }
 
         return losses;
+    }
+
+    // Kinds with a notes key, where an item's comment belongs (1e part six).
+    private static readonly HashSet<ContentKind> NotesKinds = [ContentKind.Storylet, ContentKind.Vignette, ContentKind.Trait, ContentKind.Encounter];
+
+    // The writer keeps the leading comment (ContentWriter.LeadingComment) and drops every other, so a comment after it is a loss. The
+    // comments come from the YAML scanner, so a # inside a quoted or block scalar ("#subject#") is not one. Null when there is none.
+    private static string? InnerComment(ContentKind kind, string text)
+    {
+        int leading = LeadingLines(text);
+        var lines = new List<int>();
+        try
+        {
+            var scanner = new Scanner(new StringReader(text), skipComments: false);
+            while (scanner.MoveNext())
+            {
+                if (scanner.Current is YamlDotNet.Core.Tokens.Comment comment && comment.Start.Line > leading && !lines.Contains((int)comment.Start.Line))
+                {
+                    lines.Add((int)comment.Start.Line);
+                }
+            }
+        }
+        catch (YamlException)
+        {
+            // The reader has already parsed it; a scanner that disagrees reports what it found before.
+        }
+
+        if (lines.Count == 0)
+        {
+            return null;
+        }
+
+        string more = lines.Count == 1 ? "" : $" (and {lines.Count - 1} more)";
+        string where = NotesKinds.Contains(kind) ? "move it into notes" : "move it into the comment at the top of the file";
+        return $"has a comment on line {lines[0]}{more} that saving from a form would drop; {where}, or edit the file as text.";
+    }
+
+    // How many lines ContentWriter.LeadingComment reads as the leading comment, counting the blank lines before it.
+    private static int LeadingLines(string text)
+    {
+        string[] lines = text.TrimStart('﻿').Split('\n');
+        int last = 0;
+        bool started = false;
+        for (int i = 0; i < lines.Length; i++)
+        {
+            string line = lines[i].TrimEnd();
+            if (line.StartsWith('#'))
+            {
+                started = true;
+                last = i + 1;
+            }
+            else if (line.Length > 0 || started)
+            {
+                break;
+            }
+        }
+
+        return last;
     }
 
     // What the writer keeps but the encounter form cannot: it holds one trait change a tier, so a save from it would drop the rest.

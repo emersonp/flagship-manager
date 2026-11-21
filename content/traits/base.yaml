@@ -11,10 +11,11 @@
   every: { weeks: 3, add: -1 }
 - id: shaken_heard
   name: Heard out
+  notes: |-
+    expires: Long enough that the same fright is not raised twice; short enough that a new one, much later, can be.
   shown: false
   on: crew
   levels: { 1: heard, 2: turned_away }
-  # Long enough that the same fright is not raised twice; short enough that a new one, much later, can be.
   expires: { weeks: 12 }
 - id: stood_down
   name: Stood down
@@ -25,9 +26,10 @@
     sent: [{ set: broken }, { loyalty: -2 }, { morale: -4 }]
     notSent: [{ set: 0 }]
   expires: { weeks: 6 }
-# A pair: the holder keeps clear of the target, after a disaster they blame on the target's call (the Salvagers' Picket).
 - id: avoids
   name: Avoids
+  notes: |-
+    A pair: the holder keeps clear of the target, after a disaster they blame on the target's call (the Salvagers' Picket).
   on: pair
   max: 5
   briefing: Avoids
@@ -36,18 +38,20 @@
   mission: { checkBonus: -1, withTarget: true }
   every: { weeks: 4, add: -1 }
   onTargetDied: [{ set: 0 }]
-# Someone who came back from a lost mission (1e part four, design 4.13): settled once someone got through to them, withdrawn while
-# they keep to themselves. Only "The one who came back" and "Still not talking" set it. It lets go after twelve weeks, so a later loss
-# can be raised again.
 - id: came_back
   name: Came back
+  notes: |-
+    Someone who came back from a lost mission (1e part four, design 4.13): settled once someone got through to them, withdrawn while
+    they keep to themselves. Only "The one who came back" and "Still not talking" set it. It lets go after twelve weeks, so a later loss
+    can be raised again.
   shown: false
   on: crew
   levels: { 1: settled, 2: withdrawn }
   expires: { weeks: 12 }
-# Grieving (1e part five, design 4.8): someone who asked to remember the dead and was told "Not now" by "The names on the wall". It
-# does nothing on its own yet; it marks them for a later storylet, and lets go after four weeks.
 - id: grieving
   name: Grieving
+  notes: |-
+    Grieving (1e part five, design 4.8): someone who asked to remember the dead and was told "Not now" by "The names on the wall". It
+    does nothing on its own yet; it marks them for a later storylet, and lets go after four weeks.
   on: crew
   expires: { weeks: 4 }

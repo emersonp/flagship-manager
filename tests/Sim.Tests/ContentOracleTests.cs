@@ -77,7 +77,13 @@ public partial class ContentOracleTests : IClassFixture<RepoContentGuard>
                     continue;
                 }
 
-                string owner = IdAt().Matches(text[..match.Index]).Last().Groups["id"].Value;
+                // A key in the leading comment ("objectives: every objective...") comes before any item and is no value.
+                if (IdAt().Matches(text[..match.Index]) is not { Count: > 0 } owners)
+                {
+                    continue;
+                }
+
+                string owner = owners.Last().Groups["id"].Value;
                 string other = new ContentFileSet(baseFiles).Index().First(i => i.File == path && i.Id != owner).Id;
                 foreach (string value in Awkward)
                 {

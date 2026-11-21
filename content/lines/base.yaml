@@ -1,6 +1,17 @@
 # Generated fiction (2026-11-15), by the author's one-time exception to the placeholder rule. These are the shared lines: what an
 # encounter falls back on when it has no words of its own, and what belongs to no encounter (injuries, the lead, the captain's
 # answers). An encounter's or an objective's own words are written in that item, not here. Past tense where the report reads it.
+# Schedule lines (LINE_SCHEDULE_*): how the cycle's turn went (slice 1e-calendar), said at the top of the itinerary. Generated
+# 2026-11-20, for the author to rewrite. #days# is the days early or late ("4 days"), #planned# the weeks planned ("5 weeks"); the
+# cycle's length is never said.
+# Chronicle lines (LINE_CHRONICLE_*; slice 1e part five, design 4.3): each entry's words, written once when it happens and never
+# again. Plain prose, no speakers. The founding names no ship or captain: neither exists yet. #crew# is the starting crew's size.
+# Chronicle lines for a death: #dead# is the one lost, #lead# the lead the mission started with, #cycles# the cycles served
+# ("8 cycles").
+# Chronicle lines for a mission's end, after its deaths: #team# is how many were sent, #deaths# how many of them died.
+# Chronicle lines for a call answered: #lead# is the lead who made it.
+# Chronicle lines for a captain storylet answered (vignettes write nothing): #storylet# is its title, #option# the option's label,
+# #handler# the one sent on a check. A shared line cannot name the cast; a storylet's option can, with chronicle: { text: "..." }.
 - id: LINE_STAGE
   when: { beat: stage }
   text: "#lead# brought the team to the #encounter#."
@@ -111,8 +122,6 @@
 - id: LINE_RESULT
   when: { beat: result }
   text: The mission ended.
-# How the cycle's turn went (slice 1e-calendar), said at the top of the itinerary. Generated 2026-11-20, for the author to rewrite.
-# #days# is the days early or late ("4 days"), #planned# the weeks planned ("5 weeks"); the cycle's length is never said.
 - id: LINE_SCHEDULE_AHEAD
   name: The ship arrives ahead of schedule
   when: { beat: schedule, schedule: ahead }
@@ -137,13 +146,10 @@
   name: A journey arrives late
   when: { beat: schedule, schedule: delayed, travel: true }
   text: "Planned at #planned#, the journey ran #days# late."
-# The chronicle (slice 1e part five, design 4.3): each entry's words, written once when it happens and never again. Plain prose,
-# no speakers. The founding names no ship or captain: neither exists yet. #crew# is the starting crew's size.
 - id: LINE_CHRONICLE_FOUNDING
   name: The legacy is founded
   when: { beat: chronicle_founding }
   text: "The ship took on her first crew of #crew#."
-# A death. #dead# is the one lost, #lead# the lead the mission started with, #cycles# the cycles served ("8 cycles").
 - id: LINE_CHRONICLE_DEATH
   name: A crew member is lost
   when: { beat: chronicle_death }
@@ -152,7 +158,6 @@
   name: The lead is lost
   when: { beat: chronicle_death, dead.isLead: true }
   text: "#dead# fell at the #encounter#, leading the away team, after #cycles# aboard."
-# A mission's end, after its deaths. #team# is how many were sent, #deaths# how many of them died.
 - id: LINE_CHRONICLE_MISSION_FULL
   name: A mission succeeds in full
   when: { beat: chronicle_mission, outcome: fullSuccess }
@@ -189,7 +194,6 @@
   name: A mission fails, and several die
   when: { beat: chronicle_mission, outcome: [withdrawal, loss, incomplete], deaths: { min: 2 } }
   text: "#lead# led #team# on the #objective#, and it failed. #deaths# did not return."
-# A call answered. #lead# is the lead who made it.
 - id: LINE_CHRONICLE_CALL_BACKED
   name: The captain backs the lead
   when: { beat: chronicle_call, standing: backed }
@@ -214,8 +218,6 @@
   name: The captain overrules the lead and withdraws
   when: { beat: chronicle_call, standing: overruled, answer: withdraw }
   text: "At the #encounter#, the captain overruled #lead# and called the team back."
-# A captain storylet answered (vignettes write nothing). #storylet# is its title, #option# the option's label, #handler# the one
-# sent on a check. A shared line cannot name the cast; a storylet's option can, with chronicle: { text: "..." }.
 - id: LINE_CHRONICLE_STORYLET
   name: The captain answers a storylet
   when: { beat: chronicle_storylet }

@@ -27,6 +27,9 @@
       text: The forward array stays as it is. Every reading from it now carries a margin, and the bridge knows it.
 - id: STORYLET_02
   name: Someone shaken
+  notes: |-
+    make_time: Everyone's loyalty dips but the subject's: the captain is seen to have favourites.
+    stand_down: A promise for the next away team: kept by leaving them aboard, broken by sending them (stood_down's launch rules).
   stakes: 3
   cast:
     subject: "subject.trait.shaken >= 1 && subject.trait.shaken_heard == 0"
@@ -38,12 +41,10 @@
   options:
     - id: make_time
       label: Make the time
-      # Everyone's loyalty dips but the subject's: the captain is seen to have favourites.
       effects: [{ trait: shaken, add: -1 }, { trait: shaken_heard, set: heard }, { loyalty: -1, on: crew }, { loyalty: 1, on: subject }]
       text: "#subject# had the captain's door for the better part of an hour, and the rest of the crew noticed whose it was."
     - id: stand_down
       label: Stand them down
-      # A promise for the next away team: kept by leaving them aboard, broken by sending them (stood_down's launch rules).
       effects: [{ trait: shaken_heard, set: heard }, { trait: stood_down, set: promised }]
       text: "#subject# was told they would sit out the next away team, and went back on shift a little lighter."
     - id: carry_on
@@ -52,6 +53,8 @@
       text: "#subject# was told to carry on, and went back on shift without another word."
 - id: STORYLET_03
   name: You gave your word
+  notes: |-
+    stand_by: The whole crew hears that a promise from the bridge can be taken back.
   stakes: 2
   cast:
     subject: "subject.trait.stood_down == 'broken'"
@@ -67,11 +70,12 @@
       text: "The captain owned the broken promise, and #subject# seemed to take that as worth something."
     - id: stand_by
       label: Stand by the order
-      # The whole crew hears that a promise from the bridge can be taken back.
       effects: [{ morale: -2, on: crew }, { trait: stood_down, set: 0 }]
       text: "The captain stood by the order, and by evening the whole ship had heard what a promise from the bridge was worth."
 - id: STORYLET_04
   name: Clear the air
+  notes: |-
+    keep_apart: Out of this storylet's range; the weekly step brings it back to 4 in four weeks, and they are in each other's way again.
   stakes: 2
   cast:
     subject: "subject.aboard"
@@ -88,16 +92,16 @@
       text: "#subject# and #target# were put in a room until they had it out, and came out speaking, if not friends."
     - id: keep_apart
       label: Keep them apart
-      # Out of this storylet's range; the weekly step brings it back to 4 in four weeks, and they are in each other's way again.
       effects: [{ trait: avoids, set: 5, toward: target }]
       text: "#subject# and #target# were posted on different watches, and the roster quietly grew a rule."
-# The one who came back (1e part four, design 4.13): a survivor of a lost mission, and someone who was not on it. Every answer sets
-# came_back, which is how both this and "Still not talking" come to be read. The window is two cycles, not three: "Still not talking"
-# can clear came_back two cycles after the loss at the earliest, and three would cast this again over the same loss.
-# Failure and leave_it add avoids 2, so "Still not talking" comes, and with its cast cooldown of 4 comes back once at 1; avoids
-# falls to 0 before a third time.
 - id: STORYLET_05
   name: The one who came back
+  notes: |-
+    The one who came back (1e part four, design 4.13): a survivor of a lost mission, and someone who was not on it. Every answer sets
+    came_back, which is how both this and "Still not talking" come to be read. The window is two cycles, not three: "Still not talking"
+    can clear came_back two cycles after the loss at the earliest, and three would cast this again over the same loss.
+    Failure and leave_it add avoids 2, so "Still not talking" comes, and with its cast cooldown of 4 comes back once at 1; avoids
+    falls to 0 before a third time.
   stakes: 3
   cast:
     subject: "subject.history.count('lost_mission', 2) > 0 && subject.trait.came_back == 0"
@@ -114,10 +118,11 @@
         failure: { effects: [{ trait: came_back, set: withdrawn, on: subject }, { trait: avoids, add: 2, on: subject, toward: target }], text: "#handler# tried. #subject# heard them out, said nothing, and now keeps clear of #target# as well." } }
     - { id: leave_it, label: Leave them be, effects: [{ trait: came_back, set: withdrawn, on: subject }, { trait: avoids, add: 2, on: subject, toward: target }], text: "#subject# was left to it. They eat alone now, and take the long way round when #target# is in the corridor." }
     - { id: back_on_watch, label: Put them back on the watch bill, requires: "subject.loyalty >= 60", effects: [{ trait: came_back, set: settled, on: subject }, { loyalty: -1, on: subject }], text: "#subject# was told the mission was over and the watch was not. They took it as an order, and went back to work." }
-# Still not talking (1e part four, design 4.13): the one who came back still keeps clear of someone. The cast cooldown lets it come
-# back while came_back and avoids last; only a talk that gets through clears them.
 - id: STORYLET_06
   name: Still not talking
+  notes: |-
+    Still not talking (1e part four, design 4.13): the one who came back still keeps clear of someone. The cast cooldown lets it come
+    back while came_back and avoids last; only a talk that gets through clears them.
   stakes: 2
   cast:
     subject: "subject.trait.came_back == 'withdrawn'"
@@ -132,12 +137,13 @@
         success: { effects: [{ trait: came_back, set: 0, on: subject }, { trait: avoids, set: 0, on: subject, toward: target }, { morale: 2, on: subject }], text: "#handler# sat #subject# and #target# down in the same room and did not let either leave. It came out at last: #subject# blamed #target# for not being there, and knew it was not fair." },
         failure: { effects: [{ morale: -1, on: handler }], text: "#handler# got as far as the door of #subject#'s quarters, and no further." } }
     - { id: let_it_lie, label: Let it lie, effects: [], text: "Nobody pushed it. The roster kept #subject# and #target# on different watches." }
-# The ghosts have names now (slice 1e-calendar, design 4.6): the worked example of a storylet that waits on time. It comes only once
-# "A quirk in the sensors" was answered by flying on, at least three cycles and 40 days ago, so a run of ordinary cycles (5 to 7 days
-# each) is rarely enough and a journey usually is. Both clocks are counted from the day the first arrived. Leaving it is allowed, so
-# the cast cooldown, not a trait, keeps it from coming straight back. Generated words, in place, for the author to rewrite.
 - id: STORYLET_07
   name: The ghosts have names now
+  notes: |-
+    The ghosts have names now (slice 1e-calendar, design 4.6): the worked example of a storylet that waits on time. It comes only once
+    "A quirk in the sensors" was answered by flying on, at least three cycles and 40 days ago, so a run of ordinary cycles (5 to 7 days
+    each) is rarely enough and a journey usually is. Both clocks are counted from the day the first arrived. Leaving it is allowed, so
+    the cast cooldown, not a trait, keeps it from coming straight back. Generated words, in place, for the author to rewrite.
   stakes: 3
   requires: "ship.trait.sensors_quirk == 'let_ride' && storylet.STORYLET_01.cyclesSince >= 3 && storylet.STORYLET_01.daysSince >= 40"
   cooldown: { cast: 6 }
@@ -157,12 +163,13 @@
       label: Keep flying on it
       effects: [{ loyalty: -1, on: crew }]
       text: The array stays as it is. The night watch keeps its list of names, and fewer of them laugh about it.
-# The names on the wall (1e part five, design 4.8): the worked example of a storylet that reads the chronicle. It comes once two
-# crew have died within 120 days, and casts someone who lost a crewmate in the last 20 cycles: a cast slot cannot prefer the one
-# with the most losses, so it requires one. Holding the service leaves a weight-4 entry in its own words. Generated words, in place,
-# for the author to rewrite.
 - id: STORYLET_08
   name: The names on the wall
+  notes: |-
+    The names on the wall (1e part five, design 4.8): the worked example of a storylet that reads the chronicle. It comes once two
+    crew have died within 120 days, and casts someone who lost a crewmate in the last 20 cycles: a cast slot cannot prefer the one
+    with the most losses, so it requires one. Holding the service leaves a weight-4 entry in its own words. Generated words, in place,
+    for the author to rewrite.
   stakes: 3
   requires: "chronicle.count('death', 120) >= 2"
   cast:
