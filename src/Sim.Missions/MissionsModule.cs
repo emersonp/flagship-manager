@@ -107,24 +107,9 @@ public static class MissionsModule
             return size;
         }
 
-        IRosterView roster = context.View<IRosterView>();
-        var seen = new HashSet<string>();
-        foreach (string id in command.CrewIds)
+        if (LaunchTeam.PicksRefusal(context.View<IRosterView>(), command.CrewIds, command.LeadId) is { } picks)
         {
-            if (!seen.Add(id))
-            {
-                return $"Crew member '{id}' is listed twice.";
-            }
-
-            if (LaunchTeam.Refusal(roster, id) is { } refused)
-            {
-                return refused;
-            }
-        }
-
-        if (!seen.Contains(command.LeadId))
-        {
-            return $"The lead '{command.LeadId}' is not on the team.";
+            return picks;
         }
 
         return CheckGear(pack, site, command);

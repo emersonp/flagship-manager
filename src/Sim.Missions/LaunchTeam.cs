@@ -37,6 +37,28 @@ public static class LaunchTeam
         return null;
     }
 
+    // Why the launch would refuse these picks, or null: a member listed twice, a member Refusal refuses, or a lead not on the team
+    // (AssignTeam's checks after the size, in their order and words). The bench calls it so that a pick it lets through the launch
+    // would take.
+    public static string? PicksRefusal(IRosterView roster, IReadOnlyList<string> crewIds, string leadId)
+    {
+        var seen = new HashSet<string>();
+        foreach (string id in crewIds)
+        {
+            if (!seen.Add(id))
+            {
+                return $"Crew member '{id}' is listed twice.";
+            }
+
+            if (Refusal(roster, id) is { } refused)
+            {
+                return refused;
+            }
+        }
+
+        return seen.Contains(leadId) ? null : $"The lead '{leadId}' is not on the team.";
+    }
+
     // Why the launch would refuse a team of this size for this objective, or null (AssignTeam's check, in its words).
     public static string? SizeRefusal(ObjectiveDef objective, int size)
     {

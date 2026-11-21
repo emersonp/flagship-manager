@@ -6,6 +6,7 @@ using Sim.Core.Content;
 using Web;
 using Web.Components;
 using Web.Endpoints;
+using Web.Tuning;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 builder.Services.Configure<WebSettings>(builder.Configuration.GetSection("Web"));
@@ -34,6 +35,7 @@ builder.Services.AddSingleton(provider =>
 builder.Services.AddSingleton(provider => new ContentEditor(provider.GetRequiredService<ContentHost>(), provider.GetRequiredService<StartUp>().Folder));
 builder.Services.AddSingleton(provider => new GameServices(new SqliteLegacyStore($"Data Source={provider.GetRequiredService<StartUp>().DatabasePath}"), provider.GetRequiredService<TimeProvider>()));
 builder.Services.AddSingleton<LegacySession>();
+builder.Services.AddSingleton<BenchTeams>();
 builder.Services.AddSingleton<Render>();
 
 WebApplication app = builder.Build();

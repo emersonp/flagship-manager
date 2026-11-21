@@ -167,10 +167,10 @@ public sealed class BenchTeams(LegacySession sessions, ContentHost host, Content
 }
 ```
 
-- [ ] **Step 1: a legacy.** Read it with `LegacySession.Read` (which holds the lock only while it loads), take `IRosterView` and `ITraitView` from the live game's bus on its state, list the roster in roster order with each member's `LaunchTeam.Refusal`, and build with `LaunchTeam.Build`. The team is built once per run, not per seed.
-- [ ] **Step 2: a test ship.** Load the ships as the editor's previews do (`ContentLoader.LoadTestShips` on the editor's files and the live pack), found it with Task 5, and the same as Step 1.
-- [ ] **Step 3: tests.** A team built from a legacy equals the team `StartMission` builds for the same picks on that legacy (advance a test legacy to the launch with the same `AssignTeam`, and compare with the resolver's starting team), injuries, morale bonus, traits, trait bonuses, and ship traits included. A member who is not fit is listed with the refusal and cannot be built. A team from a test ship's grieving member carries the trait. After `Legacy` and `Build`, the legacy's stored record and its event log are byte for byte the same, and `LegacySession.LockCount` is back to 0.
-- [ ] **Step 4:** `./check.sh`; commit "Build a bench team from a legacy or a test ship through the launch's code".
+- [x] **Step 1: a legacy.** Read it with `LegacySession.Read` (which holds the lock only while it loads), take `IRosterView` and `ITraitView` from the live game's bus on its state, list the roster in roster order with each member's `LaunchTeam.Refusal`, and build with `LaunchTeam.Build`. The team is built once per run, not per seed.
+- [x] **Step 2: a test ship.** Load the ships as the editor's previews do (`ContentLoader.LoadTestShips` on the editor's files and the live pack), found it with Task 5, and the same as Step 1.
+- [x] **Step 3: tests.** A team built from a legacy equals the team `StartMission` builds for the same picks on that legacy (advance a test legacy to the launch with the same `AssignTeam`, and compare with the resolver's starting team), injuries, morale bonus, traits, trait bonuses, and ship traits included. A member who is not fit is listed with the refusal and cannot be built. A team from a test ship's grieving member carries the trait. After `Legacy` and `Build`, the legacy's stored record and its event log are byte for byte the same, and `LegacySession.LockCount` is back to 0.
+- [x] **Step 4:** `./check.sh`; commit "Build a bench team from a legacy or a test ship through the launch's code".
 
 ### Task 7: the draft
 
