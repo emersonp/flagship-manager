@@ -4,8 +4,9 @@ using YamlDotNet.RepresentationModel;
 
 namespace Web.Forms;
 
-// The files edited as text: the pack file, the tuning files, the calendar, the test ships, and the storylets, vignettes, and traits until their forms exist. The path comes from this
-// list, never from a request.
+// The files edited as text: the pack file, the tuning files, and the calendar, listed on the index; and the files of the storylets,
+// vignettes, traits, and test ships, reached from each kind's list ("Edit as text"), which keep their text view beside their forms
+// (1e part six). The path comes from this list, never from a request.
 public sealed record TextFile(string Name, string Path, string Title, IReadOnlyList<string> Notes)
 {
     private const string Tuning = "The page that edits these numbers and re-runs the bench comes later. A mission in flight keeps the tuning it started with.";

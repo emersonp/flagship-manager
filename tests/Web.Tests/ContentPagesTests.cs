@@ -1,5 +1,6 @@
 using System.Net;
 using System.Text.RegularExpressions;
+using Microsoft.Extensions.DependencyInjection;
 using Sim.Content;
 using Sim.Core.Content;
 using Sim.Crew;
@@ -10,7 +11,7 @@ namespace Web.Tests;
 // The editor's pages and the swappable pack, through the real app on a scratch copy of the content.
 public sealed class ContentPagesTests : IClassFixture<RepoContentGuard>
 {
-    private static readonly string[] Segments = ["skills", "gear", "crew", "assignments", "objectives", "encounters", "lines", "symbols", "pronouns"];
+    private static readonly string[] Segments = ["skills", "gear", "crew", "assignments", "objectives", "encounters", "lines", "symbols", "pronouns", "storylets", "vignettes", "traits", "testships"];
 
     private static ContentFileSet Repo()
     {
@@ -61,8 +62,9 @@ public sealed class ContentPagesTests : IClassFixture<RepoContentGuard>
             Assert.Contains($"href=\"/dev/content/{Segment(kind)}\"", body);
         }
 
-        // The editor's kinds: storylets, vignettes, and traits are read as models (1e part six) before the editor lists them (Task 6).
-        foreach (ContentItemRef item in files.Index().Where(i => ContentKinds.Kinds.Contains(i.Kind)))
+        // Every kind the files hold is one of the editor's, storylets, vignettes, traits, and test ships too (1e part six).
+        Assert.All(files.Index(), item => Assert.Contains(item.Kind, ContentKinds.Kinds));
+        foreach (ContentItemRef item in files.Index())
         {
             Assert.Contains($">{item.Id}</", body);
             Assert.Contains(item.File, body);
@@ -72,6 +74,19 @@ public sealed class ContentPagesTests : IClassFixture<RepoContentGuard>
         Assert.Contains("tuning/crew.yaml", body);
         Assert.Contains("pack.yaml", body);
         Assert.Equal(ContentKinds.Kinds.Count(), Regex.Matches(body, "class=\"well kind\"").Count);
+        Assert.Equal(13, ContentKinds.Kinds.Count());
+        foreach (string title in new[] { "Storylets", "Vignettes", "Traits", "Test ships" })
+        {
+            Assert.Contains($">{title}</h2>", body);
+        }
+
+        // Their files are no longer listed as text files: each kind's list links its file (1e part six).
+        string others = Regex.Match(body, "<ul class=\"files\">.*?</ul>", RegexOptions.Singleline).Value;
+        Assert.Contains("tuning/missions.yaml", others);
+        foreach (string path in new[] { "storylets/base.yaml", "vignettes/base.yaml", "traits/base.yaml", "testships/base.yaml" })
+        {
+            Assert.DoesNotContain(path, others);
+        }
     }
 
     [Fact]
@@ -89,6 +104,8 @@ public sealed class ContentPagesTests : IClassFixture<RepoContentGuard>
         Assert.Contains("<a class=\"home\" href=\"/dev/content\">Content</a>", (await Get(client, $"/legacy/{id}")).Body);
     }
 
+    // A kind with no form yet (storylets, vignettes, and traits until theirs come; test ships always) links each item to its file's text,
+    // has "Edit as text" and no New, and says so (1e part six).
     [Fact]
     public async Task Each_kinds_page_lists_its_items_with_links_to_their_forms_and_a_new_link()
     {
@@ -101,14 +118,27 @@ public sealed class ContentPagesTests : IClassFixture<RepoContentGuard>
             (HttpStatusCode status, string body) = await Get(client, $"/dev/content/{Segment(kind)}");
 
             Assert.Equal(HttpStatusCode.OK, status);
-            foreach (ContentItemRef item in files.Index().Where(i => i.Kind == kind))
+            List<ContentItemRef> items = files.Index().Where(i => i.Kind == kind).ToList();
+            foreach (ContentItemRef item in items)
             {
-                Assert.Contains($"href=\"/dev/content/{Segment(kind)}/{item.Id}\"", body);
+                Assert.Contains(ContentKinds.HasForm(kind) ? $"href=\"/dev/content/{Segment(kind)}/{item.Id}\"" : $"href=\"/dev/content/files/{Segment(kind)}\"", body);
             }
 
-            Assert.Contains($"href=\"/dev/content/{Segment(kind)}/new\"", body);
+            if (ContentKinds.HasForm(kind))
+            {
+                Assert.Contains($"href=\"/dev/content/{Segment(kind)}/new\"", body);
+            }
+            else
+            {
+                Assert.DoesNotContain($"href=\"/dev/content/{Segment(kind)}/new\"", body);
+                Assert.Contains("id=\"as-text\"", body);
+            }
+
+            Assert.Equal(kind is ContentKind.Storylet or ContentKind.Vignette or ContentKind.Trait or ContentKind.TestShip, body.Contains($"<a class=\"btn\" href=\"/dev/content/files/{Segment(kind)}\">Edit as text</a>", StringComparison.Ordinal));
             Assert.Contains("href=\"/dev/content\"", body);
         }
+
+        Assert.False(ContentKinds.HasForm(ContentKind.TestShip));
 
         Assert.Contains(">Seniority</th>", (await Get(client, "/dev/content/crew")).Body);
         Assert.Contains(">Tag</th>", (await Get(client, "/dev/content/gear")).Body);
@@ -460,6 +490,169 @@ public sealed class ContentPagesTests : IClassFixture<RepoContentGuard>
     {
         var answer = (AnswerCall)command;
         return [new("mission", answer.MissionId), new("call", answer.CallId), new("answer", answer.Answer.ToString())];
+    }
+
+    // 1e part six, design 4.2: the four new kinds' columns, for the game's own pack.
+    private static ContentFileSet Game()
+    {
+        return ContentFileSet.ReadDirectory(Path.Combine(TestApp.RepositoryRoot(), "content"));
+    }
+
+    private static IReadOnlyList<string> Cells(ContentFileSet files, ContentKind kind, string id)
+    {
+        return ContentKinds.Cells(files, files.Index().Single(i => i.Kind == kind && i.Id == id));
+    }
+
+    private static string Text(int value)
+    {
+        return value.ToString(System.Globalization.CultureInfo.InvariantCulture);
+    }
+
+    [Fact]
+    public void The_new_kinds_lists_show_their_columns_for_the_games_pack()
+    {
+        ContentFileSet files = Game();
+        ContentPack pack = files.Validate().Pack!;
+
+        Assert.Equal(["Stakes", "Cast", "Requires", "Options", "Cooldown", "Casts on"], ContentKinds.Columns(ContentKind.Storylet).Select(c => c.Header));
+        Assert.Equal(["Cast", "Choice", "Casts on"], ContentKinds.Columns(ContentKind.Vignette).Select(c => c.Header));
+        Assert.Equal(["On", "Levels or max", "Shown", "Used by"], ContentKinds.Columns(ContentKind.Trait).Select(c => c.Header));
+        Assert.Equal(["Date", "Crew", "Traits held"], ContentKinds.Columns(ContentKind.TestShip).Select(c => c.Header));
+
+        // "A quirk in the sensors" casts on USS Quality Control alone (Task 4).
+        Assert.Equal(["2", "", "ship.trait.sensors_quirk == 'noticed'", "2", "", "1 of 2"], Cells(files, ContentKind.Storylet, "STORYLET_01"));
+        foreach (ContentItemRef item in files.Index().Where(i => i.Kind is ContentKind.Storylet or ContentKind.Vignette))
+        {
+            IReadOnlyList<string> cells = ContentKinds.Cells(files, item);
+            Assert.Equal(ContentKinds.Columns(item.Kind).Count, cells.Count);
+            Assert.True(Regex.IsMatch(cells[^1], "^[12] of 2$"), $"{item.Id} casts on {cells[^1]} test ships.");
+        }
+
+        foreach (StoryletDef storylet in pack.Storylets)
+        {
+            IReadOnlyList<string> cells = Cells(files, ContentKind.Storylet, storylet.Id);
+            Assert.Equal(Text(storylet.Stakes), cells[0]);
+            Assert.Equal(string.Join(", ", storylet.Cast.Select(c => c.Name)), cells[1]);
+            Assert.True(cells[2].Length <= 40);
+            Assert.Equal(Text(storylet.Options.Count), cells[3]);
+        }
+
+        foreach (VignetteDef vignette in pack.Vignettes)
+        {
+            Assert.Equal(vignette.Options.Count > 0 ? "Yes" : "No", Cells(files, ContentKind.Vignette, vignette.Id)[1]);
+        }
+
+        Assert.Equal(["ship", "1 noticed, 2 let_ride", "Yes", ""], Cells(files, ContentKind.Trait, "sensors_quirk"));
+        Assert.Equal(["crew", "max 5", "Yes", ""], Cells(files, ContentKind.Trait, "shaken"));
+        Assert.Equal("No", Cells(files, ContentKind.Trait, "shaken_heard")[2]);
+
+        TestShipModel qa = ContentEdits.Get<TestShipModel>(files, ContentKind.TestShip, "uss_quality_assurance")!;
+        Assert.NotEmpty(qa.Traits);
+        Assert.Equal([Web.Bridge.Dates.Short(pack.Calendar, 37602), Text(qa.Crew.Count), Text(qa.Traits.Count)], Cells(files, ContentKind.TestShip, "uss_quality_assurance"));
+    }
+
+    [Fact]
+    public async Task The_storylets_list_shows_its_columns_and_lists_a_problem_with_its_file()
+    {
+        using var app = new TestApp(developerMode: true, scratch: true, prepare: root =>
+        {
+            string file = Path.Combine(root, "storylets", "base.yaml");
+            File.WriteAllText(file, File.ReadAllText(file).Replace("- id: STORYLET_02\n", "# A note in the wrong place.\n- id: STORYLET_02\n", StringComparison.Ordinal));
+        });
+        HttpClient client = app.NewClient();
+
+        string body = WebUtility.HtmlDecode((await Get(client, "/dev/content/storylets")).Body);
+
+        Assert.Contains(">Casts on</th>", body);
+        Assert.Contains(">Stakes</th>", body);
+        Assert.Matches(@"<td>\d of \d</td>", body);
+        Assert.Contains("id=\"file-problems\"", body);
+        Assert.Contains("move it into notes", body);
+        Assert.DoesNotContain("id=\"file-problems\"", (await Get(client, "/dev/content/vignettes")).Body);
+    }
+
+    // "Edit as text" opens the file's text view, and a save there still works (1e part six).
+    [Fact]
+    public async Task Edit_as_text_opens_the_files_text_and_saving_there_still_works()
+    {
+        using TestApp app = ContentFormsTests.NewApp();
+        HttpClient client = app.NewClient();
+
+        foreach (string segment in new[] { "storylets", "vignettes", "traits", "testships" })
+        {
+            string list = (await Get(client, $"/dev/content/{segment}")).Body;
+            string href = Regex.Match(list, "<a class=\"btn\" href=\"([^\"]+)\">Edit as text</a>").Groups[1].Value;
+            Assert.Equal($"/dev/content/files/{segment}", href);
+            (HttpStatusCode status, string page) = await Get(client, href);
+            Assert.Equal(HttpStatusCode.OK, status);
+            Assert.Contains("<textarea id=\"text\"", page);
+        }
+
+        string typed = ContentFormsTests.Disk(app, "storylets/base.yaml").Replace("- id: STORYLET_01\n", "- id: STORYLET_01\n  name: NAME_PLACEHOLDER_SAVED\n", StringComparison.Ordinal);
+        (HttpStatusCode saved, _) = await ContentFormsTests.Post(client, "/dev/content/files/storylets", "text=" + Uri.EscapeDataString(typed));
+        Assert.Equal(HttpStatusCode.OK, saved);
+        Assert.Equal(typed, ContentFormsTests.Disk(app, "storylets/base.yaml"));
+        Assert.Contains("NAME_PLACEHOLDER_SAVED", (await Get(client, "/dev/content/storylets")).Body);
+    }
+
+    // Design 4.2: a new storylet or vignette is offered the next free id in the pack's pattern.
+    [Fact]
+    public void A_new_storylets_suggested_id_is_free_and_follows_the_packs_pattern()
+    {
+        ContentFileSet game = Game();
+        Assert.Equal("STORYLET_09", Web.Forms.NewIds.Next(game, ContentKind.Storylet));
+        Assert.Equal("VIGNETTE_07", Web.Forms.NewIds.Next(game, ContentKind.Vignette));
+        Assert.Null(Web.Forms.NewIds.Next(game, ContentKind.Trait));
+
+        foreach (ContentFileSet files in new[] { game, Repo() })
+        {
+            foreach (ContentKind kind in new[] { ContentKind.Storylet, ContentKind.Vignette })
+            {
+                string id = Web.Forms.NewIds.Next(files, kind)!;
+                Assert.True(Ids.IsItemId(id));
+                Assert.Null(Web.Forms.Checks.UsedBy(files, id, kind));
+            }
+        }
+
+        // A number another kind already holds is passed over: storylets and vignettes share the item namespace.
+        var more = new Dictionary<string, string>(game.Files);
+        more["gear/base.yaml"] += "- { id: STORYLET_09, tag: scanner }\n";
+        Assert.Equal("STORYLET_10", Web.Forms.NewIds.Next(new ContentFileSet(more), ContentKind.Storylet));
+    }
+
+    // A trait's id is made from its name, lower case, the articles dropped, as docs/conventions.md has ids inside an item.
+    [Theory]
+    [InlineData("Shaken", "shaken")]
+    [InlineData("Sensor quirk", "sensor_quirk")]
+    [InlineData("Hold a service", "hold_service")]
+    [InlineData("The ones who came back", "ones_who_came_back")]
+    [InlineData("Pelpheär", "pelphear")]
+    [InlineData("  Heard   out! ", "heard_out")]
+    [InlineData("Captain's word", "captains_word")]
+    [InlineData("3 strikes", "strikes")]
+    [InlineData("The", "the")]
+    [InlineData("!!!", "")]
+    public void A_traits_id_is_made_from_its_name(string name, string id)
+    {
+        Assert.Equal(id, Web.Forms.NewIds.FromName(name));
+    }
+
+    // Design 7, last item: a form beside content it cannot keep says so, still shows what it can, and links to the file's text.
+    [Fact]
+    public async Task A_forms_warning_links_to_the_files_text_when_it_has_one()
+    {
+        using var app = new TestApp();
+        var choices = new Web.Forms.FormChoices([], [], [], null);
+        var view = new Web.Forms.ItemFormView(ContentKind.Storylet, false, "STORYLET_01", null, Web.Forms.FormValues.Empty, new Dictionary<string, string>(), [], null,
+            "This file has content the editor cannot keep.", ["A_COMMENT_LOSS"], choices) { TextHref = "/dev/content/files/storylets" };
+        Render render = app.Services.GetRequiredService<Render>();
+
+        string html = await render.Html<Web.Components.Content.ContentFormWarning>(new Dictionary<string, object?> { ["View"] = view });
+        string without = await render.Html<Web.Components.Content.ContentFormWarning>(new Dictionary<string, object?> { ["View"] = view with { TextHref = null } });
+
+        Assert.Contains("<a href=\"/dev/content/files/storylets\" id=\"warning-text\">Edit the file as text</a>", html);
+        Assert.Contains("A_COMMENT_LOSS", html);
+        Assert.DoesNotContain("warning-text", without);
     }
 
     private static async Task<(Guid Id, WebCaptain Captain)> WaitingCall(TestApp app, HttpClient client)

@@ -10,8 +10,39 @@
         <section class="well" aria-labelledby="h-items">
             <div class="well__head">
                 <h2 id="h-items">Items</h2>
-                <a class="btn btn--primary" href="/dev/content/@Segment/new">New</a>
+                @if (Text is not null || HasForm)
+                {
+                    <div class="well__actions">
+                        @if (Text is not null)
+                        {
+                            <a class="btn" href="@Text.Action">Edit as text</a>
+                        }
+                        @if (HasForm)
+                        {
+                            <a class="btn btn--primary" href="/dev/content/@Segment/new">New</a>
+                        }
+                    </div>
+                }
             </div>
+            @if (!HasForm || FileProblems.Count > 0)
+            {
+                <div class="well__body">
+                    @if (!HasForm)
+                    {
+                        <p class="hint" id="as-text">@AsText</p>
+                    }
+                    @if (FileProblems.Count > 0)
+                    {
+                        <p class="note">Items marked are kept in full only as text. A problem with a whole file stops every save to it from a form until it is fixed as text.</p>
+                        <ul class="problems" id="file-problems">
+                            @foreach ((string path, ContentLoss loss) in FileProblems)
+                            {
+                                <li><span class="m">@path</span> @loss.Problem</li>
+                            }
+                        </ul>
+                    }
+                </div>
+            }
             @if (Items.Count == 0)
             {
                 <div class="well__body"><p class="empty">No items yet.</p></div>
@@ -35,7 +66,7 @@
                             {
                                 IReadOnlyList<string> cells = ContentKinds.Cells(Files, item);
                                 <tr>
-                                    <td class="who"><ItemLabel Segment="@Segment" Item="item" /></td>
+                                    <td class="who"><ItemLabel Item="item" /></td>
                                     <td class="oid">@item.Id</td>
                                     @for (int i = 0; i < cells.Count; i++)
                                     {
@@ -126,4 +157,18 @@
     private string Segment => ContentKinds.Segment(Kind);
 
     private string Count => Items.Count == 1 ? "1 item" : $"{Items.Count} items";
+
+    private bool HasForm => ContentKinds.HasForm(Kind);
+
+    // The file's text view, for a kind that has one (1e part six): storylets, vignettes, traits, and test ships.
+    private Web.Forms.TextFile? Text => ContentKinds.TextOf(Kind);
+
+    private string AsText => Kind == ContentKind.TestShip
+        ? "Test ships are written as text, or captured from play, and each opens in the file's text. Play never reads them."
+        : $"The {ContentKinds.Noun(Kind)} form comes later. Until then each opens in the file's text.";
+
+    // A problem with a whole file of the kind (an inner comment, a second document) belongs to no item, so it is listed here; an item's
+    // own problem marks its row.
+    private List<(string Path, ContentLoss Loss)> FileProblems => Items.Select(i => i.File).Append(Text?.Path).OfType<string>().Distinct()
+        .SelectMany(path => ContentEdits.Losses(Files, path).Where(l => l.Item is null).Select(l => (path, l))).ToList();
 }

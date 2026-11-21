@@ -30,6 +30,7 @@ h2 { font-size: var(--text-xl); line-height: 1.12; max-width: 30ch; }
 .well, #topbar, #roster, .course:has(> :not(:empty)) { background: var(--color-paper-2); border: var(--rule-hair) solid var(--color-rule); border-radius: var(--radius-well); min-width: 0; }
 .well__head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: var(--space-2xs) var(--space-md); padding: var(--space-md) var(--space-lg) var(--space-sm); }
 .well__body { padding: 0 var(--space-lg) var(--space-lg); }
+.well__actions { display: flex; flex-wrap: wrap; gap: var(--space-xs); }
 
 /* Top bar: one well cut into cells. */
 #topbar { display: grid; grid-template-columns: auto auto minmax(0, 1fr); overflow: hidden; }

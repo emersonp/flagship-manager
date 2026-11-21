@@ -71,7 +71,7 @@
                                 @foreach (ContentItemRef item in items)
                                 {
                                     <tr>
-                                        <td class="who"><ItemLabel Segment="@segment" Item="item" /></td>
+                                        <td class="who"><ItemLabel Item="item" /></td>
                                         <td class="oid">@item.Id</td>
                                         <td class="nw">@item.File</td>
                                     </tr>
@@ -93,10 +93,6 @@
                     <li><a href="/dev/content/files/calendar-tuning">tuning/calendar.yaml</a> <span class="note">a cycle's length in days, edited as text</span></li>
                     <li><a href="/dev/content/files/chronicle-tuning">tuning/chronicle.yaml</a> <span class="note">the chronicle's weights, edited as text</span></li>
                     <li><a href="/dev/content/files/calendars">calendars/base.yaml</a> <span class="note">the calendar's months, weekdays, and start date, edited as text</span></li>
-                    <li><a href="/dev/content/files/storylets">storylets/base.yaml</a> <span class="note">storylets, edited as text until their form comes</span></li>
-                    <li><a href="/dev/content/files/vignettes">vignettes/base.yaml</a> <span class="note">vignettes, edited as text until their form comes</span></li>
-                    <li><a href="/dev/content/files/traits">traits/base.yaml</a> <span class="note">traits and their rules, edited as text until their form comes</span></li>
-                    <li><a href="/dev/content/files/testships">testships/base.yaml</a> <span class="note">the ships storylets are cast on in the editor, edited as text; play never reads them</span></li>
                 </ul>
                 @if (View.FileProblems.Count > 0)
                 {

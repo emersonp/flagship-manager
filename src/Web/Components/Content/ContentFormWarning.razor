@@ -11,6 +11,10 @@
                     <li>@warning</li>
                 }
             </ul>
+            @if (View.TextHref is not null)
+            {
+                <p>The fields below show what the form can keep. <a href="@View.TextHref" id="warning-text">Edit the file as text</a> to keep the rest, or to fix it.</p>
+            }
         </div>
     </section>
 }

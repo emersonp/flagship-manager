@@ -367,14 +367,23 @@ public sealed class ContentFormsTests(RepoContentGuard guard) : IClassFixture<Re
         Assert.Equal("NAME_PLACEHOLDER", assignment.Name);
     }
 
+    // Review focus 5 of 1e part six: an id is fixed once saved. A post that names another is refused and writes nothing; one that names
+    // the same id, or none, saves under the route's.
     [Fact]
-    public async Task A_posted_id_on_an_existing_item_is_ignored_and_the_route_decides()
+    public async Task A_posted_id_on_an_existing_item_that_differs_is_refused_and_the_route_decides()
     {
         using TestApp app = NewApp();
+        HttpClient client = app.NewClient();
+        string before = Everything(app);
 
-        (HttpStatusCode status, _) = await Post(app.NewClient(), "/dev/content/skills/SKILL_A", "id=SKILL_Z&name=NAME_PLACEHOLDER");
+        (HttpStatusCode status, string body) = await Post(client, "/dev/content/skills/SKILL_A", "id=SKILL_Z&name=NAME_PLACEHOLDER");
 
-        Assert.Equal(HttpStatusCode.OK, status);
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, status);
+        Assert.Contains("The id is fixed once the item exists. It is SKILL_A.", WebUtility.HtmlDecode(body));
+        Assert.Equal(before, Everything(app));
+        Assert.NotEqual("NAME_PLACEHOLDER", app.Live.Names.Skill("SKILL_A"));
+
+        Assert.Equal(HttpStatusCode.OK, (await Post(client, "/dev/content/skills/SKILL_A", "id=SKILL_A&name=NAME_PLACEHOLDER")).Status);
         Assert.DoesNotContain("SKILL_Z", Disk(app, "skills/base.yaml"));
         Assert.Equal("NAME_PLACEHOLDER", app.Live.Names.Skill("SKILL_A"));
     }

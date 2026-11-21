@@ -94,6 +94,9 @@ public sealed record ItemFormView(
     // What else the delete does, said in its confirmation; null when nothing.
     public string? DeleteNote { get; init; }
 
+    // Where the item's file opens as text, when the form warns of content it cannot keep and the file has a text view (1e part six).
+    public string? TextHref { get; init; }
+
     public string Heading => IsNew ? $"New {Noun}" : Name is { Length: > 0 } ? Name : Id;
 
     public string? Error(string name)
@@ -110,6 +113,6 @@ public sealed record ItemFormView(
     // The route that answers with the panel's previews for the form as posted, saving nothing.
     public string PlaysUrl => IsNew ? $"/dev/content/{Segment}/plays" : $"{Action}/plays";
 
-    // Symbols and pronoun sets are named in text, so their ids are lower case.
+    // Symbols, pronoun sets, traits, and test ships are named in text, so their ids are lower case.
     public string IdRule => Checks.LowerCase(Kind) ? Ids.InnerRule : Ids.ItemRule;
 }

@@ -371,7 +371,7 @@ public sealed class ContentTextFilesTests(RepoContentGuard guard) : IClassFixtur
 
         (_, string body) = await Get(app.NewClient(), "/dev/content");
 
-        foreach ((string name, string path) in new[] { ("pack", "pack.yaml"), ("missions", "tuning/missions.yaml"), ("crew-tuning", "tuning/crew.yaml"), ("calendar-tuning", "tuning/calendar.yaml"), ("chronicle-tuning", "tuning/chronicle.yaml"), ("calendars", "calendars/base.yaml"), ("storylets", "storylets/base.yaml"), ("vignettes", "vignettes/base.yaml") })
+        foreach ((string name, string path) in new[] { ("pack", "pack.yaml"), ("missions", "tuning/missions.yaml"), ("crew-tuning", "tuning/crew.yaml"), ("calendar-tuning", "tuning/calendar.yaml"), ("chronicle-tuning", "tuning/chronicle.yaml"), ("calendars", "calendars/base.yaml") })
         {
             Assert.Contains($"<a href=\"/dev/content/files/{name}\">{path}</a>", body);
         }

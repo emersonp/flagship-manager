@@ -7,8 +7,9 @@ namespace Web.Forms;
 // The field checks every kind shares. Each agrees with the loader: the id rule, the name rule, and whole numbers in a range.
 internal static class Checks
 {
-    // Symbols and pronoun sets: named in text, with ids of their own apart from everything else's.
-    public static bool LowerCase(ContentKind kind) => kind is ContentKind.Symbol or ContentKind.Pronoun;
+    // Symbols, pronoun sets, traits, and test ships: named in text, each with ids of its own apart from everything else's (traits:
+    // docs/conventions.md; test ships: 1e part six).
+    public static bool LowerCase(ContentKind kind) => kind is ContentKind.Symbol or ContentKind.Pronoun or ContentKind.Trait or ContentKind.TestShip;
 
     public static void Id(string id, ContentFileSet files, Dictionary<string, string> errors, ContentKind kind = ContentKind.Skill)
     {

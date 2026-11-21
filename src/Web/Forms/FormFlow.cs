@@ -9,7 +9,14 @@ internal static class FormFlow
     public static ItemFormView Blank(KindForm form, ContentFileSet files)
     {
         FormChoices choices = FormChoicesReader.Read(files);
-        return Build(form, files, choices, "", true, form.Blank(choices), new Dictionary<string, string>(), [], null);
+        FormValues values = form.Blank(choices);
+        // A storylet or vignette is offered the next free id in the pack's pattern (1e part six); the author may change it before saving.
+        if (!values.Has("id") && NewIds.Next(files, form.Kind) is { } suggested)
+        {
+            values = values.With("id", suggested);
+        }
+
+        return Build(form, files, choices, values.Get("id"), true, values, new Dictionary<string, string>(), [], null);
     }
 
     // The stored item's form; null when the id holds no item of this kind.
@@ -25,6 +32,13 @@ internal static class FormFlow
         ContentFileSet files = editor.Read();
         FormChoices choices = FormChoicesReader.Read(files);
         string id = values.Get("id");
+        // A trait left without an id takes one made from its name (1e part six, design 4.2).
+        if (id.Length == 0 && form.Kind == ContentKind.Trait)
+        {
+            id = NewIds.FromName(values.Get("name"));
+            values = values.With("id", id);
+        }
+
         var errors = new Dictionary<string, string>();
         Checks.Id(id, files, errors, form.Kind);
         Bound bound = form.Bind(id, values, choices);
@@ -65,6 +79,12 @@ internal static class FormFlow
         if (form.Load(files, id, choices) is null)
         {
             return null;
+        }
+
+        // An id is fixed once saved (1e part six, review focus 5): the form shows it as text, so a post that names another is refused.
+        if (values.Has("id") && values.Get("id") != id)
+        {
+            return (Build(form, files, choices, id, false, values, new Dictionary<string, string>(), [new ContentError("", $"The id is fixed once the item exists. It is {id}.")], null), false);
         }
 
         Bound bound = form.Bind(id, values, choices);
@@ -180,9 +200,16 @@ internal static class FormFlow
         return new ItemFormView(form.Kind, isNew, id, name, values, errors, reasons, notice, lead, shown, choices, focus)
         {
             DeleteNote = isNew ? null : DeleteNote(files, form.Kind, id),
+            TextHref = lead is null ? null : TextHref(files, form.Kind, id),
             Preview = form.Kind == ContentKind.Line ? LinePreview.Of(files, id, values) : null,
             Plays = Plays.Of(form.Kind, files, id, values, choices),
         };
+    }
+
+    // The text view of the item's file, where content the form cannot keep can be edited; null when the file has none.
+    private static string? TextHref(ContentFileSet files, ContentKind kind, string id)
+    {
+        return files.Index().FirstOrDefault(i => i.Kind == kind && i.Id == id) is { } item ? TextFile.All.FirstOrDefault(f => f.Path == item.File)?.Action : null;
     }
 
     private static string? DeleteNote(ContentFileSet files, ContentKind kind, string id)

@@ -1,5 +1,5 @@
 @using Sim.Content
-<a href="/dev/content/@Segment/@Uri.EscapeDataString(Item.Id)">@(Item.Name is { Length: > 0 } ? Item.Name : Item.Id)</a>@if (Item.Name is not { Length: > 0 })
+<a href="@ContentKinds.Href(Item)">@(Item.Name is { Length: > 0 } ? Item.Name : Item.Id)</a>@if (Item.Name is not { Length: > 0 })
 {
     @(" ")<span class="quiet">No name</span>
 }@if (Item.Lossy)
@@ -8,7 +8,5 @@
 }
 
 @code {
-    [Parameter, EditorRequired] public string Segment { get; set; } = "";
-
     [Parameter, EditorRequired] public ContentItemRef Item { get; set; } = null!;
 }
