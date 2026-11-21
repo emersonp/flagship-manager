@@ -25,6 +25,10 @@ internal sealed record CastResult(CastOutcome Outcome, Dictionary<string, string
     public bool FirstHeld { get; init; }
 }
 
+// A clause that held for no one (Casting.Failures), the clause as checked, and the first cast it was read on, or null for a slot that
+// could not be searched.
+internal sealed record Failure(FailedClause Clause, CheckedExpression? Expression, IReadOnlyDictionary<string, string>? Reached);
+
 // Every storylet's and vignette's expressions, checked and kept for the life of the module, and the search that casts them
 // (1e part four, design 4.4).
 internal sealed class Casting
@@ -179,29 +183,42 @@ internal sealed class Casting
         return Missed();
     }
 
-    // Dev Play's search (design 4.10): the first top-level clause that held for no one. Each slot in turn is read over every crew
-    // member in roster order not already bound, beside each cast the slots before it held for; its clauses narrow those casts one at
-    // a time, and the first to leave none is the one. Then requires, over every full cast. No stream is drawn and no try counted:
-    // it says why nothing held, which does not turn on the order. Null when every clause held for someone.
+    // Dev Play's search (design 4.10): the first top-level clause that held for no one, the first of Failures.
     public FailedClause? Failed(string id, IStateSource state, IReadOnlyList<string> roster)
+    {
+        return Failures(id, state, roster).FirstOrDefault()?.Clause;
+    }
+
+    // Each slot in turn is read over every crew member in roster order not already bound, beside each cast the slots before it held
+    // for; its clauses narrow those casts one at a time, and the first to leave none is that slot's failure. Then requires, over every
+    // full cast. A slot that fails is read on as if it held for anyone (its casts before it narrowed), so each slot that fails on its
+    // own is named (1e part six, the preview): the first failure is the one Dev Play has always shown. No stream is drawn and no try
+    // counted: it says why nothing held, which does not turn on the order. Empty when every clause held for someone; a slot with too
+    // many casts to search ends it.
+    public IReadOnlyList<Failure> Failures(string id, IStateSource state, IReadOnlyList<string> roster)
     {
         Compiled compiled = byId[id];
         List<Dictionary<string, string>> casts = [new(StringComparer.Ordinal)];
+        var failures = new List<Failure>();
 
-        FailedClause? Narrow(string slot, CheckedExpression expression)
+        // Narrows the casts; on a failure, records it and leaves the casts as they came.
+        void Narrow(string slot, CheckedExpression expression)
         {
+            List<Dictionary<string, string>> narrowed = casts;
             IReadOnlyList<CheckedExpression> clauses = book.Split(expression);
             for (int i = 0; i < clauses.Count; i++)
             {
-                int before = casts.Count;
-                casts = casts.Where(c => book.Evaluate(clauses[i], state, c)).ToList();
-                if (casts.Count == 0)
+                List<Dictionary<string, string>> held = narrowed.Where(c => book.Evaluate(clauses[i], state, c)).ToList();
+                if (held.Count == 0)
                 {
-                    return new FailedClause(slot, clauses[i].Source, i == 0 ? null : before);
+                    failures.Add(new Failure(new FailedClause(slot, clauses[i].Source, i == 0 ? null : narrowed.Count), clauses[i], narrowed.FirstOrDefault()));
+                    return;
                 }
+
+                narrowed = held;
             }
 
-            return null;
+            casts = narrowed;
         }
 
         foreach ((string slot, CheckedExpression condition) in compiled.Slots)
@@ -209,16 +226,34 @@ internal sealed class Casting
             casts = casts.SelectMany(c => roster.Where(crewId => !c.ContainsValue(crewId)).Select(crewId => new Dictionary<string, string>(c, StringComparer.Ordinal) { [slot] = crewId })).ToList();
             if (casts.Count > MaxSearch)
             {
-                return new FailedClause(slot, null, null);
+                failures.Add(new Failure(new FailedClause(slot, null, null), null, null));
+                return failures;
             }
 
-            if (Narrow(slot, condition) is { } failed)
+            // Too few crew for the slots: no one is left to read.
+            if (casts.Count == 0)
             {
-                return failed;
+                CheckedExpression first = book.Split(condition)[0];
+                failures.Add(new Failure(new FailedClause(slot, first.Source, null), first, null));
+                return failures;
             }
+
+            Narrow(slot, condition);
         }
 
-        return compiled.Requires is null ? null : Narrow(FailedClause.Requires, compiled.Requires);
+        if (compiled.Requires is not null)
+        {
+            Narrow(FailedClause.Requires, compiled.Requires);
+        }
+
+        return failures;
+    }
+
+    // What a failing clause read, on the first cast that reached it: "1", "true", or for a clause with no one value, "false". Null for
+    // a slot with too many casts to search, or one with no one to read.
+    public string? Reading(Failure failure, IStateSource state)
+    {
+        return failure is { Expression: { } clause, Reached: { } cast } ? book.Reading(clause, state, cast) : null;
     }
 
     // Fisher-Yates, from the end.

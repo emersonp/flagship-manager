@@ -21,7 +21,7 @@ internal static class Salience
 
             // The global cooldown is read before casting, so a storylet in it is never cast and draws nothing.
             Fired? fired = state.Fired.FirstOrDefault(f => f.Id == id);
-            if (fired is not null && cycle - fired.Last < cooldown.Global)
+            if (fired is not null && InCooldown(cycle - fired.Last, cooldown.Global))
             {
                 return new Contender(id, ContestFate.Cooling, null, null, fired.Last + cooldown.Global, 0);
             }
@@ -29,7 +29,7 @@ internal static class Salience
             // The cast cooldown is inside the search: a binding that arrived within it is passed over for the next.
             bool Cooling(IReadOnlyDictionary<string, string> cast)
             {
-                return state.Arrivals.Any(a => a.Id == id && Same(a.Cast, cast) && cycle - a.Cycle < cooldown.Cast);
+                return state.Arrivals.Any(a => a.Id == id && Same(a.Cast, cast) && InCooldown(cycle - a.Cycle, cooldown.Cast));
             }
 
             CastResult result = casting.Cast(id, source, roster, () => rng(CastStream(id, cycle)), pack.CastTries, Cooling);
@@ -74,6 +74,12 @@ internal static class Salience
     public static string SalienceStream(int cycle)
     {
         return $"salience:{cycle}";
+    }
+
+    // The cooldown test, global or cast: it last arrived fewer cycles ago than the cooldown. The editor's preview reads it too.
+    public static bool InCooldown(int cyclesSince, int cooldown)
+    {
+        return cyclesSince < cooldown;
     }
 
     // The same binding: the same crew in the same slots.

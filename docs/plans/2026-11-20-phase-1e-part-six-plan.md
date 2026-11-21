@@ -147,12 +147,12 @@ public static class Preview
 }
 ```
 
-- [ ] **Step 1: the cast.** Cast with `Casting.Cast`, using a stream made from `StableHash("preview", id, sample)` and the module's own `MaxSearch` and cooldown test. Cooldowns are read from the state's storylet arrivals, as the module reads them. Nothing draws from a legacy's streams.
-- [ ] **Step 2: why not.** When no one fits, `Why` gives each slot's failing clause, from `Casting.Failed`. If `Failed` gives only the first slot today, widen it in place to give every slot that fails on its own, and keep its current callers' output the same. "Out of tries" when every slot has someone but no combination fits.
-- [ ] **Step 3: anyway.** With `anyway`, fill the slots from the roster in order, ignoring conditions, and set `Unconditioned`.
-- [ ] **Step 4: options and handler.** `OptionOffered` uses `Casting.Open` for the cast. For a check option, the handler is the sample's pick among those fit to send, rotating with `sample`.
-- [ ] **Step 5: tests.** On a hand-built ship: a storylet that fits casts the same as `Casting.Cast` with the same stream. Samples 0, 1, and 2 give different casts when three crew fit. A failing slot names its clause. A failing `requires` names its clause and value. A cooldown that holds is reported. `anyway` fills in roster order. An option whose `requires` fails is not offered.
-- [ ] **Step 6:** `./check.sh`; commit "Cast a storylet for preview on any state, and say why when no one fits".
+- [x] **Step 1: the cast.** Cast with `Casting.Cast`, using a stream made from `StableHash("preview", id, sample)` and the module's own `MaxSearch` and cooldown test. Cooldowns are read from the state's storylet arrivals, as the module reads them. Nothing draws from a legacy's streams.
+- [x] **Step 2: why not.** When no one fits, `Why` gives each slot's failing clause, from `Casting.Failed`. If `Failed` gives only the first slot today, widen it in place to give every slot that fails on its own, and keep its current callers' output the same. "Out of tries" when every slot has someone but no combination fits.
+- [x] **Step 3: anyway.** With `anyway`, fill the slots from the roster in order, ignoring conditions, and set `Unconditioned`.
+- [x] **Step 4: options and handler.** `OptionOffered` uses `Casting.Open` for the cast. For a check option, the handler is the sample's pick among those fit to send, rotating with `sample`.
+- [x] **Step 5: tests.** On a hand-built ship: a storylet that fits casts the same as `Casting.Cast` with the same stream. Samples 0, 1, and 2 give different casts when three crew fit. A failing slot names its clause. A failing `requires` names its clause and value. A cooldown that holds is reported. `anyway` fills in roster order. An option whose `requires` fails is not offered.
+- [x] **Step 6:** `./check.sh`; commit "Cast a storylet for preview on any state, and say why when no one fits".
 
 ### Task 6: the editor's new kinds and their lists
 
