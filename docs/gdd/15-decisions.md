@@ -160,3 +160,12 @@ Decided by the author on 2026-11-21, in a design interview for tuning in play (d
     - **One page, "Tuning",** with Mission and (later) Legacy tabs sharing the draft; reached in developer mode from the editor, legacy selection, Dev Play, and "Bench this" on an objective.
     - **Run on demand,** streamed and cancelled by any change; every command-line input; an every-objective summary; changes uncoloured, and greyed within the noise; replay of the worst run or any seed as the narrated report. No alarms until legacy mode.
     - **The worked example** is the rookie loss rate, about 34% on the game's pack.
+
+Answered by the author on 2026-11-21, from the open questions:
+
+47. **An objective's type.** Dropped; tags already group objectives. The sample in 3.4 loses `type`.
+48. **An objective's base stakes.** Dropped, until a rule needs a stakes figure for a whole objective. Stakes stay on each decision, where the call rule reads them.
+49. **An objective's rewards.** Left to Phase 6, when ship renown and Admiralty standing are built. They will be written as effects per outcome, beside the objective's outcome text, so what a result says and what it does sit together.
+50. **What an unattended failure does.** No separate list: an unattended objective ends as a mission would, with the objective's own outcome text and, from Phase 6, its rewards for that outcome. The sample's `onFail` is gone; `ifUnattended` holds only the roll's difficulty, as built.
+51. **Ending a stage early.** Dropped. Withdrawing ends the whole mission, and the momentum skip passes an encounter; nothing ends part of one. The sample decision in 3.5 withdraws instead.
+52. **Previews on test ships for encounters, objectives, and lines.** They move onto test ships, with a mission started on the ship, as the storylet and vignette previews did in slice 1e, part six. The synthetic samples of slice 1d go. Not yet placed on the roadmap.

@@ -115,7 +115,7 @@ objectives:
   offer: { 1: 6, 2: 3, 3: 1 } # per site: how many objectives, by weight. One is the rule
   draw: { tags: [science, rescue, repair] }
 carry: [SITE_FLAG_A]          # flags an earlier site can set and a later one reads
-rewards: { shipRenown: 4, admiraltyStanding: 2 }
+rewards: { shipRenown: 4, admiraltyStanding: 2 }   # not built; designed with Phase 6 (section 15, item 49)
 context: [CONTEXT_A, CONTEXT_B]   # themes that reskin text and shift difficulty
 ```
 
@@ -123,14 +123,9 @@ An assignment template does not list its objectives. It draws them by tag, so th
 
 ```yaml
 id: OBJECTIVE_TEMPLATE_1
-type: survey                  # one of ~10 objective types
 tags: [planetary, science]
 teamSize: [2, 4]
-baseStakes: 2                 # 1-5
-ifUnattended:
-  check: { difficulty: 6 }    # rolled with no team; omit for a fixed result
-  onFail: [{ shipRenown: -1 }, { chronicle: UNATTENDED_TEXT_1 }]
-                              # the author sets this per objective; the default is the roll
+ifUnattended: { difficulty: 6 }   # rolled with no team; it ends as a mission would, with the objective's own text (and, from Phase 6, rewards) for that outcome
 stages:                       # in order; each draws encounters with every listed tag
   - slot: approach
     draw: { tags: [travel, planetary] }
@@ -145,7 +140,7 @@ stages:                       # in order; each draws encounters with every liste
     draw: { tags: [travel] }
     count: 1
     skippable: true           # momentum may skip what this stage draws (section 4.3)
-rewards: { shipRenown: 2, admiraltyStanding: 1 }
+rewards: { shipRenown: 2, admiraltyStanding: 1 }   # not built; from Phase 6, effects per outcome beside text (section 15, item 49)
 text:                         # the objective's own words for how it ends, by outcome (section 6)
   fullSuccess: OBJECTIVE_TEMPLATE_1_SUCCESS_TEXT
   loss: OBJECTIVE_TEMPLATE_1_LOSS_TEXT
@@ -199,7 +194,7 @@ decision:                     # optional
       effects: [{ strain: 1 }, { objectiveBonus: 1 }]
     - id: withdraw
       leadPrefers: "lead.caution >= 1"
-      effects: [{ abortStage: true }]
+      effects: [{ withdraw: true }]   # ends the mission; there is no ending a stage early (section 15, item 51)
 lines:                                    # any other line that holds only here, with criteria of its own
   - when: { beat: injury, outcome: dead }
     text: ENCOUNTER_07_DEATH_TEXT
