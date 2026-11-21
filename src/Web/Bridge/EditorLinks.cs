@@ -1,5 +1,6 @@
 using Sim.Content;
 using Sim.Core.Content;
+using Web.Tuning;
 
 namespace Web.Bridge;
 
@@ -15,6 +16,28 @@ public static class EditorLinks
     public static string File(string name)
     {
         return $"/dev/content/files/{name}";
+    }
+
+    // The Tuning page with this legacy as the team source and nobody chosen (Dev Play's panel; 1f part one, Task 13).
+    public static string Tuning(Guid legacyId)
+    {
+        return Bench(legacyId, objective: "", [], "");
+    }
+
+    // "Bench this" (1f part one, Task 13; design 4.6): the Tuning page with this objective (its template's id, as the bench names it),
+    // this legacy as the team source, and the team as picked so far, its lead among them, or nobody. The page judges the picks as the
+    // launch would, so a member the launch would now refuse is shown so there.
+    public static string Bench(Guid legacyId, string objective, IReadOnlyList<string> crew, string lead)
+    {
+        var query = new TuningQuery
+        {
+            Objective = objective,
+            Team = BenchTeams.LegacyKind,
+            Source = legacyId.ToString(),
+            Crew = crew,
+            Lead = crew.Contains(lead) ? lead : "",
+        };
+        return query.Href();
     }
 
     // The page a line is written on: its own page for a shared line, else the encounter's or objective's whose own words it is.

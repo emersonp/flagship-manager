@@ -182,7 +182,7 @@ public sealed class DevPlayTests
         (_, string play) = await Get(client, $"/legacy/{id}");
         string devPatch = await Post(client, $"/dev/legacy/{id}/advance", new FormUrlEncodedContent(app.Stamped(id, [])));
 
-        Assert.Matches("<td class=\"oid\"><a href=\"/dev/content/objectives/OBJECTIVE_TEMPLATE_[0-9]+\" target=\"_blank\" rel=\"noopener\">o_1_1</a></td>", dev);
+        Assert.Matches("<td class=\"oid\"><a href=\"/dev/content/objectives/OBJECTIVE_TEMPLATE_[0-9]+\" target=\"_blank\" rel=\"noopener\">o_1_1</a> <a class=\"dev-edit\" href=\"/dev/tuning\\?objective=OBJECTIVE_TEMPLATE_[0-9]+&team=legacy", dev);
         Assert.Contains($"@post('/dev/legacy/{id}/advance'", dev);
         Assert.DoesNotContain("class=\"oid\"", play);
         Assert.Contains($"@post('/legacy/{id}/advance'", play);

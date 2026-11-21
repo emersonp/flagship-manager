@@ -103,17 +103,18 @@ public sealed class ContentTextFilesTests(RepoContentGuard guard) : IClassFixtur
         Assert.StartsWith("\n# Every number the crew module uses", Typed(body));
     }
 
+    // Mission tuning points to the Tuning page; crew tuning waits for its Legacy mode (1f part one, Task 13).
     [Theory]
-    [InlineData("missions")]
-    [InlineData("crew-tuning")]
-    public async Task The_tuning_pages_say_the_number_page_comes_later_and_a_mission_in_flight_keeps_its_tuning(string name)
+    [InlineData("missions", "Edit these numbers and re-run the bench on the Tuning page.")]
+    [InlineData("crew-tuning", "The Tuning page will measure these numbers in its Legacy mode (1f part two); edit them as text until then.")]
+    public async Task The_tuning_pages_say_where_their_numbers_are_benched_and_a_mission_in_flight_keeps_its_tuning(string name, string note)
     {
         using TestApp app = NewApp();
 
         (_, string body) = await Get(app.NewClient(), $"/dev/content/files/{name}");
 
-        string text = WebUtility.HtmlDecode(body);
-        Assert.Contains("The page that edits these numbers and re-runs the bench comes later.", text);
+        string text = WebUtility.HtmlDecode(System.Text.RegularExpressions.Regex.Replace(body, "</?a[^>]*>", ""));
+        Assert.Contains(note, text);
         Assert.Contains("A mission in flight keeps the tuning it started with.", text);
     }
 

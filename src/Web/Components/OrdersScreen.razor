@@ -26,7 +26,7 @@
                                 <td class="who">@objective.Shown</td>
                                 @if (Bar.Dev)
                                 {
-                                    <td class="oid"><a href="@EditorLinks.Item(Sim.Content.ContentKind.Objective, objective.TemplateId)" target="_blank" rel="noopener">@objective.Id</a></td>
+                                    <td class="oid"><a href="@EditorLinks.Item(Sim.Content.ContentKind.Objective, objective.TemplateId)" target="_blank" rel="noopener">@objective.Id</a> <a class="dev-edit" href="@EditorLinks.Bench(LegacyId, objective.TemplateId, [], "")" target="_blank" rel="noopener" aria-label="@($"Bench {objective.Shown}")">Bench this</a></td>
                                 }
                                 <td class="skills">@Figures.Items(objective.SkillsShown)</td>
                                 <td class="n wide">@objective.TeamSizeMin to @objective.TeamSizeMax</td>

@@ -3,7 +3,7 @@
         <h1>@(Heading ?? "Briefing")</h1>
         <p class="note">@(Briefing.Picks is null ? "Choose one objective, an away team, and gear." : "Choose one objective. The last mission's team, gear, and parameters are picked again where they still can be.")</p>
     </div>
-    <form id="briefing" data-signals:_picked="@PickedCrew.Count" data-signals:_team="@InitialTeam" data-signals:_min="@Initial.Min" data-signals:_max="@Initial.Max" data-signals:_skills="@InitialSkills" data-signals:_gear="@PickedGear.Count" data-indicator:_launching data-on:submit="@Launch">
+    <form id="briefing" data-signals:_picked="@PickedCrew.Count" data-signals:_team="@InitialTeam" data-signals:_min="@Initial.Min" data-signals:_max="@Initial.Max" data-signals:_skills="@InitialSkills" data-signals:_gear="@PickedGear.Count" data-signals:_lead="@InitialLead" data-indicator:_launching data-on:submit="@Launch">
         <section class="well" aria-labelledby="h-obj">
             <div class="well__head"><h2 id="h-obj">Objective</h2></div>
             <fieldset>
@@ -38,7 +38,7 @@
                                     </td>
                                     @if (Bar.Dev)
                                 {
-                                    <td class="oid"><a href="@EditorLinks.Item(Sim.Content.ContentKind.Objective, objective.TemplateId)" target="_blank" rel="noopener">@objective.Id</a></td>
+                                    <td class="oid"><a href="@EditorLinks.Item(Sim.Content.ContentKind.Objective, objective.TemplateId)" target="_blank" rel="noopener">@objective.Id</a> <a class="dev-edit" href="@EditorLinks.Bench(LegacyId, objective.TemplateId, PickedCrew, Briefing.Picks?.Lead ?? "")" data-attr:href="@BenchHref(objective)" target="_blank" rel="noopener" aria-label="@($"Bench {objective.Shown}")">Bench this</a></td>
                                 }
                                     <td class="skills">@Figures.Items(objective.SkillsShown)</td>
                                     <td class="n wide">@objective.TeamSizeMin to @objective.TeamSizeMax</td>
@@ -87,7 +87,7 @@
                                 <td class="n" data-label="@SkillName(skill)" data-show="@Shows(skill)"><SkillLevel Row="row" Skill="@skill" /></td>
                             }
                             <td class="c"><label class="hit"><input type="checkbox" id="crew-@row.Id" name="crew" value="@row.Id" aria-label="@Named("Team", row)" disabled="@(!row.Fit)" checked="@PickedCrew.Contains(row.Id)" data-on:change="@Count"></label></td>
-                            <td class="c"><label class="hit"><input type="radio" id="lead-@row.Id" name="lead" value="@row.Id" aria-label="@Named("Lead", row)" disabled="@(!row.Fit)" checked="@(Briefing.Picks?.Lead == row.Id)"></label></td>
+                            <td class="c"><label class="hit"><input type="radio" id="lead-@row.Id" name="lead" value="@row.Id" aria-label="@Named("Lead", row)" disabled="@(!row.Fit)" checked="@(Briefing.Picks?.Lead == row.Id)" data-on:change="$_lead = el.value"></label></td>
                         </tr>
                     }
                 </tbody>
@@ -262,6 +262,18 @@
 
     // A parameter's last value; Balanced (0) with no picks.
     private int Picked(string parameter) => parameter == "priority" ? Briefing.Picks?.Priority ?? 0 : Briefing.Picks?.Autonomy ?? 0;
+
+    // The lead as picked, for "Bench this" (1f part one, Task 13); the radios set it as they change.
+    private string InitialLead => $"'{Briefing.Picks?.Lead ?? ""}'";
+
+    // Dev Play's "Bench this" for an objective: the link with nobody chosen, then the team and lead as picked so far, read from the
+    // signals as they change (1f part one, Task 13). TuningQuery writes the objective and the legacy; the picks follow in its own
+    // names, crew then lead, and the page takes the lead only when they are picked.
+    private string BenchHref(ObjectiveView objective)
+    {
+        string bare = EditorLinks.Bench(LegacyId, objective.TemplateId, [], "");
+        return $"'{bare}' + $_team.split(' ').filter(c => c).map(c => '&crew=' + encodeURIComponent(c)).join('') + ($_lead && $_team.includes(' ' + $_lead + ' ') ? '&lead=' + encodeURIComponent($_lead) : '')";
+    }
 
     private string AnyLaunch => string.Join(" || ", Briefing.Launch.Select(r => $"({Fires(r)})"));
 }

@@ -42,6 +42,8 @@ h2 { font-size: var(--text-xl); line-height: 1.12; max-width: 30ch; }
 .home { position: relative; font-size: var(--text-sm); color: var(--color-muted); }
 .home::before { content: ""; position: absolute; inset: -12px -6px; }
 .home:hover { color: var(--color-ink); text-decoration-color: var(--color-accent); }
+/* Two developer links side by side (the legacies' Content and Tuning; Dev Play's panel): apart by more than their hit areas. */
+p > .home + .home { margin-left: var(--space-md); }
 .clock { display: flex; gap: var(--space-lg); align-items: center; }
 .clock div { display: grid; }
 .clock dt { font-size: var(--text-sm); color: var(--color-muted); }

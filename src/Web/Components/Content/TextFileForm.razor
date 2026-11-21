@@ -1,5 +1,15 @@
 @using Web.Forms
 <ContentShell Title="@View.File.Title" Subtitle="@Subtitle">
+    <SubtitleContent>
+        @if (View.File.Link is { } link && Subtitle.IndexOf(link.Text, StringComparison.Ordinal) is int at and >= 0)
+        {
+            @Subtitle[..at]<a href="@link.Href">@link.Text</a>@Subtitle[(at + link.Text.Length)..]
+        }
+        else
+        {
+            @Subtitle
+        }
+    </SubtitleContent>
     <ChildContent>
         <form id="text-form" class="well" method="post" action="@View.File.Action" novalidate aria-labelledby="h-text" data-indicator:_saving data-on:submit="@Post">
             <div class="well__head"><h2 id="h-text"><span class="m">@View.File.Path</span></h2></div>

@@ -255,12 +255,12 @@ Route: `POST /dev/tuning/run`, a Datastar stream.
 
 All shown in developer mode only, as the editor links are.
 
-- [ ] **Step 1: the editor index.** Mission tuning links to `/dev/tuning`, and its text view stays. `TextFiles`' `Tuning` hint for `missions` changes from "comes later" to a link to the Tuning page ("Edit these numbers and re-run the bench on the Tuning page."). `crew.yaml`'s hint says it waits for Legacy mode (part two).
-- [ ] **Step 2: legacy selection** gets a "Tuning" link beside the developer links. **Dev Play's** legacy panel gets a "Tuning" link arriving with that legacy as the team source.
-- [ ] **Step 3: "Bench this"** on each objective in Orders and the briefing: that objective, that legacy as the source, and the team as picked so far (members and lead, read from the briefing's signals into the link), or nobody chosen. Build the URL in `EditorLinks` with `TuningQuery`.
-- [ ] **Step 4: Bench this in the aftermath** (design 8, open). Add it if the mockup's review in Task 8 asked for it; otherwise leave it, and say which in "As built".
-- [ ] **Step 5: tests.** Each link is present in developer mode and absent outside it, and lands on the page with the inputs it names. A "Bench this" with picks lands with those members ticked and that lead.
-- [ ] **Step 6:** `./check.sh`; commit "Link the Tuning page from the editor, legacy selection, Dev Play, and Orders".
+- [x] **Step 1: the editor index.** Mission tuning links to `/dev/tuning`, and its text view stays. `TextFiles`' `Tuning` hint for `missions` changes from "comes later" to a link to the Tuning page ("Edit these numbers and re-run the bench on the Tuning page."). `crew.yaml`'s hint says it waits for Legacy mode (part two).
+- [x] **Step 2: legacy selection** gets a "Tuning" link beside the developer links. **Dev Play's** legacy panel gets a "Tuning" link arriving with that legacy as the team source.
+- [x] **Step 3: "Bench this"** on each objective in Orders and the briefing: that objective, that legacy as the source, and the team as picked so far (members and lead, read from the briefing's signals into the link), or nobody chosen. Build the URL in `EditorLinks` with `TuningQuery`.
+- [x] **Step 4: Bench this in the aftermath** (design 8, open). Add it if the mockup's review in Task 8 asked for it; otherwise leave it, and say which in "As built".
+- [x] **Step 5: tests.** Each link is present in developer mode and absent outside it, and lands on the page with the inputs it names. A "Bench this" with picks lands with those members ticked and that lead.
+- [x] **Step 6:** `./check.sh`; commit "Link the Tuning page from the editor, legacy selection, Dev Play, and Orders".
 
 ### Task 14: the worked example, and the record
 

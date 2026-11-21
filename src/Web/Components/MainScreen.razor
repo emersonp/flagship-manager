@@ -16,7 +16,7 @@ else if (Phase == CyclePhase.Resolution)
 }
 else if (Phase == CyclePhase.Aftermath)
 {
-    <AftermathScreen LegacyId="LegacyId" Bar="View.TopBar" Aftermath="View.Aftermath" Mission="View.Mission" ObjectiveName="@ObjectiveName" Reason="@Reason" />
+    <AftermathScreen LegacyId="LegacyId" Bar="View.TopBar" Aftermath="View.Aftermath" Mission="View.Mission" ObjectiveName="@ObjectiveName" ObjectiveTemplate="@ObjectiveTemplate" Reason="@Reason" />
 }
 else
 {
@@ -43,5 +43,10 @@ else
     // The mission's objective by its template, read from the site the page already has.
     private string? ObjectiveName => View.Mission is { } mission
         ? View.Site?.Objectives.FirstOrDefault(o => o.Id == mission.ObjectiveId)?.Shown ?? mission.ObjectiveId
+        : null;
+
+    // The mission's objective template, for Dev Play's "Bench this" in the aftermath (1f part one, Task 13).
+    private string? ObjectiveTemplate => View.Mission is { } mission
+        ? View.Site?.Objectives.FirstOrDefault(o => o.Id == mission.ObjectiveId)?.TemplateId
         : null;
 }

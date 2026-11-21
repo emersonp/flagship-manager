@@ -7,15 +7,17 @@ namespace Web.Forms;
 // The files edited as text: the pack file, the tuning files, and the calendar, listed on the index; and the files of the storylets,
 // vignettes, traits, and test ships, reached from each kind's list ("Edit as text"), which keep their text view beside their forms
 // (1e part six). The path comes from this list, never from a request.
-public sealed record TextFile(string Name, string Path, string Title, IReadOnlyList<string> Notes)
+// Link, when given, is a page the notes point to: the words of the notes it is drawn on, and its address.
+public sealed record TextFile(string Name, string Path, string Title, IReadOnlyList<string> Notes, TextFileLink? Link = null)
 {
-    private const string Tuning = "The page that edits these numbers and re-runs the bench comes later. A mission in flight keeps the tuning it started with.";
+    private const string InFlight = "A mission in flight keeps the tuning it started with.";
 
     public static readonly IReadOnlyList<TextFile> All =
     [
         new("pack", "pack.yaml", "Pack file", ["The pack's id cannot be changed here. Changing the version makes every existing legacy show a warning that its content has changed."]),
-        new("missions", "tuning/missions.yaml", "Mission tuning", [Tuning]),
-        new("crew-tuning", "tuning/crew.yaml", "Crew tuning", [Tuning]),
+        // The Tuning page edits these numbers beside the bench (1f part one, Task 13); the crew's wait for its Legacy mode (part two).
+        new("missions", "tuning/missions.yaml", "Mission tuning", ["Edit these numbers and re-run the bench on the Tuning page.", InFlight], new("the Tuning page", Web.Tuning.TuningQuery.Path)),
+        new("crew-tuning", "tuning/crew.yaml", "Crew tuning", ["The Tuning page will measure these numbers in its Legacy mode (1f part two); edit them as text until then.", InFlight]),
         new("calendar-tuning", "tuning/calendar.yaml", "Calendar tuning", ["How many days a cycle can move the calendar.", "Saving checks this file with the rest of the pack."]),
         new("chronicle-tuning", "tuning/chronicle.yaml", "Chronicle tuning", ["How much each kind of chronicle entry weighs, and the least weight Notable shows.", "Saving checks this file with the rest of the pack."]),
         new("calendars", "calendars/base.yaml", "Calendars", ["The months, the weekdays, and the date a legacy starts on. pack.yaml names the calendar in use.", "Saving checks this file with the rest of the pack."]),
@@ -33,6 +35,9 @@ public sealed record TextFile(string Name, string Path, string Title, IReadOnlyL
 
     public string Action => $"/dev/content/files/{Name}";
 }
+
+// A link drawn on the words Text where they first appear in a text file's notes.
+public sealed record TextFileLink(string Text, string Href);
 
 // What a text file page shows: the text as typed or as stored, what the save refused, and the notice. Warnings never block a save.
 public sealed record TextFileView(TextFile File, string Text, IReadOnlyList<ContentError> Reasons, string? Notice, bool FocusAlert)

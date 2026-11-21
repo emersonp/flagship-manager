@@ -10,7 +10,11 @@
                 }
             </nav>
             <h1>@Title</h1>
-            @if (Subtitle is not null)
+            @if (SubtitleContent is not null)
+            {
+                <p class="note">@SubtitleContent</p>
+            }
+            else if (Subtitle is not null)
             {
                 <p class="note">@Subtitle</p>
             }
@@ -24,6 +28,9 @@
     [Parameter, EditorRequired] public string Title { get; set; } = "";
 
     [Parameter] public string? Subtitle { get; set; }
+
+    // The subtitle with markup (a link in it), in place of Subtitle.
+    [Parameter] public RenderFragment? SubtitleContent { get; set; }
 
     // A page of tables takes the whole width; a form keeps the reading column.
     [Parameter] public bool Wide { get; set; }
