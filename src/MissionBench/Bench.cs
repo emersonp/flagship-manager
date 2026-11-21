@@ -47,11 +47,10 @@ public static class Bench
         {
             if (options.Team is { } team)
             {
-                int size = team.Members.Count;
-                if (size < objective.TeamSizeMin || size > objective.TeamSizeMax)
+                // The launch's own check, in its words.
+                if (LaunchTeam.SizeRefusal(objective, team.Members.Count) is { } refused)
                 {
-                    // The words MissionsModule's launch check uses.
-                    cells.Add(new ObjectiveCell(objective.Id, null, null, $"A team of {size} is outside the {objective.TeamSizeMin} to {objective.TeamSizeMax} this objective takes."));
+                    cells.Add(new ObjectiveCell(objective.Id, null, null, refused));
                     continue;
                 }
 

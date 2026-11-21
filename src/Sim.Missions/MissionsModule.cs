@@ -102,10 +102,9 @@ public static class MissionsModule
             return $"Objective template '{objective.TemplateId}' is no longer in the content.";
         }
 
-        int size = command.CrewIds.Count;
-        if (size < template.TeamSizeMin || size > template.TeamSizeMax)
+        if (LaunchTeam.SizeRefusal(template, command.CrewIds.Count) is { } size)
         {
-            return $"A team of {size} is outside the {template.TeamSizeMin} to {template.TeamSizeMax} this objective takes.";
+            return size;
         }
 
         IRosterView roster = context.View<IRosterView>();
@@ -117,14 +116,9 @@ public static class MissionsModule
                 return $"Crew member '{id}' is listed twice.";
             }
 
-            if (!roster.Roster.Contains(id))
+            if (LaunchTeam.Refusal(roster, id) is { } refused)
             {
-                return $"Crew member '{id}' is not on the roster.";
-            }
-
-            if (!roster.IsFit(id))
-            {
-                return $"Crew member '{id}' is not fit.";
+                return refused;
             }
         }
 
@@ -271,29 +265,17 @@ public static class MissionsModule
             return;
         }
 
-        IRosterView roster = context.View<IRosterView>();
         // The traits each member walks on board with (1e part three): fixed now, before the launch rules run on MissionStarted.
-        ITraitView traits = context.View<ITraitView>();
-        List<TeamMember> members = briefing.CrewIds
-            .Select(c => roster.Member(c) ?? throw new InvalidOperationException($"Crew member '{c}' is no longer available for mission {id}."))
-            .Select(m => m with { Traits = Own(traits.Held(m.Id)), TraitBonuses = traits.Bonuses(m.Id, briefing.CrewIds) is { Count: > 0 } b ? b : null })
-            .ToList();
+        Team team = LaunchTeam.Build(context.View<IRosterView>(), context.View<ITraitView>(), briefing.CrewIds, briefing.LeadId);
         // Gear deleted since the launch stays behind.
         List<string> gearTags = briefing.GearIds.Select(g => pack.Gear.FirstOrDefault(d => d.Id == g)?.Tag).OfType<string>().ToList();
         ulong seed = context.Rng($"mission:{id}").NextUInt64();
 
         context.Publish(new MissionStarted(id, objective.Id, template.Id, briefing.CrewIds, briefing.LeadId));
-        MissionState state = MissionResolver.Start(template, pack.Encounters, new Team(members, briefing.LeadId, Own(traits.Held(null))), gearTags, briefing.Parameters, pack.Tuning, seed);
+        MissionState state = MissionResolver.Start(template, pack.Encounters, team, gearTags, briefing.Parameters, pack.Tuning, seed);
         var mission = new MissionInFlight { Id = id, ObjectiveId = objective.Id, State = state, BeatCount = 0 };
         site.Mission = mission;
         Run(mission, MissionResolver.Advance(state), context);
-    }
-
-    // One's own traits by id, the pairs held left out; null when there are none.
-    private static Dictionary<string, int>? Own(IReadOnlyList<TraitHeld> held)
-    {
-        Dictionary<string, int> own = held.Where(t => t.TargetId is null).ToDictionary(t => t.Trait, t => t.Value);
-        return own.Count == 0 ? null : own;
     }
 
     // answered: the call this step answers, if it answers one. Its CallAnswered follows the answer's beat, so whatever the rest of the

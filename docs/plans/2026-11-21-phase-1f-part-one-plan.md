@@ -135,9 +135,9 @@ public static class LaunchTeam
 }
 ```
 
-- [ ] **Step 1:** Move the member-building lines and `Own` out of `StartMission` into `Build`, and the roster and fitness checks of the `AssignTeam` validation into `Refusal`. `MissionsModule` calls both. The words of each refusal are unchanged.
-- [ ] **Step 2: tests.** Every golden passes untouched (the test of this task). `Build` on a legacy with an injured, a low-morale, and a trait-holding member gives what `StartMission` gave before the move (capture a `MissionStarted` legacy's resolver team from the event log's first state and compare). `Refusal` names an unfit and an unknown member.
-- [ ] **Step 3:** `./check.sh`; commit "Lift the launch's team building into LaunchTeam".
+- [x] **Step 1:** Move the member-building lines and `Own` out of `StartMission` into `Build`, and the roster and fitness checks of the `AssignTeam` validation into `Refusal`. `MissionsModule` calls both. The words of each refusal are unchanged.
+- [x] **Step 2: tests.** Every golden passes untouched (the test of this task). `Build` on a legacy with an injured, a low-morale, and a trait-holding member gives what `StartMission` gave before the move (capture a `MissionStarted` legacy's resolver team from the event log's first state and compare). `Refusal` names an unfit and an unknown member.
+- [x] **Step 3:** `./check.sh`; commit "Lift the launch's team building into LaunchTeam".
 
 ### Task 5: a test ship as a legacy in memory
 
