@@ -1,4 +1,4 @@
-@* Dev Play's panel: the legacy's traits, each crew member's morale, a form to set a trait, and why these storylets (1e part four). It redraws itself whenever another request on the page ends,
+@* Dev Play's panel: the legacy's traits, each crew member's morale, a form to set a trait, "Save as test ship" (1e part six), and why these storylets (1e part four). It redraws itself whenever another request on the page ends,
    so a trait a mission changed shows once that mission's beats have played. Nothing in normal play renders it. *@
 <section id="dev" class="well dev" aria-labelledby="h-dev" data-on:datastar-fetch__document="@Refresh">
     <div class="well__head">
@@ -87,6 +87,12 @@
             <p class="hint" id="dev-hint">0 to @View.Most, or a level's name, and 0 clears it. A trait on a pair needs Toward: whom it points at. Storylets and vignettes arrive as the itinerary opens, so set a trait before then.</p>
             <p id="dev-result" class="@(Error ? "error" : "dev__ok")" role="status">@Message</p>
         </form>
+        <form class="dev__ship" data-on:submit="@SaveShip" data-indicator:devshipbusy>
+            <h3 class="sub">Test ship</h3>
+            <p class="hint" id="dev-ship-hint">Saves the legacy as storylets read it now (each crew member's state, the traits held, the history, the chronicle, and what has arrived) as a test ship, for the editor's What plays here. Play never reads it.</p>
+            <div><button class="btn btn--dev" type="submit" aria-describedby="dev-ship-hint" data-attr:disabled="$devshipbusy" data-attr:aria-busy="$devshipbusy ? 'true' : false">Save as test ship</button></div>
+            <p id="dev-ship" class="@(ShipError ? "error" : "dev__ok")" role="status">@ShipMessage@if (ShipLink is not null) {<a href="@ShipLink">@ShipFile</a>} else {@ShipFile}@(ShipFile is null ? "" : ".")</p>
+        </form>
         @if (View.Why is { } why)
         {
             <WhyStorylets LegacyId="LegacyId" View="why" />
@@ -112,6 +118,17 @@
     [Parameter] public string? Message { get; set; }
 
     [Parameter] public bool Error { get; set; }
+
+    // What the last "Save as test ship" did: where the ship went (ShipFile, linked to its text by ShipLink), or why not (ShipError).
+    [Parameter] public string? ShipMessage { get; set; }
+
+    [Parameter] public string? ShipFile { get; set; }
+
+    [Parameter] public string? ShipLink { get; set; }
+
+    [Parameter] public bool ShipError { get; set; }
+
+    private string SaveShip => $"@post('/dev/legacy/{LegacyId}/testship', {{contentType: 'form'}})";
 
     private string Post => $"@post('/dev/legacy/{LegacyId}/trait', {{contentType: 'form'}})";
 

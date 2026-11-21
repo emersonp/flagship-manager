@@ -242,10 +242,10 @@ public static class Preview
 
 **Files:** `src/Web/Endpoints/DevPlayEndpoints.cs`, `src/Web/Components/DevPanel.razor`, `src/Web/Forms/TestShipCapture.cs` (new), `tests/Web.Tests/DevPlayTests.cs`.
 
-- [ ] **Step 1: what is captured.** The minimum is what `IStateSource` reads (design 7, third item). For each crew member: morale, loyalty, skills where they differ from the starting file, fit, aboard, and alive. Also the traits held, history within the longest window any expression in the pack reads, chronicle entries, and storylet arrivals, all as days and cycles ago from the legacy's today. Read it through the same views `StateSource` reads. Leave morale history and days to heal out unless something reads them, and say so in "As built".
-- [ ] **Step 2: the save.** A button in Dev Play appends a ship named "<legacy> on <date>", with an id made from the name, through the editor's usual save (whole pack built, the loader run, then one file written). The panel says where it went, and links to the file.
-- [ ] **Step 3: tests.** A captured ship's `TestShipSource` answers the same as the legacy's `StateSource` for every crew member, trait, and history kind. Capturing writes nothing to the legacy's store.
-- [ ] **Step 4:** `./check.sh`; commit "Save a legacy's state as a test ship from Dev Play".
+- [x] **Step 1: what is captured.** The minimum is what `IStateSource` reads (design 7, third item). For each crew member: morale, loyalty, skills where they differ from the starting file, fit, aboard, and alive. Also the traits held, history within the longest window any expression in the pack reads, chronicle entries, and storylet arrivals, all as days and cycles ago from the legacy's today. Read it through the same views `StateSource` reads. Leave morale history and days to heal out unless something reads them, and say so in "As built".
+- [x] **Step 2: the save.** A button in Dev Play appends a ship named "<legacy> on <date>", with an id made from the name, through the editor's usual save (whole pack built, the loader run, then one file written). The panel says where it went, and links to the file.
+- [x] **Step 3: tests.** A captured ship's `TestShipSource` answers the same as the legacy's `StateSource` for every crew member, trait, and history kind. Capturing writes nothing to the legacy's store.
+- [x] **Step 4:** `./check.sh`; commit "Save a legacy's state as a test ship from Dev Play".
 
 ### Task 15: the worked example, and the record
 

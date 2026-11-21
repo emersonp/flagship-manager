@@ -1,5 +1,8 @@
 using System.Net;
+using Sim.Content;
 using Sim.Core;
+using Sim.Core.Content;
+using Sim.Expressions;
 using Sim.Storylets;
 using Sim.Traits;
 
@@ -244,5 +247,124 @@ public sealed class DevPlayTests
         Assert.Matches("<span class=\"stop__id\"><a href=\"/dev/content/encounters/[A-Z0-9_]+\" target=\"_blank\" rel=\"noopener\">", launch);
         Assert.Matches("<a class=\"dev-edit\" href=\"/dev/content/(lines|encounters|objectives)/[A-Z0-9_]+\" target=\"_blank\" rel=\"noopener\">Edit line</a>", page);
         Assert.DoesNotContain("/dev/content/", play.Replace("href=\"/dev/content\"", ""));
+    }
+
+    // 1e part six, Task 14: "Save as test ship". A legacy played some cycles, with a trait on the ship, a level, and a pair set by
+    // hand, is captured; the ship it writes reads, through TestShipSource, as the legacy reads through the module's own source.
+    [Fact]
+    public async Task Save_as_test_ship_writes_a_ship_that_reads_as_the_legacy_does_and_leaves_the_legacy_alone()
+    {
+        using var app = new TestApp(developerMode: true, scratch: true);
+        HttpClient client = app.NewClient();
+        Guid id = await app.CreateAtOrders("LEGACY_ONE", 3);
+        for (int steps = 0; (await app.Sessions.Read(app.Live, id))!.State.Cycle < 4; steps++)
+        {
+            Assert.True(steps < 400, "The legacy never reached its fourth cycle.");
+            await app.Sessions.Run(app.Live, id, legacy =>
+            {
+                legacy.Send(SimRunner.AutoCaptain.NextCommand(app.Live.Game, legacy.State, app.Live.Pack));
+                return legacy;
+            });
+        }
+
+        LoadedLegacy played = (await app.Sessions.Read(app.Live, id))!;
+        IReadOnlyList<string> roster = app.Live.Game.Bus.View<IRosterView>(played.State).Roster;
+        await Post(client, $"/dev/legacy/{id}/trait", Form(("trait", "trait_a"), ("on", "ship"), ("value", "1")));
+        await Post(client, $"/dev/legacy/{id}/trait", Form(("trait", "trait_e"), ("on", roster[0]), ("toward", ""), ("value", "level_b")));
+        await Post(client, $"/dev/legacy/{id}/trait", Form(("trait", "trait_g"), ("on", roster[1]), ("toward", roster[0]), ("value", "2")));
+        LoadedLegacy legacy = (await app.Sessions.Read(app.Live, id))!;
+        int events = app.Game.Store.ReadEvents(id, 1).Count;
+        string stateBefore = System.Text.Json.JsonSerializer.Serialize(legacy.State.Modules);
+        ContentPack pack = app.Live.Pack;
+        string date = Web.Bridge.Dates.Short(pack.Calendar, legacy.State.Day);
+        string shipId = NewIdOf($"LEGACY_ONE on {date}");
+
+        string first = await Post(client, $"/dev/legacy/{id}/testship", Form());
+        string second = await Post(client, $"/dev/legacy/{id}/testship", Form());
+
+        Assert.Contains("event: datastar-patch-elements", first);
+        Assert.Contains($"Saved LEGACY_ONE on {date} as {shipId} in <a href=\"/dev/content/files/testships\">testships/base.yaml</a>.", first);
+        Assert.Contains($"as {shipId}_2 in", second);
+        // The legacy is as it was: no event, and the same state.
+        LoadedLegacy after = (await app.Sessions.Read(app.Live, id))!;
+        Assert.Equal(events, app.Game.Store.ReadEvents(id, 1).Count);
+        Assert.Equal(stateBefore, System.Text.Json.JsonSerializer.Serialize(after.State.Modules));
+
+        TestShipsLoadResult ships = ContentLoader.LoadTestShips(app.Editor.Read().Files, pack);
+        Assert.Empty(ships.Errors);
+        TestShipDef ship = Assert.Single(ships.Ships, s => s.Id == shipId);
+        Assert.Contains(ships.Ships, s => s.Id == shipId + "_2");
+        Assert.Equal($"LEGACY_ONE on {date}", ship.Name);
+        Assert.NotEmpty(ship.History);
+        Assert.NotEmpty(ship.Chronicle);
+        Assert.Contains(ship.Traits, t => (t.Trait, t.On, t.Toward, t.Value) == ("trait_g", roster[1], roster[0], 2));
+        Assert.Contains(ship.Crew, c => c.Morale is not null);
+
+        IStateSource real = Sim.Storylets.LegacySource.Of(app.Live.Game.Bus, after.State);
+        var test = new Sim.Storylets.TestShipSource(pack, ship);
+        Assert.Equal(real.Cycle, test.Cycle);
+        IReadOnlyList<string> living = app.Live.Game.Bus.View<IRosterView>(after.State).Roster;
+        Assert.Equal(living, test.Roster);
+        foreach (CrewDef crew in pack.Crew)
+        {
+            Assert.Equal(real.IsAboard(crew.Id), test.IsAboard(crew.Id));
+        }
+
+        int[] windows = [1, 2, 6, 30, 120, 100_000];
+        foreach (string crew in living)
+        {
+            Assert.Equal(real.Morale(crew), test.Morale(crew));
+            Assert.Equal(real.Loyalty(crew), test.Loyalty(crew));
+            Assert.Equal(real.IsFit(crew), test.IsFit(crew));
+            Assert.All(pack.Skills, s => Assert.Equal(real.Skill(crew, s.Id), test.Skill(crew, s.Id)));
+            foreach (string kind in HistoryKinds.All)
+            {
+                for (int n = 1; n <= pack.HistoryCycles; n++)
+                {
+                    Assert.True(real.History(crew, kind, n) == test.History(crew, kind, n), $"{crew} {kind} over {n}");
+                }
+            }
+
+            Assert.All(ChronicleKinds.All, kind => Assert.All(windows, days => Assert.Equal(real.ChronicleCount(crew, kind, days), test.ChronicleCount(crew, kind, days))));
+        }
+
+        foreach (TraitDef trait in pack.Traits)
+        {
+            Assert.Equal(real.Trait(trait.Id, null), test.Trait(trait.Id, null));
+            Assert.Equal(real.TraitSince(trait.Id, null), test.TraitSince(trait.Id, null));
+            foreach (string crew in living)
+            {
+                Assert.True(real.Trait(trait.Id, crew) == test.Trait(trait.Id, crew), $"{trait.Id} on {crew}");
+                Assert.Equal(real.TraitSince(trait.Id, crew), test.TraitSince(trait.Id, crew));
+                Assert.All(living.Where(o => o != crew), other => Assert.Equal(real.Trait(trait.Id, crew, other), test.Trait(trait.Id, crew, other)));
+            }
+        }
+
+        Assert.All(pack.Storylets.Select(s => s.Id).Concat(pack.Vignettes.Select(v => v.Id)), s => Assert.Equal(real.StoryletSince(s), test.StoryletSince(s)));
+        Assert.All(ChronicleKinds.All, kind => Assert.All(windows, days => Assert.Equal(real.ChronicleCount(kind, days), test.ChronicleCount(kind, days))));
+    }
+
+    // A ship the loader would refuse is not written, and the panel says why in the loader's words.
+    [Fact]
+    public async Task Save_as_test_ship_is_refused_when_the_test_ships_file_has_a_wrong_ship()
+    {
+        using var app = new TestApp(developerMode: true, scratch: true, prepare: root =>
+        {
+            string file = Path.Combine(root, "testships", "base.yaml");
+            File.WriteAllText(file, File.ReadAllText(file).Replace("cycle: 20", "cycle: 0", StringComparison.Ordinal));
+        });
+        HttpClient client = app.NewClient();
+        Guid id = await app.CreateAtOrders("LEGACY_ONE", 1);
+        string before = File.ReadAllText(Path.Combine(app.ContentPath, "testships", "base.yaml"));
+
+        string body = await Post(client, $"/dev/legacy/{id}/testship", Form());
+
+        Assert.Contains("<p id=\"dev-ship\" class=\"error\" role=\"status\">Not saved. testships/base.yaml: test_ship_a: cycle: the cycle now starting", body);
+        Assert.Equal(before, File.ReadAllText(Path.Combine(app.ContentPath, "testships", "base.yaml")));
+    }
+
+    private static string NewIdOf(string name)
+    {
+        return Web.Forms.NewIds.FromName(name);
     }
 }

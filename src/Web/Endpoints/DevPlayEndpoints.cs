@@ -1,8 +1,10 @@
 using System.Globalization;
+using Sim.Content;
 using Sim.Core;
 using Sim.Core.Content;
 using Web.Bridge;
 using Web.Components;
+using Web.Forms;
 
 namespace Web.Endpoints;
 
@@ -20,6 +22,7 @@ public static class DevPlayEndpoints
             => BridgeEndpoints.Chronicle(id, http, sessions, render, true, cancellation));
         dev.MapPost("/{id}/trait", Set);
         dev.MapPost("/{id}/why", Why);
+        dev.MapPost("/{id}/testship", SaveShip);
         // The bridge's own actions, answered for Dev Play.
         BridgeEndpoints.MapActions(dev, dev: true);
     }
@@ -72,6 +75,34 @@ public static class DevPlayEndpoints
         {
             await Sse.PatchElements(response, section);
         });
+    }
+
+    // "Save as test ship" (1e part six, Task 14): the legacy as the expressions read it now, appended to the test ships through the
+    // editor's usual save. It reads the legacy and writes only the content file; the panel says where the ship went, or why not.
+    private static async Task<IResult> SaveShip(string id, HttpContext http, GameServices game, LegacySession sessions, ContentEditor editor, Render render, CancellationToken cancellation)
+    {
+        LivePack live = RequestPack.Of(http);
+        LoadedLegacy? legacy = Guid.TryParse(id, out Guid legacyId) ? await sessions.Read(live, legacyId, cancellation) : null;
+        if (legacy is null)
+        {
+            return await BridgeEndpoints.NotFound(render, http);
+        }
+
+        TestShipModel ship = TestShipCapture.Capture(live.Game, live.Pack, legacy.State, legacy.Record.Name);
+        TestShipCapture.Saved saved = await TestShipCapture.Save(editor, ship, cancellation);
+        var kept = new Dictionary<string, object?> { ["ShipError"] = !saved.Done };
+        if (saved.Done)
+        {
+            kept["ShipMessage"] = $"Saved {ship.Name} as {saved.Id} in ";
+            kept["ShipFile"] = saved.File;
+            kept["ShipLink"] = TextFile.All.FirstOrDefault(f => f.Path == saved.File) is { } text ? EditorLinks.File(text.Name) : null;
+        }
+        else
+        {
+            kept["ShipMessage"] = "Not saved. " + string.Join(" ", saved.Errors.Select(e => e.File.Length == 0 || e.Message.StartsWith(e.File, StringComparison.Ordinal) ? e.Message : $"{e.File}: {e.Message}"));
+        }
+
+        return await Patch(render, legacyId, DevReader.Read(legacy.State, live.Game, live.Pack, live.Names, BridgeEndpoints.CycleEvents(game, live, legacy)), kept);
     }
 
     // Answers with the panel either way: what was set, or why not, with the form as posted.

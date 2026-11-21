@@ -337,7 +337,8 @@ input:disabled { opacity: 0.55; cursor: not-allowed; }
 .dev .sub { margin-top: 0; margin-bottom: var(--space-xs); }
 .dev__tw { margin-inline: calc(-1 * var(--space-lg)); }
 .dev__trait { font-family: var(--font-outlier); font-variant-numeric: tabular-nums slashed-zero; color: var(--color-ink); white-space: nowrap; }
-.dev__set { display: grid; gap: var(--space-xs); align-content: start; min-width: 0; }
+.dev__set, .dev__ship { display: grid; gap: var(--space-xs); align-content: start; min-width: 0; }
+.dev__ship .hint { margin: 0; }
 .dev__fields { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-sm); align-items: end; }
 .dev__fields .field { max-width: none; }
 .dev__clock { display: flex; flex-wrap: wrap; gap: var(--space-2xs) var(--space-lg); grid-column: 1 / -1; }
