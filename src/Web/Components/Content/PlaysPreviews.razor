@@ -1,5 +1,22 @@
 @using Web.Forms
 @* What the preview route answers with: the sample control and every preview, each patched by its id, so no box the author is typing in is touched. *@
+@* A storylet's (1e part six) also patches what the casting found and whether each option is offered; when the form as it stands does
+   not load, only the line that says so is patched, and the previews shown stay, greyed. *@
+@if (Plays.Casting is { } casting)
+{
+    <PlaysStatus Casting="casting" />
+    if (casting.Stale is not null)
+    {
+        return;
+    }
+
+    <PlaysCastLine Casting="casting" Url="@Url" />
+    for (int i = 0; i < casting.OptionRows; i++)
+    {
+        <OptionOffer Row="i" NotOffered="@casting.NotOffered.Contains(i)" Tab="true" />
+        <OptionOffer Row="i" NotOffered="@casting.NotOffered.Contains(i)" />
+    }
+}
 <PlaysSample Plays="Plays" Url="@Url" />
 @foreach (PlaysPreview preview in Plays.Previews)
 {

@@ -1,0 +1,24 @@
+@using Web.Forms
+@* The test ship "What plays here" casts on (1e part six, design 4.7). The choice is kept in the address (?ship=), so a reload keeps it,
+   and changing it asks for the previews again at once. *@
+@if (Casting.Ships.Count > 0)
+{
+    <div class="field field--narrow plays__ship">
+        <label for="f-ship">Test ship</label>
+        <select id="f-ship" name="@Web.Forms.Plays.ShipField" aria-describedby="f-ship-hint" data-on:input__stop="@Change">
+            @foreach (PlaysShip ship in Casting.Ships)
+            {
+                <option value="@ship.Id" selected="@(ship.Id == Casting.Ship)">@ship.Name</option>
+            }
+        </select>
+        <p class="hint" id="f-ship-hint">Cast for real on this ship's state, as the game would cast it.</p>
+    </div>
+}
+
+@code {
+    [Parameter, EditorRequired] public PlaysCasting Casting { get; set; } = null!;
+
+    [Parameter, EditorRequired] public string Url { get; set; } = "";
+
+    private string Change => $"@post('{Url}', {{contentType: 'form'}}); const u = new URL(location.href); u.searchParams.set('ship', el.value); history.replaceState(null, '', u)";
+}

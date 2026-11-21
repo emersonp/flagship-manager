@@ -2,8 +2,9 @@
 @using Web.Forms
 @* The storylet form (1e part six, design 4.3), on the encounter form's pattern: the definitions (stakes, requires, the cast, the
    cooldowns and chronicle weight, the script, and the author's notes), then a tab for each option. Every expression is a widget whose
-   rows or text are a view of the string the file holds. "What plays here" follows (Task 9). *@
-<FormShell View="View">
+   rows or text are a view of the string the file holds. "What plays here" follows, cast for real on a test ship; typing anywhere in the form
+   asks for its previews again, once the author pauses. *@
+<FormShell View="View" OnInput="@Refresh">
     <div class="field-grid">
         <div class="field field--narrow">
             <label for="f-stakes">Stakes</label>
@@ -39,6 +40,7 @@
         <p class="hint" id="f-notes-hint">Why it is the way it is, for whoever writes next. Kept in the file, never shown in play.</p>
     </div>
     <OptionTabs />
+    <PlaysPanel />
 </FormShell>
 
 @code {
@@ -51,6 +53,9 @@
     private static readonly IReadOnlyList<string> Weights = Enumerable.Range(0, ChronicleTuning.Most + 1).Select(n => n.ToString(System.Globalization.CultureInfo.InvariantCulture)).ToList();
 
     private static readonly IReadOnlyDictionary<string, string> WeightLabels = new Dictionary<string, string> { ["0"] = "0, writes none" };
+
+    // Only the previews, the cast, and the sample control are patched, so no box the author is typing in is touched.
+    private string Refresh => $"@post('{View.PlaysUrl}', {{contentType: 'form'}})";
 
     private List<string> Slots = [];
 

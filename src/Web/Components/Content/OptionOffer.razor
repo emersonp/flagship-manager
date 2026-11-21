@@ -1,0 +1,20 @@
+@using Web.Forms
+@* Whether an option is offered to the cast on the test ship (1e part six, design 4.7), on its tab and at the top of its panel. Always
+   drawn, empty when it is offered, so the plays route can patch it by its id. *@
+@if (Tab)
+{
+    <span class="tab__note" id="@($"offer-option-{Row}")">@(NotOffered ? "(not offered)" : "")</span>
+}
+else
+{
+    <p class="plays__offer" id="@($"offer-note-option-{Row}")">@(NotOffered ? Web.Forms.Plays.NotOfferedWords : "")</p>
+}
+
+@code {
+    [Parameter, EditorRequired] public int Row { get; set; }
+
+    [Parameter, EditorRequired] public bool NotOffered { get; set; }
+
+    // The mark on the tab, or the line in the panel.
+    [Parameter] public bool Tab { get; set; }
+}

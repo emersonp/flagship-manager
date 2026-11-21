@@ -1,0 +1,39 @@
+@using Web.Forms
+@* What the casting found on the test ship (1e part six, design 4.7): whether requires holds and the cooldowns are clear, and, when no
+   one fits, each slot's reason and Preview anyway, which fills the slots from the crew in order, ignoring their conditions. *@
+<div class="plays__cast" id="plays-cast">
+    <p class="plays__top">@Casting.TopLine</p>
+    @if (Casting.Why.Count > 0)
+    {
+        <ul class="plays__why" aria-label="Why no one fits">
+            @foreach (string reason in Casting.Why)
+            {
+                <li>@reason</li>
+            }
+        </ul>
+    }
+    @if (Casting.NoShips)
+    {
+        <input type="hidden" name="@Web.Forms.Plays.AnywayField" value="true">
+        <p class="hint">This pack has no test ships, so the preview casts on the starting crew, with Preview anyway on.</p>
+    }
+    else if (!Casting.Fits || Casting.Anyway)
+    {
+        <div class="field field--check">
+            <label class="check" for="f-anyway"><span class="hit"><input type="checkbox" id="f-anyway" name="@Web.Forms.Plays.AnywayField" value="true" checked="@Casting.Anyway" aria-describedby="f-anyway-hint" data-on:input__stop="@Refresh"></span>Preview anyway</label>
+            <p class="hint" id="f-anyway-hint">When no one fits, fill the slots from the crew in order, ignoring their conditions, so the words can be read.</p>
+        </div>
+    }
+    @if (Casting.Unconditioned)
+    {
+        <p class="plays__unconditioned">Unconditioned: no one fits, so these previews are of a cast the game would never choose.</p>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public PlaysCasting Casting { get; set; } = null!;
+
+    [Parameter, EditorRequired] public string Url { get; set; } = "";
+
+    private string Refresh => $"@post('{Url}', {{contentType: 'form'}})";
+}

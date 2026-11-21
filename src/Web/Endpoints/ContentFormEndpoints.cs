@@ -95,21 +95,21 @@ public static class ContentFormEndpoints
         return new Dictionary<string, object?> { ["View"] = view };
     }
 
-    private static async Task<IResult> New(string kind, ContentEditor editor, Render render)
+    private static async Task<IResult> New(string kind, HttpRequest request, ContentEditor editor, Render render)
     {
         if (KindForm.For(kind) is not { } form)
         {
             return await NotFound(render, false);
         }
 
-        return await Answer<ItemMain, ItemPage>(render, false, FormParameters(FormFlow.Blank(form, editor.Read())), StatusCodes.Status200OK);
+        return await Answer<ItemMain, ItemPage>(render, false, FormParameters(FormFlow.Blank(form, editor.Read(), request.Query[Plays.ShipField])), StatusCodes.Status200OK);
     }
 
     // After a create the browser comes here with ?saved=1, so a reload shows the item and the notice once the query is gone.
     private static async Task<IResult> Open(string kind, string id, HttpRequest request, ContentEditor editor, Render render)
     {
         string? notice = request.Query["saved"] == "1" ? "Saved." : null;
-        if (KindForm.For(kind) is not { } form || FormFlow.Open(form, editor.Read(), id, notice) is not { } view)
+        if (KindForm.For(kind) is not { } form || FormFlow.Open(form, editor.Read(), id, notice, request.Query[Plays.ShipField]) is not { } view)
         {
             return await NotFound(render, false);
         }
@@ -124,10 +124,13 @@ public static class ContentFormEndpoints
             return await NotFound(render, Sse.IsDatastar(http.Request));
         }
 
-        (ItemFormView view, bool saved) = await FormFlow.Create(form, editor, await Read(http.Request, cancellation), cancellation);
+        FormValues posted = await Read(http.Request, cancellation);
+        (ItemFormView view, bool saved) = await FormFlow.Create(form, editor, posted, cancellation);
         if (saved && Sse.IsDatastar(http.Request))
         {
-            return new RedirectResult($"/dev/content/{ContentKinds.Segment(form.Kind)}/{Uri.EscapeDataString(view.Id)}?saved=1");
+            // A storylet's test ship stays chosen (1e part six).
+            string ship = posted.Get(Plays.ShipField) is { Length: > 0 } chosen ? $"&ship={Uri.EscapeDataString(chosen)}" : "";
+            return new RedirectResult($"/dev/content/{ContentKinds.Segment(form.Kind)}/{Uri.EscapeDataString(view.Id)}?saved=1{ship}");
         }
 
         return await Answer<ItemMain, ItemPage>(render, Sse.IsDatastar(http.Request), FormParameters(view), saved ? StatusCodes.Status200OK : StatusCodes.Status422UnprocessableEntity);

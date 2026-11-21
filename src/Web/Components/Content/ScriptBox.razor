@@ -3,7 +3,7 @@
    its caret (editor.js takes the box as the chips' group). *@
 <div class="field textfield textfield--line textfield--short chipbox">
     <label for="@Id">@Label</label>
-    <textarea id="@Id" name="@Name" rows="@Rows" spellcheck="true" autocomplete="off" aria-label="@Aria" aria-describedby="@Described" aria-invalid="@(Error is null ? null : "true")" @attributes="View.FocusFor(Id)">@View.Values.Get(Name)</textarea>
+    <textarea id="@Id" name="@Name" rows="@Rows" spellcheck="true" autocomplete="off" aria-label="@Aria" placeholder="@Placeholder" aria-describedby="@Described" aria-invalid="@(Error is null ? null : "true")" @attributes="View.FocusFor(Id)">@View.Values.Get(Name)</textarea>
     @if (Hint is not null)
     {
         <p class="hint" id="@($"{Id}-hint")">@Hint</p>
@@ -13,6 +13,14 @@
         <p class="error" id="@($"{Id}-error")">@Error</p>
     }
     <PlaysChips Chips="Chips" Group="@(Aria ?? Label)" />
+    @foreach (PlaysSlot slot in Previews)
+    {
+        @if (Previews.Count > 1)
+        {
+            <p class="field__label">@slot.Label</p>
+        }
+        <PlaysPreviewBox Preview="slot.Preview" />
+    }
 </div>
 
 @code {
@@ -33,13 +41,19 @@
 
     private string Id => FormValues.Slug(Name);
 
+    // What plays from this box on the test ship ("What plays here", 1e part six): one preview, or one for each outcome of a check.
+    private IReadOnlyList<PlaysSlot> Previews => View.Plays?.SlotsFor(Name) ?? [];
+
+    // While the box is blank, the line that plays there now, greyed.
+    private string? Placeholder => Previews.FirstOrDefault()?.Placeholder is { Length: > 0 } text ? text : null;
+
     private string? Error => View.Error(Name);
 
     private string? Described
     {
         get
         {
-            string text = $"{(Hint is null ? "" : Id + "-hint")} {(Error is null ? "" : Id + "-error")}".Trim();
+            string text = string.Join(" ", new[] { Hint is null ? null : Id + "-hint", Error is null ? null : Id + "-error" }.Concat(Previews.Select(p => p.Preview.Id)).OfType<string>());
             return text.Length == 0 ? null : text;
         }
     }

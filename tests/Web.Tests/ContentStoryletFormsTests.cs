@@ -317,7 +317,9 @@ public sealed class ContentStoryletFormsTests(RepoContentGuard guard) : IClassFi
         Assert.Equal(HttpStatusCode.UnprocessableEntity, status);
         string line = Regex.Match(refused, "<div class=\"expr__check\" id=\"f-cast-0-when-check\".*?</div>", RegexOptions.Singleline).Value;
         Assert.Matches("<p class=\"error\" id=\"f-cast-0-when-check-error\">[^<]*unknown_one[^<]*\\(character [0-9]+\\)</p>", WebUtility.HtmlDecode(line));
-        Assert.DoesNotContain("cast.subject, at character", WebUtility.HtmlDecode(refused));
+        // Not in the alert; What plays here says what the loader said of the form as it stands (Task 9).
+        string alert = Regex.Match(refused, "<div id=\"form-alert\".*?</div>", RegexOptions.Singleline).Value;
+        Assert.DoesNotContain("cast.subject, at character", WebUtility.HtmlDecode(alert));
         Assert.Equal(before, Everything(app));
     }
 
@@ -353,7 +355,117 @@ public sealed class ContentStoryletFormsTests(RepoContentGuard guard) : IClassFi
         Assert.Null(Placed("STORYLET_90: Option 'option_b' leaves every expression true, so this storylet would come back every cycle."));
     }
 
-    // --- Rows that carry what is nested in them ---
+    // --- What plays here, on a test ship (Task 9) ---
+
+    private static string Panel(string body) => Regex.Match(body, "<section class=\"plays\" id=\"plays\".*?</section>", RegexOptions.Singleline).Value;
+
+    // The game's "Someone shaken" casts CREW_02 (Lt. Kell Varro, shaken on USS Quality Assurance), and the panel names them; its
+    // script and each option's words are rendered with the cast, under their boxes and in the panel, and each option's chronicle line.
+    [Fact]
+    public async Task The_panel_casts_on_the_first_test_ship_and_renders_the_words_with_the_cast()
+    {
+        using TestApp app = GameApp(canonical: false);
+        (HttpStatusCode status, string body) = await Get(app.NewClient(), Url("STORYLET_02"));
+
+        Assert.Equal(HttpStatusCode.OK, status);
+        string panel = WebUtility.HtmlDecode(Panel(body));
+        Assert.Matches("<option value=\"uss_quality_assurance\" selected[^>]*>USS Quality Assurance</option>", panel);
+        Assert.Contains("Requires holds · cast cooldown clear · global cooldown clear", panel, StringComparison.Ordinal);
+        Assert.Contains("Sample 1: Lt. Kell Varro as subject.", panel, StringComparison.Ordinal);
+        Assert.Contains("Request from Lt. Kell Varro: a word with the captain, in private.", panel, StringComparison.Ordinal);
+        Assert.Contains("Lt. Kell Varro was told to carry on", panel, StringComparison.Ordinal);
+        Assert.Contains("id=\"pp-f-script\"", panel, StringComparison.Ordinal);
+        Assert.Contains("id=\"pv-f-script\"", body, StringComparison.Ordinal);
+        Assert.Contains("id=\"pv-f-options-0-chronicleText\"", body, StringComparison.Ordinal);
+        Assert.DoesNotContain("Unconditioned", panel, StringComparison.Ordinal);
+        Assert.DoesNotContain("name=\"anyway\"", panel, StringComparison.Ordinal);
+    }
+
+    // The chosen ship is kept in the address. "A quirk in the sensors" needs the quirk just noticed: USS Quality Control has it, and on
+    // USS Quality Assurance requires fails and says what it read.
+    [Fact]
+    public async Task A_different_ship_gives_a_different_cast_and_a_failing_requires_says_what_it_read()
+    {
+        using TestApp app = GameApp(canonical: false);
+        HttpClient client = app.NewClient();
+
+        string control = WebUtility.HtmlDecode(Panel((await Get(client, Url("STORYLET_01") + "?ship=uss_quality_control")).Body));
+        Assert.Matches("<option value=\"uss_quality_control\" selected", control);
+        Assert.Contains("Requires holds", control, StringComparison.Ordinal);
+        Assert.Contains("Sample 1: for the ship, with no one cast.", control, StringComparison.Ordinal);
+
+        string assurance = WebUtility.HtmlDecode(Panel((await Get(client, Url("STORYLET_01"))).Body));
+        Assert.Contains("Requires fails: ship.trait.sensors_quirk == 'noticed' is", assurance, StringComparison.Ordinal);
+        Assert.Contains("No one fits on USS Quality Assurance.", assurance, StringComparison.Ordinal);
+    }
+
+    // The plays route casts the form as posted, not as saved: a slot no one fits names its clause, Preview anyway fills the slots in
+    // order and says it is unconditioned, and an option whose requires fails for the cast is marked on its tab and in the panel.
+    [Fact]
+    public async Task The_plays_route_says_why_no_one_fits_and_preview_anyway_is_marked_unconditioned()
+    {
+        using TestApp app = GameApp(canonical: false);
+        HttpClient client = app.NewClient();
+        (_, string body) = await Get(client, Url("STORYLET_02"));
+        string fields = Merge(FormFields(body), "cast[0].when.mode=text&cast[0].when.text=" + Uri.EscapeDataString("subject.trait.shaken >= 1 && subject.trait.shaken_heard == 0 && subject.morale >= 99"));
+
+        (HttpStatusCode status, string none) = await Post(client, Url("STORYLET_02") + "/plays", fields, datastar: true);
+        none = WebUtility.HtmlDecode(none);
+        Assert.Equal(HttpStatusCode.OK, status);
+        Assert.Contains("No one fits on USS Quality Assurance.", none, StringComparison.Ordinal);
+        Assert.Contains("<li>subject: no one aboard has morale >= 99, though the clauses before it held for 1</li>", none, StringComparison.Ordinal);
+        Assert.Contains("name=\"anyway\"", none, StringComparison.Ordinal);
+        Assert.DoesNotContain("Unconditioned", none, StringComparison.Ordinal);
+
+        string anyway = WebUtility.HtmlDecode((await Post(client, Url("STORYLET_02") + "/plays", Merge(fields, "anyway=true"), datastar: true)).Body);
+        Assert.Contains("Unconditioned: Lt. Cmdr. Maren Okafor as subject.", anyway, StringComparison.Ordinal);
+        Assert.Contains("Unconditioned: no one fits, so these previews are of a cast the game would never choose.", anyway, StringComparison.Ordinal);
+        Assert.Contains("Request from Lt. Cmdr. Maren Okafor", anyway, StringComparison.Ordinal);
+
+        string offered = WebUtility.HtmlDecode((await Post(client, Url("STORYLET_02") + "/plays", Merge(FormFields(body), "options[2].requires.mode=text&options[2].requires.text=" + Uri.EscapeDataString("subject.morale >= 99")), datastar: true)).Body);
+        Assert.Contains("<span class=\"tab__note\" id=\"offer-option-2\">(not offered)</span>", offered, StringComparison.Ordinal);
+        Assert.Contains("<p class=\"plays__offer\" id=\"offer-note-option-2\">Not offered with this cast.</p>", offered, StringComparison.Ordinal);
+        Assert.Contains("<span class=\"tab__note\" id=\"offer-option-0\"></span>", offered, StringComparison.Ordinal);
+    }
+
+    // Words typed but not saved are previewed with the cast; a form the loader refuses patches only the line that says so, so the
+    // previews shown stay, greyed; and a different posted ship casts there.
+    [Fact]
+    public async Task Typed_words_are_previewed_and_a_form_that_does_not_load_keeps_the_last_preview()
+    {
+        using TestApp app = GameApp(canonical: false);
+        HttpClient client = app.NewClient();
+        (_, string body) = await Get(client, Url("STORYLET_02"));
+
+        string typed = WebUtility.HtmlDecode((await Post(client, Url("STORYLET_02") + "/plays", Merge(FormFields(body), "options[0].text=" + Uri.EscapeDataString("#subject# TYPED_NOT_SAVED")), datastar: true)).Body);
+        Assert.Contains("Lt. Kell Varro TYPED_NOT_SAVED", typed, StringComparison.Ordinal);
+        Assert.Contains("<p class=\"plays__stale\" id=\"plays-status\" role=\"status\"></p>", typed, StringComparison.Ordinal);
+
+        string broken = WebUtility.HtmlDecode((await Post(client, Url("STORYLET_02") + "/plays", Merge(FormFields(body), "options[0].text=" + Uri.EscapeDataString("#nosuch# words")), datastar: true)).Body);
+        Assert.Contains("data-stale=\"true\"", broken, StringComparison.Ordinal);
+        Assert.Contains("The loader refuses the form as it stands", broken, StringComparison.Ordinal);
+        Assert.DoesNotContain("plays__preview", broken, StringComparison.Ordinal);
+        Assert.DoesNotContain("plays-sample", broken, StringComparison.Ordinal);
+
+        string other = WebUtility.HtmlDecode((await Post(client, Url("STORYLET_02") + "/plays", Merge(FormFields(body), "ship=uss_quality_control"), datastar: true)).Body);
+        Assert.Contains("No one fits on USS Quality Control.", other, StringComparison.Ordinal);
+    }
+
+    // A new storylet is previewed before it has ever been saved, and the chosen ship survives a save.
+    [Fact]
+    public async Task A_new_storylet_is_previewed_and_the_ship_survives_a_save()
+    {
+        using TestApp app = NewApp();
+        HttpClient client = app.NewClient();
+        string preview = WebUtility.HtmlDecode((await Post(client, "/dev/content/storylets/plays", NewStorylet, datastar: true)).Body);
+        Assert.DoesNotContain("data-stale", preview, StringComparison.Ordinal);
+        Assert.Contains("STORYLET_90_OPTION_A_TEXT", preview, StringComparison.Ordinal);
+
+        (HttpStatusCode status, string saved) = await Post(client, "/dev/content/storylets", NewStorylet + "&ship=test_ship_a");
+        Assert.Equal(HttpStatusCode.OK, status);
+        string resaved = (await Post(client, Url("STORYLET_90"), FormFields(saved))).Body;
+        Assert.Matches("<option value=\"test_ship_a\" selected", resaved);
+    }
 
     [Fact]
     public void A_carrying_list_moves_and_drops_the_fields_nested_in_its_rows()

@@ -1,0 +1,8 @@
+@using Web.Forms
+@* What the loader said of the form as it stands, when it does not load (1e part six, design 4.7). The plays route then patches only
+   this, so the previews already shown stay, and the stylesheet greys them while it says so. *@
+<p class="plays__stale" id="plays-status" role="status" data-stale="@(Casting.Stale is null ? null : "true")">@Casting.Stale</p>
+
+@code {
+    [Parameter, EditorRequired] public PlaysCasting Casting { get; set; } = null!;
+}

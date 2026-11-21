@@ -4,7 +4,7 @@
 # mission and see an encounter's new name in its log; see an encounter and a text file refused with nothing written; tick boxes in
 # rows, remove and move rows, and see the saved values match the page; add a stage to an objective and see it saved; add an encounter approach, move
 # between its tabs by keyboard, save, and see the file, the form, and the fit at 400 and 1280 pixels agree; write a storylet from rows,
-# save it, and switch its slot to text and back.
+# save it, switch its slot to text and back, and see What plays here follow its words on the test ship.
 # Scratch database and content, a free port, and everything removed on exit. Not part of check.sh.
 set -euo pipefail
 root="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -338,6 +338,16 @@ pw click "#f-cast-0-when-as-text" > /dev/null
 wait_for "document.querySelector('#f-cast-0-when-text')?.value === 'subject.trait.trait_b >= 1'" "the slot as text"
 pw click "#f-cast-0-when-as-rows" > /dev/null
 wait_for "document.querySelector('#f-cast-0-when-0-kind')?.value === 'Trait' && document.querySelector('#f-cast-0-when-0-name')?.value === 'trait_b'" "the slot back as rows"
+# What plays here (Task 9): cast on the fixture's test ship; typing an option's words previews them with the cast, under the box and
+# in the panel; a text the loader refuses greys the previews and keeps them; choosing the ship puts it in the address.
+[ "$(js "document.querySelector('#plays-cast')?.textContent.includes('Requires holds') && document.querySelector('#plays-sample')?.textContent.includes(' as subject')")" = "true" ] || fail "What plays here does not name the cast on the test ship."
+pw click "#tab-option-0" > /dev/null
+pw fill "#f-options-0-text" "#subject# STORYLET_BROWSER_TYPED" > /dev/null
+wait_for "document.querySelector('#pv-f-options-0-text')?.textContent.includes('STORYLET_BROWSER_TYPED') && document.querySelector('#pp-f-options-0-text')?.textContent.includes('STORYLET_BROWSER_TYPED') && !document.querySelector('#pp-f-options-0-text').textContent.includes('#subject#')" "the typed words previewed with the cast"
+pw fill "#f-options-0-text" "#nosuch# STORYLET_BROWSER_BROKEN" > /dev/null
+wait_for "document.querySelector('#plays-status')?.dataset.stale === 'true' && document.querySelector('#pp-f-options-0-text').textContent.includes('STORYLET_BROWSER_TYPED') && getComputedStyle(document.querySelector('#pp-f-options-0-text')).opacity === '0.5'" "the last good preview kept, greyed"
+pw select "#f-ship" "test_ship_a" > /dev/null
+wait_for "new URL(location.href).searchParams.get('ship') === 'test_ship_a'" "the ship in the address"
 visit "/dev/content/storylets"
 [ "$(js "document.body.textContent.includes('NAME_PLACEHOLDER_STORYLET')")" = "true" ] || fail "the storylets list does not show the new storylet."
 

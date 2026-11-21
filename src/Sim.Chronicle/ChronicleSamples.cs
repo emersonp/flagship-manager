@@ -71,6 +71,17 @@ public static class ChronicleSamples
         return samples;
     }
 
+    // The situation the module writes a storylet's entry against, for this cast, option, handler, and check outcome (null for an
+    // option settled by its effects): the editor's "What plays here" (1e part six, design 4.3) previews the chronicle line with it.
+    public static Situation Storylet(ContentPack pack, string storyletId, IReadOnlyDictionary<string, string> cast, string optionId, string? handlerId, bool? success)
+    {
+        var situations = new Situations(pack);
+        StoryletDef? storylet = situations.StoryletOf(storyletId);
+        List<string> slots = storylet?.Slots.Where(cast.ContainsKey).ToList() ?? cast.Keys.ToList();
+        StoryletRoll? roll = success is { } s ? new StoryletRoll("preview", 0, 0, [], 0, 0, s) : null;
+        return situations.Storylet(new StoryletAnswered("preview", storyletId, cast, optionId, handlerId, roll), storylet, slots);
+    }
+
     // As the missions module stands an answer: withdrawing where the lead preferred safe is neutral, their own choice backs them.
     private static string Standing(string answer, string prefers)
     {

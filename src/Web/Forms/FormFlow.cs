@@ -6,10 +6,11 @@ namespace Web.Forms;
 // What each form request does: open, create, save, show rows, and delete. Every change goes through ContentEditor.Save.
 internal static class FormFlow
 {
-    public static ItemFormView Blank(KindForm form, ContentFileSet files)
+    // Ship: the test ship a storylet's "What plays here" casts on, from the address (?ship=, 1e part six); blank for the first.
+    public static ItemFormView Blank(KindForm form, ContentFileSet files, string? ship = null)
     {
         FormChoices choices = FormChoicesReader.Read(files);
-        FormValues values = form.Blank(choices);
+        FormValues values = WithShip(form.Blank(choices), ship);
         // A storylet or vignette is offered the next free id in the pack's pattern (1e part six); the author may change it before saving.
         if (!values.Has("id") && NewIds.Next(files, form.Kind) is { } suggested)
         {
@@ -20,10 +21,16 @@ internal static class FormFlow
     }
 
     // The stored item's form; null when the id holds no item of this kind.
-    public static ItemFormView? Open(KindForm form, ContentFileSet files, string id, string? notice = null)
+    public static ItemFormView? Open(KindForm form, ContentFileSet files, string id, string? notice = null, string? ship = null)
     {
         FormChoices choices = form.Widen(FormChoicesReader.Read(files), files, id);
-        return form.Load(files, id, choices) is { } values ? Build(form, files, choices, id, false, values, new Dictionary<string, string>(), [], notice) : null;
+        return form.Load(files, id, choices) is { } values ? Build(form, files, choices, id, false, WithShip(values, ship), new Dictionary<string, string>(), [], notice) : null;
+    }
+
+    // A ship id as test ships are named (lower case, digits, and underscores); anything else is the first ship.
+    private static FormValues WithShip(FormValues values, string? ship)
+    {
+        return ship is { Length: > 0 and <= 80 } && ship.All(c => char.IsAsciiLetterLower(c) || char.IsAsciiDigit(c) || c == '_') ? values.With(Plays.ShipField, ship) : values;
     }
 
     public static async Task<(ItemFormView View, bool Saved)> Create(KindForm form, ContentEditor editor, FormValues values, CancellationToken cancellation)
@@ -68,7 +75,7 @@ internal static class FormFlow
             return (Build(form, files, choices, id, true, values, placed, rest, null), false);
         }
 
-        return (Open(form, editor.Read(), id, "Saved.") ?? Build(form, files, choices, id, false, values, new Dictionary<string, string>(), [], "Saved."), true);
+        return (Open(form, editor.Read(), id, "Saved.", values.Get(Plays.ShipField)) ?? Build(form, files, choices, id, false, values, new Dictionary<string, string>(), [], "Saved."), true);
     }
 
     // Null when the id holds no item of this kind.
@@ -110,7 +117,7 @@ internal static class FormFlow
         }
 
         ContentFileSet saved = editor.Read();
-        ItemFormView view = Open(form, saved, id, "Saved.") ?? Build(form, saved, choices, id, false, values, new Dictionary<string, string>(), [], "Saved.");
+        ItemFormView view = Open(form, saved, id, "Saved.", values.Get(Plays.ShipField)) ?? Build(form, saved, choices, id, false, values, new Dictionary<string, string>(), [], "Saved.");
         // The form is drawn from the file again, so the approach tab the author was on is carried over by hand.
         return (values.Has(EncounterKind.TabField) ? view with { Values = view.Values.With(EncounterKind.TabField, values.Get(EncounterKind.TabField)) } : view, true);
     }
@@ -231,7 +238,7 @@ internal static class FormFlow
             DeleteNote = isNew ? null : DeleteNote(files, form.Kind, id),
             TextHref = lead is null ? null : TextHref(files, form.Kind, id),
             Preview = form.Kind == ContentKind.Line ? LinePreview.Of(files, id, values) : null,
-            Plays = Plays.Of(form.Kind, files, id, values, choices),
+            Plays = Plays.Of(form, files, id, values, choices),
         };
     }
 

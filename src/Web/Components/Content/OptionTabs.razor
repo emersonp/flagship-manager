@@ -21,6 +21,10 @@
                 bool problem = Problem(row);
                 <button class="tab" type="button" role="tab" id="@TabId(row)" aria-controls="@PanelId(row)" aria-selected="@(row == Shown ? "true" : "false")" tabindex="@(row == Shown ? "0" : "-1")" aria-invalid="@(problem ? "true" : null)" data-attr:aria-selected="@($"$_tab === {row} ? 'true' : 'false'")" data-attr:tabindex="@($"$_tab === {row} ? '0' : '-1'")" data-attr:disabled="@FormShell.Busy" data-on:click="@($"$_tab = {row}")">
                     @StoryletParts.OptionTitle(Rows[row], row)
+                    @if (View.Plays?.Casting is { } casting)
+                    {
+                        <OptionOffer Row="row" NotOffered="@casting.NotOffered.Contains(row)" Tab="true" />
+                    }
                     @if (problem)
                     {
                         <span class="tab__problem">(problems)</span>

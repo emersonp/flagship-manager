@@ -615,6 +615,21 @@ a.btn { text-decoration: none; }
 .plays__fallback .plays__preview { justify-self: stretch; }
 .plays__line { display: grid; gap: var(--space-xs); min-width: 0; margin: 0; padding: var(--space-sm); border: var(--rule-hair) solid var(--color-muted); border-radius: var(--radius-control); }
 .plays__line legend { margin: 0; padding-inline: var(--space-2xs); }
+/* A storylet's panel (1e part six): what the casting found on the test ship, the storylet read in order, and, while the form as it
+   stands does not load, every preview greyed, the panel's and those under the boxes. */
+.plays__ship { margin: 0; }
+.plays__cast { display: grid; gap: var(--space-2xs); min-width: 0; }
+.plays__top { margin: 0; font-weight: 500; color: var(--color-ink); overflow-wrap: anywhere; }
+.plays__why { margin: 0; padding-left: var(--space-md); overflow-wrap: anywhere; }
+.plays__unconditioned { margin: 0; color: var(--color-harm); }
+.plays__stale { margin: 0; color: var(--color-harm); }
+.plays__stale:empty, .plays__offer:empty { display: none; }
+.plays__offer { margin: 0; color: var(--color-muted); font-style: italic; }
+.plays__group--read { display: grid; gap: var(--space-sm); }
+.plays__title { margin: 0; font-weight: 500; color: var(--color-ink); }
+.tab__note { color: var(--color-muted); }
+.tab__note:empty { display: none; }
+.fields:has(#plays-status[data-stale]) .plays__preview { opacity: 0.5; }
 .criteria .cell input { width: 14rem; max-width: 100%; }
 .criteria__locked input { color: var(--color-muted); background: var(--color-paper-3); }
 .chips { display: flex; flex-wrap: wrap; gap: var(--space-2xs); }

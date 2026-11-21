@@ -31,12 +31,30 @@ public sealed record PlaysGroup(
     IReadOnlyList<string> Chips,
     bool Labels);
 
-// The "What plays here" panel of an encounter or an objective (slice 1d authoring design): every beat the item can produce, in
-// mission order, with what the log says there now. Built from the form as it stands, so it previews words that are not saved.
-// Cast names who the sample has in each role, so the author knows whose pronouns they are reading.
+// The "What plays here" panel (slice 1d authoring design): what the item's words read as, built from the form as it stands, so it
+// previews words that are not saved. Cast names who the sample has in each role, so the author knows whose pronouns they are reading.
+// An encounter's or an objective's groups are the beats it can produce, in mission order (Plays.Missions); a storylet's are its script
+// and its options, cast for real on a test ship, which Casting describes (Plays.Storylets, 1e part six). Casting is null for a
+// mission beat.
 public sealed record PlaysView(int Sample, string Cast, IReadOnlyList<PlaysGroup> Groups, string? Message)
 {
-    public IEnumerable<PlaysPreview> Previews => Groups.SelectMany(g => g.Slots.Select(s => s.Preview).Concat(g.Fallbacks.Select(f => f.Preview)).Concat(g.Lines.Select(l => l.Preview)));
+    public PlaysCasting? Casting { get; init; }
+
+    // Every preview the plays route patches. A storylet's are drawn twice, under their boxes and in the panel, so the panel's copies
+    // take their own ids (PanelCopy).
+    public IEnumerable<PlaysPreview> Previews
+    {
+        get
+        {
+            List<PlaysPreview> own = Groups.SelectMany(g => g.Slots.Select(s => s.Preview).Concat(g.Fallbacks.Select(f => f.Preview)).Concat(g.Lines.Select(l => l.Preview))).ToList();
+            return Casting is null ? own : own.Concat(own.Select(PanelCopy));
+        }
+    }
+
+    // The previews of one box: one, or one for each outcome of a check option's chronicle text.
+    public IReadOnlyList<PlaysSlot> SlotsFor(string field) => Groups.SelectMany(g => g.Slots).Where(s => s.Field == field).ToList();
+
+    public static PlaysPreview PanelCopy(PlaysPreview preview) => preview with { Id = "pp" + preview.Id[2..] };
 
     // An approach's own words, drawn in its tab; null for a row the form does not have.
     public PlaysGroup? Approach(int row) => Groups.FirstOrDefault(g => g.Key == Plays.ApproachKey(row));
@@ -45,7 +63,26 @@ public sealed record PlaysView(int Sample, string Cast, IReadOnlyList<PlaysGroup
     public IEnumerable<PlaysGroup> Shared => Groups.Where(g => !g.Key.StartsWith(Plays.ApproachPrefix, StringComparison.Ordinal));
 }
 
-internal static class Plays
+// The test ship a storylet's panel casts on (1e part six, design 4.7), and what the casting found there. Ships: the pack's test ships
+// (or, with none, the starting crew alone, and Anyway is on). TopLine: whether requires holds and the cooldowns are clear. Why: for
+// no cast, each slot's reason. NotOffered: the option rows whose requires fails for the cast. Stale: what the loader said of the form
+// as it stands, when it does not load; the previews are then of the last version that did.
+public sealed record PlaysShip(string Id, string Name);
+
+public sealed record PlaysCasting(
+    IReadOnlyList<PlaysShip> Ships,
+    string Ship,
+    bool NoShips,
+    string TopLine,
+    bool Fits,
+    IReadOnlyList<string> Why,
+    bool Anyway,
+    bool Unconditioned,
+    int OptionRows,
+    IReadOnlySet<int> NotOffered,
+    string? Stale);
+
+internal static partial class Plays
 {
     // A fixed box: the field, its label, the id its line takes (as the loader gives it), its beat, and the criteria its place implies.
     private sealed record Slot(string Field, string Label, string LineId, string Beat, IReadOnlyList<CriterionDef> When);
@@ -126,15 +163,24 @@ internal static class Plays
         static int Count(IReadOnlyDictionary<string, string>? texts) => texts?.Count ?? 0;
     }
 
-    // Null for a kind that has no panel.
-    public static PlaysView? Of(ContentKind kind, ContentFileSet files, string id, FormValues values, FormChoices choices)
+    // Null for a kind that has no panel. A mission beat's panel is one case of the part, a storylet's another.
+    public static PlaysView? Of(KindForm form, ContentFileSet files, string id, FormValues values, FormChoices choices)
     {
-        if (kind is not (ContentKind.Encounter or ContentKind.Objective))
+        return form.Kind switch
         {
-            return null;
-        }
+            ContentKind.Encounter or ContentKind.Objective => Mission(form.Kind, files, id, values, choices),
+            ContentKind.Storylet => Storylet(form, files, id, values, choices),
+            _ => null,
+        };
+    }
 
-        int sample = int.TryParse(values.Get("sample"), NumberStyles.None, CultureInfo.InvariantCulture, out int n) ? n % 1000 : 0;
+    // The sample asked for: 0 to 999.
+    private static int SampleOf(FormValues values) => int.TryParse(values.Get("sample"), NumberStyles.None, CultureInfo.InvariantCulture, out int n) ? n % 1000 : 0;
+
+    // An encounter's or an objective's panel: every beat the item can produce, in mission order, with what the log says there now.
+    private static PlaysView Mission(ContentKind kind, ContentFileSet files, string id, FormValues values, FormChoices choices)
+    {
+        int sample = SampleOf(values);
         Item item = Read(kind, id, values, choices);
         List<Group> groups = kind == ContentKind.Encounter ? EncounterGroups(item, values) : ObjectiveGroups(item);
         ContentPack? pack = files.Validate().Pack;

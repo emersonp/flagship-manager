@@ -1,0 +1,48 @@
+@using Web.Forms
+@* A storylet's "What plays here" (1e part six, design 4.3 and 4.7): the ship it is cast on, what the casting found, and the storylet as
+   it would read, top to bottom: its script, then each option's words and the chronicle entry it would write. The words are written in
+   the boxes above, each with its preview under it; here they are read in order. *@
+<section class="plays" id="plays" aria-labelledby="h-plays">
+    <div class="plays__head">
+        <h3 class="sub" id="h-plays">What plays here</h3>
+        <PlaysSample Plays="Plays" Url="@View.PlaysUrl" />
+    </div>
+    <ShipSelect Casting="Casting" Url="@View.PlaysUrl" />
+    <p class="hint">The storylet as it would arrive on this ship, cast as the game casts it. A blank box plays the line shown in grey. Next sample moves to another cast that fits. Previews follow as you type; nothing is saved until you save.</p>
+    <PlaysStatus Casting="Casting" />
+    @if (Plays.Message is not null)
+    {
+        <p class="empty-state" role="status">@Plays.Message</p>
+    }
+    <PlaysCastLine Casting="Casting" Url="@View.PlaysUrl" />
+    @foreach (PlaysGroup group in Plays.Groups)
+    {
+        int row = group.Key.StartsWith("option-", StringComparison.Ordinal) ? int.Parse(group.Key[7..], System.Globalization.CultureInfo.InvariantCulture) : -1;
+        <div class="plays__group plays__group--read" id="@($"plays-{group.Key}")">
+            <p class="plays__title">@group.Title</p>
+            @if (row >= 0)
+            {
+                <OptionOffer Row="row" NotOffered="@Casting.NotOffered.Contains(row)" />
+            }
+            else if (group.Hint is not null)
+            {
+                <p class="hint">@group.Hint</p>
+            }
+            @foreach (PlaysSlot slot in group.Slots)
+            {
+                <div class="plays__row">
+                    <p class="field__label">@slot.Label</p>
+                    <PlaysPreviewBox Preview="PlaysView.PanelCopy(slot.Preview)" />
+                </div>
+            }
+        </div>
+    }
+</section>
+
+@code {
+    [CascadingParameter] public ItemFormView View { get; set; } = null!;
+
+    private PlaysView Plays => View.Plays!;
+
+    private PlaysCasting Casting => Plays.Casting!;
+}

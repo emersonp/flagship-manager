@@ -2,6 +2,11 @@
 @using Web.Forms
 @* "What plays here": every beat the item can produce, in mission order. A box holds the item's own words for a beat; while it is
    blank it shows the line that plays there now. Other beats show what plays and start a line of the item's own from it. *@
+@if (Plays.Casting is not null)
+{
+    <PlaysOnShip />
+    return;
+}
 <section class="plays" id="plays" aria-labelledby="h-plays" data-on:input__debounce.700ms="@Refresh">
     <div class="plays__head">
         <h3 class="sub" id="h-plays">What plays here</h3>
