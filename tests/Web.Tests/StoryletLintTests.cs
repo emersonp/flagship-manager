@@ -160,4 +160,63 @@ public sealed class StoryletLintTests(RepoContentGuard guard) : IClassFixture<Re
         Assert.DoesNotContain("id=\"lint\"", skills, StringComparison.Ordinal);
         guard.Verify();
     }
+
+    // --- The vignettes list (Task 11) ---
+
+    [Fact]
+    public void The_games_vignettes_have_no_findings()
+    {
+        StoryletLint lint = StoryletLint.Of(Game(), ContentKind.Vignette);
+
+        Assert.True(lint.Loaded);
+        Assert.Equal(ContentKind.Vignette, lint.Kind);
+        Assert.Empty(lint.Findings.Select(f => $"{f.Item.Id} {f.Message}"));
+    }
+
+    [Fact]
+    public void The_vignettes_lint_casts_each_on_the_test_ships_and_reads_its_words()
+    {
+        // The fixture's VIGNETTE_03 needs trait_a at 2 on the ship, which its test ship does not have. VIGNETTE_LINT casts a target its
+        // words never name, and names #handler#, which no vignette has.
+        ContentFileSet files = Fixture();
+        files = ContentEdits.ReplaceText(files, "vignettes/base.yaml", files.Files["vignettes/base.yaml"] + """
+
+            - id: VIGNETTE_LINT
+              cast:
+                subject: "subject.aboard"
+                target: "target.aboard"
+              text: |-
+                subject: VIGNETTE_LINT_LINE
+              default: option_b
+              options:
+                - { id: option_a, label: A, effects: [], text: "#handler# A" }
+                - { id: option_b, label: B, effects: [], text: B }
+            """);
+
+        StoryletLint lint = StoryletLint.Of(files, ContentKind.Vignette);
+
+        Assert.False(lint.Loaded);
+        Assert.Equal(["names #handler# in option_a's words, outside a check's success and failure, where no one has been sent."], Of(lint, "VIGNETTE_LINT", true));
+        Assert.Equal(["casts target, and its words never name them."], Of(lint, "VIGNETTE_LINT", false));
+
+        StoryletLint fixture = StoryletLint.Of(Fixture(), ContentKind.Vignette);
+        Assert.Equal(["cannot be cast on the test ship."], Of(fixture, "VIGNETTE_03", true));
+        Assert.DoesNotContain(fixture.Findings, f => f.Item.Id != "VIGNETTE_03");
+    }
+
+    [Fact]
+    public async Task The_vignettes_list_shows_its_lint_and_links_each_finding_to_the_vignette_form()
+    {
+        using TestApp app = NewApp();
+        using HttpClient client = app.CreateClient();
+
+        (_, string page) = await Get(client, "/dev/content/vignettes");
+
+        int lint = page.IndexOf("id=\"lint\"", StringComparison.Ordinal);
+        Assert.True(lint >= 0 && lint < page.IndexOf("id=\"h-items\"", StringComparison.Ordinal));
+        Assert.Contains("<li class=\"lint--fault\"><span class=\"lint__kind\">Fault</span> <a href=\"/dev/content/vignettes/VIGNETTE_03\">", page, StringComparison.Ordinal);
+        Assert.Contains("casting each vignette on the test ship", page, StringComparison.Ordinal);
+        Assert.Contains("href=\"/dev/content/vignettes/new\"", page, StringComparison.Ordinal);
+        guard.Verify();
+    }
 }

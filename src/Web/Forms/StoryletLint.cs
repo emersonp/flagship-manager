@@ -13,17 +13,25 @@ public sealed record LintFinding(ContentItemRef Item, bool Fault, string Message
 // the words name that the storylet does not cast, #handler# outside a check's outcome (both faults), and a slot cast that the words
 // never name (advice). From the pack, when it loads: a storylet that casts on no test ship, a trait it requires that nothing sets
 // (TextFileFlow's reckoning), and an option offered to no cast tried on any test ship (faults). The words are read from the files,
-// not the pack, so a word fault is listed while the loader refuses it, which is when it matters.
-public sealed record StoryletLint(IReadOnlyList<LintFinding> Findings, bool Loaded, int Ships)
+// not the pack, so a word fault is listed while the loader refuses it, which is when it matters. The vignettes list has the same lint
+// (Task 11): a vignette's words are its script and its options' words, and it is cast with Preview.Vignette.
+public sealed record StoryletLint(IReadOnlyList<LintFinding> Findings, bool Loaded, int Ships, ContentKind Kind = ContentKind.Storylet)
 {
     // How many casts an option is tried with on each test ship before the lint says no cast is offered it.
     public const int Samples = 12;
 
     public bool Clean => Findings.Count == 0;
 
-    public static StoryletLint Of(ContentFileSet files)
+    // The lint of the storylets list, or of the vignettes list.
+    public static StoryletLint Of(ContentFileSet files, ContentKind kind = ContentKind.Storylet)
     {
-        List<ContentItemRef> items = files.Index().Where(i => i.Kind == ContentKind.Storylet).ToList();
+        if (kind is not (ContentKind.Storylet or ContentKind.Vignette))
+        {
+            throw new ArgumentException("Only storylets and vignettes are linted here.", nameof(kind));
+        }
+
+        bool vignettes = kind == ContentKind.Vignette;
+        List<ContentItemRef> items = files.Index().Where(i => i.Kind == kind).ToList();
         Dictionary<string, SymbolModel> symbols = files.Index().Where(i => i.Kind == ContentKind.Symbol)
             .Select(i => ContentEdits.Get<SymbolModel>(files, i.Kind, i.Id)).OfType<SymbolModel>()
             .GroupBy(s => s.Id, StringComparer.Ordinal).ToDictionary(g => g.Key, g => g.First(), StringComparer.Ordinal);
@@ -34,7 +42,10 @@ public sealed record StoryletLint(IReadOnlyList<LintFinding> Findings, bool Load
         var findings = new List<LintFinding>();
         foreach (ContentItemRef item in items)
         {
-            if (ContentEdits.Get<StoryletModel>(files, item.Kind, item.Id) is not { } model)
+            (IReadOnlyList<CastSlotModel> Cast, List<(string Where, string? Text, string Beat, bool Handler)> Texts)? written = vignettes
+                ? ContentEdits.Get<VignetteModel>(files, item.Kind, item.Id) is { } vignette ? (vignette.Cast, Texts(vignette)) : null
+                : ContentEdits.Get<StoryletModel>(files, item.Kind, item.Id) is { } storylet ? (storylet.Cast, Texts(storylet)) : null;
+            if (written is not { } model)
             {
                 continue;
             }
@@ -45,8 +56,9 @@ public sealed record StoryletLint(IReadOnlyList<LintFinding> Findings, bool Load
                 found.Add(new LintFinding(item, fault, message));
             }
 
-            Words(model, symbols, Add);
-            if (pack?.Storylets.FirstOrDefault(s => s.Id == item.Id) is { } storylet)
+            Words(model.Cast, model.Texts, symbols, Add);
+            IReadOnlyList<StoryletOption>? options = vignettes ? pack?.Vignettes.FirstOrDefault(v => v.Id == item.Id)?.Options : pack?.Storylets.FirstOrDefault(s => s.Id == item.Id)?.Options;
+            if (pack is not null && options is not null)
             {
                 foreach (UnsetTrait trait in unset.Where(u => u.Item == item.Id).DistinctBy(u => (u.Trait, u.OnShip)))
                 {
@@ -55,7 +67,7 @@ public sealed record StoryletLint(IReadOnlyList<LintFinding> Findings, bool Load
 
                 if (ships.Count > 0)
                 {
-                    Casts(pack, storylet, ships, Add);
+                    Casts(pack, item.Id, options, vignettes, ships, Add);
                 }
             }
 
@@ -63,21 +75,22 @@ public sealed record StoryletLint(IReadOnlyList<LintFinding> Findings, bool Load
             findings.AddRange(found.Where(f => f.Fault).Concat(found.Where(f => !f.Fault)));
         }
 
-        return new StoryletLint(findings, pack is not null, ships.Count);
+        return new StoryletLint(findings, pack is not null, ships.Count, kind);
     }
 
     // Each test ship as the preview casts on it: sample 0 says whether it casts at all, and each option is tried with up to Samples
     // casts on each ship, stopping once every option has been offered.
-    private static void Casts(ContentPack pack, StoryletDef storylet, IReadOnlyList<TestShipDef> ships, Action<bool, string> add)
+    private static void Casts(ContentPack pack, string id, IReadOnlyList<StoryletOption> options, bool vignette, IReadOnlyList<TestShipDef> ships, Action<bool, string> add)
     {
         var offered = new HashSet<string>(StringComparer.Ordinal);
         bool casts = false;
         foreach (TestShipDef ship in ships)
         {
             var source = new TestShipSource(pack, ship);
-            for (int sample = 0; sample < Samples && offered.Count < storylet.Options.Count; sample++)
+            // At least one sample, so a vignette with no options is still cast.
+            for (int sample = 0; sample < Samples && (sample == 0 || offered.Count < options.Count); sample++)
             {
-                PreviewCast cast = Preview.Storylet(pack, storylet.Id, source, source.Roster, sample, false);
+                PreviewCast cast = vignette ? Preview.Vignette(pack, id, source, source.Roster, sample, false) : Preview.Storylet(pack, id, source, source.Roster, sample, false);
                 if (cast.Cast is null)
                 {
                     break;
@@ -94,19 +107,16 @@ public sealed record StoryletLint(IReadOnlyList<LintFinding> Findings, bool Load
             return;
         }
 
-        foreach (StoryletOption option in storylet.Options.Where(o => !offered.Contains(o.Id)))
+        foreach (StoryletOption option in options.Where(o => !offered.Contains(o.Id)))
         {
             add(true, $"offers {option.Id} to no cast: its requires held for none of up to {Samples} casts on each test ship.");
         }
     }
 
-    // Who the words name: each slot as a speaker or a #slot# token, read through the symbols they use. A storylet's script and an
-    // option's words are the storylet beats', which have the cast; a check's outcomes, and a check option's chronicle text, have the
-    // handler too.
-    private static void Words(StoryletModel model, IReadOnlyDictionary<string, SymbolModel> symbols, Action<bool, string> add)
+    // A storylet's words, each with where it is, its beat, and whether the handler is there: its script, each option's words, a check's
+    // outcomes, and each option's chronicle text.
+    private static List<(string Where, string? Text, string Beat, bool Handler)> Texts(StoryletModel model)
     {
-        var slots = model.Cast.Select(c => c.Name).ToHashSet(StringComparer.Ordinal);
-        var named = new HashSet<string>(StringComparer.Ordinal);
         var texts = new List<(string Where, string? Text, string Beat, bool Handler)> { ("its script", model.Script, "storylet", false) };
         foreach (StoryletOptionModel option in model.Options)
         {
@@ -120,6 +130,22 @@ public sealed record StoryletLint(IReadOnlyList<LintFinding> Findings, bool Load
             texts.Add(($"{option.Id}'s chronicle text", option.Chronicle?.Text, NarrativeFacts.Chronicle.Storylet, option.Check is not null));
         }
 
+        return texts;
+    }
+
+    // A vignette's words: its script and each option's words, the storylet beats', with no handler, since nothing is sent.
+    private static List<(string Where, string? Text, string Beat, bool Handler)> Texts(VignetteModel model)
+    {
+        return [("its script", model.Script, "storylet", false), .. model.Options.Select(o => ($"{o.Id}'s words", o.Text, "storyletAnswer", false))];
+    }
+
+    // Who the words name: each slot as a speaker or a #slot# token, read through the symbols they use. A storylet's script and an
+    // option's words are the storylet beats', which have the cast; a check's outcomes, and a check option's chronicle text, have the
+    // handler too.
+    private static void Words(IReadOnlyList<CastSlotModel> cast, List<(string Where, string? Text, string Beat, bool Handler)> texts, IReadOnlyDictionary<string, SymbolModel> symbols, Action<bool, string> add)
+    {
+        var slots = cast.Select(c => c.Name).ToHashSet(StringComparer.Ordinal);
+        var named = new HashSet<string>(StringComparer.Ordinal);
         foreach ((string where, string? text, string beat, bool handler) in texts)
         {
             if (text is not { Length: > 0 } || Names(text, slots, symbols) is not { } names)
@@ -148,7 +174,7 @@ public sealed record StoryletLint(IReadOnlyList<LintFinding> Findings, bool Load
             }
         }
 
-        foreach (string slot in model.Cast.Select(c => c.Name).Where(s => !named.Contains(s)))
+        foreach (string slot in cast.Select(c => c.Name).Where(s => !named.Contains(s)))
         {
             add(false, $"casts {slot}, and its words never name them.");
         }

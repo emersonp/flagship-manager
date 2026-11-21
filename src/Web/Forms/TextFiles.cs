@@ -20,7 +20,7 @@ public sealed record TextFile(string Name, string Path, string Title, IReadOnlyL
         new("chronicle-tuning", "tuning/chronicle.yaml", "Chronicle tuning", ["How much each kind of chronicle entry weighs, and the least weight Notable shows.", "Saving checks this file with the rest of the pack."]),
         new("calendars", "calendars/base.yaml", "Calendars", ["The months, the weekdays, and the date a legacy starts on. pack.yaml names the calendar in use.", "Saving checks this file with the rest of the pack."]),
         new("storylets", "storylets/base.yaml", "Storylets", ["Each storylet also opens in its form, from the Storylets list.", "Saving checks this file with the rest of the pack."]),
-        new("vignettes", "vignettes/base.yaml", "Vignettes", ["The vignette form comes later.", "Saving checks this file with the rest of the pack."]),
+        new("vignettes", "vignettes/base.yaml", "Vignettes", ["Each vignette also opens in its form, from the Vignettes list.", "Saving checks this file with the rest of the pack."]),
         new("traits", "traits/base.yaml", "Traits", ["The trait form comes later.", "Saving checks this file with the rest of the pack, and every use of a trait against its definition here."]),
         new("testships", "testships/base.yaml", "Test ships", ["Ships the editor casts storylets and vignettes on. Play never reads them.", "Saving checks every crew member, trait, and storylet named here against the rest of the pack."]),
     ];

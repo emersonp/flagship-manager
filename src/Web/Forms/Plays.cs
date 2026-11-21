@@ -169,7 +169,7 @@ internal static partial class Plays
         return form.Kind switch
         {
             ContentKind.Encounter or ContentKind.Objective => Mission(form.Kind, files, id, values, choices),
-            ContentKind.Storylet => Storylet(form, files, id, values, choices),
+            ContentKind.Storylet or ContentKind.Vignette => Storylet(form, files, id, values, choices),
             _ => null,
         };
     }

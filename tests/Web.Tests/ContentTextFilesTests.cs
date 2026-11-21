@@ -432,7 +432,7 @@ public sealed class ContentTextFilesTests(RepoContentGuard guard) : IClassFixtur
 
         Assert.Equal(HttpStatusCode.UnprocessableEntity, status);
         Assert.Contains("VIGNETTE_02: A vignette with options needs a default, and it must be one of them.", WebUtility.HtmlDecode(body));
-        Assert.Contains("The vignette form comes later.", WebUtility.HtmlDecode(body));
+        Assert.Contains("Each vignette also opens in its form, from the Vignettes list.", WebUtility.HtmlDecode(body));
         Assert.Equal(before, Everything(app));
     }
 

@@ -215,10 +215,10 @@ public static class Preview
 
 **Files:** `src/Web/Forms/StoryletKinds.cs` (`VignetteKind`), `src/Web/Components/Content/VignetteForm.razor` (new), the plays part, `StoryletLint.cs`, `tests/Web.Tests/ContentStoryletFormsTests.cs`.
 
-- [ ] **Step 1: the form** (design 4.8). The storylet form's parts, with no stakes and no chronicle. Options are optional: a vignette with none has effect rows on itself. A vignette with options has a `default` select ("If left: Let them rest").
-- [ ] **Step 2: previews and lint.** `Preview.Vignette` on the ship. No chronicle rows. The lint's checks run on the vignettes list too.
-- [ ] **Step 3: tests.** Each vignette in the game's pack opens and saves byte-for-byte unchanged. A vignette with no options saves its own effects. Removing the option a `default` names is refused with a message on the default.
-- [ ] **Step 4:** `./check.sh`; commit "Add the vignette form".
+- [x] **Step 1: the form** (design 4.8). The storylet form's parts, with no stakes and no chronicle. Options are optional: a vignette with none has effect rows on itself. A vignette with options has a `default` select ("If left: Let them rest").
+- [x] **Step 2: previews and lint.** `Preview.Vignette` on the ship. No chronicle rows. The lint's checks run on the vignettes list too.
+- [x] **Step 3: tests.** Each vignette in the game's pack opens and saves byte-for-byte unchanged. A vignette with no options saves its own effects. Removing the option a `default` names is refused with a message on the default.
+- [x] **Step 4:** `./check.sh`; commit "Add the vignette form".
 
 ### Task 12: the trait form, and where it's used
 

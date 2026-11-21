@@ -27,8 +27,8 @@ public sealed class ContentStoryletFormsTests(RepoContentGuard guard) : IClassFi
         + "&options[1].effects[0].what=trait&options[1].effects[0].trait=trait_b&options[1].effects[0].mode=add&options[1].effects[0].amount=-1"
         + "&options[1].text=STORYLET_90_OPTION_B_TEXT";
 
-    // The game's own content in place of the fixture's, with its storylets file written as the writer writes it, so a save of an
-    // unchanged storylet can be compared byte for byte (a first save turns the file's flow-style options into blocks).
+    // The game's own content in place of the fixture's, with its storylets and vignettes files written as the writer writes them, so a
+    // save of an unchanged storylet or vignette can be compared byte for byte (a first save turns flow-style options into blocks).
     private static TestApp GameApp(bool canonical)
     {
         return NewApp(root =>
@@ -57,6 +57,7 @@ public sealed class ContentStoryletFormsTests(RepoContentGuard guard) : IClassFi
             {
                 ContentFileSet files = ContentEdits.Canonicalize(ContentFileSet.ReadDirectory(root));
                 File.WriteAllText(Path.Combine(root, "storylets", "base.yaml"), files.Files["storylets/base.yaml"]);
+                File.WriteAllText(Path.Combine(root, "vignettes", "base.yaml"), files.Files["vignettes/base.yaml"]);
             }
         });
     }
@@ -485,6 +486,201 @@ public sealed class ContentStoryletFormsTests(RepoContentGuard guard) : IClassFi
         Assert.Equal("a", removed.Values.Get("options[0].id"));
         Assert.False(removed.Values.Has("options[0].effects[0].what"));
         Assert.Equal("Stat", removed.Values.Get("options[0].requires[0].kind"));
+    }
+
+    // --- The vignette form (Task 11) ---
+
+    // A new vignette on the fixture with no options: one slot from rows (subject is aboard), a script, and an effect of its own.
+    private const string NewVignette =
+        "id=VIGNETTE_90&name=NAME_PLACEHOLDER_VIGNETTE&requires.mode=rows"
+        + "&cast[0].name=subject&cast[0].when.mode=rows&cast[0].when[0].kind=Presence&cast[0].when[0].who=subject&cast[0].when[0].name=aboard"
+        + "&cooldownCast=&cooldownGlobal=&script=subject: VIGNETTE_90_LINE_1%0D%0A%3D %23subject%23 VIGNETTE_90_REPORT&notes=&default="
+        + "&effects[0].what=morale&effects[0].amount=1&effects[0].on=subject";
+
+    private static string VignetteUrl(string id) => $"/dev/content/vignettes/{id}";
+
+    [Fact]
+    public async Task Every_vignette_in_the_games_pack_opens_and_saving_it_unchanged_leaves_its_file_byte_for_byte_the_same()
+    {
+        using TestApp app = GameApp(canonical: true);
+        HttpClient client = app.NewClient();
+        string before = Everything(app);
+        string pack = PackJson(app);
+        var items = app.Editor.Read().Index().Where(i => i.Kind == ContentKind.Vignette).ToList();
+        Assert.Equal(6, items.Count);
+
+        foreach (ContentItemRef item in items)
+        {
+            (HttpStatusCode opened, string body) = await Get(client, VignetteUrl(item.Id));
+            Assert.Equal(HttpStatusCode.OK, opened);
+            (HttpStatusCode status, string saved) = await Post(client, VignetteUrl(item.Id), FormFields(body));
+            Assert.True(status == HttpStatusCode.OK, $"{item.Id}: {status} {Regex.Match(saved, "class=\"alert\".*?</div>", RegexOptions.Singleline).Value} {string.Join(" | ", Regex.Matches(saved, "<p class=\"error\"[^>]*>([^<]*)</p>").Select(m => m.Groups[1].Value))}");
+        }
+
+        Assert.Equal(before, Everything(app));
+        Assert.Equal(pack, PackJson(app));
+    }
+
+    [Fact]
+    public async Task Every_vignette_in_the_fixture_opens_and_saving_it_unchanged_leaves_the_pack_as_it_was()
+    {
+        using TestApp app = NewApp();
+        HttpClient client = app.NewClient();
+        string pack = PackJson(app);
+
+        foreach (ContentItemRef item in app.Editor.Read().Index().Where(i => i.Kind == ContentKind.Vignette).ToList())
+        {
+            (_, string body) = await Get(client, VignetteUrl(item.Id));
+            (HttpStatusCode status, _) = await Post(client, VignetteUrl(item.Id), FormFields(body));
+            Assert.Equal(HttpStatusCode.OK, status);
+        }
+
+        Assert.Equal(pack, PackJson(app));
+        string disk = Disk(app, "vignettes/base.yaml");
+        Assert.Contains("  default: option_b\n  options:\n    - id: option_a\n      label: VIGNETTE_02_OPTION_A_LABEL\n      effects: [{ morale: 3, on: subject }, { loyalty: 1, on: subject }]\n", disk, StringComparison.Ordinal);
+        Assert.Contains("  requires: \"ship.trait.trait_a == 2\"\n", disk, StringComparison.Ordinal);
+    }
+
+    // A vignette's options have no requires, no check, and no chronicle; one with none has its own effects and no default.
+    [Fact]
+    public async Task A_vignettes_form_has_no_stakes_or_chronicle_and_shows_its_own_effects_or_a_default()
+    {
+        using TestApp app = NewApp();
+        HttpClient client = app.NewClient();
+
+        (_, string effects) = await Get(client, VignetteUrl("VIGNETTE_01"));
+        Assert.DoesNotContain("name=\"stakes\"", effects);
+        Assert.DoesNotContain("chronicleWeight", effects);
+        Assert.Equal("morale", Selected(effects, "effects[0].what"));
+        Assert.Null(Selected(effects, "default"));
+        Assert.DoesNotContain("id=\"tab-option-0\"", effects);
+
+        (_, string choice) = await Get(client, VignetteUrl("VIGNETTE_02"));
+        Assert.Equal("option_b", Selected(choice, "default"));
+        Assert.Matches("<option value=\"option_b\" selected[^>]*>VIGNETTE_02_OPTION_B_LABEL \\(option_b\\)</option>", choice);
+        Assert.DoesNotContain("options[0].settled", choice);
+        Assert.DoesNotContain("options[0].requires", choice);
+        Assert.DoesNotContain("options[0].chronicle", choice);
+        Assert.DoesNotContain("id=\"row-add-options\"", choice);
+        Assert.Null(Selected(choice, "effects[0].what"));
+    }
+
+    [Fact]
+    public async Task A_new_vignette_with_no_options_saves_its_own_effects_appears_on_the_list_and_loads()
+    {
+        using TestApp app = NewApp();
+        HttpClient client = app.NewClient();
+
+        (HttpStatusCode status, string body) = await Post(client, "/dev/content/vignettes", NewVignette);
+
+        Assert.True(status == HttpStatusCode.OK, Regex.Match(body, "class=\"alert\".*?</div>", RegexOptions.Singleline).Value + string.Join(" | ", Regex.Matches(body, "<p class=\"error\"[^>]*>([^<]*)</p>").Select(m => m.Groups[1].Value)));
+        Assert.Contains(
+            "- id: VIGNETTE_90\n  name: NAME_PLACEHOLDER_VIGNETTE\n  cast:\n    subject: \"subject.aboard\"\n  text: |-\n    subject: VIGNETTE_90_LINE_1\n    = #subject# VIGNETTE_90_REPORT\n  effects: [{ morale: 1, on: subject }]\n",
+            Disk(app, "vignettes/base.yaml"),
+            StringComparison.Ordinal);
+        Assert.Contains(app.Live.Pack.Vignettes, v => v.Id == "VIGNETTE_90" && v.Effects.Count == 1 && v.Options.Count == 0 && v.Default is null);
+        Assert.Contains("NAME_PLACEHOLDER_VIGNETTE", (await Get(client, "/dev/content/vignettes")).Body);
+
+        // A new vignette starts with a subject, no options, and no effects, and is refused until it has one.
+        (_, string blank) = await Get(client, "/dev/content/vignettes/new");
+        Assert.Equal("subject", Value(blank, "cast[0].name"));
+        Assert.DoesNotContain("id=\"tab-option-0\"", blank);
+        string before = Everything(app);
+        (HttpStatusCode none, string refused) = await Post(client, "/dev/content/vignettes", Regex.Replace(NewVignette, "&effects\\[0\\][^&]*", "").Replace("VIGNETTE_90", "VIGNETTE_91", StringComparison.Ordinal));
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, none);
+        Assert.Contains("<p class=\"error\" id=\"f-effects-error\">A vignette with no choice needs at least one effect: what changes when it arrives.</p>", refused);
+        Assert.Equal(before, Everything(app));
+    }
+
+    // Adding the first option keeps the vignette's own effects in hidden fields, and one option alone is refused: a choice is two.
+    [Fact]
+    public async Task Adding_options_keeps_the_effects_waiting_and_two_options_save_with_a_default()
+    {
+        using TestApp app = NewApp();
+        HttpClient client = app.NewClient();
+
+        (_, string one) = await Post(client, "/dev/content/vignettes/rows", NewVignette + "&row=add:options");
+        Assert.Contains("id=\"tab-option-0\"", one);
+        Assert.Contains("type=\"hidden\" name=\"effects[0].what\" value=\"morale\"", one);
+        Assert.Null(Value(one, "options[0].requires.mode"));
+        (HttpStatusCode refused, string body) = await Post(client, "/dev/content/vignettes", Merge(FormFields(one), "options[0].label=Stay a while"));
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, refused);
+        Assert.Contains(VignetteKind.ChoiceRule.Replace("'", "&#x27;", StringComparison.Ordinal), body);
+
+        string two = Merge(NewVignette, "options[0].id=&options[0].label=Stay a while&options[0].text=VIGNETTE_90_OPTION_A_TEXT&options[0].effects[0].what=morale&options[0].effects[0].amount=1&options[0].effects[0].on=subject"
+            + "&options[1].id=&options[1].label=Leave them be&options[1].text=VIGNETTE_90_OPTION_B_TEXT&default=leave_them_be");
+        (HttpStatusCode status, string saved) = await Post(client, "/dev/content/vignettes", two);
+        Assert.True(status == HttpStatusCode.OK, string.Join(" | ", Regex.Matches(saved, "<p class=\"error\"[^>]*>([^<]*)</p>").Select(m => m.Groups[1].Value)));
+        VignetteModel stored = ContentEdits.Get<VignetteModel>(app.Editor.Read(), ContentKind.Vignette, "VIGNETTE_90")!;
+        Assert.Equal(["stay_while", "leave_them_be"], stored.Options.Select(o => o.Id));
+        Assert.Equal("leave_them_be", stored.Default);
+        Assert.Empty(stored.Effects);
+    }
+
+    // The default names an option by its id; removing that option is refused, with the message on the default.
+    [Fact]
+    public async Task Removing_the_option_a_default_names_is_refused_with_a_message_on_the_default()
+    {
+        using TestApp app = NewApp();
+        HttpClient client = app.NewClient();
+        string before = Everything(app);
+        (_, string body) = await Get(client, VignetteUrl("VIGNETTE_02"));
+
+        (_, string removed) = await Post(client, VignetteUrl("VIGNETTE_02") + "/rows", FormFields(body) + "&row=remove:options:1");
+        Assert.Null(Value(removed, "options[1].id"));
+        string gone = "<p class=\"error\" id=\"f-default-error\">If left, it takes option_b, which is not one of its options now. Choose one that is.</p>";
+        Assert.Contains(gone, removed);
+        Assert.Matches("<option value=\"option_b\" selected[^>]*>option_b \\(not an option now\\)</option>", removed);
+
+        (HttpStatusCode status, string refused) = await Post(client, VignetteUrl("VIGNETTE_02"), FormFields(removed));
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, status);
+        Assert.Contains(gone, refused);
+        Assert.Equal(before, Everything(app));
+    }
+
+    [Fact]
+    public void The_loaders_refusals_of_a_vignette_go_beside_their_fields()
+    {
+        var form = new VignetteKind();
+        FormValues values = new(Fields(NewVignette));
+        FormChoices choices = FormChoicesReader.Read(ContentFileSet.ReadDirectory(Path.Combine(TestApp.RepositoryRoot(), "tests", "fixtures", "content")));
+
+        (string Field, string Message)? Placed(string message) => form.Place("VIGNETTE_90", new ContentError("vignettes/base.yaml", message), values, choices);
+
+        Assert.Equal(("default", "A vignette with options needs a default, and it must be one of them."), Placed("VIGNETTE_90: A vignette with options needs a default, and it must be one of them."));
+        Assert.Equal(("effects", "A vignette with no choice needs at least one effect."), Placed("VIGNETTE_90: A vignette with no choice needs at least one effect."));
+        Assert.Equal(("script", "A vignette's text is one to three entries."), Placed("VIGNETTE_90: A vignette's text is one to three entries."));
+        Assert.Equal(("options", "A vignette's choice is two options."), Placed("VIGNETTE_90: A vignette's choice is two options."));
+        Assert.Equal("cast[0].when[0].kind", Placed("VIGNETTE_90: cast.subject, at character 3: nope")?.Field);
+        Assert.Null(Placed("VIGNETTE_01: A vignette's text is one to three entries."));
+    }
+
+    // "The medical bay" casts whoever was hurt last cycle on USS Quality Assurance, and its words and each option's are rendered with
+    // the cast; a vignette writes no chronicle entry, so the panel has none.
+    [Fact]
+    public async Task A_vignettes_panel_casts_on_the_test_ship_with_no_chronicle_rows()
+    {
+        using TestApp app = GameApp(canonical: false);
+        HttpClient client = app.NewClient();
+        (HttpStatusCode status, string body) = await Get(client, VignetteUrl("VIGNETTE_02"));
+
+        Assert.Equal(HttpStatusCode.OK, status);
+        string panel = WebUtility.HtmlDecode(Panel(body));
+        Assert.Matches("<option value=\"uss_quality_assurance\" selected[^>]*>USS Quality Assurance</option>", panel);
+        Assert.Matches("Sample 1: [^<]+ as subject\\.", panel);
+        Assert.Contains("The vignette as it would arrive on this ship", panel, StringComparison.Ordinal);
+        Assert.Contains("id=\"pp-f-script\"", panel, StringComparison.Ordinal);
+        Assert.Contains("id=\"pp-f-options-1-text\"", panel, StringComparison.Ordinal);
+        Assert.DoesNotContain("Chronicle", panel, StringComparison.Ordinal);
+        Assert.DoesNotContain("chronicleText", body, StringComparison.Ordinal);
+        Assert.Contains("was left to the doctor and the quiet.", panel, StringComparison.Ordinal);
+
+        // Typed words are previewed through the plays route; a vignette with its own effects shows its script alone.
+        string typed = WebUtility.HtmlDecode((await Post(client, VignetteUrl("VIGNETTE_02") + "/plays", Merge(FormFields(body), "options[0].text=" + Uri.EscapeDataString("#subject# TYPED_NOT_SAVED")), datastar: true)).Body);
+        Assert.Contains("TYPED_NOT_SAVED", typed, StringComparison.Ordinal);
+        string own = WebUtility.HtmlDecode(Panel((await Get(client, VignetteUrl("VIGNETTE_05"))).Body));
+        Assert.Contains("Requires holds", own, StringComparison.Ordinal);
+        Assert.Contains("Ghost again. Logging it with the others.", own, StringComparison.Ordinal);
     }
 
     // The fixture is the editor's to rewrite; the repository's content is not touched.

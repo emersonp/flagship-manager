@@ -7,9 +7,9 @@
         }
     </Alert>
     <ChildContent>
-        @if (Kind == ContentKind.Storylet)
+        @if (Kind is ContentKind.Storylet or ContentKind.Vignette)
         {
-            <KindLint Lint="Web.Forms.StoryletLint.Of(Files)" />
+            <KindLint Lint="Web.Forms.StoryletLint.Of(Files, Kind)" />
         }
         <section class="well" aria-labelledby="h-items">
             <div class="well__head">

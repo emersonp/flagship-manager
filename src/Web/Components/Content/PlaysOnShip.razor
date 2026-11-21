@@ -1,14 +1,14 @@
 @using Web.Forms
-@* A storylet's "What plays here" (1e part six, design 4.3 and 4.7): the ship it is cast on, what the casting found, and the storylet as
-   it would read, top to bottom: its script, then each option's words and the chronicle entry it would write. The words are written in
-   the boxes above, each with its preview under it; here they are read in order. *@
+@* A storylet's or a vignette's "What plays here" (1e part six, design 4.3, 4.7, and 4.8): the ship it is cast on, what the casting
+   found, and the item as it would read, top to bottom: its script, then each option's words and the chronicle entry it would write (a
+   vignette writes none). The words are written in the boxes above, each with its preview under it; here they are read in order. *@
 <section class="plays" id="plays" aria-labelledby="h-plays">
     <div class="plays__head">
         <h3 class="sub" id="h-plays">What plays here</h3>
         <PlaysSample Plays="Plays" Url="@View.PlaysUrl" />
     </div>
     <ShipSelect Casting="Casting" Url="@View.PlaysUrl" />
-    <p class="hint">The storylet as it would arrive on this ship, cast as the game casts it. A blank box plays the line shown in grey. Next sample moves to another cast that fits. Previews follow as you type; nothing is saved until you save.</p>
+    <p class="hint">The @View.Noun as it would arrive on this ship, cast as the game casts it. A blank box plays the line shown in grey. Next sample moves to another cast that fits. Previews follow as you type; nothing is saved until you save.</p>
     <PlaysStatus Casting="Casting" />
     @if (Plays.Message is not null)
     {

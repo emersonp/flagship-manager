@@ -4,7 +4,8 @@
    switching posts nothing, and every panel stays in the form, so one save sends them all. Left, Right, Home, and End move between tabs.
    Each panel holds the option's id and label, its requires, how it is settled (its effects, or a check with a success and a failure),
    its words, and its chronicle. An option's requires and effects post under its row, so adding, removing, or moving one keeps what is
-   in it. A new option's id is made from its label as it is typed (editor.js) until the id is typed in; a saved one's is fixed. *@
+   in it. A new option's id is made from its label as it is typed (editor.js) until the id is typed in; a saved one's is fixed. A
+   vignette's options (Vignette) have no requires, no check, and no chronicle: each is its label, id, effects, and words. *@
 <div class="rowset" id="f-options" tabindex="-1" aria-labelledby="h-option-tabs" @attributes="Focus">
     <div class="tabs" id="option-tabs" data-signals:_tab="@Shown" data-init="@View.Fresh($"$_tab = {Shown}")">
         <input type="hidden" name="@StoryletParts.TabField" value="@Shown" data-attr:value="$_tab">
@@ -45,7 +46,7 @@
             string title = StoryletParts.OptionTitle(values, row);
             string which = $"option {row + 1}";
             bool saved = values["saved"] == "true";
-            bool check = values["settled"] == StoryletParts.ByCheck;
+            bool check = !Vignette && values["settled"] == StoryletParts.ByCheck;
             string Name(string field) => Set.Name(row, field);
             <div class="tabs__panel" role="tabpanel" id="@PanelId(row)" aria-labelledby="@TabId(row)" tabindex="0" hidden="@(row != Shown)" data-attr:hidden="@($"$_tab !== {row}")">
                 <div class="block__head">
@@ -83,11 +84,14 @@
                         <Field Name="@Name("id")" Label="Id" AriaLabel="@($"Id, {which}")" Value="@values["id"]" Hint="Made from the label as you type it; it can be changed until it is saved." Error="@View.Error(Name("id"))" InputAttributes="@IdAttributes(values)" />
                     }
                 </div>
-                <Web.Components.Content.ExpressionField Scope="Scopes[row]" Hint="Offered only when every clause holds for the cast. No clauses: always offered." />
-                <div class="field field--narrow">
-                    <label for="@FormValues.Slug(Name("settled"))">Settled by</label>
-                    <ExpressionSelect Name="@Name("settled")" Aria="@($"Settled by, {which}")" Options="Settled" Value="@values["settled"]" Posts="true" />
-                </div>
+                @if (!Vignette)
+                {
+                    <Web.Components.Content.ExpressionField Scope="Scopes[row]" Hint="Offered only when every clause holds for the cast. No clauses: always offered." />
+                    <div class="field field--narrow">
+                        <label for="@FormValues.Slug(Name("settled"))">Settled by</label>
+                        <ExpressionSelect Name="@Name("settled")" Aria="@($"Settled by, {which}")" Options="Settled" Value="@values["settled"]" Posts="true" />
+                    </div>
+                }
                 @if (check)
                 {
                     <div class="field-grid">
@@ -125,10 +129,13 @@
                         <input type="hidden" name="@field.Key" value="@field.Value">
                     }
                 }
-                <div class="field-grid">
-                    <Field Name="@Name("chronicleWeight")" Label="Chronicle weight" AriaLabel="@($"Chronicle weight, {title}")" Value="@values["chronicleWeight"]" Options="Weights" Labels="WeightLabels" Placeholder="The tuning file's" Error="@View.Error(Name("chronicleWeight"))" Narrow="true" />
-                </div>
-                <ScriptBox Name="@Name("chronicleText")" Label="Chronicle text" Aria="@($"Chronicle text, {title}")" Hint="Optional: what the chronicle says when this is chosen. Blank: the shared storylet line." Chips="@(check ? HandlerChips : Chips)" />
+                @if (!Vignette)
+                {
+                    <div class="field-grid">
+                        <Field Name="@Name("chronicleWeight")" Label="Chronicle weight" AriaLabel="@($"Chronicle weight, {title}")" Value="@values["chronicleWeight"]" Options="Weights" Labels="WeightLabels" Placeholder="The tuning file's" Error="@View.Error(Name("chronicleWeight"))" Narrow="true" />
+                    </div>
+                    <ScriptBox Name="@Name("chronicleText")" Label="Chronicle text" Aria="@($"Chronicle text, {title}")" Hint="Optional: what the chronicle says when this is chosen. Blank: the shared storylet line." Chips="@(check ? HandlerChips : Chips)" />
+                }
             </div>
         }
     </div>
@@ -142,6 +149,9 @@
     [Parameter] public int Max { get; set; } = 4;
 
     [Parameter] public string Hint { get; set; } = "Two to four answers, in the order the captain sees them. At least one has neither requires nor a check, so the storylet can always be answered.";
+
+    // A vignette's options: no requires, no check, and no chronicle (design 4.8).
+    [Parameter] public bool Vignette { get; set; }
 
     private static RowSet Set => StoryletParts.Options;
 

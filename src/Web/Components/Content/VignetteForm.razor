@@ -1,0 +1,98 @@
+@using Web.Forms
+@* The vignette form (1e part six, design 4.8): the storylet form's parts with no stakes and no chronicle. The definitions (requires, the
+   cast, the cooldowns, the script, and the author's notes), then the choice: no options, and effect rows on the vignette itself, or two
+   options and the one taken if it is left. The way not shown keeps its fields as hidden inputs, so adding an option and removing it again
+   loses nothing. "What plays here" follows, cast for real on a test ship, with no chronicle rows, since a vignette writes none. *@
+<FormShell View="View" OnInput="@Refresh">
+    <Web.Components.Content.ExpressionField Scope="StoryletKind.Requires(Slots)" Hint="Every clause must hold, read with the cast once it is chosen. No clauses: it always holds." />
+    <CastSlots />
+    <div class="field-grid">
+        @foreach ((string name, string label) in Cooldowns)
+        {
+            <div class="field field--narrow">
+                <label for="@FormValues.Slug(name)">@label</label>
+                <Stepper Name="@name" Aria="@label" Value="@View.Values.Get(name)" Min="0" Error="@View.Error(name)" />
+                <p class="hint">Cycles, 0 or more. Both blank: the tuning file's cast cooldown for vignettes.</p>
+                @if (View.Error(name) is { } error)
+                {
+                    <p class="error" id="@($"{FormValues.Slug(name)}-error")">@error</p>
+                }
+            </div>
+        }
+    </div>
+    <ScriptBox Name="script" Label="Script" Rows="3" Hint="What arrives, one to three entries, one to a line: speaker: words, > a note, narration, and last = the sentence the itinerary shows." Chips="Chips" />
+    <div class="field textfield textfield--line">
+        <label for="f-notes">Author's notes</label>
+        <textarea id="f-notes" name="notes" rows="4" spellcheck="true" autocomplete="off" aria-describedby="f-notes-hint" @attributes="NotesFocus">@View.Values.Get("notes")</textarea>
+        <p class="hint" id="f-notes-hint">Why it is the way it is, for whoever writes next. Kept in the file, never shown in play.</p>
+    </div>
+    @if (Options == 0)
+    {
+        <div class="rowset" id="f-effects" tabindex="-1" aria-labelledby="h-vignette-effects">
+            <h3 class="sub" id="h-vignette-effects">When it arrives</h3>
+            @if (View.Error(VignetteKind.Effects.Prefix) is { } effectsError)
+            {
+                <p class="error" id="f-effects-error">@effectsError</p>
+            }
+            <StoryletEffectRows Set="VignetteKind.Effects" Title="Effects" Owner="the vignette" Slots="Slots" Hint="What changes when it arrives, with no choice for the captain. To offer a choice instead, add an option below." />
+        </div>
+        <input type="hidden" name="@VignetteKind.DefaultField" value="@View.Values.Get(VignetteKind.DefaultField)">
+    }
+    else
+    {
+        @foreach (KeyValuePair<string, string> field in View.Values.Fields.Where(f => f.Key.StartsWith(VignetteKind.Effects.Prefix + "[", StringComparison.Ordinal)))
+        {
+            <input type="hidden" name="@field.Key" value="@field.Value">
+        }
+    }
+    <OptionTabs Vignette="true" Max="2" Hint="@OptionsHint" />
+    @if (Options > 0)
+    {
+        <Field Name="@VignetteKind.DefaultField" Label="If left" Value="@View.Values.Get(VignetteKind.DefaultField)" Options="DefaultIds" Labels="DefaultLabels" Placeholder="Choose an option" Hint="The option taken when the itinerary closes and the captain has not answered." Error="@(View.Error(VignetteKind.DefaultField) ?? Gone)" Required="true" />
+    }
+    <PlaysPanel />
+</FormShell>
+
+@code {
+    private IReadOnlyDictionary<string, object> NotesFocus => View.FocusFor("f-notes");
+
+    [Parameter, EditorRequired] public ItemFormView View { get; set; } = null!;
+
+    private static readonly (string Name, string Label)[] Cooldowns = [("cooldownCast", "Cast cooldown"), ("cooldownGlobal", "Global cooldown")];
+
+    private const string OptionsHint = "None, and the vignette's own effects apply when it arrives; or two small answers, in the order the captain sees them, and the one taken if it is left.";
+
+    private string Refresh => $"@post('{View.PlaysUrl}', {{contentType: 'form'}})";
+
+    private List<string> Slots = [];
+
+    private List<string> Chips = [];
+
+    private int Options;
+
+    private List<string> DefaultIds = [];
+
+    private Dictionary<string, string> DefaultLabels = [];
+
+    // Said at once, before any save, when the option the default names has just been removed.
+    private string? Gone;
+
+    protected override void OnParametersSet()
+    {
+        Slots = StoryletParts.SlotNames(View.Values);
+        Chips = StoryletParts.Chips(Slots, View.Choices, handler: false);
+        Options = FormRows.Read(View.Values, StoryletParts.Options).Count;
+        List<Choice> defaults = VignetteKind.Defaults(View.Values);
+        // A default that names no option now (its option was removed) is shown as it is, and refused beside the select.
+        string posted = View.Values.Get(VignetteKind.DefaultField).Trim();
+        Gone = null;
+        if (posted.Length > 0 && defaults.All(d => d.Value != posted))
+        {
+            defaults.Add(new Choice(posted, $"{posted} (not an option now)"));
+            Gone = VignetteKind.DefaultGone(posted);
+        }
+
+        DefaultIds = defaults.Select(d => d.Value).ToList();
+        DefaultLabels = defaults.ToDictionary(d => d.Value, d => d.Label);
+    }
+}

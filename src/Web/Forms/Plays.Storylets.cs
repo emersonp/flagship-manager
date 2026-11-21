@@ -14,34 +14,39 @@ namespace Web.Forms;
 // A storylet's "What plays here" (1e part six, design 4.7): the form as posted is built into a candidate pack, the loader judges it, and
 // the storylet is cast on the chosen test ship with Preview.Storylet, which casts through Casting.Cast on the ship's IStateSource, the
 // path the module casts by (review focus 3). The script, each option's words, and the chronicle line each would write are rendered as
-// play renders them (Prose.Storylet and the chronicle module's own situation), with the cast's names and pronouns.
+// play renders them (Prose.Storylet and the chronicle module's own situation), with the cast's names and pronouns. A vignette is the
+// same part (design 4.8), cast with Preview.Vignette, with no chronicle rows, since a vignette writes none.
 internal static partial class Plays
 {
     public const string ShipField = "ship";
 
     public const string AnywayField = "anyway";
 
-    // The id a new storylet is previewed under while its id box is blank.
+    // The id a new storylet or vignette is previewed under while its id box is blank.
     private const string Unnamed = "STORYLET_PREVIEW";
+
+    private const string UnnamedVignette = "VIGNETTE_PREVIEW";
 
     private static PlaysView Storylet(KindForm form, ContentFileSet files, string id, FormValues values, FormChoices choices)
     {
         int sample = SampleOf(values);
-        string storyletId = id.Trim().Length > 0 ? id.Trim() : Unnamed;
+        bool vignette = form.Kind == ContentKind.Vignette;
+        string storyletId = id.Trim().Length > 0 ? id.Trim() : vignette ? UnnamedVignette : Unnamed;
         List<Dictionary<string, string>> rows = FormRows.Read(values, StoryletParts.Options);
 
         // The candidate: the form's storylet in the pack, as a save would write it. When it does not load, the stored storylet on disk
         // is previewed in its place, greyed, and the panel says why.
         (ContentFileSet? candidate, string? stale) = Candidate(form, files, storyletId, values, choices);
         ContentFileSet? shown = candidate;
-        if (candidate is null && files.Validate().Pack is { } disk && disk.Storylets.Any(s => s.Id == storyletId))
+        if (candidate is null && files.Validate().Pack is { } disk && (vignette ? disk.Vignettes.Any(v => v.Id == storyletId) : disk.Storylets.Any(s => s.Id == storyletId)))
         {
             shown = files;
         }
 
         ContentPack? pack = shown?.Validate().Pack;
-        StoryletDef? storylet = pack?.Storylets.FirstOrDefault(s => s.Id == storyletId);
-        if (pack is null || storylet is null)
+        StoryletDef? storylet = vignette ? null : pack?.Storylets.FirstOrDefault(s => s.Id == storyletId);
+        IReadOnlyList<StoryletOption>? options = vignette ? pack?.Vignettes.FirstOrDefault(v => v.Id == storyletId)?.Options : storylet?.Options;
+        if (pack is null || options is null)
         {
             var empty = new PlaysCasting([], "", false, "", false, [], false, false, rows.Count, new HashSet<int>(), stale);
             return new PlaysView(sample, "", [], stale is null ? "The pack on disk does not load, so there is nothing to cast on. The boxes still save." : null) { Casting = empty };
@@ -59,7 +64,7 @@ internal static partial class Plays
         TestShipDef ship = ships.FirstOrDefault(s => s.Id == asked) ?? ships[0];
         bool anyway = noShips || values.Get(AnywayField) == "true";
         var source = new TestShipSource(pack, ship);
-        PreviewCast cast = Preview.Storylet(pack, storyletId, source, source.Roster, sample, anyway);
+        PreviewCast cast = vignette ? Preview.Vignette(pack, storyletId, source, source.Roster, sample, anyway) : Preview.Storylet(pack, storyletId, source, source.Roster, sample, anyway);
         var names = new Names(pack);
 
         string top = string.Join(" · ", new[]
@@ -77,8 +82,8 @@ internal static partial class Plays
 
         // Each option row to its option in the pack previewed: by place in the candidate, by id in the stored storylet.
         StoryletOption? OptionOf(int row) => candidate is not null
-            ? row < storylet.Options.Count ? storylet.Options[row] : null
-            : storylet.Options.FirstOrDefault(o => o.Id == rows[row]["id"].Trim());
+            ? row < options.Count ? options[row] : null
+            : options.FirstOrDefault(o => o.Id == rows[row]["id"].Trim());
 
         var notOffered = new HashSet<int>();
         for (int i = 0; i < rows.Count; i++)
@@ -123,7 +128,7 @@ internal static partial class Plays
                 return new PlaysSlot(field, label, "", new PlaysPreview(elementId, null, "No one fits on this ship, so nothing is written.", null));
             }
 
-            int weight = option.Chronicle?.Weight ?? storylet.Chronicle?.Weight ?? pack.Chronicle.Weights[ChronicleTuning.Storylet];
+            int weight = option.Chronicle?.Weight ?? storylet?.Chronicle?.Weight ?? pack.Chronicle.Weights[ChronicleTuning.Storylet];
             Situation situation = ChronicleSamples.Storylet(pack, storyletId, bound, option.Id, option.Check is null ? null : cast.Handler, success);
             string chronicleKey = $"{key}|chronicle|{option.Id}|{success}";
             var narrator = new Narrator(pack);
@@ -161,7 +166,10 @@ internal static partial class Plays
             if (option.Check is null)
             {
                 slots.Add(Text(Name("text"), "Its words", $"{storyletId}.{option.Id}.text", option.Id, null, null));
-                slots.Add(Chronicle(i, option, "Chronicle", null));
+                if (!vignette)
+                {
+                    slots.Add(Chronicle(i, option, "Chronicle", null));
+                }
             }
             else
             {

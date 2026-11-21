@@ -387,7 +387,8 @@ internal static partial class StoryletParts
         return values;
     }
 
-    public static void AddOptions(List<KeyValuePair<string, string>> fields, IReadOnlyList<StoryletOptionModel> options, IReadOnlyList<string> slots, ExpressionChoices choices)
+    // vignette: a vignette's options, which have no requires, no check, and no chronicle (design 4.8).
+    public static void AddOptions(List<KeyValuePair<string, string>> fields, IReadOnlyList<StoryletOptionModel> options, IReadOnlyList<string> slots, ExpressionChoices choices, bool vignette = false)
     {
         for (int i = 0; i < options.Count; i++)
         {
@@ -395,7 +396,11 @@ internal static partial class StoryletParts
             fields.Add(new(Options.Name(i, "id"), option.Id));
             fields.Add(new(Options.Name(i, "saved"), "true"));
             fields.Add(new(Options.Name(i, "label"), option.Label));
-            fields.AddRange(ExpressionField.Load(new ExpressionScope(OptionRequires(i), "", slots), option.Requires, choices));
+            if (!vignette)
+            {
+                fields.AddRange(ExpressionField.Load(new ExpressionScope(OptionRequires(i), "", slots), option.Requires, choices));
+            }
+
             if (option.Check is { } check)
             {
                 fields.Add(new(Options.Name(i, "settled"), ByCheck));
@@ -414,25 +419,36 @@ internal static partial class StoryletParts
                 AddEffects(fields, OptionEffects(i), option.Effects);
             }
 
+            if (vignette)
+            {
+                continue;
+            }
+
             fields.Add(new(Options.Name(i, "chronicleWeight"), option.Chronicle?.Weight is { } weight ? Checks.Text(weight) : ""));
             fields.Add(new(Options.Name(i, "chronicleText"), option.Chronicle?.Text ?? ""));
         }
     }
 
     // A new option, blank but for how it is settled.
-    public static void AddBlankOption(List<KeyValuePair<string, string>> fields, int index)
+    public static void AddBlankOption(List<KeyValuePair<string, string>> fields, int index, bool vignette = false)
     {
         foreach ((string field, string value) in Options.NewRow())
         {
             fields.Add(new(Options.Name(index, field), value));
         }
 
+        if (vignette)
+        {
+            return;
+        }
+
         fields.Add(new(ExpressionField.ModeField(OptionRequires(index)), ExpressionField.RowsMode));
     }
 
     // The options, each as the loader reads it. A saved option's id is fixed (review focus 5); a new one left blank takes its id from its
-    // label, passing over any id another option already has. countRule is refused when the count is outside min to max.
-    public static List<StoryletOptionModel> BindOptions(FormValues values, FormChoices choices, IReadOnlyList<string> slots, Dictionary<string, string> errors, int min, int max, string countRule)
+    // label, passing over any id another option already has. countRule is refused when the count is outside min to max. A vignette's
+    // options (vignette) are settled by their effects, with no requires and no chronicle, whatever is posted.
+    public static List<StoryletOptionModel> BindOptions(FormValues values, FormChoices choices, IReadOnlyList<string> slots, Dictionary<string, string> errors, int min, int max, string countRule, bool vignette = false)
     {
         List<Dictionary<string, string>> rows = FormRows.Read(values, Options);
         if (rows.Count < min || rows.Count > max)
@@ -484,6 +500,13 @@ internal static partial class StoryletParts
             else if (id.Length > 0 && !ids.Add(id))
             {
                 errors[Field("id")] = "Each option has its own id.";
+            }
+
+            if (vignette)
+            {
+                List<StoryletEffectModel> own = BindEffects(values, OptionEffects(i), slots, handler: false, choices.Expressions, errors);
+                options.Add(new StoryletOptionModel(id, label, null, own, null, BindText(values, Field("text"), errors)));
+                continue;
             }
 
             string? requires = ExpressionField.Bind(values, scopes[i], choices.Expressions, errors);
@@ -580,8 +603,9 @@ internal static partial class StoryletParts
         return Math.Clamp(tab, 0, Math.Max(0, count - 1));
     }
 
-    // An option added or moved shows its own tab; one removed leaves the tab that was shown, or the nearest one left.
-    public static FormValues AfterRows(FormRows.Applied applied)
+    // An option added or moved shows its own tab; one removed leaves the tab that was shown, or the nearest one left. A vignette's
+    // options have no requires.
+    public static FormValues AfterRows(FormRows.Applied applied, bool vignette = false)
     {
         if (applied.Set != Options || applied.Verb is not ("add" or "remove" or "up" or "down"))
         {
@@ -593,7 +617,7 @@ internal static partial class StoryletParts
         int tab = applied.Verb != "remove" ? applied.Row : shown > applied.Row ? shown - 1 : Math.Max(0, Math.Min(shown, count - 1));
         FormValues values = applied.Values.With(TabField, tab.ToString(CultureInfo.InvariantCulture));
         // A new option's requires starts as rows, as a stored one with none does.
-        return applied.Verb == "add" ? values.With(ExpressionField.ModeField(OptionRequires(applied.Row)), ExpressionField.RowsMode) : values;
+        return applied.Verb == "add" && !vignette ? values.With(ExpressionField.ModeField(OptionRequires(applied.Row)), ExpressionField.RowsMode) : values;
     }
 
     // The field a loader refusal of this item belongs beside (design 4.3, Step 5): an expression's at its character in its widget, a
@@ -822,5 +846,175 @@ internal sealed class StoryletKind : KindForm
         }
 
         return new Bound(_ => new StoryletModel(id, name, stakes, requires, cast, options, castCooldown, globalCooldown, script, weight is { } w ? new ChronicleModel(w, null) : null, notes), errors);
+    }
+}
+
+// The vignette form (1e part six, design 4.8): the storylet form's parts with no stakes and no chronicle. A vignette with no options has
+// effect rows on itself; one with options has two, each settled by its effects with no requires, and a default, taken when it is left.
+internal sealed class VignetteKind : KindForm
+{
+    public const string DefaultField = "default";
+
+    public const string ChoiceRule = "A vignette's choice is two options. Add the other, or remove this one to give the vignette effects of its own.";
+
+    // The vignette's own effects, applied when it arrives: only when it has no options.
+    public static readonly RowSet Effects = StoryletParts.EffectSet("effects");
+
+    public override ContentKind Kind => ContentKind.Vignette;
+
+    public override IReadOnlyList<RowSet> RowSets => [StoryletParts.Options, StoryletParts.Cast, Effects];
+
+    public override IReadOnlyList<RowSet> NestedRowSets(FormValues values)
+    {
+        return Enumerable.Range(0, FormRows.Read(values, StoryletParts.Options).Count).Select(StoryletParts.OptionEffects).ToList();
+    }
+
+    public override IReadOnlyList<ExpressionScope> Expressions(FormValues values)
+    {
+        return [StoryletKind.Requires(StoryletParts.SlotNames(values)), .. StoryletParts.CastScopes(values)];
+    }
+
+    public override FormValues AfterRows(FormRows.Applied applied)
+    {
+        FormValues values = StoryletParts.AfterRows(applied, vignette: true);
+        // A new slot's clauses start as rows.
+        return applied.Set == StoryletParts.Cast && applied.Verb == "add" ? values.With(ExpressionField.ModeField(StoryletParts.CastPrefix(applied.Row)), ExpressionField.RowsMode) : values;
+    }
+
+    public override FormValues Settle(FormValues values, FormChoices choices, string? focus)
+    {
+        return StoryletParts.Settle(values, [Effects, .. NestedRowSets(values)], StoryletParts.SlotNames(values), choices.Expressions, focus);
+    }
+
+    // What the default select says when the option it names has been removed or renamed.
+    public static string DefaultGone(string id)
+    {
+        return $"If left, it takes {id}, which is not one of its options now. Choose one that is.";
+    }
+
+    // The default's choices: each option by its id as it would be saved (one left blank takes it from its label), shown by its label.
+    public static List<Choice> Defaults(FormValues values)
+    {
+        return FormRows.Read(values, StoryletParts.Options)
+            .Select((row, i) => (Id: row["id"].Trim().Length > 0 ? row["id"].Trim() : NewIds.FromName(row["label"]), Title: StoryletParts.OptionTitle(row, i)))
+            .Where(o => o.Id.Length > 0)
+            .Select(o => new Choice(o.Id, o.Title == o.Id ? o.Id : $"{o.Title} ({o.Id})"))
+            .ToList();
+    }
+
+    public override (string Field, string Message)? Place(string id, ContentError error, FormValues values, FormChoices choices)
+    {
+        string head = id + ": ";
+        if (!error.Message.StartsWith(head, StringComparison.Ordinal))
+        {
+            return null;
+        }
+
+        string said = error.Message[head.Length..];
+        return said switch
+        {
+            _ when said.StartsWith("A vignette's choice is", StringComparison.Ordinal) || said.StartsWith("A vignette has effects or", StringComparison.Ordinal) => (StoryletParts.Options.Prefix, said),
+            _ when said.StartsWith("A vignette with options needs a default", StringComparison.Ordinal) || said.StartsWith("A vignette with no choice has no default", StringComparison.Ordinal) => (DefaultField, said),
+            _ when said.StartsWith("A vignette with no choice needs", StringComparison.Ordinal) => (Effects.Prefix, said),
+            _ when said.StartsWith("A vignette's text", StringComparison.Ordinal) => ("script", said),
+            _ => StoryletParts.Place(id, error, values, choices, Expressions(values)),
+        };
+    }
+
+    public override FormChoices Widen(FormChoices choices, ContentFileSet files, string id)
+    {
+        return ContentEdits.Get<VignetteModel>(files, Kind, id) is { } vignette ? choices with { FixedOptionIds = vignette.Options.Select(o => o.Id).ToList() } : choices;
+    }
+
+    public override string? NameOf(ContentFileSet files, string id)
+    {
+        return ContentEdits.Get<VignetteModel>(files, Kind, id)?.Name;
+    }
+
+    public override FormValues? Load(ContentFileSet files, string id, FormChoices choices)
+    {
+        if (ContentEdits.Get<VignetteModel>(files, Kind, id) is not { } vignette)
+        {
+            return null;
+        }
+
+        List<string> slots = vignette.Cast.Select(c => c.Name).ToList();
+        var fields = new List<KeyValuePair<string, string>> { new("name", Name(vignette.Name)) };
+        fields.AddRange(ExpressionField.Load(StoryletKind.Requires(slots), vignette.Requires, choices.Expressions));
+        StoryletParts.AddCast(fields, vignette.Cast, choices.Expressions);
+        fields.Add(new("cooldownCast", vignette.CastCooldown is { } cast ? Checks.Text(cast) : ""));
+        fields.Add(new("cooldownGlobal", vignette.GlobalCooldown is { } global ? Checks.Text(global) : ""));
+        fields.Add(new("script", vignette.Script ?? ""));
+        fields.Add(new("notes", vignette.Notes ?? ""));
+        StoryletParts.AddEffects(fields, Effects, vignette.Effects);
+        fields.Add(new(DefaultField, vignette.Default ?? ""));
+        StoryletParts.AddOptions(fields, vignette.Options, slots, choices.Expressions, vignette: true);
+        return new FormValues(fields);
+    }
+
+    // A new vignette: one slot called subject with no clauses yet, no options, and no effects yet.
+    public override FormValues Blank(FormChoices choices)
+    {
+        return new FormValues(
+        [
+            new("name", ""),
+            new(ExpressionField.ModeField(StoryletKind.RequiresPrefix), ExpressionField.RowsMode),
+            new(StoryletParts.Cast.Name(0, "name"), StoryletScopes.Subject),
+            new(ExpressionField.ModeField(StoryletParts.CastPrefix(0)), ExpressionField.RowsMode),
+            new("cooldownCast", ""),
+            new("cooldownGlobal", ""),
+            new("script", ""),
+            new("notes", ""),
+            new(DefaultField, ""),
+        ]);
+    }
+
+    public override Bound Bind(string id, FormValues values, FormChoices choices)
+    {
+        var errors = new Dictionary<string, string>();
+        string? name = Checks.Name(values, errors);
+        List<string> slots = StoryletParts.SlotNames(values);
+        string? requires = ExpressionField.Bind(values, StoryletKind.Requires(slots), choices.Expressions, errors);
+        List<CastSlotModel> cast = StoryletParts.BindCast(values, choices.Expressions, errors);
+        int? castCooldown = Checks.OptionalWhole(values, "cooldownCast", 0, null, errors);
+        int? globalCooldown = Checks.OptionalWhole(values, "cooldownGlobal", 0, null, errors);
+        string? script = StoryletParts.BindText(values, "script", errors);
+        string? notes = StoryletParts.Notes(values);
+        List<StoryletOptionModel> options = StoryletParts.BindOptions(values, choices, slots, errors, 0, 2, ChoiceRule, vignette: true);
+        if (options.Count == 1)
+        {
+            errors[StoryletParts.Options.Prefix] = ChoiceRule;
+        }
+
+        // With options, the vignette's own effects wait unsaved in hidden fields, kept for switching back; without, the default does.
+        List<StoryletEffectModel> effects = [];
+        string? chosen = null;
+        if (options.Count == 0)
+        {
+            effects = StoryletParts.BindEffects(values, Effects, slots, handler: false, choices.Expressions, errors);
+            if (FormRows.Read(values, Effects).Count == 0)
+            {
+                errors[Effects.Prefix] = "A vignette with no choice needs at least one effect: what changes when it arrives.";
+            }
+        }
+        else
+        {
+            chosen = values.Get(DefaultField).Trim();
+            if (chosen.Length == 0)
+            {
+                errors[DefaultField] = "Choose the option taken if the captain leaves it.";
+            }
+            else if (options.All(o => o.Id != chosen))
+            {
+                errors[DefaultField] = DefaultGone(chosen);
+            }
+        }
+
+        if (errors.Count > 0)
+        {
+            return new Bound(null, errors);
+        }
+
+        return new Bound(_ => new VignetteModel(id, name, requires, cast, effects, options, chosen, castCooldown, globalCooldown, script, notes), errors);
     }
 }
