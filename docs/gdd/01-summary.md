@@ -1,6 +1,6 @@
 # 1. Summary
 
-A chapter of the [Starship Sim GDD](../gdd.md). Section numbers are permanent ids; cross-references such as "section 4.3" find their chapter through the index.
+A chapter of the [Flagship: Ready Room GDD](../gdd.md). Section numbers are permanent ids; cross-references such as "section 4.3" find their chapter through the index.
 
 The player holds the **chair** of a ship. Each **cycle** they choose missions, pick **away teams**, and then live with the consequences aboard. One player's whole game is a **legacy**. There is no ending and no game over: hulls are lost, captains retire, crew die or leave, and the **chronicle** keeps growing.
 

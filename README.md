@@ -1,4 +1,4 @@
-# Starship Sim
+# Flagship: Ready Room
 
 A starship captain management sim, played in the browser, with a headless simulator for testing the rules.
 

@@ -14,5 +14,5 @@ if [ "$Web__DeveloperMode" = "true" ]; then
 else
   editor="developer mode is off, so there is no content editor"
 fi
-echo "Starship Sim: $address, $editor (database: $PWD/starship-sim.db)"
+echo "Flagship: Ready Room: $address, $editor (database: $PWD/starship-sim.db)"
 exec dotnet run --project src/Web -- "$@"

@@ -19,7 +19,7 @@ if (-not $env:Web__DeveloperMode) {
 $address = ($env:ASPNETCORE_URLS -split ';')[0]
 $editor = if ($env:Web__DeveloperMode -eq 'true') { "the content editor is at $address/dev/content" } else { 'developer mode is off, so there is no content editor' }
 $database = if ($env:Web__DatabasePath) { $env:Web__DatabasePath } else { "$PWD\starship-sim.db" }
-Write-Host "Starship Sim: $address, $editor (database: $database)"
+Write-Host "Flagship: Ready Room: $address, $editor (database: $database)"
 
 dotnet run --project src/Web -- @args
 exit $LASTEXITCODE

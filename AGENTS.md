@@ -10,7 +10,7 @@ Ids, reserved characters, flags, YAML keys, display names, and files. Follow it 
 
 ## The GDD is one file per chapter
 
-`docs/gdd.md` is the index: the status line and the table of chapters by part. Each chapter is `docs/gdd/NN-slug.md`. Section numbers are permanent ids that code, tests, and plans cite ("GDD 4.2"): never renumber a section, give a new chapter the next unused number, and list it in the index under its part with a one-line description. After a change, rebuild and republish the page (`tools/gdd-page/README.md`).
+`docs/gdd.md` is the index: the status line and the table of chapters by part. Each chapter is `docs/gdd/NN-slug.md`. Section numbers are permanent ids that code, tests, and plans cite ("GDD 4.2"): never renumber a section, give a new chapter the next unused number, and list it in the index under its part with a one-line description. After a change, rebuild and republish the pages it touches: Ready Room Progress whenever 11.1, 16, or the status line change, and the whole GDD only when chapters change in substance (`tools/gdd-page/README.md`).
 
 ## `docs/lore/` is Parker's
 

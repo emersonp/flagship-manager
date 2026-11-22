@@ -1,4 +1,4 @@
-<title>Starship Sim GDD</title>
+<title>{{TITLE}}</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
 <style>
@@ -192,9 +192,9 @@ a:focus-visible, button:focus-visible, input:focus-visible { outline: 2px solid 
 <script>document.documentElement.classList.add('js');</script>
 <div class="wrap">
 <aside class="side">
-<div class="brand"><a href="#home">Starship Sim</a><span>GDD {{VERSION}}</span></div>
+<div class="brand"><a href="#home">{{BRAND}}</a><span>{{KIND}} {{VERSION}}</span></div>
 <div class="tools">
-<input type="search" id="q" placeholder="Search the GDD" aria-label="Search the GDD" autocomplete="off">
+<input type="search" id="q" placeholder="{{SEARCH}}" aria-label="{{SEARCH}}" autocomplete="off">
 <button type="button" id="navtoggle" aria-expanded="false" aria-controls="navlist">Chapters</button>
 </div>
 <nav class="navlist" id="navlist" aria-label="Chapters">{{NAV}}</nav>
@@ -222,7 +222,7 @@ a:focus-visible, button:focus-visible, input:focus-visible { outline: 2px solid 
     navItems.forEach(function (li) { li.classList.toggle('on', li.dataset.ch === ch.id); });
     home.classList.toggle('on', ch.id === 'home');
     root.classList.remove('navopen'); $('navtoggle').setAttribute('aria-expanded', 'false');
-    document.title = ch.id === 'home' ? 'Starship Sim GDD' : ch.querySelector('h1 .num').textContent + '. ' + ch.dataset.title + ' · Starship Sim GDD';
+    document.title = ch.id === 'home' ? '{{TITLE}}' : ch.querySelector('h1 .num').textContent + '. ' + ch.dataset.title + ' · {{TITLE}}';
     if (target && target !== ch) target.scrollIntoView(); else window.scrollTo(0, 0);
     markSection();
   }

@@ -1,6 +1,6 @@
 # 15. Decisions from review
 
-A chapter of the [Starship Sim GDD](../gdd.md). Section numbers are permanent ids; cross-references such as "section 4.3" find their chapter through the index.
+A chapter of the [Flagship: Ready Room GDD](../gdd.md). Section numbers are permanent ids; cross-references such as "section 4.3" find their chapter through the index.
 
 Answered by the author on 2026-11-13.
 
@@ -179,3 +179,17 @@ Added to the roadmap by the author on 2026-11-21, from an architectural review o
     - **Saves that last the playtest.** Versions with an upgrade step on each module's stored state, or a content and build freeze for the playtest, designed with the published content snapshots below, before the playtest.
     - **Later.** Modules own their sections of the content before Phase 2; casting and the whole-state commit are measured at about 500 crew before Phase 9 is cut; nothing new assumes one mission a cycle before Phase 7.
     - **Where content lives online:** files in git stay the source. Publishing stores a validated pack in the database as an immutable snapshot named by a hash of its content, each legacy pins one, and moving to a newer one is an explicit upgrade. A hosted editor keeps drafts in the database and saves by committing to git; only a development instance swaps content live.
+
+Decided by the author on 2026-11-22, in a design interview for previews on test ships (design in `docs/plans/2026-11-22-phase-1f-previews-design.md`):
+
+54. **Previews on test ships: real runs, searched and counted.**
+    - **All three of slice 1d's sample surfaces move:** the encounter and objective forms' What plays here, the line form's preview, and the lines list's lint. The synthetic samples and the fixed sample missions go; the chronicle's own samples stay.
+    - **Real runs, never forced facts.** Each preview shows a run on the chosen test ship where its beat holds, found among a pool of seeds, with how often it holds and wins. A line that can never hold at an item is told apart from one that did not happen in the runs.
+    - **Run as the bench runs a real team:** the ship founded in memory, the team built by the launch's own code, the resolver run directly, nothing sent or stored. The form as posted is run, so an edit to an approach changes the counts.
+    - **The preview stops at the mission's result.** The aftermath, and what arrives after it, stay with the storylet previews.
+    - **Teams of the objective's minimum size** from the ship's fit crew, turning by seed; calls answered in turn, so every answer turns up. An encounter runs under every objective that can reach it, and one that nothing can reach is a fault.
+    - **Line criteria stay as they are,** with no facts for traits, morale, or injuries (section 16, question 8). No link from a preview to the bench's replay, which would need a new call policy.
+
+Decided by the author on 2026-11-22:
+
+55. **The game is called Flagship: Ready Room.** It replaces the working title, Starship Sim, in the documents, the GDD's pages, and the browser's default title. Names in code and files (`StarshipSim.slnx`, `starship-sim.db`) are left as they are. The GDD is published as two pages: **Ready Room Progress** (where the build stands, section 11, and the open questions in section 16), republished whenever they change, and the full GDD, republished when its chapters change in substance; each links to the other.

@@ -1,6 +1,6 @@
 # 5. Storylet system
 
-A chapter of the [Starship Sim GDD](../gdd.md). Section numbers are permanent ids; cross-references such as "section 4.3" find their chapter through the index.
+A chapter of the [Flagship: Ready Room GDD](../gdd.md). Section numbers are permanent ids; cross-references such as "section 4.3" find their chapter through the index.
 
 The game uses two narrative structures, named as in Emily Short's survey ("Beyond Branching: Quality-Based and Salience-Based Narrative Structures", 2016), each where it fits:
 

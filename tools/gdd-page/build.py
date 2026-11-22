@@ -1,12 +1,18 @@
-"""Builds the GDD page: one self-contained HTML file from docs/gdd.md (the index) and docs/gdd/*.md (the chapters).
+"""Builds the GDD's pages: self-contained HTML files from docs/gdd.md (the index) and docs/gdd/*.md (the chapters).
 
-    python tools/gdd-page/build.py OUT.html tools/gdd-page/template.html
+    python tools/gdd-page/build.py OUT.html tools/gdd-page/template.html             the whole GDD
+    python tools/gdd-page/build.py OUT.html tools/gdd-page/template.html --progress  Ready Room Progress
+
+The progress page is the overview's "Where the build stands", chapter 11 (the roadmap and section 11.1), and
+chapter 16 (the open questions); a reference to any other section links to the whole GDD's page. The two pages'
+addresses are in pages.json beside this script.
 
 Standard library only. The page shows one chapter at a time, routed on the hash (#s4 for chapter 4,
 #s4-2 for section 4.2), with the parts and chapters in a sidebar, a search over every section, and an
 overview built from the index and the progress table in section 11.1.
 """
 import html
+import json
 import os
 import re
 import sys
@@ -15,6 +21,10 @@ from datetime import date, datetime, time, timedelta, timezone
 HERE = os.path.dirname(os.path.abspath(__file__))
 DOCS = os.path.normpath(os.path.join(HERE, '..', '..', 'docs'))
 OUT, TEMPLATE = sys.argv[1], sys.argv[2]
+PROGRESS = '--progress' in sys.argv[3:]
+NAME = 'Flagship: Ready Room'
+PAGES = json.load(open(os.path.join(HERE, 'pages.json'), encoding='utf-8'))
+LOCAL_CHAPTERS = {11, 16} if PROGRESS else None  # None: every chapter is on this page
 
 
 def pacific_now():
@@ -56,11 +66,12 @@ for l in index:
     elif l.strip() and not l.startswith('|') and not cur['intro']:
         cur['intro'] = l.strip()
 
-order = [c for p in parts for c in p['chapters']]
+all_order = [c for p in parts for c in p['chapters']]
+order = [c for c in all_order if LOCAL_CHAPTERS is None or c[0] in LOCAL_CHAPTERS]
 part_of = {c[0]: p['name'] for p in parts for c in p['chapters']}
-file_to_num = {os.path.basename(c[2]): c[0] for c in order}
+file_to_num = {os.path.basename(c[2]): c[0] for c in all_order}
 chapters = {}
-for num, title, path, desc in order:
+for num, title, path, desc in all_order:
     chapters[num] = open(os.path.join(DOCS, path), encoding='utf-8').read().split('\n')
 
 # Every section id, so cross-references link only to sections that exist.
@@ -76,6 +87,14 @@ def sid(ref):
     return 's' + ref.replace('.', '-')
 
 
+def href(anchor):
+    """A link to a chapter or section: on this page when it is here, otherwise on the other page."""
+    num = int(re.match(r'^s(\d+)', anchor).group(1))
+    if LOCAL_CHAPTERS is None or num in LOCAL_CHAPTERS:
+        return 'href="#%s"' % anchor
+    return 'href="%s#%s" target="_blank" rel="noopener"' % (PAGES['gdd'], anchor)
+
+
 # ---- Inline markdown -----------------------------------------------------------------------------
 
 NUM = r'\d+(?:\.\d+)?'
@@ -84,16 +103,16 @@ LIST = NUM + r'(?:(?:,? and |, or |, | to )' + NUM + r')*'
 
 def link_refs(t):
     def each(s):
-        return re.sub(NUM, lambda m: '<a class="xref" href="#%s">%s</a>' % (sid(m.group(0)), m.group(0)) if m.group(0) in known else m.group(0), s)
+        return re.sub(NUM, lambda m: '<a class="xref" %s>%s</a>' % (href(sid(m.group(0))), m.group(0)) if m.group(0) in known else m.group(0), s)
     t = re.sub(r'\b([Ss]ections? |[Ss]ee )(' + LIST + r')', lambda m: m.group(1) + each(m.group(2)), t)
     t = re.sub(r'\((\d+\.\d+)\)', lambda m: '(' + each(m.group(1)) + ')', t)
-    t = re.sub(r'\b(risk )(\d+)\b', r'<a class="xref" href="#s14">\1\2</a>', t)
+    t = re.sub(r'\b(risk )(\d+)\b', lambda m: '<a class="xref" %s>%s%s</a>' % (href('s14'), m.group(1), m.group(2)), t)
     return t
 
 
 def md_link(m):
     target = file_to_num.get(os.path.basename(m.group(2)))
-    return '<a href="#s%d">%s</a>' % (target, m.group(1)) if target else m.group(1)
+    return '<a %s>%s</a>' % (href('s%d' % target), m.group(1)) if target else m.group(1)
 
 
 def inline(t):
@@ -269,7 +288,7 @@ def render_questions(lines):
 articles, navparts = [], []
 for k, (num, title, path, desc) in enumerate(order):
     lines = chapters[num]
-    body_lines = [l for l in lines[1:] if not l.startswith('A chapter of the [Starship Sim GDD]')]
+    body_lines = [l for l in lines[1:] if not l.startswith('A chapter of the [')]
     body = render_questions(body_lines) if num == 16 else render(body_lines)
     prev_c = order[k - 1] if k else None
     next_c = order[k + 1] if k + 1 < len(order) else None
@@ -293,10 +312,14 @@ def nav_sections(num):
 
 nav = ['<a class="home" href="#home" data-ch="home">Overview</a>']
 for p in parts:
+    if not any(c in order for c in p['chapters']):
+        continue
     nav.append('<p class="part">%s</p><ul class="chs">' % html.escape(p['name']))
-    for num, title, path, desc in p['chapters']:
+    for num, title, path, desc in [c for c in p['chapters'] if c in order]:
         nav.append('<li data-ch="s%d"><a href="#s%d"><span>%d</span>%s</a>%s</li>' % (num, num, num, html.escape(title), nav_sections(num)))
     nav.append('</ul>')
+if PROGRESS:
+    nav.append('<p class="part">Elsewhere</p><ul class="chs"><li><a href="%s" target="_blank" rel="noopener"><span>&#8599;</span>The whole GDD</a></li></ul>' % PAGES['gdd'])
 
 
 # ---- The overview --------------------------------------------------------------------------------
@@ -324,28 +347,36 @@ if current:
         'In progress' if current[3].startswith('In progress') else 'Next', inline(current[1]), inline(current[2])))
 if last_done:
     progress.append('<div class="slice"><p class="label">Last done · %s</p><p class="name">%s</p></div>' % (html.escape(last_done[3][5:]), inline(last_done[1])))
-progress.append('<p class="more"><a href="#s11-1">Every slice, in section 11.1</a></p></section>')
+progress.append('<p class="more"><a %s>Every slice, in section 11.1</a>%s</p></section>' % (
+    href('s11-1'), '' if PROGRESS else ' · <a href="%s" target="_blank" rel="noopener">Ready Room Progress</a>, republished as the build moves' % PAGES['progress']))
 
 cards = []
-for p in parts:
-    items = ''.join('<li><a href="#s%d"><span class="n">%d</span><span class="t">%s</span><span class="d">%s</span></a></li>' % (
-        n, n, html.escape(t), inline(d)) for n, t, f, d in p['chapters'])
+for p in parts if not PROGRESS else []:
+    items = ''.join('<li><a %s><span class="n">%d</span><span class="t">%s</span><span class="d">%s</span></a></li>' % (
+        href('s%d' % n), n, html.escape(t), inline(d)) for n, t, f, d in p['chapters'])
     cards.append('<section class="partcard"><h2>%s</h2><p>%s</p><ul>%s</ul></section>' % (html.escape(p['name']), inline(p['intro']), items))
 
 pt, zone = pacific_now()
 updated = '%s, %s %s' % (pt.strftime('%a %d %b %Y').replace(' 0', ' '), pt.strftime('%I:%M %p').lstrip('0'), zone)
-home = ('<article class="chapter" id="home"><header class="hero"><p class="eyebrow">Game design document · %s · Updated %s</p>'
-        '<h1>Starship Sim</h1>'
+KIND = 'Progress' if PROGRESS else 'Game design document'
+home = ('<article class="chapter" id="home"><header class="hero"><p class="eyebrow">' + KIND + ' · %s · Updated %s</p>'
+        '<h1>' + NAME + '</h1>'
         '<p class="lede">Hold the chair of a ship. Choose who goes, who leads, and who stays; then live with what follows aboard. '
         'Skill, experience, loyalty, and the crew\'s own qualities all pull on every choice, and the consequences stay. One player\'s whole game is a legacy.</p>'
         '<p class="status">%s</p>%s</header>%s<div class="parts">%s</div></article>') % (
-    version, updated, inline(status[len('Status: '):]), ''.join('<p class="status">' + inline(p) + '</p>' for p in preface),
+    version, updated, inline(status[len('Status: '):]),
+    ('<p class="status">The roadmap and the open questions, from the GDD. Every other section is in <a href="%s" target="_blank" rel="noopener">the whole GDD</a>, which is republished when its chapters change.</p>' % PAGES['gdd'])
+    if PROGRESS else ''.join('<p class="status">' + inline(p) + '</p>' for p in preface),
     '\n'.join(progress), '\n'.join(cards))
 
 tpl = open(TEMPLATE, encoding='utf-8').read()
 page = (tpl.replace('{{NAV}}', '\n'.join(nav))
            .replace('{{BODY}}', home + '\n' + '\n'.join(articles))
            .replace('{{UPDATED}}', html.escape(updated))
-           .replace('{{VERSION}}', version))
+           .replace('{{VERSION}}', version)
+           .replace('{{TITLE}}', 'Ready Room Progress' if PROGRESS else NAME + ' GDD')
+           .replace('{{BRAND}}', NAME)
+           .replace('{{KIND}}', 'Progress' if PROGRESS else 'GDD')
+           .replace('{{SEARCH}}', 'Search the roadmap' if PROGRESS else 'Search the GDD'))
 open(OUT, 'w', encoding='utf-8').write(page)
-print('%d chapters in %d parts; %s; updated %s' % (len(order), len(parts), version, updated))
+print('%s: %d chapters; %s; updated %s' % ('Progress' if PROGRESS else 'GDD', len(order), version, updated))

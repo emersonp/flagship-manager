@@ -1,4 +1,4 @@
-# Starship Sim
+# Flagship: Ready Room
 
 An open-ended starship management sim: the player holds the chair of a ship whose name outlives its hulls, captains, and crew. This glossary fixes the systems vocabulary; all in-fiction names are the author's to write.
 

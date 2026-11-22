@@ -1,4 +1,4 @@
-# Map: Starship Sim design
+# Map: Flagship: Ready Room design
 
 Tracker: this folder of markdown (to be migrated). No ticket files yet, by request; open tickets will be `wayfinder/tickets/*.md` when created.
 

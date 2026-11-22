@@ -1,6 +1,6 @@
 # 6. Narrative report generation
 
-A chapter of the [Starship Sim GDD](../gdd.md). Section numbers are permanent ids; cross-references such as "section 4.3" find their chapter through the index.
+A chapter of the [Flagship: Ready Room GDD](../gdd.md). Section numbers are permanent ids; cross-references such as "section 4.3" find their chapter through the index.
 
 - **Input**: beats. A beat is `{ kind, actors, encounterId, variant, approach, tier, tags, context }`. The `approach` is the id of one of the encounter's own approaches, a string, so a shared line cannot test for "careful" or "fast" as such; an encounter's own lines may test its own approach ids. The log's roll detail names the approach by its name.
 - **Engine**: a Tracery-style grammar, expanded with a seed derived from the legacy, mission, and beat index. The same input always gives the same text.

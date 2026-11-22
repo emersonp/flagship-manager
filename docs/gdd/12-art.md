@@ -1,6 +1,6 @@
 # 12. Art
 
-A chapter of the [Starship Sim GDD](../gdd.md). Section numbers are permanent ids; cross-references such as "section 4.3" find their chapter through the index.
+A chapter of the [Flagship: Ready Room GDD](../gdd.md). Section numbers are permanent ids; cross-references such as "section 4.3" find their chapter through the index.
 
 - **Portraits**: each part is a transparent PNG drawn on a shared canvas with fixed anchor points, in greyscale where it will be tinted. Layer order is fixed: back hair, body and uniform, head, species features, face, front hair, and rank marks. Tints are applied per layer in code. A portrait is fully described by its spec, so it is reproducible and cacheable.
 - **Consistency rules**: one brush, one line weight, a fixed palette for skin, hair, and uniform tints, and one light direction. A contact sheet of random portraits is generated on every part added, to catch parts that clash.
